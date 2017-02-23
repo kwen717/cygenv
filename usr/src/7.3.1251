@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1251
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1251
+Problem:    Test 61 messes up viminfo.
+Solution:   Specify a separate viminfo file.
+Files:	    src/testdir/test61.in
+
+
+*** ../vim-7.3.1250/src/testdir/test61.in	2013-06-15 17:54:36.000000000 +0200
+--- src/testdir/test61.in	2013-06-26 21:54:00.000000000 +0200
+***************
+*** 85,91 ****
+  ggO---:0put a
+  ggO---:w >>test.out
+  :so small.vim
+! :set nocp
+  :enew!
+  oa
+  :set ul=100
+--- 85,91 ----
+  ggO---:0put a
+  ggO---:w >>test.out
+  :so small.vim
+! :set nocp viminfo+=nviminfo
+  :enew!
+  oa
+  :set ul=100
+*** ../vim-7.3.1250/src/version.c	2013-06-26 21:49:46.000000000 +0200
+--- src/version.c	2013-06-26 21:54:43.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1251,
+  /**/
+
+-- 
+Yah, well, we had to carve our electrons out of driftwood we'd
+find.  In the winter.  Uphill.  Both ways.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

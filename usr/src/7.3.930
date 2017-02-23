@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.930
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.930
+Problem:    MSVC 2012 update is not recognized.
+Solution:   Update the version in the makefile. (Raymond Ko)
+Files:	    src/Make_mvc.mak
+
+
+*** ../vim-7.3.929/src/Make_mvc.mak	2013-05-06 04:21:35.000000000 +0200
+--- src/Make_mvc.mak	2013-05-07 05:08:08.000000000 +0200
+***************
+*** 416,421 ****
+--- 416,424 ----
+  !if "$(_NMAKE_VER)" == "11.00.51106.1"
+  MSVCVER = 11.0
+  !endif
++ !if "$(_NMAKE_VER)" == "11.00.60315.1"
++ MSVCVER = 11.0
++ !endif
+  !endif
+  
+  # Abort building VIM if version of VC is unrecognised.
+*** ../vim-7.3.929/src/version.c	2013-05-06 06:45:42.000000000 +0200
+--- src/version.c	2013-05-07 05:09:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     930,
+  /**/
+
+-- 
+Life would be so much easier if we could just look at the source code.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

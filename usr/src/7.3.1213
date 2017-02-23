@@ -1,0 +1,287 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1213
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1213
+Problem:    Can't build with small features and Python.
+Solution:   Adjust #ifdefs.
+Files:	    src/eval.c, src/buffer.c, src/window.c
+
+
+*** ../vim-7.3.1212/src/eval.c	2013-06-16 14:18:20.000000000 +0200
+--- src/eval.c	2013-06-16 17:24:32.000000000 +0200
+***************
+*** 112,118 ****
+--- 112,120 ----
+  static char *e_letwrong = N_("E734: Wrong variable type for %s=");
+  static char *e_nofunc = N_("E130: Unknown function: %s");
+  static char *e_illvar = N_("E461: Illegal variable name: %s");
++ #ifdef FEAT_FLOAT
+  static char *e_float_as_string = N_("E806: using Float as a String");
++ #endif
+  
+  static dictitem_T	globvars_var;		/* variable used for g: */
+  #define globvarht globvardict.dv_hashtab
+***************
+*** 11882,11888 ****
+      static win_T *
+  find_win_by_nr(vp, tp)
+      typval_T	*vp;
+!     tabpage_T	*tp;	    /* NULL for current tab page */
+  {
+  #ifdef FEAT_WINDOWS
+      win_T	*wp;
+--- 11884,11890 ----
+      static win_T *
+  find_win_by_nr(vp, tp)
+      typval_T	*vp;
+!     tabpage_T	*tp UNUSED;	/* NULL for current tab page */
+  {
+  #ifdef FEAT_WINDOWS
+      win_T	*wp;
+***************
+*** 11932,11938 ****
+      win_T	*win, *oldcurwin;
+      char_u	*varname;
+      dictitem_T	*v;
+!     tabpage_T	*tp, *oldtabpage;
+      int		done = FALSE;
+  
+  #ifdef FEAT_WINDOWS
+--- 11934,11941 ----
+      win_T	*win, *oldcurwin;
+      char_u	*varname;
+      dictitem_T	*v;
+!     tabpage_T	*tp = NULL;
+!     tabpage_T	*oldtabpage;
+      int		done = FALSE;
+  
+  #ifdef FEAT_WINDOWS
+***************
+*** 16683,16706 ****
+      typval_T	*argvars;
+      typval_T	*rettv;
+  {
+      tabpage_T	*save_curtab;
+      char_u	*varname, *tabvarname;
+      typval_T	*varp;
+-     tabpage_T	*tp;
+  
+      rettv->vval.v_number = 0;
+  
+      if (check_restricted() || check_secure())
+  	return;
+  
+      tp = find_tabpage((int)get_tv_number_chk(&argvars[0], NULL));
+      varname = get_tv_string_chk(&argvars[1]);
+      varp = &argvars[2];
+  
+!     if (tp != NULL && varname != NULL && varp != NULL)
+      {
+  	save_curtab = curtab;
+  	goto_tabpage_tp(tp, FALSE, FALSE);
+  
+  	tabvarname = alloc((unsigned)STRLEN(varname) + 3);
+  	if (tabvarname != NULL)
+--- 16686,16719 ----
+      typval_T	*argvars;
+      typval_T	*rettv;
+  {
++ #ifdef FEAT_WINDOWS
+      tabpage_T	*save_curtab;
++     tabpage_T	*tp;
++ #endif
+      char_u	*varname, *tabvarname;
+      typval_T	*varp;
+  
+      rettv->vval.v_number = 0;
+  
+      if (check_restricted() || check_secure())
+  	return;
+  
++ #ifdef FEAT_WINDOWS
+      tp = find_tabpage((int)get_tv_number_chk(&argvars[0], NULL));
++ #endif
+      varname = get_tv_string_chk(&argvars[1]);
+      varp = &argvars[2];
+  
+!     if (varname != NULL && varp != NULL
+! #ifdef FEAT_WINDOWS
+! 	    && tp != NULL
+! #endif
+! 	    )
+      {
++ #ifdef FEAT_WINDOWS
+  	save_curtab = curtab;
+  	goto_tabpage_tp(tp, FALSE, FALSE);
++ #endif
+  
+  	tabvarname = alloc((unsigned)STRLEN(varname) + 3);
+  	if (tabvarname != NULL)
+***************
+*** 16711,16719 ****
+--- 16724,16734 ----
+  	    vim_free(tabvarname);
+  	}
+  
++ #ifdef FEAT_WINDOWS
+  	/* Restore current tabpage */
+  	if (valid_tabpage(save_curtab))
+  	    goto_tabpage_tp(save_curtab, FALSE, FALSE);
++ #endif
+      }
+  }
+  
+***************
+*** 16757,16763 ****
+      char_u	*varname, *winvarname;
+      typval_T	*varp;
+      char_u	nbuf[NUMBUFLEN];
+!     tabpage_T	*tp;
+  
+      if (check_restricted() || check_secure())
+  	return;
+--- 16772,16778 ----
+      char_u	*varname, *winvarname;
+      typval_T	*varp;
+      char_u	nbuf[NUMBUFLEN];
+!     tabpage_T	*tp = NULL;
+  
+      if (check_restricted() || check_secure())
+  	return;
+*** ../vim-7.3.1212/src/buffer.c	2013-06-08 18:19:39.000000000 +0200
+--- src/buffer.c	2013-06-16 17:14:14.000000000 +0200
+***************
+*** 984,989 ****
+--- 984,993 ----
+  
+      return errormsg;
+  }
++ #endif /* FEAT_LISTCMDS */
++ 
++ #if defined(FEAT_LISTCMDS) || defined(FEAT_PYTHON) \
++ 	|| defined(FEAT_PYTHON3) || defined(PROTO)
+  
+  /*
+   * Implementation of the commands for the buffer list.
+***************
+*** 1364,1371 ****
+  
+      return OK;
+  }
+! 
+! #endif /* FEAT_LISTCMDS */
+  
+  /*
+   * Set current buffer to "buf".  Executes autocommands and closes current
+--- 1368,1374 ----
+  
+      return OK;
+  }
+! #endif
+  
+  /*
+   * Set current buffer to "buf".  Executes autocommands and closes current
+*** ../vim-7.3.1212/src/window.c	2013-06-16 14:18:20.000000000 +0200
+--- src/window.c	2013-06-16 17:25:11.000000000 +0200
+***************
+*** 6582,6592 ****
+   */
+      int
+  switch_win(save_curwin, save_curtab, win, tp, no_display)
+!     win_T	**save_curwin;
+!     tabpage_T	**save_curtab;
+!     win_T	*win;
+!     tabpage_T	*tp;
+!     int		no_display;
+  {
+  # ifdef FEAT_AUTOCMD
+      block_autocmds();
+--- 6582,6592 ----
+   */
+      int
+  switch_win(save_curwin, save_curtab, win, tp, no_display)
+!     win_T	**save_curwin UNUSED;
+!     tabpage_T	**save_curtab UNUSED;
+!     win_T	*win UNUSED;
+!     tabpage_T	*tp UNUSED;
+!     int		no_display UNUSED;
+  {
+  # ifdef FEAT_AUTOCMD
+      block_autocmds();
+***************
+*** 6627,6635 ****
+   */
+      void
+  restore_win(save_curwin, save_curtab, no_display)
+!     win_T	*save_curwin;
+!     tabpage_T	*save_curtab;
+!     int		no_display;
+  {
+  # ifdef FEAT_WINDOWS
+      if (save_curtab != NULL && valid_tabpage(save_curtab))
+--- 6627,6635 ----
+   */
+      void
+  restore_win(save_curwin, save_curtab, no_display)
+!     win_T	*save_curwin UNUSED;
+!     tabpage_T	*save_curtab UNUSED;
+!     int		no_display UNUSED;
+  {
+  # ifdef FEAT_WINDOWS
+      if (save_curtab != NULL && valid_tabpage(save_curtab))
+***************
+*** 6906,6914 ****
+  }
+  
+      int
+! get_tab_number(tabpage_T *tp)
+  {
+      int		i = 1;
+      tabpage_T	*t;
+  
+      for (t = first_tabpage; t != NULL && t != tp; t = t->tp_next)
+--- 6906,6915 ----
+  }
+  
+      int
+! get_tab_number(tabpage_T *tp UNUSED)
+  {
+      int		i = 1;
++ # ifdef FEAT_WINDOWS
+      tabpage_T	*t;
+  
+      for (t = first_tabpage; t != NULL && t != tp; t = t->tp_next)
+***************
+*** 6917,6922 ****
+--- 6918,6924 ----
+      if (t == NULL)
+  	return 0;
+      else
++ # endif
+  	return i;
+  }
+  #endif
+*** ../vim-7.3.1212/src/version.c	2013-06-16 16:57:43.000000000 +0200
+--- src/version.c	2013-06-16 17:30:40.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1213,
+  /**/
+
+-- 
+You can tune a file system, but you can't tuna fish
+							-- man tunefs
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

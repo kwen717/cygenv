@@ -1,0 +1,159 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.858
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.858
+Problem:    "gv" selects the wrong area after some operators.
+Solution:   Save and restore the type of selection. (Christian Brabandt)
+Files:	    src/testdir/test66.in, src/testdir/test66.ok, src/normal.c
+
+
+*** ../vim-7.3.857/src/testdir/test66.in	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test66.in	2013-03-13 18:42:46.000000000 +0100
+***************
+*** 3,14 ****
+  
+  STARTTEST
+  :so small.vim
+  /^abcdefgh
+  4jI    j<<11|D
+  7|a		
+  7|a		   
+  7|a	       	4k13|4j<
+! :$-4,$w! test.out
+  :$-4,$s/\s\+//g
+  4kI    j<<
+  7|a		
+--- 3,16 ----
+  
+  STARTTEST
+  :so small.vim
++ /^one
++ fe4jRugvr1:'<,'>w! test.out
+  /^abcdefgh
+  4jI    j<<11|D
+  7|a		
+  7|a		   
+  7|a	       	4k13|4j<
+! :$-5,$w >> test.out
+  :$-4,$s/\s\+//g
+  4kI    j<<
+  7|a		
+***************
+*** 18,23 ****
+--- 20,31 ----
+  :qa!
+  ENDTEST
+  
++ one two three
++ one two three
++ one two three
++ one two three
++ one two three
++ 
+  abcdefghijklmnopqrstuvwxyz
+  abcdefghijklmnopqrstuvwxyz
+  abcdefghijklmnopqrstuvwxyz
+*** ../vim-7.3.857/src/testdir/test66.ok	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test66.ok	2013-03-13 18:42:46.000000000 +0100
+***************
+*** 1,3 ****
+--- 1,9 ----
++ on1 two three
++ on1 two three
++ on1 two three
++ on1 two three
++ on1 two three
++ 
+      abcdefghijklmnopqrstuvwxyz
+  abcdefghij
+      abc	    defghijklmnopqrstuvwxyz
+*** ../vim-7.3.857/src/normal.c	2013-02-26 13:30:28.000000000 +0100
+--- src/normal.c	2013-03-13 18:47:49.000000000 +0100
+***************
+*** 21,26 ****
+--- 21,27 ----
+  static int	resel_VIsual_mode = NUL;	/* 'v', 'V', or Ctrl-V */
+  static linenr_T	resel_VIsual_line_count;	/* number of lines */
+  static colnr_T	resel_VIsual_vcol;		/* nr of cols or end col */
++ static int	VIsual_mode_orig = NUL;         /* type of Visual mode, that user entered */
+  
+  static int	restart_VIsual_select = 0;
+  #endif
+***************
+*** 1594,1599 ****
+--- 1595,1605 ----
+  		curbuf->b_visual.vi_start = VIsual;
+  		curbuf->b_visual.vi_end = curwin->w_cursor;
+  		curbuf->b_visual.vi_mode = VIsual_mode;
++ 		if (VIsual_mode_orig != NUL)
++ 		{
++ 		    curbuf->b_visual.vi_mode = VIsual_mode_orig;
++ 		    VIsual_mode_orig = NUL;
++ 		}
+  		curbuf->b_visual.vi_curswant = curwin->w_curswant;
+  # ifdef FEAT_EVAL
+  		curbuf->b_visual_mode_eval = VIsual_mode;
+***************
+*** 7230,7235 ****
+--- 7236,7242 ----
+      {
+  	cap->cmdchar = 'c';
+  	cap->nchar = NUL;
++ 	VIsual_mode_orig = VIsual_mode; /* remember original area for gv */
+  	VIsual_mode = 'V';
+  	nv_operator(cap);
+      }
+***************
+*** 7429,7435 ****
+--- 7436,7445 ----
+      if (isupper(cap->cmdchar))
+      {
+  	if (VIsual_mode != Ctrl_V)
++ 	{
++ 	    VIsual_mode_orig = VIsual_mode;
+  	    VIsual_mode = 'V';
++ 	}
+  	else if (cap->cmdchar == 'C' || cap->cmdchar == 'D')
+  	    curwin->w_curswant = MAXCOL;
+      }
+***************
+*** 7449,7455 ****
+--- 7459,7468 ----
+      if (VIsual_active)	/* "vs" and "vS" are the same as "vc" */
+      {
+  	if (cap->cmdchar == 'S')
++ 	{
++ 	    VIsual_mode_orig = VIsual_mode;
+  	    VIsual_mode = 'V';
++ 	}
+  	cap->cmdchar = 'c';
+  	nv_operator(cap);
+      }
+*** ../vim-7.3.857/src/version.c	2013-03-13 18:30:39.000000000 +0100
+--- src/version.c	2013-03-13 18:48:50.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     858,
+  /**/
+
+-- 
+"Oh, no!  NOT the Spanish Inquisition!"
+"NOBODY expects the Spanish Inquisition!!!"
+				-- Monty Python sketch --
+"Oh, no!  NOT another option!"
+"EVERYBODY expects another option!!!"
+				-- Discussion in vim-dev mailing list --
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

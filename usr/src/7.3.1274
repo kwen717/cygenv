@@ -1,0 +1,125 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1274
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1274
+Problem:    When selecting an entry from a location list it may pick an
+	    arbitrary window or open a new one.
+Solution:   Prefer using a window related to the location list. (Lech Lorens)
+Files:	    src/quickfix.c
+
+
+*** ../vim-7.3.1273/src/quickfix.c	2013-06-30 13:33:53.000000000 +0200
+--- src/quickfix.c	2013-06-30 13:48:25.000000000 +0200
+***************
+*** 1616,1621 ****
+--- 1616,1623 ----
+       */
+      if (bt_quickfix(curbuf) && !opened_window)
+      {
++ 	win_T *usable_win_ptr = NULL;
++ 
+  	/*
+  	 * If there is no file specified, we don't know where to go.
+  	 * But do advance, otherwise ":cn" gets stuck.
+***************
+*** 1623,1636 ****
+  	if (qf_ptr->qf_fnum == 0)
+  	    goto theend;
+  
+- 	/* Locate a window showing a normal buffer */
+  	usable_win = 0;
+! 	FOR_ALL_WINDOWS(win)
+! 	    if (win->w_buffer->b_p_bt[0] == NUL)
+! 	    {
+! 		usable_win = 1;
+! 		break;
+! 	    }
+  
+  	/*
+  	 * If no usable window is found and 'switchbuf' contains "usetab"
+--- 1625,1653 ----
+  	if (qf_ptr->qf_fnum == 0)
+  	    goto theend;
+  
+  	usable_win = 0;
+! 
+! 	ll_ref = curwin->w_llist_ref;
+! 	if (ll_ref != NULL)
+! 	{
+! 	    /* Find a window using the same location list that is not a
+! 	     * quickfix window. */
+! 	    FOR_ALL_WINDOWS(usable_win_ptr)
+! 		if (usable_win_ptr->w_llist == ll_ref
+! 			&& usable_win_ptr->w_buffer->b_p_bt[0] != 'q')
+! 		    break;
+! 	}
+! 
+! 	if (!usable_win)
+! 	{
+! 	    /* Locate a window showing a normal buffer */
+! 	    FOR_ALL_WINDOWS(win)
+! 		if (win->w_buffer->b_p_bt[0] == NUL)
+! 		{
+! 		    usable_win = 1;
+! 		    break;
+! 		}
+! 	}
+  
+  	/*
+  	 * If no usable window is found and 'switchbuf' contains "usetab"
+***************
+*** 1659,1666 ****
+  	 */
+  	if (((firstwin == lastwin) && bt_quickfix(curbuf)) || !usable_win)
+  	{
+- 	    ll_ref = curwin->w_llist_ref;
+- 
+  	    flags = WSP_ABOVE;
+  	    if (ll_ref != NULL)
+  		flags |= WSP_NEWLOC;
+--- 1676,1681 ----
+***************
+*** 1683,1694 ****
+  	    if (curwin->w_llist_ref != NULL)
+  	    {
+  		/* In a location window */
+! 		ll_ref = curwin->w_llist_ref;
+! 
+! 		/* Find the window with the same location list */
+! 		FOR_ALL_WINDOWS(win)
+! 		    if (win->w_llist == ll_ref)
+! 			break;
+  		if (win == NULL)
+  		{
+  		    /* Find the window showing the selected file */
+--- 1698,1704 ----
+  	    if (curwin->w_llist_ref != NULL)
+  	    {
+  		/* In a location window */
+! 		win = usable_win_ptr;
+  		if (win == NULL)
+  		{
+  		    /* Find the window showing the selected file */
+*** ../vim-7.3.1273/src/version.c	2013-06-30 13:33:53.000000000 +0200
+--- src/version.c	2013-06-30 13:56:35.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1274,
+  /**/
+
+-- 
+Witches prefer brooms: vacuum-cleaners need extension cords!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

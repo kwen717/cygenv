@@ -1,0 +1,286 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1248
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1248
+Problem:    Still have old hacking code for Input Method.
+Solution:   Add 'imactivatefunc' and 'imstatusfunc' as a generic solution to
+	    Input Method activation. (Yukihiro Nakadaira)
+Files:	    runtime/doc/options.txt, src/fileio.c, src/mbyte.c, src/option.c,
+	    src/option.h, src/proto/fileio.pro
+
+
+*** ../vim-7.3.1247/runtime/doc/options.txt	2013-06-04 22:13:45.000000000 +0200
+--- runtime/doc/options.txt	2013-06-26 19:00:28.000000000 +0200
+***************
+*** 3937,3942 ****
+--- 3993,4018 ----
+  	Can be overruled by using "\c" or "\C" in the pattern, see
+  	|/ignorecase|.
+  
++ 						*'imactivatefunc'* *'imaf'*
++ 'imactivatefunc' 'imaf'	string (default "")
++ 			global
++ 			{not in Vi}
++ 			{only available when compiled with |+xim| and
++ 			|+GUI_GTK|}
++ 	This option specifies a function that will be called to
++ 	activate/inactivate Input Method.
++ 
++ 	Example: >
++ 		function ImActivateFunc(active)
++ 		  if a:active
++ 		    ... do something
++ 		  else
++ 		    ... do something
++ 		  endif
++ 		  " return value is not used
++ 		endfunction
++ 		set imactivatefunc=ImActivateFunc
++ <
+  						*'imactivatekey'* *'imak'*
+  'imactivatekey' 'imak'	string (default "")
+  			global
+***************
+*** 4033,4038 ****
+--- 4109,4132 ----
+  	The value 0 may not work correctly with Athena and Motif with some XIM
+  	methods.  Use 'imdisable' to disable XIM then.
+  
++ 						*'imstatusfunc'* *'imsf'*
++ 'imstatusfunc' 'imsf'	string (default "")
++ 			global
++ 			{not in Vi}
++ 			{only available when compiled with |+xim| and
++ 			|+GUI_GTK|}
++ 	This option specifies a function that is called to obtain the status
++ 	of Input Method.  It must return a positive number when IME is active.
++ 
++ 	Example: >
++ 		function ImStatusFunc()
++ 		  let is_active = ...do something
++ 		  return is_active ? 1 : 0
++ 		endfunction
++ 		set imstatusfunc=ImStatusFunc
++ <
++ 	NOTE: This function is invoked very often.  Keep it fast.
++ 
+  						*'include'* *'inc'*
+  'include' 'inc'		string	(default "^\s*#\s*include")
+  			global or local to buffer |global-local|
+*** ../vim-7.3.1247/src/fileio.c	2013-06-12 22:41:30.000000000 +0200
+--- src/fileio.c	2013-06-26 18:41:39.000000000 +0200
+***************
+*** 9572,9577 ****
+--- 9572,9583 ----
+  # endif
+  }
+  
++     int
++ is_autocmd_blocked()
++ {
++     return autocmd_blocked != 0;
++ }
++ 
+  /*
+   * Find next autocommand pattern that matches.
+   */
+*** ../vim-7.3.1247/src/mbyte.c	2013-05-06 04:21:35.000000000 +0200
+--- src/mbyte.c	2013-06-26 19:10:41.000000000 +0200
+***************
+*** 4447,4453 ****
+  {
+      int was_active;
+  
+!     was_active = !!im_is_active;
+      im_is_active = (active && !p_imdisable);
+  
+      if (im_is_active != was_active)
+--- 4447,4453 ----
+  {
+      int was_active;
+  
+!     was_active = !!im_get_status();
+      im_is_active = (active && !p_imdisable);
+  
+      if (im_is_active != was_active)
+***************
+*** 5071,5114 ****
+  {
+      if (xic != NULL)
+      {
+- 	/*
+- 	 * The third-party imhangul module (and maybe others too) ignores
+- 	 * gtk_im_context_reset() or at least doesn't reset the active state.
+- 	 * Thus sending imactivatekey would turn it off if it was on before,
+- 	 * which is clearly not what we want.  Fortunately we can work around
+- 	 * that for imhangul by sending GDK_Escape, but I don't know if it
+- 	 * works with all IM modules that support an activation key :/
+- 	 *
+- 	 * An alternative approach would be to destroy the IM context and
+- 	 * recreate it.  But that means loading/unloading the IM module on
+- 	 * every mode switch, which causes a quite noticeable delay even on
+- 	 * my rather fast box...
+- 	 * *
+- 	 * Moreover, there are some XIM which cannot respond to
+- 	 * im_synthesize_keypress(). we hope that they reset by
+- 	 * xim_shutdown().
+- 	 */
+- 	if (im_activatekey_keyval != GDK_VoidSymbol && im_is_active)
+- 	    im_synthesize_keypress(GDK_Escape, 0U);
+- 
+  	gtk_im_context_reset(xic);
+  
+- 	/*
+- 	 * HACK for Ami: This sequence of function calls makes Ami handle
+- 	 * the IM reset graciously, without breaking loads of other stuff.
+- 	 * It seems to force English mode as well, which is exactly what we
+- 	 * want because it makes the Ami status display work reliably.
+- 	 */
+- 	gtk_im_context_set_use_preedit(xic, FALSE);
+- 
+  	if (p_imdisable)
+  	    im_shutdown();
+  	else
+  	{
+- 	    gtk_im_context_set_use_preedit(xic, TRUE);
+  	    xim_set_focus(gui.in_focus);
+  
+! 	    if (im_activatekey_keyval != GDK_VoidSymbol)
+  	    {
+  		if (im_is_active)
+  		{
+--- 5071,5095 ----
+  {
+      if (xic != NULL)
+      {
+  	gtk_im_context_reset(xic);
+  
+  	if (p_imdisable)
+  	    im_shutdown();
+  	else
+  	{
+  	    xim_set_focus(gui.in_focus);
+  
+! 	    if (p_imaf[0] != NUL)
+! 	    {
+! 		char_u *argv[1];
+! 
+! 		if (im_is_active)
+! 		    argv[0] = (char_u *)"1";
+! 		else
+! 		    argv[0] = (char_u *)"0";
+! 		(void)call_func_retnr(p_imaf, 1, argv, FALSE);
+! 	    }
+! 	    else if (im_activatekey_keyval != GDK_VoidSymbol)
+  	    {
+  		if (im_is_active)
+  		{
+***************
+*** 5268,5273 ****
+--- 5249,5268 ----
+      int
+  im_get_status(void)
+  {
++     if (p_imsf[0] != NUL)
++     {
++ 	int is_active;
++ 
++ 	/* FIXME: Don't execute user function in unsafe situation. */
++ 	if (exiting || is_autocmd_blocked())
++ 	    return FALSE;
++ 	/* FIXME: :py print 'xxx' is shown duplicate result.
++ 	 * Use silent to avoid it. */
++ 	++msg_silent;
++ 	is_active = call_func_retnr(p_imsf, 0, NULL, FALSE);
++ 	--msg_silent;
++ 	return (is_active > 0);
++     }
+      return im_is_active;
+  }
+  
+*** ../vim-7.3.1247/src/option.c	2013-06-16 16:01:20.000000000 +0200
+--- src/option.c	2013-06-26 18:41:39.000000000 +0200
+***************
+*** 1425,1430 ****
+--- 1425,1439 ----
+      {"ignorecase",  "ic",   P_BOOL|P_VI_DEF,
+  			    (char_u *)&p_ic, PV_NONE,
+  			    {(char_u *)FALSE, (char_u *)0L} SCRIPTID_INIT},
++     {"imactivatefunc","imaf",P_STRING|P_VI_DEF|P_SECURE,
++ # if defined(FEAT_EVAL) && defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
++ 			    (char_u *)&p_imaf, PV_NONE,
++ 			    {(char_u *)"", (char_u *)NULL}
++ # else
++ 			    (char_u *)NULL, PV_NONE,
++ 			    {(char_u *)NULL, (char_u *)0L}
++ # endif
++ 			    SCRIPTID_INIT},
+      {"imactivatekey","imak",P_STRING|P_VI_DEF,
+  #if defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
+  			    (char_u *)&p_imak, PV_NONE,
+***************
+*** 1467,1472 ****
+--- 1476,1490 ----
+  			    {(char_u *)B_IMODE_NONE, (char_u *)0L}
+  #endif
+  			    SCRIPTID_INIT},
++     {"imstatusfunc","imse",P_STRING|P_VI_DEF|P_SECURE,
++ # if defined(FEAT_EVAL) && defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
++ 			    (char_u *)&p_imsf, PV_NONE,
++ 			    {(char_u *)"", (char_u *)NULL}
++ # else
++ 			    (char_u *)NULL, PV_NONE,
++ 			    {(char_u *)NULL, (char_u *)0L}
++ # endif
++ 			    SCRIPTID_INIT},
+      {"include",	    "inc",  P_STRING|P_ALLOCED|P_VI_DEF,
+  #ifdef FEAT_FIND_ID
+  			    (char_u *)&p_inc, PV_INC,
+*** ../vim-7.3.1247/src/option.h	2013-05-19 19:16:25.000000000 +0200
+--- src/option.h	2013-06-26 18:41:39.000000000 +0200
+***************
+*** 558,563 ****
+--- 558,565 ----
+  EXTERN int	p_ic;		/* 'ignorecase' */
+  #if defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
+  EXTERN char_u	*p_imak;	/* 'imactivatekey' */
++ EXTERN char_u	*p_imaf;	/* 'imactivatefunc' */
++ EXTERN char_u	*p_imsf;	/* 'imstatusfunc' */
+  #endif
+  #ifdef USE_IM_CONTROL
+  EXTERN int	p_imcmdline;	/* 'imcmdline' */
+*** ../vim-7.3.1247/src/proto/fileio.pro	2013-03-19 13:33:18.000000000 +0100
+--- src/proto/fileio.pro	2013-06-26 18:45:49.000000000 +0200
+***************
+*** 49,54 ****
+--- 49,55 ----
+  int has_insertcharpre __ARGS((void));
+  void block_autocmds __ARGS((void));
+  void unblock_autocmds __ARGS((void));
++ int is_autocmd_blocked __ARGS((void));
+  char_u *getnextac __ARGS((int c, void *cookie, int indent));
+  int has_autocmd __ARGS((event_T event, char_u *sfname, buf_T *buf));
+  char_u *get_augroup_name __ARGS((expand_T *xp, int idx));
+*** ../vim-7.3.1247/src/version.c	2013-06-26 18:16:55.000000000 +0200
+--- src/version.c	2013-06-26 19:12:37.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1248,
+  /**/
+
+-- 
+I'd like to meet the man who invented sex and see what he's working on now.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

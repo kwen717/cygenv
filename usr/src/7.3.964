@@ -1,0 +1,405 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.964
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.964
+Problem:    Python: not so easy to access tab pages.
+Solution:   Add window.tabpage, make window.number work with non-current tab
+	    pages. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/if_py_both.h, src/if_python3.c,
+	    src/if_python.c, src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.963/runtime/doc/if_pyth.txt	2013-05-15 18:28:08.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-17 16:07:16.000000000 +0200
+***************
+*** 433,440 ****
+  				This is zero in case it cannot be determined
+  				(e.g. when the window object belongs to other
+  				tab page).
+!  	row, col (read-only)	On-screen window position in display cells.
+  				First position is zero.
+  
+  The height attribute is writable only if the screen is split horizontally.
+  The width attribute is writable only if the screen is split vertically.
+--- 433,441 ----
+  				This is zero in case it cannot be determined
+  				(e.g. when the window object belongs to other
+  				tab page).
+! 	row, col (read-only)	On-screen window position in display cells.
+  				First position is zero.
++ 	tabpage (read-only)	Window tab page.
+  
+  The height attribute is writable only if the screen is split horizontally.
+  The width attribute is writable only if the screen is split vertically.
+***************
+*** 490,496 ****
+  <							*:py3file*
+  The |:py3file| command works similar to |:pyfile|.
+  
+! 							*:py3do*
+  :[range]py3do {body}	Execute Python function "def _vim_pydo(line, linenr):
+  			{body}" for each line in the [range], with the
+  			function arguments being set to the text of each line
+--- 491,497 ----
+  <							*:py3file*
+  The |:py3file| command works similar to |:pyfile|.
+  
+! 							*:py3do* *E863*
+  :[range]py3do {body}	Execute Python function "def _vim_pydo(line, linenr):
+  			{body}" for each line in the [range], with the
+  			function arguments being set to the text of each line
+*** ../vim-7.3.963/src/if_py_both.h	2013-05-17 16:03:53.000000000 +0200
+--- src/if_py_both.h	2013-05-17 16:07:16.000000000 +0200
+***************
+*** 31,36 ****
+--- 31,39 ----
+  
+  static int ConvertFromPyObject(PyObject *, typval_T *);
+  static int _ConvertFromPyObject(PyObject *, typval_T *, PyObject *);
++ static PyObject *WindowNew(win_T *, tabpage_T *);
++ static PyObject *BufferNew (buf_T *);
++ static PyObject *LineToString(const char *);
+  
+  static PyInt RangeStart;
+  static PyInt RangeEnd;
+***************
+*** 1670,1678 ****
+  	/* For current tab window.c does not bother to set or update tp_curwin
+  	 */
+  	if (this->tab == curtab)
+! 	    return WindowNew(curwin);
+  	else
+! 	    return WindowNew(this->tab->tp_curwin);
+      }
+      return NULL;
+  }
+--- 1673,1681 ----
+  	/* For current tab window.c does not bother to set or update tp_curwin
+  	 */
+  	if (this->tab == curtab)
+! 	    return WindowNew(curwin, curtab);
+  	else
+! 	    return WindowNew(this->tab->tp_curwin, this->tab);
+      }
+      return NULL;
+  }
+***************
+*** 1754,1759 ****
+--- 1757,1763 ----
+  {
+      PyObject_HEAD
+      win_T	*win;
++     TabPageObject	*tabObject;
+  } WindowObject;
+  
+  static PyTypeObject WindowType;
+***************
+*** 1771,1777 ****
+  }
+  
+      static PyObject *
+! WindowNew(win_T *win)
+  {
+      /* We need to handle deletion of windows underneath us.
+       * If we add a "w_python*_ref" field to the win_T structure,
+--- 1775,1781 ----
+  }
+  
+      static PyObject *
+! WindowNew(win_T *win, tabpage_T *tab)
+  {
+      /* We need to handle deletion of windows underneath us.
+       * If we add a "w_python*_ref" field to the win_T structure,
+***************
+*** 1804,1809 ****
+--- 1808,1815 ----
+  	WIN_PYTHON_REF(win) = self;
+      }
+  
++     self->tabObject = ((TabPageObject *)(TabPageNew(tab)));
++ 
+      return (PyObject *)(self);
+  }
+  
+***************
+*** 1815,1823 ****
+--- 1821,1849 ----
+      if (this->win && this->win != INVALID_WINDOW_VALUE)
+  	WIN_PYTHON_REF(this->win) = NULL;
+  
++     Py_DECREF(((PyObject *)(this->tabObject)));
++ 
+      DESTRUCTOR_FINISH(self);
+  }
+  
++     static win_T *
++ get_firstwin(TabPageObject *tabObject)
++ {
++     if (tabObject)
++     {
++ 	if (CheckTabPage(tabObject))
++ 	    return NULL;
++ 	/* For current tab window.c does not bother to set or update tp_firstwin
++ 	 */
++ 	else if (tabObject->tab == curtab)
++ 	    return firstwin;
++ 	else
++ 	    return tabObject->tab->tp_firstwin;
++     }
++     else
++ 	return firstwin;
++ }
++ 
+      static PyObject *
+  WindowAttr(WindowObject *this, char *name)
+  {
+***************
+*** 1847,1856 ****
+  	return OptionsNew(SREQ_WIN, this->win, (checkfun) CheckWindow,
+  			(PyObject *) this);
+      else if (strcmp(name, "number") == 0)
+! 	return PyLong_FromLong((long) get_win_number(this->win, firstwin));
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssssssss]", "buffer", "cursor", "height", "vars",
+! 		"options", "number", "row", "col");
+      else
+  	return NULL;
+  }
+--- 1873,1892 ----
+  	return OptionsNew(SREQ_WIN, this->win, (checkfun) CheckWindow,
+  			(PyObject *) this);
+      else if (strcmp(name, "number") == 0)
+!     {
+! 	if (CheckTabPage(this->tabObject))
+! 	    return NULL;
+! 	return PyLong_FromLong((long)
+! 		get_win_number(this->win, get_firstwin(this->tabObject)));
+!     }
+!     else if (strcmp(name, "tabpage") == 0)
+!     {
+! 	Py_INCREF(this->tabObject);
+! 	return (PyObject *)(this->tabObject);
+!     }
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sssssssss]", "buffer", "cursor", "height",
+! 		"vars", "options", "number", "row", "col", "tabpage");
+      else
+  	return NULL;
+  }
+***************
+*** 2016,2046 ****
+      DESTRUCTOR_FINISH(self);
+  }
+  
+-     static win_T *
+- get_firstwin(WinListObject *this)
+- {
+-     if (this->tabObject)
+-     {
+- 	if (CheckTabPage(this->tabObject))
+- 	    return NULL;
+- 	/* For current tab window.c does not bother to set or update tp_firstwin
+- 	 */
+- 	else if (this->tabObject->tab == curtab)
+- 	    return firstwin;
+- 	else
+- 	    return this->tabObject->tab->tp_firstwin;
+-     }
+-     else
+- 	return firstwin;
+- }
+- 
+      static PyInt
+  WinListLength(PyObject *self)
+  {
+      win_T	*w;
+      PyInt	n = 0;
+  
+!     if (!(w = get_firstwin((WinListObject *)(self))))
+  	return -1;
+  
+      while (w != NULL)
+--- 2052,2064 ----
+      DESTRUCTOR_FINISH(self);
+  }
+  
+      static PyInt
+  WinListLength(PyObject *self)
+  {
+      win_T	*w;
+      PyInt	n = 0;
+  
+!     if (!(w = get_firstwin(((WinListObject *)(self))->tabObject)))
+  	return -1;
+  
+      while (w != NULL)
+***************
+*** 2055,2068 ****
+      static PyObject *
+  WinListItem(PyObject *self, PyInt n)
+  {
+      win_T *w;
+  
+!     if (!(w = get_firstwin((WinListObject *)(self))))
+  	return NULL;
+  
+      for (; w != NULL; w = W_NEXT(w), --n)
+  	if (n == 0)
+! 	    return WindowNew(w);
+  
+      PyErr_SetString(PyExc_IndexError, _("no such window"));
+      return NULL;
+--- 2073,2087 ----
+      static PyObject *
+  WinListItem(PyObject *self, PyInt n)
+  {
++     WinListObject	*this = ((WinListObject *)(self));
+      win_T *w;
+  
+!     if (!(w = get_firstwin(this->tabObject)))
+  	return NULL;
+  
+      for (; w != NULL; w = W_NEXT(w), --n)
+  	if (n == 0)
+! 	    return WindowNew(w, this->tabObject? this->tabObject->tab: curtab);
+  
+      PyErr_SetString(PyExc_IndexError, _("no such window"));
+      return NULL;
+***************
+*** 3227,3233 ****
+      if (strcmp(name, "buffer") == 0)
+  	return (PyObject *)BufferNew(curbuf);
+      else if (strcmp(name, "window") == 0)
+! 	return (PyObject *)WindowNew(curwin);
+      else if (strcmp(name, "tabpage") == 0)
+  	return (PyObject *)TabPageNew(curtab);
+      else if (strcmp(name, "line") == 0)
+--- 3246,3252 ----
+      if (strcmp(name, "buffer") == 0)
+  	return (PyObject *)BufferNew(curbuf);
+      else if (strcmp(name, "window") == 0)
+! 	return (PyObject *)WindowNew(curwin, curtab);
+      else if (strcmp(name, "tabpage") == 0)
+  	return (PyObject *)TabPageNew(curtab);
+      else if (strcmp(name, "line") == 0)
+*** ../vim-7.3.963/src/if_python3.c	2013-05-15 19:44:35.000000000 +0200
+--- src/if_python3.c	2013-05-17 16:07:16.000000000 +0200
+***************
+*** 611,619 ****
+  }
+  #endif /* DYNAMIC_PYTHON3 */
+  
+- static PyObject *BufferNew (buf_T *);
+- static PyObject *WindowNew(win_T *);
+- static PyObject *LineToString(const char *);
+  static PyObject *BufferDir(PyObject *, PyObject *);
+  
+  static int py3initialised = 0;
+--- 611,616 ----
+*** ../vim-7.3.963/src/if_python.c	2013-05-15 17:49:00.000000000 +0200
+--- src/if_python.c	2013-05-17 16:07:16.000000000 +0200
+***************
+*** 610,620 ****
+  }
+  #endif /* DYNAMIC_PYTHON */
+  
+- static PyObject *BufferNew (buf_T *);
+- static PyObject *WindowNew(win_T *);
+- static PyObject *DictionaryNew(dict_T *);
+- static PyObject *LineToString(const char *);
+- 
+  static int initialised = 0;
+  #define PYINITIALISED initialised
+  
+--- 610,615 ----
+*** ../vim-7.3.963/src/testdir/test86.ok	2013-05-17 16:03:53.000000000 +0200
+--- src/testdir/test86.ok	2013-05-17 16:10:26.000000000 +0200
+***************
+*** 333,346 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer test86.in>; cursor is at (954, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
+    <tabpage 2>(3): 2 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer a.1>; cursor is at (1, 0)
+!     <window object (unknown)>(0): displays buffer <buffer 1>; cursor is at (1, 0)
+    <tabpage 3>(4): 4 windows, current is <window 0>
+    Windows:
+      <window 0>(1): displays buffer <buffer c.2>; cursor is at (1, 0)
+--- 333,346 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (954, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+    <tabpage 2>(3): 2 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer a.1>; cursor is at (1, 0)
+!     <window object (unknown)>(2): displays buffer <buffer 1>; cursor is at (1, 0)
+    <tabpage 3>(4): 4 windows, current is <window 0>
+    Windows:
+      <window 0>(1): displays buffer <buffer c.2>; cursor is at (1, 0)
+*** ../vim-7.3.963/src/testdir/test87.ok	2013-05-17 13:37:57.000000000 +0200
+--- src/testdir/test87.ok	2013-05-17 16:07:16.000000000 +0200
+***************
+*** 322,335 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer test87.in>; cursor is at (930, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
+    <tabpage 2>(3): 2 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer a.1>; cursor is at (1, 0)
+!     <window object (unknown)>(0): displays buffer <buffer 1>; cursor is at (1, 0)
+    <tabpage 3>(4): 4 windows, current is <window 0>
+    Windows:
+      <window 0>(1): displays buffer <buffer c.2>; cursor is at (1, 0)
+--- 322,335 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (930, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+    <tabpage 2>(3): 2 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer a.1>; cursor is at (1, 0)
+!     <window object (unknown)>(2): displays buffer <buffer 1>; cursor is at (1, 0)
+    <tabpage 3>(4): 4 windows, current is <window 0>
+    Windows:
+      <window 0>(1): displays buffer <buffer c.2>; cursor is at (1, 0)
+*** ../vim-7.3.963/src/version.c	2013-05-17 16:03:53.000000000 +0200
+--- src/version.c	2013-05-17 16:11:15.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     964,
+  /**/
+
+-- 
+ARTHUR: Go on, Bors, chop its head off.
+BORS:   Right.  Silly little bleeder.  One rabbit stew coming up.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

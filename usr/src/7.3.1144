@@ -1,0 +1,87 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1144
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1144
+Problem:    "RO" is not translated everywhere.
+Solution:   Put inside _(). (Sergey Alyoshin)
+Files:	    src/buffer.c, src/screen.c
+
+
+*** ../vim-7.3.1143/src/buffer.c	2013-05-06 04:50:26.000000000 +0200
+--- src/buffer.c	2013-06-07 20:15:03.000000000 +0200
+***************
+*** 3139,3145 ****
+  #endif
+  					? _("[New file]") : "",
+  	    (curbuf->b_flags & BF_READERR) ? _("[Read errors]") : "",
+! 	    curbuf->b_p_ro ? (shortmess(SHM_RO) ? "[RO]"
+  						      : _("[readonly]")) : "",
+  	    (curbufIsChanged() || (curbuf->b_flags & BF_WRITE_MASK)
+  							  || curbuf->b_p_ro) ?
+--- 3139,3145 ----
+  #endif
+  					? _("[New file]") : "",
+  	    (curbuf->b_flags & BF_READERR) ? _("[Read errors]") : "",
+! 	    curbuf->b_p_ro ? (shortmess(SHM_RO) ? _("[RO]")
+  						      : _("[readonly]")) : "",
+  	    (curbufIsChanged() || (curbuf->b_flags & BF_WRITE_MASK)
+  							  || curbuf->b_p_ro) ?
+***************
+*** 3976,3982 ****
+  	case STL_ROFLAG_ALT:
+  	    itemisflag = TRUE;
+  	    if (wp->w_buffer->b_p_ro)
+! 		str = (char_u *)((opt == STL_ROFLAG_ALT) ? ",RO" : "[RO]");
+  	    break;
+  
+  	case STL_HELPFLAG:
+--- 3976,3982 ----
+  	case STL_ROFLAG_ALT:
+  	    itemisflag = TRUE;
+  	    if (wp->w_buffer->b_p_ro)
+! 		str = (char_u *)((opt == STL_ROFLAG_ALT) ? ",RO" : _("[RO]"));
+  	    break;
+  
+  	case STL_HELPFLAG:
+*** ../vim-7.3.1143/src/screen.c	2013-06-04 22:13:45.000000000 +0200
+--- src/screen.c	2013-06-07 20:15:06.000000000 +0200
+***************
+*** 6281,6287 ****
+  	}
+  	if (wp->w_buffer->b_p_ro)
+  	{
+! 	    STRCPY(p + len, "[RO]");
+  	    len += 4;
+  	}
+  
+--- 6281,6287 ----
+  	}
+  	if (wp->w_buffer->b_p_ro)
+  	{
+! 	    STRCPY(p + len, _("[RO]"));
+  	    len += 4;
+  	}
+  
+*** ../vim-7.3.1143/src/version.c	2013-06-07 19:53:04.000000000 +0200
+--- src/version.c	2013-06-07 20:16:03.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1144,
+  /**/
+
+-- 
+A meeting is an event at which the minutes are kept and the hours are lost.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

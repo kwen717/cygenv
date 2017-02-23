@@ -1,0 +1,124 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.852
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.852
+Problem:    system() breaks clipboard text. (Yukihiro Nakadaira)
+Solution:   Use Xutf8TextPropertyToTextList(). (Christian Brabandt)
+	    Also do not put the text in the clip buffer if conversion fails.
+Files:	    src/ui.c, src/ops.c
+
+
+*** ../vim-7.3.851/src/ui.c	2012-10-21 00:58:34.000000000 +0200
+--- src/ui.c	2013-03-07 17:30:37.000000000 +0100
+***************
+*** 2119,2125 ****
+  	text_prop.encoding = *type;
+  	text_prop.format = *format;
+  	text_prop.nitems = len;
+! 	status = XmbTextPropertyToTextList(X_DISPLAY, &text_prop,
+  							 &text_list, &n_text);
+  	if (status != Success || n_text < 1)
+  	{
+--- 2119,2131 ----
+  	text_prop.encoding = *type;
+  	text_prop.format = *format;
+  	text_prop.nitems = len;
+! #ifdef FEAT_MBYTE
+! 	if (*type == utf8_atom)
+! 	    status = Xutf8TextPropertyToTextList(X_DISPLAY, &text_prop,
+! 							 &text_list, &n_text);
+! 	else
+! #endif
+! 	    status = XmbTextPropertyToTextList(X_DISPLAY, &text_prop,
+  							 &text_list, &n_text);
+  	if (status != Success || n_text < 1)
+  	{
+*** ../vim-7.3.851/src/ops.c	2012-12-12 16:11:28.000000000 +0100
+--- src/ops.c	2013-03-07 17:55:59.000000000 +0100
+***************
+*** 5828,5833 ****
+--- 5828,5835 ----
+  					       && len < 1024*1024 && len > 0)
+      {
+  #ifdef FEAT_MBYTE
++ 	int ok = TRUE;
++ 
+  	/* The CUT_BUFFER0 is supposed to always contain latin1.  Convert from
+  	 * 'enc' when it is a multi-byte encoding.  When 'enc' is an 8-bit
+  	 * encoding conversion usually doesn't work, so keep the text as-is.
+***************
+*** 5842,5847 ****
+--- 5844,5850 ----
+  		int	intlen = len;
+  		char_u	*conv_str;
+  
++ 		vc.vc_fail = TRUE;
+  		conv_str = string_convert(&vc, str, &intlen);
+  		len = intlen;
+  		if (conv_str != NULL)
+***************
+*** 5849,5860 ****
+  		    vim_free(str);
+  		    str = conv_str;
+  		}
+  		convert_setup(&vc, NULL, NULL);
+  	    }
+  	}
+  #endif
+! 	XStoreBuffer(dpy, (char *)str, (int)len, 0);
+! 	XFlush(dpy);
+      }
+  
+      vim_free(str);
+--- 5852,5877 ----
+  		    vim_free(str);
+  		    str = conv_str;
+  		}
++ 		else
++ 		{
++ 		    ok = FALSE;
++ 		}
+  		convert_setup(&vc, NULL, NULL);
+  	    }
++ 	    else
++ 	    {
++ 		ok = FALSE;
++ 	    }
+  	}
++ 
++ 	/* Do not store the string if conversion failed.  Better to use any
++ 	 * other selection than garbled text. */
++ 	if (ok)
+  #endif
+! 	{
+! 	    XStoreBuffer(dpy, (char *)str, (int)len, 0);
+! 	    XFlush(dpy);
+! 	}
+      }
+  
+      vim_free(str);
+*** ../vim-7.3.851/src/version.c	2013-03-07 16:41:26.000000000 +0100
+--- src/version.c	2013-03-07 18:01:08.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     852,
+  /**/
+
+-- 
+Tips for aliens in New York: Land anywhere.  Central Park, anywhere.
+No one will care or indeed even notice.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

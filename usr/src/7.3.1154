@@ -1,0 +1,115 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1154
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1154
+Problem:    New regexp_nfa engine: Uneccessary code.
+Solution:   Remove uneccessary code.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1153/src/regexp_nfa.c	2013-06-09 16:24:40.000000000 +0200
+--- src/regexp_nfa.c	2013-06-09 17:02:03.000000000 +0200
+***************
+*** 3795,3808 ****
+      int			did_print = FALSE;
+  #endif
+  
+-     if (l == NULL || state == NULL)
+- 	return;
+- 
+      switch (state->c)
+      {
+- 	case NFA_SPLIT:
+- 	case NFA_NOPEN:
+- 	case NFA_SKIP_CHAR:
+  	case NFA_NCLOSE:
+  	case NFA_MCLOSE:
+  	case NFA_MCLOSE1:
+--- 3795,3802 ----
+***************
+*** 3827,3832 ****
+--- 3821,3829 ----
+  	case NFA_ZCLOSE9:
+  #endif
+  	case NFA_ZEND:
++ 	case NFA_SPLIT:
++ 	case NFA_NOPEN:
++ 	case NFA_SKIP_CHAR:
+  	    /* These nodes are not added themselves but their "out" and/or
+  	     * "out1" may be added below.  */
+  	    break;
+***************
+*** 3889,3900 ****
+  		    return;
+  		}
+  
+  		if (has_state_with_pos(l, state, subs))
+  		    goto skip_add;
+  	    }
+  
+! 	    /* when there are backreferences or look-behind matches the number
+! 	     * of states may be (a lot) bigger */
+  	    if (nfa_has_backref && l->n == l->len)
+  	    {
+  		int newlen = l->len * 3 / 2 + 50;
+--- 3886,3899 ----
+  		    return;
+  		}
+  
++ 		/* Do not add the state again when it exists with the same
++ 		 * positions. */
+  		if (has_state_with_pos(l, state, subs))
+  		    goto skip_add;
+  	    }
+  
+! 	    /* When there are backreferences the number of states may be (a
+! 	     * lot) bigger than anticipated. */
+  	    if (nfa_has_backref && l->n == l->len)
+  	    {
+  		int newlen = l->len * 3 / 2 + 50;
+***************
+*** 3985,3992 ****
+  		sub = &subs->norm;
+  	    }
+  
+! 	    /* Set the position (with "off") in the subexpression.  Save and
+! 	     * restore it when it was in use.  Otherwise fill any gap. */
+  	    save_ptr = NULL;
+  	    if (REG_MULTI)
+  	    {
+--- 3984,3991 ----
+  		sub = &subs->norm;
+  	    }
+  
+! 	    /* Set the position (with "off" added) in the subexpression.  Save
+! 	     * and restore it when it was in use.  Otherwise fill any gap. */
+  	    save_ptr = NULL;
+  	    if (REG_MULTI)
+  	    {
+*** ../vim-7.3.1153/src/version.c	2013-06-09 16:24:40.000000000 +0200
+--- src/version.c	2013-06-09 17:24:42.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1154,
+  /**/
+
+
+-- 
+~
+~
+~
+".signature" 4 lines, 50 characters written
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

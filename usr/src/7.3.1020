@@ -1,0 +1,1945 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1020
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1020
+Problem:    Not all patterns are tested with auto / old / new engine.
+Solution:   Test patterns with three values of 'regexpengine'.
+Files:	    src/testdir/test64.in, src/testdir/test64.ok,
+	    src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.1019/src/testdir/test64.in	2013-05-25 20:19:45.000000000 +0200
+--- src/testdir/test64.in	2013-05-25 23:11:58.000000000 +0200
+***************
+*** 20,347 ****
+  :"""" Previously written tests """"""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  
+! :call add(tl, ['ab', 'aab', 'ab'])
+! :call add(tl, ['b', 'abcdef', 'b'])
+! :call add(tl, ['bc*', 'abccccdef', 'bcccc'])
+! :call add(tl, ['bc\{-}', 'abccccdef', 'b'])
+! :call add(tl, ['bc\{-}\(d\)', 'abccccdef', 'bccccd', 'd'])
+! :call add(tl, ['bc*', 'abbdef', 'b'])
+! :call add(tl, ['c*', 'ccc', 'ccc'])
+! :call add(tl, ['bc*', 'abdef', 'b'])
+! :call add(tl, ['c*', 'abdef', ''])
+! :call add(tl, ['bc\+', 'abccccdef', 'bcccc'])
+! :call add(tl, ['bc\+', 'abdef']) "no match
+  :"
+  :"operator \|
+! :call add(tl, ['a\|ab', 'cabd', 'a']) "alternation is ordered
+  :"
+! :call add(tl, ['c\?', 'ccb', 'c'])
+! :call add(tl, ['bc\?', 'abd', 'b'])
+! :call add(tl, ['bc\?', 'abccd', 'bc'])
+! :"
+! :call add(tl, ['\va{1}', 'ab', 'a'])
+! :"
+! :call add(tl, ['\va{2}', 'aa', 'aa'])
+! :call add(tl, ['\va{2}', 'caad', 'aa'])
+! :call add(tl, ['\va{2}', 'aba'])
+! :call add(tl, ['\va{2}', 'ab'])
+! :call add(tl, ['\va{2}', 'abaa', 'aa'])
+! :call add(tl, ['\va{2}', 'aaa', 'aa'])
+! :"
+! :call add(tl, ['\vb{1}', 'abca', 'b'])
+! :call add(tl, ['\vba{2}', 'abaa', 'baa'])
+! :call add(tl, ['\vba{3}', 'aabaac'])
+! :"
+! :call add(tl, ['\v(ab){1}', 'ab', 'ab', 'ab'])
+! :call add(tl, ['\v(ab){1}', 'dabc', 'ab', 'ab'])
+! :call add(tl, ['\v(ab){1}', 'acb'])
+! :"
+! :call add(tl, ['\v(ab){0,2}', 'acb', "", ""])
+! :call add(tl, ['\v(ab){0,2}', 'ab', 'ab', 'ab'])
+! :call add(tl, ['\v(ab){1,2}', 'ab', 'ab', 'ab'])
+! :call add(tl, ['\v(ab){1,2}', 'ababc', 'abab', 'ab'])
+! :call add(tl, ['\v(ab){2,4}', 'ababcab', 'abab', 'ab'])
+! :call add(tl, ['\v(ab){2,4}', 'abcababa', 'abab', 'ab'])
+! :"
+! :call add(tl, ['\v(ab){2}', 'abab', 'abab', 'ab'])
+! :call add(tl, ['\v(ab){2}', 'cdababe', 'abab', 'ab'])
+! :call add(tl, ['\v(ab){2}', 'abac'])
+! :call add(tl, ['\v(ab){2}', 'abacabab', 'abab', 'ab'])
+! :call add(tl, ['\v((ab){2}){2}', 'abababab', 'abababab', 'abab', 'ab'])
+! :call add(tl, ['\v((ab){2}){2}', 'abacabababab', 'abababab', 'abab', 'ab'])
+! :"
+! :call add(tl, ['\v(a{1}){1}', 'a', 'a', 'a'])
+! :call add(tl, ['\v(a{2}){1}', 'aa', 'aa', 'aa'])
+! :call add(tl, ['\v(a{2}){1}', 'aaac', 'aa', 'aa'])
+! :call add(tl, ['\v(a{2}){1}', 'daaac', 'aa', 'aa'])
+! :call add(tl, ['\v(a{1}){2}', 'daaac', 'aa', 'a'])
+! :call add(tl, ['\v(a{1}){2}', 'aaa', 'aa', 'a'])
+! :call add(tl, ['\v(a{2})+', 'adaac', 'aa', 'aa'])
+! :call add(tl, ['\v(a{2})+', 'aa', 'aa', 'aa'])
+! :call add(tl, ['\v(a{2}){1}', 'aa', 'aa', 'aa'])
+! :call add(tl, ['\v(a{1}){2}', 'aa', 'aa', 'a'])
+! :call add(tl, ['\v(a{1}){1}', 'a', 'a', 'a'])
+! :call add(tl, ['\v(a{2}){2}', 'aaaa', 'aaaa', 'aa'])
+! :call add(tl, ['\v(a{2}){2}', 'aaabaaaa', 'aaaa', 'aa'])
+! :"
+! :call add(tl, ['\v(a+){2}', 'dadaac', 'aa', 'a'])
+! :call add(tl, ['\v(a{3}){2}', 'aaaaaaa', 'aaaaaa', 'aaa'])
+! :"
+! :call add(tl, ['\v(a{1,2}){2}', 'daaac', 'aaa', 'a'])
+! :call add(tl, ['\v(a{1,3}){2}', 'daaaac', 'aaaa', 'a'])
+! :call add(tl, ['\v(a{1,3}){2}', 'daaaaac', 'aaaaa', 'aa'])
+! :call add(tl, ['\v(a{1,3}){3}', 'daac'])
+! :call add(tl, ['\v(a{1,2}){2}', 'dac'])
+! :call add(tl, ['\v(a+)+', 'daac', 'aa', 'aa'])
+! :call add(tl, ['\v(a+)+', 'aaa', 'aaa', 'aaa'])
+! :call add(tl, ['\v(a+){1,2}', 'aaa', 'aaa', 'aaa'])
+! :call add(tl, ['\v(a+)(a+)', 'aaa', 'aaa', 'aa', 'a'])
+! :call add(tl, ['\v(a{3})+', 'daaaac', 'aaa', 'aaa'])
+! :call add(tl, ['\v(a|b|c)+', 'aacb', 'aacb', 'b'])
+! :call add(tl, ['\v(a|b|c){2}', 'abcb', 'ab', 'b'])
+! :call add(tl, ['\v(abc){2}', 'abcabd', ])
+! :call add(tl, ['\v(abc){2}', 'abdabcabc','abcabc', 'abc'])
+! :"
+! :call add(tl, ['a*', 'cc', ''])
+! :call add(tl, ['\v(a*)+', 'cc', ''])
+! :call add(tl, ['\v((ab)+)+', 'ab', 'ab', 'ab', 'ab'])
+! :call add(tl, ['\v(((ab)+)+)+', 'ab', 'ab', 'ab', 'ab', 'ab'])
+! :call add(tl, ['\v(((ab)+)+)+', 'dababc', 'abab', 'abab', 'abab', 'ab'])
+! :call add(tl, ['\v(a{0,2})+', 'cc', ''])
+! :call add(tl, ['\v(a*)+', '', ''])
+! :call add(tl, ['\v((a*)+)+', '', ''])
+! :call add(tl, ['\v((ab)*)+', '', ''])
+! :call add(tl, ['\va{1,3}', 'aab', 'aa'])
+! :call add(tl, ['\va{2,3}', 'abaa', 'aa'])
+! :"
+! :call add(tl, ['\v((ab)+|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+! :call add(tl, ['\v(a{2})|(b{3})', 'bbabbbb', 'bbb', '', 'bbb'])
+! :call add(tl, ['\va{2}|b{2}', 'abab'])
+! :call add(tl, ['\v(a)+|(c)+', 'bbacbaacbbb', 'a', 'a'])
+! :call add(tl, ['\vab{2,3}c', 'aabbccccccccccccc', 'abbc'])
+! :call add(tl, ['\vab{2,3}c', 'aabbbccccccccccccc', 'abbbc'])
+! :call add(tl, ['\vab{2,3}cd{2,3}e', 'aabbbcddee', 'abbbcdde'])
+! :call add(tl, ['\va(bc){2}d', 'aabcbfbc' ])
+! :call add(tl, ['\va*a{2}', 'a', ])
+! :call add(tl, ['\va*a{2}', 'aa', 'aa' ])
+! :call add(tl, ['\va*a{2}', 'aaa', 'aaa' ])
+! :call add(tl, ['\va*a{2}', 'bbbabcc', ])
+! :call add(tl, ['\va*b*|a*c*', 'a', 'a'])
+! :call add(tl, ['\va{1}b{1}|a{1}b{1}', ''])
+  :"
+  :"submatches
+! :call add(tl, ['\v(a)', 'ab', 'a', 'a'])
+! :call add(tl, ['\v(a)(b)', 'ab', 'ab', 'a', 'b'])
+! :call add(tl, ['\v(ab)(b)(c)', 'abbc', 'abbc', 'ab', 'b', 'c'])
+! :call add(tl, ['\v((a)(b))', 'ab', 'ab', 'ab', 'a', 'b'])
+! :call add(tl, ['\v(a)|(b)', 'ab', 'a', 'a'])
+  :"
+! :call add(tl, ['\v(a*)+', 'aaaa', 'aaaa', ''])
+! :call add(tl, ['x', 'abcdef'])
+  
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  :""""" Simple tests """""""""""""""""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  
+  :" Search single groups
+! :call add(tl, ['ab', 'aab', 'ab'])
+! :call add(tl, ['ab', 'baced'])
+! :call add(tl, ['ab', '                    ab           ', 'ab'])
+  
+  :" Search multi-modifiers
+! :call add(tl, ['x*', 'xcd', 'x'])
+! :call add(tl, ['x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+! :call add(tl, ['x*', 'abcdoij', ''])                    " empty match is good
+! :call add(tl, ['x\+', 'abcdoin'])                       " no match here
+! :call add(tl, ['x\+', 'abcdeoijdfxxiuhfij', 'xx'])
+! :call add(tl, ['x\+', 'xxxxx', 'xxxxx'])
+! :call add(tl, ['x\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+! :call add(tl, ['x\=', 'x sdfoij', 'x'])
+! :call add(tl, ['x\=', 'abc sfoij', '']) " empty match is good
+! :call add(tl, ['x\=', 'xxxxxxxxx c', 'x'])
+! :call add(tl, ['x\?', 'x sdfoij', 'x'])
+! :call add(tl, ['x\?', 'abc sfoij', ''])                 " empty match is good
+! :call add(tl, ['x\?', 'xxxxxxxxxx c', 'x'])
+! 
+! :call add(tl, ['a\{0,0}', 'abcdfdoij', ''])
+! :call add(tl, ['a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+! :call add(tl, ['a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}'
+! :call add(tl, ['a\{3,6}', 'aa siofuh'])
+! :call add(tl, ['a\{3,6}', 'aaaaa asfoij afaa', 'aaaaa'])
+! :call add(tl, ['a\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+! :call add(tl, ['a\{0}', 'asoiuj', ''])
+! :call add(tl, ['a\{2}', 'aaaa', 'aa'])
+! :call add(tl, ['a\{2}', 'iuash fiusahfliusah fiushfilushfi uhsaifuh askfj nasfvius afg aaaa sfiuhuhiushf', 'aa'])
+! :call add(tl, ['a\{2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, ['a\{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+! :call add(tl, ['a\{0,}', 'aaaaa aa', 'aaaaa'])
+! :call add(tl, ['a\{2,}', 'sdfiougjdsafg'])
+! :call add(tl, ['a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+! :call add(tl, ['a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+! :call add(tl, ['a\{,5}', 'abcd', 'a'])
+! :call add(tl, ['a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+! :call add(tl, ['a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+! :call add(tl, ['a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+! 
+! :call add(tl, ['a\{-0,0}', 'abcdfdoij', ''])
+! :call add(tl, ['a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+! :call add(tl, ['a\{-3,6}', 'aa siofuh'])
+! :call add(tl, ['a\{-3,6}', 'aaaaa asfoij afaa', 'aaa'])
+! :call add(tl, ['a\{-3,6}', 'aaaaaaaa', 'aaa'])
+! :call add(tl, ['a\{-0}', 'asoiuj', ''])
+! :call add(tl, ['a\{-2}', 'aaaa', 'aa'])
+! :call add(tl, ['a\{-2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, ['a\{-0,}', 'oij sdigfusnf', ''])
+! :call add(tl, ['a\{-0,}', 'aaaaa aa', ''])
+! :call add(tl, ['a\{-2,}', 'sdfiougjdsafg'])
+! :call add(tl, ['a\{-2,}', 'aaaaasfoij ', 'aa'])
+! :call add(tl, ['a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+! :call add(tl, ['a\{-,5}', 'abcd', ''])
+! :call add(tl, ['a\{-,5}', 'aaaaaaaaaa', ''])
+! :call add(tl, ['a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
+! :call add(tl, ['a\{-}', 'aaaaioudfh coisf jda', ''])
+  
+  :" Test groups of characters and submatches
+! :call add(tl, ['\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+! :call add(tl, ['\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+! :call add(tl, ['\(abaaaaa\)*cd', 'cd', 'cd', ''])
+! :call add(tl, ['\(test1\)\? \(test2\)\?', 'test1 test3', 'test1 ', 'test1', ''])
+! :call add(tl, ['\(test1\)\= \(test2\) \(test4443\)\=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
+! :call add(tl, ['\(\(sub1\) hello \(sub 2\)\)', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
+! :call add(tl, ['\(\(\(yyxxzz\)\)\)', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
+! :call add(tl, ['\v((ab)+|c+)+', 'abcccaba', 'abcccab', 'ab', 'ab'])
+! :call add(tl, ['\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+! :call add(tl, ['\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
+! :call add(tl, ['\v(a|b*)+', 'aaaa', 'aaaa', ''])
+  
+  :" Test greedy-ness and lazy-ness
+! :call add(tl, ['a\{-2,7}','aaaaaaaaaaaaa', 'aa'])
+! :call add(tl, ['a\{2,7}','aaaaaaaaaaaaaaaaaaaa', 'aaaaaaa'])
+! :call add(tl, ['\vx(.{-,8})yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz','ayxa','xayzxayz'])
+! :call add(tl, ['\vx(.*)yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz', 'ayxayzxayzxa',''])
+! :call add(tl, ['\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
+! :call add(tl, ['\v(a{-1,3})+','aa','aa','a'])
+  
+  :" Test Character classes
+! :call add(tl, ['\d\+e\d\d','test 10e23 fd','10e23'])
+  
+  :" Test collections and character range []
+! :call add(tl, ['\v[a]', 'abcd', 'a'])
+! :call add(tl, ['a[bcd]', 'abcd', 'ab'])
+! :call add(tl, ['a[b-d]', 'acbd', 'ac'])
+! :call add(tl, ['[a-d][e-f][x-x]d', 'cexdxx', 'cexd'])
+! :call add(tl, ['\v[[:alpha:]]+', 'abcdefghijklmnopqrstuvwxyz6','abcdefghijklmnopqrstuvwxyz'])
+! :call add(tl, ['[[:alpha:]\+]', '6x8','x'])
+! :call add(tl, ['[^abc]\+','abcabcabc'])
+! :call add(tl, ['[^abc]','defghiasijvoinasoiunbvb','d'])
+! :call add(tl, ['[^abc]\+','ddddddda','ddddddd'])
+! :call add(tl, ['[^a-d]\+','aaaAAAZIHFNCddd','AAAZIHFNC'])
+! :call add(tl, ['[a-f]*','iiiiiiii',''])
+! :call add(tl, ['[a-f]*','abcdefgh','abcdef'])
+! :call add(tl, ['[^a-f]\+','abcdefgh','gh'])
+! :call add(tl, ['[a-c]\{-3,6}','abcabc','abc'])
+! :call add(tl, ['[^[:alpha:]]\+','abcccadfoij7787ysf287yrnccdu','7787'])
+! :call add(tl, ['[-a]', '-', '-'])
+! :call add(tl, ['[a-]', '-', '-'])
+! :call add(tl, ['[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])		" filename regexp
+! :call add(tl, ['[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars
+! :call add(tl, ['[[.a.]]\+', 'aa', 'aa'])								" collation elem
+! :call add(tl, ['abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
+! :call add(tl, ['abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+! :call add(tl, ['\_[0-9]\+', 'asfi9888u', '9888'])
+! :call add(tl, ['[0-9\n]\+', 'asfi9888u', '9888'])
+  
+  
+  :"""" Test recognition of some character classes
+! :call add(tl, ['[0-9]', '8', '8'])
+! :call add(tl, ['[^0-9]', '8'])
+! :call add(tl, ['[0-9a-fA-F]*', '0a7', '0a7'])
+! :call add(tl, ['[^0-9A-Fa-f]\+', '0a7'])
+! :call add(tl, ['[a-z_A-Z0-9]\+', 'aso_sfoij', 'aso_sfoij'])
+! :call add(tl, ['[a-z]', 'a', 'a'])
+! :call add(tl, ['[a-zA-Z]', 'a', 'a'])
+! :call add(tl, ['[A-Z]', 'a'])
+! :call add(tl, ['\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
+  
+  :"""" Tests for \z features
+! :call add(tl, ['xx \ze test', 'xx '])					" must match after \ze
+! :call add(tl, ['abc\zeend', 'oij abcend', 'abc'])
+! :call add(tl, ['abc\zsdd', 'ddabcddxyzt', 'dd'])
+! :call add(tl, ['aa \zsax', ' ax'])						" must match before \zs
+! :call add(tl, ['abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+! :call add(tl, ['\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+! :call add(tl, ['\>\zs.', 'aword. ', '.'])
+  
+  :"""" Tests for \@ features
+! :call add(tl, ['abc\@=', 'abc', 'ab'])
+! :call add(tl, ['abc\@=cd', 'abcd', 'abcd'])
+! :call add(tl, ['abc\@=', 'ababc', 'ab'])
+! :call add(tl, ['abcd\@=e', 'abcd'])                     " will never match, no matter the input text
+! :call add(tl, ['abcd\@=e', 'any text in here ... '])    " will never match
+! :call add(tl, ['\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+! :call add(tl, ['\(.*John\)\@=.*Bob', 'here is John, and here is B'])	" no match
+! :call add(tl, ['\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+! :call add(tl, ['.*John\&.*Bob', 'here is John, and here is B'])	" no match
+! :call add(tl, ['.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+! :call add(tl, ['\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  
+  :"""" Combining different tests and features
+! :call add(tl, ['[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+! :call add(tl, ['', 'abcd', ''])
+! :call add(tl, ['\v(())', 'any possible text', ''])
+! :call add(tl, ['\v%(ab(xyz)c)', '   abxyzc ', 'abxyzc', 'xyz'])
+! :call add(tl, ['\v(test|)empty', 'tesempty', 'empty', ''])
+! :call add(tl, ['\v(a|aa)(a|aa)', 'aaa', 'aa', 'a', 'a'])
+  
+  :"""" \%u and friends
+! :call add(tl, ['\%d32', 'yes no', ' '])
+! :call add(tl, ['\%o40', 'yes no', ' '])
+! :call add(tl, ['\%x20', 'yes no', ' '])
+! :call add(tl, ['\%u0020', 'yes no', ' '])
+! :call add(tl, ['\%U00000020', 'yes no', ' '])
+  
+  :"""" Alternatives, must use first longest match
+! :call add(tl, ['goo\|go', 'google', 'goo'])
+! :call add(tl, ['\<goo\|\<go', 'google', 'goo'])
+! :call add(tl, ['\<goo\|go', 'google', 'goo'])
+  
+  
+  :"""" Run the tests
+  
+  :"
+  :for t in tl
+! :  let l = matchlist(t[1], t[0])
+  :" check the match itself
+! :  if len(l) == 0 && len(t) > 2
+! :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", did not match, expected: \"' . t[2] . '\"'
+! :  elseif len(l) > 0 && len(t) == 2
+! :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected no match'
+! :  elseif len(t) > 2 && l[0] != t[2]
+! :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected: \"' . t[2] . '\"'
+! :  else
+! :    $put ='OK - ' . t[0]
+! :  endif
+! :  if len(l) > 0
+  :"   check all the nine submatches
+! :    for i in range(1, 9)
+! :      if len(t) <= i + 2
+! :        let e = ''
+! :      else
+! :        let e = t[i + 2]
+! :      endif
+! :      if l[i] != e
+! :        $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", submatch ' . i . ': \"' . l[i] . '\", expected: \"' . e . '\"'
+! :      endif
+! :    endfor
+! :    unlet i
+! :  endif
+  :endfor
+  :unlet t tl e l
+  
+  :" Check that \_[0-9] matching EOL does not break a following \>
+  :" This only works on a buffer line, not with expression evaluation
+  /^Find this
+! /\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+  y$Gop:"
+  
+  :/\%#=1^Results/,$wq! test.out
+--- 20,363 ----
+  :"""" Previously written tests """"""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  
+! :call add(tl, [2, 'ab', 'aab', 'ab'])
+! :call add(tl, [2, 'b', 'abcdef', 'b'])
+! :call add(tl, [2, 'bc*', 'abccccdef', 'bcccc'])
+! :call add(tl, [0, 'bc\{-}', 'abccccdef', 'b'])
+! :call add(tl, [0, 'bc\{-}\(d\)', 'abccccdef', 'bccccd', 'd'])
+! :call add(tl, [2, 'bc*', 'abbdef', 'b'])
+! :call add(tl, [2, 'c*', 'ccc', 'ccc'])
+! :call add(tl, [2, 'bc*', 'abdef', 'b'])
+! :call add(tl, [2, 'c*', 'abdef', ''])
+! :call add(tl, [2, 'bc\+', 'abccccdef', 'bcccc'])
+! :call add(tl, [2, 'bc\+', 'abdef']) "no match
+  :"
+  :"operator \|
+! :call add(tl, [2, 'a\|ab', 'cabd', 'a']) "alternation is ordered
+  :"
+! :call add(tl, [2, 'c\?', 'ccb', 'c'])
+! :call add(tl, [2, 'bc\?', 'abd', 'b'])
+! :call add(tl, [2, 'bc\?', 'abccd', 'bc'])
+! :"
+! :call add(tl, [2, '\va{1}', 'ab', 'a'])
+! :"
+! :call add(tl, [2, '\va{2}', 'aa', 'aa'])
+! :call add(tl, [2, '\va{2}', 'caad', 'aa'])
+! :call add(tl, [2, '\va{2}', 'aba'])
+! :call add(tl, [2, '\va{2}', 'ab'])
+! :call add(tl, [2, '\va{2}', 'abaa', 'aa'])
+! :call add(tl, [2, '\va{2}', 'aaa', 'aa'])
+! :"
+! :call add(tl, [2, '\vb{1}', 'abca', 'b'])
+! :call add(tl, [2, '\vba{2}', 'abaa', 'baa'])
+! :call add(tl, [2, '\vba{3}', 'aabaac'])
+! :"
+! :call add(tl, [2, '\v(ab){1}', 'ab', 'ab', 'ab'])
+! :call add(tl, [2, '\v(ab){1}', 'dabc', 'ab', 'ab'])
+! :call add(tl, [2, '\v(ab){1}', 'acb'])
+! :"
+! :call add(tl, [2, '\v(ab){0,2}', 'acb', "", ""])
+! :call add(tl, [2, '\v(ab){0,2}', 'ab', 'ab', 'ab'])
+! :call add(tl, [2, '\v(ab){1,2}', 'ab', 'ab', 'ab'])
+! :call add(tl, [2, '\v(ab){1,2}', 'ababc', 'abab', 'ab'])
+! :call add(tl, [2, '\v(ab){2,4}', 'ababcab', 'abab', 'ab'])
+! :call add(tl, [2, '\v(ab){2,4}', 'abcababa', 'abab', 'ab'])
+! :"
+! :call add(tl, [2, '\v(ab){2}', 'abab', 'abab', 'ab'])
+! :call add(tl, [2, '\v(ab){2}', 'cdababe', 'abab', 'ab'])
+! :call add(tl, [2, '\v(ab){2}', 'abac'])
+! :call add(tl, [2, '\v(ab){2}', 'abacabab', 'abab', 'ab'])
+! :call add(tl, [2, '\v((ab){2}){2}', 'abababab', 'abababab', 'abab', 'ab'])
+! :call add(tl, [2, '\v((ab){2}){2}', 'abacabababab', 'abababab', 'abab', 'ab'])
+! :"
+! :call add(tl, [2, '\v(a{1}){1}', 'a', 'a', 'a'])
+! :call add(tl, [2, '\v(a{2}){1}', 'aa', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a{2}){1}', 'aaac', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a{2}){1}', 'daaac', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a{1}){2}', 'daaac', 'aa', 'a'])
+! :call add(tl, [2, '\v(a{1}){2}', 'aaa', 'aa', 'a'])
+! :call add(tl, [2, '\v(a{2})+', 'adaac', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a{2})+', 'aa', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a{2}){1}', 'aa', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a{1}){2}', 'aa', 'aa', 'a'])
+! :call add(tl, [2, '\v(a{1}){1}', 'a', 'a', 'a'])
+! :call add(tl, [2, '\v(a{2}){2}', 'aaaa', 'aaaa', 'aa'])
+! :call add(tl, [2, '\v(a{2}){2}', 'aaabaaaa', 'aaaa', 'aa'])
+! :"
+! :call add(tl, [2, '\v(a+){2}', 'dadaac', 'aa', 'a'])
+! :call add(tl, [2, '\v(a{3}){2}', 'aaaaaaa', 'aaaaaa', 'aaa'])
+! :"
+! :call add(tl, [2, '\v(a{1,2}){2}', 'daaac', 'aaa', 'a'])
+! :call add(tl, [2, '\v(a{1,3}){2}', 'daaaac', 'aaaa', 'a'])
+! :call add(tl, [2, '\v(a{1,3}){2}', 'daaaaac', 'aaaaa', 'aa'])
+! :call add(tl, [2, '\v(a{1,3}){3}', 'daac'])
+! :call add(tl, [2, '\v(a{1,2}){2}', 'dac'])
+! :call add(tl, [2, '\v(a+)+', 'daac', 'aa', 'aa'])
+! :call add(tl, [2, '\v(a+)+', 'aaa', 'aaa', 'aaa'])
+! :call add(tl, [2, '\v(a+){1,2}', 'aaa', 'aaa', 'aaa'])
+! :call add(tl, [2, '\v(a+)(a+)', 'aaa', 'aaa', 'aa', 'a'])
+! :call add(tl, [2, '\v(a{3})+', 'daaaac', 'aaa', 'aaa'])
+! :call add(tl, [2, '\v(a|b|c)+', 'aacb', 'aacb', 'b'])
+! :call add(tl, [2, '\v(a|b|c){2}', 'abcb', 'ab', 'b'])
+! :call add(tl, [2, '\v(abc){2}', 'abcabd', ])
+! :call add(tl, [2, '\v(abc){2}', 'abdabcabc','abcabc', 'abc'])
+! :"
+! :call add(tl, [2, 'a*', 'cc', ''])
+! :call add(tl, [2, '\v(a*)+', 'cc', ''])
+! :call add(tl, [2, '\v((ab)+)+', 'ab', 'ab', 'ab', 'ab'])
+! :call add(tl, [2, '\v(((ab)+)+)+', 'ab', 'ab', 'ab', 'ab', 'ab'])
+! :call add(tl, [2, '\v(((ab)+)+)+', 'dababc', 'abab', 'abab', 'abab', 'ab'])
+! :call add(tl, [2, '\v(a{0,2})+', 'cc', ''])
+! :call add(tl, [2, '\v(a*)+', '', ''])
+! :call add(tl, [2, '\v((a*)+)+', '', ''])
+! :call add(tl, [2, '\v((ab)*)+', '', ''])
+! :call add(tl, [2, '\va{1,3}', 'aab', 'aa'])
+! :call add(tl, [2, '\va{2,3}', 'abaa', 'aa'])
+! :"
+! :call add(tl, [2, '\v((ab)+|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+! :call add(tl, [2, '\v(a{2})|(b{3})', 'bbabbbb', 'bbb', '', 'bbb'])
+! :call add(tl, [2, '\va{2}|b{2}', 'abab'])
+! :call add(tl, [2, '\v(a)+|(c)+', 'bbacbaacbbb', 'a', 'a'])
+! :call add(tl, [2, '\vab{2,3}c', 'aabbccccccccccccc', 'abbc'])
+! :call add(tl, [2, '\vab{2,3}c', 'aabbbccccccccccccc', 'abbbc'])
+! :call add(tl, [2, '\vab{2,3}cd{2,3}e', 'aabbbcddee', 'abbbcdde'])
+! :call add(tl, [2, '\va(bc){2}d', 'aabcbfbc' ])
+! :call add(tl, [2, '\va*a{2}', 'a', ])
+! :call add(tl, [2, '\va*a{2}', 'aa', 'aa' ])
+! :call add(tl, [2, '\va*a{2}', 'aaa', 'aaa' ])
+! :call add(tl, [2, '\va*a{2}', 'bbbabcc', ])
+! :call add(tl, [2, '\va*b*|a*c*', 'a', 'a'])
+! :call add(tl, [2, '\va{1}b{1}|a{1}b{1}', ''])
+  :"
+  :"submatches
+! :call add(tl, [2, '\v(a)', 'ab', 'a', 'a'])
+! :call add(tl, [2, '\v(a)(b)', 'ab', 'ab', 'a', 'b'])
+! :call add(tl, [2, '\v(ab)(b)(c)', 'abbc', 'abbc', 'ab', 'b', 'c'])
+! :call add(tl, [2, '\v((a)(b))', 'ab', 'ab', 'ab', 'a', 'b'])
+! :call add(tl, [2, '\v(a)|(b)', 'ab', 'a', 'a'])
+  :"
+! :call add(tl, [2, '\v(a*)+', 'aaaa', 'aaaa', ''])
+! :call add(tl, [2, 'x', 'abcdef'])
+  
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  :""""" Simple tests """""""""""""""""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  
+  :" Search single groups
+! :call add(tl, [2, 'ab', 'aab', 'ab'])
+! :call add(tl, [2, 'ab', 'baced'])
+! :call add(tl, [2, 'ab', '                    ab           ', 'ab'])
+  
+  :" Search multi-modifiers
+! :call add(tl, [2, 'x*', 'xcd', 'x'])
+! :call add(tl, [2, 'x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+! :call add(tl, [2, 'x*', 'abcdoij', ''])                    " empty match is good
+! :call add(tl, [2, 'x\+', 'abcdoin'])                       " no match here
+! :call add(tl, [2, 'x\+', 'abcdeoijdfxxiuhfij', 'xx'])
+! :call add(tl, [2, 'x\+', 'xxxxx', 'xxxxx'])
+! :call add(tl, [2, 'x\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+! :call add(tl, [2, 'x\=', 'x sdfoij', 'x'])
+! :call add(tl, [2, 'x\=', 'abc sfoij', '']) " empty match is good
+! :call add(tl, [2, 'x\=', 'xxxxxxxxx c', 'x'])
+! :call add(tl, [2, 'x\?', 'x sdfoij', 'x'])
+! :call add(tl, [2, 'x\?', 'abc sfoij', ''])                 " empty match is good
+! :call add(tl, [2, 'x\?', 'xxxxxxxxxx c', 'x'])
+! 
+! :call add(tl, [2, 'a\{0,0}', 'abcdfdoij', ''])
+! :call add(tl, [2, 'a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+! :call add(tl, [2, 'a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}'
+! :call add(tl, [2, 'a\{3,6}', 'aa siofuh'])
+! :call add(tl, [2, 'a\{3,6}', 'aaaaa asfoij afaa', 'aaaaa'])
+! :call add(tl, [2, 'a\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+! :call add(tl, [2, 'a\{0}', 'asoiuj', ''])
+! :call add(tl, [2, 'a\{2}', 'aaaa', 'aa'])
+! :call add(tl, [2, 'a\{2}', 'iuash fiusahfliusah fiushfilushfi uhsaifuh askfj nasfvius afg aaaa sfiuhuhiushf', 'aa'])
+! :call add(tl, [2, 'a\{2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, [2, 'a\{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+! :call add(tl, [2, 'a\{0,}', 'aaaaa aa', 'aaaaa'])
+! :call add(tl, [2, 'a\{2,}', 'sdfiougjdsafg'])
+! :call add(tl, [0, 'a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+! :call add(tl, [2, 'a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+! :call add(tl, [2, 'a\{,5}', 'abcd', 'a'])
+! :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+! :call add(tl, [2, 'a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+! :call add(tl, [2, 'a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+! 
+! :call add(tl, [2, 'a\{-0,0}', 'abcdfdoij', ''])
+! :call add(tl, [2, 'a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+! :call add(tl, [2, 'a\{-3,6}', 'aa siofuh'])
+! :call add(tl, [2, 'a\{-3,6}', 'aaaaa asfoij afaa', 'aaa'])
+! :call add(tl, [2, 'a\{-3,6}', 'aaaaaaaa', 'aaa'])
+! :call add(tl, [2, 'a\{-0}', 'asoiuj', ''])
+! :call add(tl, [2, 'a\{-2}', 'aaaa', 'aa'])
+! :call add(tl, [2, 'a\{-2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, [0, 'a\{-0,}', 'oij sdigfusnf', ''])
+! :call add(tl, [0, 'a\{-0,}', 'aaaaa aa', ''])
+! :call add(tl, [2, 'a\{-2,}', 'sdfiougjdsafg'])
+! :call add(tl, [0, 'a\{-2,}', 'aaaaasfoij ', 'aa'])
+! :call add(tl, [2, 'a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+! :call add(tl, [2, 'a\{-,5}', 'abcd', ''])
+! :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+! :call add(tl, [0, 'a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
+! :call add(tl, [0, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+  
+  :" Test groups of characters and submatches
+! :call add(tl, [2, '\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+! :call add(tl, [2, '\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+! :call add(tl, [2, '\(abaaaaa\)*cd', 'cd', 'cd', ''])
+! :call add(tl, [2, '\(test1\)\? \(test2\)\?', 'test1 test3', 'test1 ', 'test1', ''])
+! :call add(tl, [2, '\(test1\)\= \(test2\) \(test4443\)\=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
+! :call add(tl, [2, '\(\(sub1\) hello \(sub 2\)\)', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
+! :call add(tl, [2, '\(\(\(yyxxzz\)\)\)', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
+! :call add(tl, [2, '\v((ab)+|c+)+', 'abcccaba', 'abcccab', 'ab', 'ab'])
+! :call add(tl, [2, '\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+! :call add(tl, [2, '\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
+! :call add(tl, [2, '\v(a|b*)+', 'aaaa', 'aaaa', ''])
+  
+  :" Test greedy-ness and lazy-ness
+! :call add(tl, [2, 'a\{-2,7}','aaaaaaaaaaaaa', 'aa'])
+! :call add(tl, [2, 'a\{2,7}','aaaaaaaaaaaaaaaaaaaa', 'aaaaaaa'])
+! :call add(tl, [2, '\vx(.{-,8})yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz','ayxa','xayzxayz'])
+! :call add(tl, [2, '\vx(.*)yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz', 'ayxayzxayzxa',''])
+! :call add(tl, [2, '\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
+! :call add(tl, [2, '\v(a{-1,3})+','aa','aa','a'])
+  
+  :" Test Character classes
+! :call add(tl, [2, '\d\+e\d\d','test 10e23 fd','10e23'])
+  
+  :" Test collections and character range []
+! :call add(tl, [2, '\v[a]', 'abcd', 'a'])
+! :call add(tl, [2, 'a[bcd]', 'abcd', 'ab'])
+! :call add(tl, [2, 'a[b-d]', 'acbd', 'ac'])
+! :call add(tl, [2, '[a-d][e-f][x-x]d', 'cexdxx', 'cexd'])
+! :call add(tl, [2, '\v[[:alpha:]]+', 'abcdefghijklmnopqrstuvwxyz6','abcdefghijklmnopqrstuvwxyz'])
+! :call add(tl, [2, '[[:alpha:]\+]', '6x8','x'])
+! :call add(tl, [2, '[^abc]\+','abcabcabc'])
+! :call add(tl, [2, '[^abc]','defghiasijvoinasoiunbvb','d'])
+! :call add(tl, [2, '[^abc]\+','ddddddda','ddddddd'])
+! :call add(tl, [2, '[^a-d]\+','aaaAAAZIHFNCddd','AAAZIHFNC'])
+! :call add(tl, [2, '[a-f]*','iiiiiiii',''])
+! :call add(tl, [2, '[a-f]*','abcdefgh','abcdef'])
+! :call add(tl, [2, '[^a-f]\+','abcdefgh','gh'])
+! :call add(tl, [2, '[a-c]\{-3,6}','abcabc','abc'])
+! :call add(tl, [2, '[^[:alpha:]]\+','abcccadfoij7787ysf287yrnccdu','7787'])
+! :call add(tl, [2, '[-a]', '-', '-'])
+! :call add(tl, [2, '[a-]', '-', '-'])
+! :call add(tl, [2, '[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])		" filename regexp
+! :call add(tl, [2, '[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars
+! :call add(tl, [2, '[[.a.]]\+', 'aa', 'aa'])								" collation elem
+! :call add(tl, [2, 'abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
+! :call add(tl, [2, 'abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+! :call add(tl, [2, '\_[0-9]\+', 'asfi9888u', '9888'])
+! :call add(tl, [2, '[0-9\n]\+', 'asfi9888u', '9888'])
+  
+  
+  :"""" Test recognition of some character classes
+! :call add(tl, [2, '[0-9]', '8', '8'])
+! :call add(tl, [2, '[^0-9]', '8'])
+! :call add(tl, [2, '[0-9a-fA-F]*', '0a7', '0a7'])
+! :call add(tl, [2, '[^0-9A-Fa-f]\+', '0a7'])
+! :call add(tl, [2, '[a-z_A-Z0-9]\+', 'aso_sfoij', 'aso_sfoij'])
+! :call add(tl, [2, '[a-z]', 'a', 'a'])
+! :call add(tl, [2, '[a-zA-Z]', 'a', 'a'])
+! :call add(tl, [2, '[A-Z]', 'a'])
+! :call add(tl, [2, '\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
+  
+  :"""" Tests for \z features
+! :call add(tl, [2, 'xx \ze test', 'xx '])					" must match after \ze
+! :call add(tl, [0, 'abc\zeend', 'oij abcend', 'abc'])
+! :call add(tl, [2, 'abc\zsdd', 'ddabcddxyzt', 'dd'])
+! :call add(tl, [2, 'aa \zsax', ' ax'])						" must match before \zs
+! :call add(tl, [0, 'abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+! :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+! :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+  
+  :"""" Tests for \@ features
+! :call add(tl, [0, 'abc\@=', 'abc', 'ab'])
+! :call add(tl, [0, 'abc\@=cd', 'abcd', 'abcd'])
+! :call add(tl, [0, 'abc\@=', 'ababc', 'ab'])
+! :call add(tl, [2, 'abcd\@=e', 'abcd'])                     " will never match, no matter the input text
+! :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])    " will never match
+! :call add(tl, [0, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+! :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])	" no match
+! :call add(tl, [0, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+! :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])	" no match
+! :call add(tl, [0, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+! :call add(tl, [0, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  
+  :"""" Combining different tests and features
+! :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+! :call add(tl, [2, '', 'abcd', ''])
+! :call add(tl, [2, '\v(())', 'any possible text', ''])
+! :call add(tl, [2, '\v%(ab(xyz)c)', '   abxyzc ', 'abxyzc', 'xyz'])
+! :call add(tl, [2, '\v(test|)empty', 'tesempty', 'empty', ''])
+! :call add(tl, [2, '\v(a|aa)(a|aa)', 'aaa', 'aa', 'a', 'a'])
+  
+  :"""" \%u and friends
+! :call add(tl, [2, '\%d32', 'yes no', ' '])
+! :call add(tl, [2, '\%o40', 'yes no', ' '])
+! :call add(tl, [2, '\%x20', 'yes no', ' '])
+! :call add(tl, [2, '\%u0020', 'yes no', ' '])
+! :call add(tl, [2, '\%U00000020', 'yes no', ' '])
+  
+  :"""" Alternatives, must use first longest match
+! :call add(tl, [2, 'goo\|go', 'google', 'goo'])
+! :call add(tl, [2, '\<goo\|\<go', 'google', 'goo'])
+! :call add(tl, [2, '\<goo\|go', 'google', 'goo'])
+  
+  
+  :"""" Run the tests
+  
+  :"
+  :for t in tl
+! :  let re = t[0]
+! :  let pat = t[1]
+! :  let text = t[2]
+! :  let matchidx = 3
+! :  for engine in [0, 1, 2]
+! :    if engine == 2 && !re
+! :      continue
+! :    endif
+! :    let &regexpengine = engine
+! :    let l = matchlist(text, pat)
+  :" check the match itself
+! :    if len(l) == 0 && len(t) > matchidx
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", did not match, expected: \"' . t[matchidx] . '\"'
+! :    elseif len(l) > 0 && len(t) == matchidx
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", match: \"' . l[0] . '\", expected no match'
+! :    elseif len(t) > matchidx && l[0] != t[matchidx]
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", match: \"' . l[0] . '\", expected: \"' . t[matchidx] . '\"'
+! :    else
+! :      $put ='OK ' . engine . ' - ' . pat
+! :    endif
+! :    if len(l) > 0
+  :"   check all the nine submatches
+! :      for i in range(1, 9)
+! :        if len(t) <= matchidx + i
+! :          let e = ''
+! :        else
+! :          let e = t[matchidx + i]
+! :        endif
+! :        if l[i] != e
+! :          $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", submatch ' . i . ': \"' . l[i] . '\", expected: \"' . e . '\"'
+! :        endif
+! :      endfor
+! :      unlet i
+! :    endif
+! :  endfor
+  :endfor
+  :unlet t tl e l
+  
+  :" Check that \_[0-9] matching EOL does not break a following \>
+  :" This only works on a buffer line, not with expression evaluation
+  /^Find this
+! /\%#=0\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! y$Gop:"
+! /^Find this
+! /\%#=1\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! y$Gop:"
+! /^Find this
+! /\%#=2\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+  y$Gop:"
+  
+  :/\%#=1^Results/,$wq! test.out
+*** ../vim-7.3.1019/src/testdir/test64.ok	2013-05-25 20:19:45.000000000 +0200
+--- src/testdir/test64.ok	2013-05-25 23:12:31.000000000 +0200
+***************
+*** 1,238 ****
+  Results of test64:
+! OK - ab
+! OK - b
+! OK - bc*
+! OK - bc\{-}
+! OK - bc\{-}\(d\)
+! OK - bc*
+! OK - c*
+! OK - bc*
+! OK - c*
+! OK - bc\+
+! OK - bc\+
+! OK - a\|ab
+! OK - c\?
+! OK - bc\?
+! OK - bc\?
+! OK - \va{1}
+! OK - \va{2}
+! OK - \va{2}
+! OK - \va{2}
+! OK - \va{2}
+! OK - \va{2}
+! OK - \va{2}
+! OK - \vb{1}
+! OK - \vba{2}
+! OK - \vba{3}
+! OK - \v(ab){1}
+! OK - \v(ab){1}
+! OK - \v(ab){1}
+! OK - \v(ab){0,2}
+! OK - \v(ab){0,2}
+! OK - \v(ab){1,2}
+! OK - \v(ab){1,2}
+! OK - \v(ab){2,4}
+! OK - \v(ab){2,4}
+! OK - \v(ab){2}
+! OK - \v(ab){2}
+! OK - \v(ab){2}
+! OK - \v(ab){2}
+! OK - \v((ab){2}){2}
+! OK - \v((ab){2}){2}
+! OK - \v(a{1}){1}
+! OK - \v(a{2}){1}
+! OK - \v(a{2}){1}
+! OK - \v(a{2}){1}
+! OK - \v(a{1}){2}
+! OK - \v(a{1}){2}
+! OK - \v(a{2})+
+! OK - \v(a{2})+
+! OK - \v(a{2}){1}
+! OK - \v(a{1}){2}
+! OK - \v(a{1}){1}
+! OK - \v(a{2}){2}
+! OK - \v(a{2}){2}
+! OK - \v(a+){2}
+! OK - \v(a{3}){2}
+! OK - \v(a{1,2}){2}
+! OK - \v(a{1,3}){2}
+! OK - \v(a{1,3}){2}
+! OK - \v(a{1,3}){3}
+! OK - \v(a{1,2}){2}
+! OK - \v(a+)+
+! OK - \v(a+)+
+! OK - \v(a+){1,2}
+! OK - \v(a+)(a+)
+! OK - \v(a{3})+
+! OK - \v(a|b|c)+
+! OK - \v(a|b|c){2}
+! OK - \v(abc){2}
+! OK - \v(abc){2}
+! OK - a*
+! OK - \v(a*)+
+! OK - \v((ab)+)+
+! OK - \v(((ab)+)+)+
+! OK - \v(((ab)+)+)+
+! OK - \v(a{0,2})+
+! OK - \v(a*)+
+! OK - \v((a*)+)+
+! OK - \v((ab)*)+
+! OK - \va{1,3}
+! OK - \va{2,3}
+! OK - \v((ab)+|c*)+
+! OK - \v(a{2})|(b{3})
+! OK - \va{2}|b{2}
+! OK - \v(a)+|(c)+
+! OK - \vab{2,3}c
+! OK - \vab{2,3}c
+! OK - \vab{2,3}cd{2,3}e
+! OK - \va(bc){2}d
+! OK - \va*a{2}
+! OK - \va*a{2}
+! OK - \va*a{2}
+! OK - \va*a{2}
+! OK - \va*b*|a*c*
+! OK - \va{1}b{1}|a{1}b{1}
+! OK - \v(a)
+! OK - \v(a)(b)
+! OK - \v(ab)(b)(c)
+! OK - \v((a)(b))
+! OK - \v(a)|(b)
+! OK - \v(a*)+
+! OK - x
+! OK - ab
+! OK - ab
+! OK - ab
+! OK - x*
+! OK - x*
+! OK - x*
+! OK - x\+
+! OK - x\+
+! OK - x\+
+! OK - x\+
+! OK - x\=
+! OK - x\=
+! OK - x\=
+! OK - x\?
+! OK - x\?
+! OK - x\?
+! OK - a\{0,0}
+! OK - a\{0,1}
+! OK - a\{1,0}
+! OK - a\{3,6}
+! OK - a\{3,6}
+! OK - a\{3,6}
+! OK - a\{0}
+! OK - a\{2}
+! OK - a\{2}
+! OK - a\{2}
+! OK - a\{0,}
+! OK - a\{0,}
+! OK - a\{2,}
+! OK - a\{2,}
+! OK - a\{,0}
+! OK - a\{,5}
+! OK - a\{,5}
+! OK - a\{}
+! OK - a\{}
+! OK - a\{-0,0}
+! OK - a\{-0,1}
+! OK - a\{-3,6}
+! OK - a\{-3,6}
+! OK - a\{-3,6}
+! OK - a\{-0}
+! OK - a\{-2}
+! OK - a\{-2}
+! OK - a\{-0,}
+! OK - a\{-0,}
+! OK - a\{-2,}
+! OK - a\{-2,}
+! OK - a\{-,0}
+! OK - a\{-,5}
+! OK - a\{-,5}
+! OK - a\{-}
+! OK - a\{-}
+! OK - \(abc\)*
+! OK - \(ab\)\+
+! OK - \(abaaaaa\)*cd
+! OK - \(test1\)\? \(test2\)\?
+! OK - \(test1\)\= \(test2\) \(test4443\)\=
+! OK - \(\(sub1\) hello \(sub 2\)\)
+! OK - \(\(\(yyxxzz\)\)\)
+! OK - \v((ab)+|c+)+
+! OK - \v((ab)|c*)+
+! OK - \v(a(c*)+b)+
+! OK - \v(a|b*)+
+! OK - a\{-2,7}
+! OK - a\{2,7}
+! OK - \vx(.{-,8})yz(.*)
+! OK - \vx(.*)yz(.*)
+! OK - \v(a{1,2}){-2,3}
+! OK - \v(a{-1,3})+
+! OK - \d\+e\d\d
+! OK - \v[a]
+! OK - a[bcd]
+! OK - a[b-d]
+! OK - [a-d][e-f][x-x]d
+! OK - \v[[:alpha:]]+
+! OK - [[:alpha:]\+]
+! OK - [^abc]\+
+! OK - [^abc]
+! OK - [^abc]\+
+! OK - [^a-d]\+
+! OK - [a-f]*
+! OK - [a-f]*
+! OK - [^a-f]\+
+! OK - [a-c]\{-3,6}
+! OK - [^[:alpha:]]\+
+! OK - [-a]
+! OK - [a-]
+! OK - [-./[:alnum:]_~]\+
+! OK - [\]\^\-\\]\+
+! OK - [[.a.]]\+
+! OK - abc[0-9]*ddd
+! OK - abc[0-9]*ddd
+! OK - \_[0-9]\+
+! OK - [0-9\n]\+
+! OK - [0-9]
+! OK - [^0-9]
+! OK - [0-9a-fA-F]*
+! OK - [^0-9A-Fa-f]\+
+! OK - [a-z_A-Z0-9]\+
+! OK - [a-z]
+! OK - [a-zA-Z]
+! OK - [A-Z]
+! OK - \C[^A-Z]\+
+! OK - xx \ze test
+! OK - abc\zeend
+! OK - abc\zsdd
+! OK - aa \zsax
+! OK - abc \zsmatch\ze abc
+! OK - \v(a \zsif .*){2}
+! OK - \>\zs.
+! OK - abc\@=
+! OK - abc\@=cd
+! OK - abc\@=
+! OK - abcd\@=e
+! OK - abcd\@=e
+! OK - \v(abc)@=..
+! OK - \(.*John\)\@=.*Bob
+! OK - \(John.*\)\@=.*Bob
+! OK - .*John\&.*Bob
+! OK - .*John\&.*Bob
+! OK - \v(test1)@=.*yep
+! OK - [[:alpha:]]\{-2,6}
+! OK - 
+! OK - \v(())
+! OK - \v%(ab(xyz)c)
+! OK - \v(test|)empty
+! OK - \v(a|aa)(a|aa)
+! OK - \%d32
+! OK - \%o40
+! OK - \%x20
+! OK - \%u0020
+! OK - \%U00000020
+! OK - goo\|go
+! OK - \<goo\|\<go
+! OK - \<goo\|go
+  192.168.0.1
+--- 1,695 ----
+  Results of test64:
+! OK 0 - ab
+! OK 1 - ab
+! OK 2 - ab
+! OK 0 - b
+! OK 1 - b
+! OK 2 - b
+! OK 0 - bc*
+! OK 1 - bc*
+! OK 2 - bc*
+! OK 0 - bc\{-}
+! OK 1 - bc\{-}
+! OK 0 - bc\{-}\(d\)
+! OK 1 - bc\{-}\(d\)
+! OK 0 - bc*
+! OK 1 - bc*
+! OK 2 - bc*
+! OK 0 - c*
+! OK 1 - c*
+! OK 2 - c*
+! OK 0 - bc*
+! OK 1 - bc*
+! OK 2 - bc*
+! OK 0 - c*
+! OK 1 - c*
+! OK 2 - c*
+! OK 0 - bc\+
+! OK 1 - bc\+
+! OK 2 - bc\+
+! OK 0 - bc\+
+! OK 1 - bc\+
+! OK 2 - bc\+
+! OK 0 - a\|ab
+! OK 1 - a\|ab
+! OK 2 - a\|ab
+! OK 0 - c\?
+! OK 1 - c\?
+! OK 2 - c\?
+! OK 0 - bc\?
+! OK 1 - bc\?
+! OK 2 - bc\?
+! OK 0 - bc\?
+! OK 1 - bc\?
+! OK 2 - bc\?
+! OK 0 - \va{1}
+! OK 1 - \va{1}
+! OK 2 - \va{1}
+! OK 0 - \va{2}
+! OK 1 - \va{2}
+! OK 2 - \va{2}
+! OK 0 - \va{2}
+! OK 1 - \va{2}
+! OK 2 - \va{2}
+! OK 0 - \va{2}
+! OK 1 - \va{2}
+! OK 2 - \va{2}
+! OK 0 - \va{2}
+! OK 1 - \va{2}
+! OK 2 - \va{2}
+! OK 0 - \va{2}
+! OK 1 - \va{2}
+! OK 2 - \va{2}
+! OK 0 - \va{2}
+! OK 1 - \va{2}
+! OK 2 - \va{2}
+! OK 0 - \vb{1}
+! OK 1 - \vb{1}
+! OK 2 - \vb{1}
+! OK 0 - \vba{2}
+! OK 1 - \vba{2}
+! OK 2 - \vba{2}
+! OK 0 - \vba{3}
+! OK 1 - \vba{3}
+! OK 2 - \vba{3}
+! OK 0 - \v(ab){1}
+! OK 1 - \v(ab){1}
+! OK 2 - \v(ab){1}
+! OK 0 - \v(ab){1}
+! OK 1 - \v(ab){1}
+! OK 2 - \v(ab){1}
+! OK 0 - \v(ab){1}
+! OK 1 - \v(ab){1}
+! OK 2 - \v(ab){1}
+! OK 0 - \v(ab){0,2}
+! OK 1 - \v(ab){0,2}
+! OK 2 - \v(ab){0,2}
+! OK 0 - \v(ab){0,2}
+! OK 1 - \v(ab){0,2}
+! OK 2 - \v(ab){0,2}
+! OK 0 - \v(ab){1,2}
+! OK 1 - \v(ab){1,2}
+! OK 2 - \v(ab){1,2}
+! OK 0 - \v(ab){1,2}
+! OK 1 - \v(ab){1,2}
+! OK 2 - \v(ab){1,2}
+! OK 0 - \v(ab){2,4}
+! OK 1 - \v(ab){2,4}
+! OK 2 - \v(ab){2,4}
+! OK 0 - \v(ab){2,4}
+! OK 1 - \v(ab){2,4}
+! OK 2 - \v(ab){2,4}
+! OK 0 - \v(ab){2}
+! OK 1 - \v(ab){2}
+! OK 2 - \v(ab){2}
+! OK 0 - \v(ab){2}
+! OK 1 - \v(ab){2}
+! OK 2 - \v(ab){2}
+! OK 0 - \v(ab){2}
+! OK 1 - \v(ab){2}
+! OK 2 - \v(ab){2}
+! OK 0 - \v(ab){2}
+! OK 1 - \v(ab){2}
+! OK 2 - \v(ab){2}
+! OK 0 - \v((ab){2}){2}
+! OK 1 - \v((ab){2}){2}
+! OK 2 - \v((ab){2}){2}
+! OK 0 - \v((ab){2}){2}
+! OK 1 - \v((ab){2}){2}
+! OK 2 - \v((ab){2}){2}
+! OK 0 - \v(a{1}){1}
+! OK 1 - \v(a{1}){1}
+! OK 2 - \v(a{1}){1}
+! OK 0 - \v(a{2}){1}
+! OK 1 - \v(a{2}){1}
+! OK 2 - \v(a{2}){1}
+! OK 0 - \v(a{2}){1}
+! OK 1 - \v(a{2}){1}
+! OK 2 - \v(a{2}){1}
+! OK 0 - \v(a{2}){1}
+! OK 1 - \v(a{2}){1}
+! OK 2 - \v(a{2}){1}
+! OK 0 - \v(a{1}){2}
+! OK 1 - \v(a{1}){2}
+! OK 2 - \v(a{1}){2}
+! OK 0 - \v(a{1}){2}
+! OK 1 - \v(a{1}){2}
+! OK 2 - \v(a{1}){2}
+! OK 0 - \v(a{2})+
+! OK 1 - \v(a{2})+
+! OK 2 - \v(a{2})+
+! OK 0 - \v(a{2})+
+! OK 1 - \v(a{2})+
+! OK 2 - \v(a{2})+
+! OK 0 - \v(a{2}){1}
+! OK 1 - \v(a{2}){1}
+! OK 2 - \v(a{2}){1}
+! OK 0 - \v(a{1}){2}
+! OK 1 - \v(a{1}){2}
+! OK 2 - \v(a{1}){2}
+! OK 0 - \v(a{1}){1}
+! OK 1 - \v(a{1}){1}
+! OK 2 - \v(a{1}){1}
+! OK 0 - \v(a{2}){2}
+! OK 1 - \v(a{2}){2}
+! OK 2 - \v(a{2}){2}
+! OK 0 - \v(a{2}){2}
+! OK 1 - \v(a{2}){2}
+! OK 2 - \v(a{2}){2}
+! OK 0 - \v(a+){2}
+! OK 1 - \v(a+){2}
+! OK 2 - \v(a+){2}
+! OK 0 - \v(a{3}){2}
+! OK 1 - \v(a{3}){2}
+! OK 2 - \v(a{3}){2}
+! OK 0 - \v(a{1,2}){2}
+! OK 1 - \v(a{1,2}){2}
+! OK 2 - \v(a{1,2}){2}
+! OK 0 - \v(a{1,3}){2}
+! OK 1 - \v(a{1,3}){2}
+! OK 2 - \v(a{1,3}){2}
+! OK 0 - \v(a{1,3}){2}
+! OK 1 - \v(a{1,3}){2}
+! OK 2 - \v(a{1,3}){2}
+! OK 0 - \v(a{1,3}){3}
+! OK 1 - \v(a{1,3}){3}
+! OK 2 - \v(a{1,3}){3}
+! OK 0 - \v(a{1,2}){2}
+! OK 1 - \v(a{1,2}){2}
+! OK 2 - \v(a{1,2}){2}
+! OK 0 - \v(a+)+
+! OK 1 - \v(a+)+
+! OK 2 - \v(a+)+
+! OK 0 - \v(a+)+
+! OK 1 - \v(a+)+
+! OK 2 - \v(a+)+
+! OK 0 - \v(a+){1,2}
+! OK 1 - \v(a+){1,2}
+! OK 2 - \v(a+){1,2}
+! OK 0 - \v(a+)(a+)
+! OK 1 - \v(a+)(a+)
+! OK 2 - \v(a+)(a+)
+! OK 0 - \v(a{3})+
+! OK 1 - \v(a{3})+
+! OK 2 - \v(a{3})+
+! OK 0 - \v(a|b|c)+
+! OK 1 - \v(a|b|c)+
+! OK 2 - \v(a|b|c)+
+! OK 0 - \v(a|b|c){2}
+! OK 1 - \v(a|b|c){2}
+! OK 2 - \v(a|b|c){2}
+! OK 0 - \v(abc){2}
+! OK 1 - \v(abc){2}
+! OK 2 - \v(abc){2}
+! OK 0 - \v(abc){2}
+! OK 1 - \v(abc){2}
+! OK 2 - \v(abc){2}
+! OK 0 - a*
+! OK 1 - a*
+! OK 2 - a*
+! OK 0 - \v(a*)+
+! OK 1 - \v(a*)+
+! OK 2 - \v(a*)+
+! OK 0 - \v((ab)+)+
+! OK 1 - \v((ab)+)+
+! OK 2 - \v((ab)+)+
+! OK 0 - \v(((ab)+)+)+
+! OK 1 - \v(((ab)+)+)+
+! OK 2 - \v(((ab)+)+)+
+! OK 0 - \v(((ab)+)+)+
+! OK 1 - \v(((ab)+)+)+
+! OK 2 - \v(((ab)+)+)+
+! OK 0 - \v(a{0,2})+
+! OK 1 - \v(a{0,2})+
+! OK 2 - \v(a{0,2})+
+! OK 0 - \v(a*)+
+! OK 1 - \v(a*)+
+! OK 2 - \v(a*)+
+! OK 0 - \v((a*)+)+
+! OK 1 - \v((a*)+)+
+! OK 2 - \v((a*)+)+
+! OK 0 - \v((ab)*)+
+! OK 1 - \v((ab)*)+
+! OK 2 - \v((ab)*)+
+! OK 0 - \va{1,3}
+! OK 1 - \va{1,3}
+! OK 2 - \va{1,3}
+! OK 0 - \va{2,3}
+! OK 1 - \va{2,3}
+! OK 2 - \va{2,3}
+! OK 0 - \v((ab)+|c*)+
+! OK 1 - \v((ab)+|c*)+
+! OK 2 - \v((ab)+|c*)+
+! OK 0 - \v(a{2})|(b{3})
+! OK 1 - \v(a{2})|(b{3})
+! OK 2 - \v(a{2})|(b{3})
+! OK 0 - \va{2}|b{2}
+! OK 1 - \va{2}|b{2}
+! OK 2 - \va{2}|b{2}
+! OK 0 - \v(a)+|(c)+
+! OK 1 - \v(a)+|(c)+
+! OK 2 - \v(a)+|(c)+
+! OK 0 - \vab{2,3}c
+! OK 1 - \vab{2,3}c
+! OK 2 - \vab{2,3}c
+! OK 0 - \vab{2,3}c
+! OK 1 - \vab{2,3}c
+! OK 2 - \vab{2,3}c
+! OK 0 - \vab{2,3}cd{2,3}e
+! OK 1 - \vab{2,3}cd{2,3}e
+! OK 2 - \vab{2,3}cd{2,3}e
+! OK 0 - \va(bc){2}d
+! OK 1 - \va(bc){2}d
+! OK 2 - \va(bc){2}d
+! OK 0 - \va*a{2}
+! OK 1 - \va*a{2}
+! OK 2 - \va*a{2}
+! OK 0 - \va*a{2}
+! OK 1 - \va*a{2}
+! OK 2 - \va*a{2}
+! OK 0 - \va*a{2}
+! OK 1 - \va*a{2}
+! OK 2 - \va*a{2}
+! OK 0 - \va*a{2}
+! OK 1 - \va*a{2}
+! OK 2 - \va*a{2}
+! OK 0 - \va*b*|a*c*
+! OK 1 - \va*b*|a*c*
+! OK 2 - \va*b*|a*c*
+! OK 0 - \va{1}b{1}|a{1}b{1}
+! OK 1 - \va{1}b{1}|a{1}b{1}
+! OK 2 - \va{1}b{1}|a{1}b{1}
+! OK 0 - \v(a)
+! OK 1 - \v(a)
+! OK 2 - \v(a)
+! OK 0 - \v(a)(b)
+! OK 1 - \v(a)(b)
+! OK 2 - \v(a)(b)
+! OK 0 - \v(ab)(b)(c)
+! OK 1 - \v(ab)(b)(c)
+! OK 2 - \v(ab)(b)(c)
+! OK 0 - \v((a)(b))
+! OK 1 - \v((a)(b))
+! OK 2 - \v((a)(b))
+! OK 0 - \v(a)|(b)
+! OK 1 - \v(a)|(b)
+! OK 2 - \v(a)|(b)
+! OK 0 - \v(a*)+
+! OK 1 - \v(a*)+
+! OK 2 - \v(a*)+
+! OK 0 - x
+! OK 1 - x
+! OK 2 - x
+! OK 0 - ab
+! OK 1 - ab
+! OK 2 - ab
+! OK 0 - ab
+! OK 1 - ab
+! OK 2 - ab
+! OK 0 - ab
+! OK 1 - ab
+! OK 2 - ab
+! OK 0 - x*
+! OK 1 - x*
+! OK 2 - x*
+! OK 0 - x*
+! OK 1 - x*
+! OK 2 - x*
+! OK 0 - x*
+! OK 1 - x*
+! OK 2 - x*
+! OK 0 - x\+
+! OK 1 - x\+
+! OK 2 - x\+
+! OK 0 - x\+
+! OK 1 - x\+
+! OK 2 - x\+
+! OK 0 - x\+
+! OK 1 - x\+
+! OK 2 - x\+
+! OK 0 - x\+
+! OK 1 - x\+
+! OK 2 - x\+
+! OK 0 - x\=
+! OK 1 - x\=
+! OK 2 - x\=
+! OK 0 - x\=
+! OK 1 - x\=
+! OK 2 - x\=
+! OK 0 - x\=
+! OK 1 - x\=
+! OK 2 - x\=
+! OK 0 - x\?
+! OK 1 - x\?
+! OK 2 - x\?
+! OK 0 - x\?
+! OK 1 - x\?
+! OK 2 - x\?
+! OK 0 - x\?
+! OK 1 - x\?
+! OK 2 - x\?
+! OK 0 - a\{0,0}
+! OK 1 - a\{0,0}
+! OK 2 - a\{0,0}
+! OK 0 - a\{0,1}
+! OK 1 - a\{0,1}
+! OK 2 - a\{0,1}
+! OK 0 - a\{1,0}
+! OK 1 - a\{1,0}
+! OK 2 - a\{1,0}
+! OK 0 - a\{3,6}
+! OK 1 - a\{3,6}
+! OK 2 - a\{3,6}
+! OK 0 - a\{3,6}
+! OK 1 - a\{3,6}
+! OK 2 - a\{3,6}
+! OK 0 - a\{3,6}
+! OK 1 - a\{3,6}
+! OK 2 - a\{3,6}
+! OK 0 - a\{0}
+! OK 1 - a\{0}
+! OK 2 - a\{0}
+! OK 0 - a\{2}
+! OK 1 - a\{2}
+! OK 2 - a\{2}
+! OK 0 - a\{2}
+! OK 1 - a\{2}
+! OK 2 - a\{2}
+! OK 0 - a\{2}
+! OK 1 - a\{2}
+! OK 2 - a\{2}
+! OK 0 - a\{0,}
+! OK 1 - a\{0,}
+! OK 2 - a\{0,}
+! OK 0 - a\{0,}
+! OK 1 - a\{0,}
+! OK 2 - a\{0,}
+! OK 0 - a\{2,}
+! OK 1 - a\{2,}
+! OK 2 - a\{2,}
+! OK 0 - a\{2,}
+! OK 1 - a\{2,}
+! OK 0 - a\{,0}
+! OK 1 - a\{,0}
+! OK 2 - a\{,0}
+! OK 0 - a\{,5}
+! OK 1 - a\{,5}
+! OK 2 - a\{,5}
+! OK 0 - a\{,5}
+! OK 1 - a\{,5}
+! OK 2 - a\{,5}
+! OK 0 - a\{}
+! OK 1 - a\{}
+! OK 2 - a\{}
+! OK 0 - a\{}
+! OK 1 - a\{}
+! OK 2 - a\{}
+! OK 0 - a\{-0,0}
+! OK 1 - a\{-0,0}
+! OK 2 - a\{-0,0}
+! OK 0 - a\{-0,1}
+! OK 1 - a\{-0,1}
+! OK 2 - a\{-0,1}
+! OK 0 - a\{-3,6}
+! OK 1 - a\{-3,6}
+! OK 2 - a\{-3,6}
+! OK 0 - a\{-3,6}
+! OK 1 - a\{-3,6}
+! OK 2 - a\{-3,6}
+! OK 0 - a\{-3,6}
+! OK 1 - a\{-3,6}
+! OK 2 - a\{-3,6}
+! OK 0 - a\{-0}
+! OK 1 - a\{-0}
+! OK 2 - a\{-0}
+! OK 0 - a\{-2}
+! OK 1 - a\{-2}
+! OK 2 - a\{-2}
+! OK 0 - a\{-2}
+! OK 1 - a\{-2}
+! OK 2 - a\{-2}
+! OK 0 - a\{-0,}
+! OK 1 - a\{-0,}
+! OK 0 - a\{-0,}
+! OK 1 - a\{-0,}
+! OK 0 - a\{-2,}
+! OK 1 - a\{-2,}
+! OK 2 - a\{-2,}
+! OK 0 - a\{-2,}
+! OK 1 - a\{-2,}
+! OK 0 - a\{-,0}
+! OK 1 - a\{-,0}
+! OK 2 - a\{-,0}
+! OK 0 - a\{-,5}
+! OK 1 - a\{-,5}
+! OK 2 - a\{-,5}
+! OK 0 - a\{-,5}
+! OK 1 - a\{-,5}
+! OK 2 - a\{-,5}
+! OK 0 - a\{-}
+! OK 1 - a\{-}
+! OK 0 - a\{-}
+! OK 1 - a\{-}
+! OK 0 - \(abc\)*
+! OK 1 - \(abc\)*
+! OK 2 - \(abc\)*
+! OK 0 - \(ab\)\+
+! OK 1 - \(ab\)\+
+! OK 2 - \(ab\)\+
+! OK 0 - \(abaaaaa\)*cd
+! OK 1 - \(abaaaaa\)*cd
+! OK 2 - \(abaaaaa\)*cd
+! OK 0 - \(test1\)\? \(test2\)\?
+! OK 1 - \(test1\)\? \(test2\)\?
+! OK 2 - \(test1\)\? \(test2\)\?
+! OK 0 - \(test1\)\= \(test2\) \(test4443\)\=
+! OK 1 - \(test1\)\= \(test2\) \(test4443\)\=
+! OK 2 - \(test1\)\= \(test2\) \(test4443\)\=
+! OK 0 - \(\(sub1\) hello \(sub 2\)\)
+! OK 1 - \(\(sub1\) hello \(sub 2\)\)
+! OK 2 - \(\(sub1\) hello \(sub 2\)\)
+! OK 0 - \(\(\(yyxxzz\)\)\)
+! OK 1 - \(\(\(yyxxzz\)\)\)
+! OK 2 - \(\(\(yyxxzz\)\)\)
+! OK 0 - \v((ab)+|c+)+
+! OK 1 - \v((ab)+|c+)+
+! OK 2 - \v((ab)+|c+)+
+! OK 0 - \v((ab)|c*)+
+! OK 1 - \v((ab)|c*)+
+! OK 2 - \v((ab)|c*)+
+! OK 0 - \v(a(c*)+b)+
+! OK 1 - \v(a(c*)+b)+
+! OK 2 - \v(a(c*)+b)+
+! OK 0 - \v(a|b*)+
+! OK 1 - \v(a|b*)+
+! OK 2 - \v(a|b*)+
+! OK 0 - a\{-2,7}
+! OK 1 - a\{-2,7}
+! OK 2 - a\{-2,7}
+! OK 0 - a\{2,7}
+! OK 1 - a\{2,7}
+! OK 2 - a\{2,7}
+! OK 0 - \vx(.{-,8})yz(.*)
+! OK 1 - \vx(.{-,8})yz(.*)
+! OK 2 - \vx(.{-,8})yz(.*)
+! OK 0 - \vx(.*)yz(.*)
+! OK 1 - \vx(.*)yz(.*)
+! OK 2 - \vx(.*)yz(.*)
+! OK 0 - \v(a{1,2}){-2,3}
+! OK 1 - \v(a{1,2}){-2,3}
+! OK 2 - \v(a{1,2}){-2,3}
+! OK 0 - \v(a{-1,3})+
+! OK 1 - \v(a{-1,3})+
+! OK 2 - \v(a{-1,3})+
+! OK 0 - \d\+e\d\d
+! OK 1 - \d\+e\d\d
+! OK 2 - \d\+e\d\d
+! OK 0 - \v[a]
+! OK 1 - \v[a]
+! OK 2 - \v[a]
+! OK 0 - a[bcd]
+! OK 1 - a[bcd]
+! OK 2 - a[bcd]
+! OK 0 - a[b-d]
+! OK 1 - a[b-d]
+! OK 2 - a[b-d]
+! OK 0 - [a-d][e-f][x-x]d
+! OK 1 - [a-d][e-f][x-x]d
+! OK 2 - [a-d][e-f][x-x]d
+! OK 0 - \v[[:alpha:]]+
+! OK 1 - \v[[:alpha:]]+
+! OK 2 - \v[[:alpha:]]+
+! OK 0 - [[:alpha:]\+]
+! OK 1 - [[:alpha:]\+]
+! OK 2 - [[:alpha:]\+]
+! OK 0 - [^abc]\+
+! OK 1 - [^abc]\+
+! OK 2 - [^abc]\+
+! OK 0 - [^abc]
+! OK 1 - [^abc]
+! OK 2 - [^abc]
+! OK 0 - [^abc]\+
+! OK 1 - [^abc]\+
+! OK 2 - [^abc]\+
+! OK 0 - [^a-d]\+
+! OK 1 - [^a-d]\+
+! OK 2 - [^a-d]\+
+! OK 0 - [a-f]*
+! OK 1 - [a-f]*
+! OK 2 - [a-f]*
+! OK 0 - [a-f]*
+! OK 1 - [a-f]*
+! OK 2 - [a-f]*
+! OK 0 - [^a-f]\+
+! OK 1 - [^a-f]\+
+! OK 2 - [^a-f]\+
+! OK 0 - [a-c]\{-3,6}
+! OK 1 - [a-c]\{-3,6}
+! OK 2 - [a-c]\{-3,6}
+! OK 0 - [^[:alpha:]]\+
+! OK 1 - [^[:alpha:]]\+
+! OK 2 - [^[:alpha:]]\+
+! OK 0 - [-a]
+! OK 1 - [-a]
+! OK 2 - [-a]
+! OK 0 - [a-]
+! OK 1 - [a-]
+! OK 2 - [a-]
+! OK 0 - [-./[:alnum:]_~]\+
+! OK 1 - [-./[:alnum:]_~]\+
+! OK 2 - [-./[:alnum:]_~]\+
+! OK 0 - [\]\^\-\\]\+
+! OK 1 - [\]\^\-\\]\+
+! OK 2 - [\]\^\-\\]\+
+! OK 0 - [[.a.]]\+
+! OK 1 - [[.a.]]\+
+! OK 2 - [[.a.]]\+
+! OK 0 - abc[0-9]*ddd
+! OK 1 - abc[0-9]*ddd
+! OK 2 - abc[0-9]*ddd
+! OK 0 - abc[0-9]*ddd
+! OK 1 - abc[0-9]*ddd
+! OK 2 - abc[0-9]*ddd
+! OK 0 - \_[0-9]\+
+! OK 1 - \_[0-9]\+
+! OK 2 - \_[0-9]\+
+! OK 0 - [0-9\n]\+
+! OK 1 - [0-9\n]\+
+! OK 2 - [0-9\n]\+
+! OK 0 - [0-9]
+! OK 1 - [0-9]
+! OK 2 - [0-9]
+! OK 0 - [^0-9]
+! OK 1 - [^0-9]
+! OK 2 - [^0-9]
+! OK 0 - [0-9a-fA-F]*
+! OK 1 - [0-9a-fA-F]*
+! OK 2 - [0-9a-fA-F]*
+! OK 0 - [^0-9A-Fa-f]\+
+! OK 1 - [^0-9A-Fa-f]\+
+! OK 2 - [^0-9A-Fa-f]\+
+! OK 0 - [a-z_A-Z0-9]\+
+! OK 1 - [a-z_A-Z0-9]\+
+! OK 2 - [a-z_A-Z0-9]\+
+! OK 0 - [a-z]
+! OK 1 - [a-z]
+! OK 2 - [a-z]
+! OK 0 - [a-zA-Z]
+! OK 1 - [a-zA-Z]
+! OK 2 - [a-zA-Z]
+! OK 0 - [A-Z]
+! OK 1 - [A-Z]
+! OK 2 - [A-Z]
+! OK 0 - \C[^A-Z]\+
+! OK 1 - \C[^A-Z]\+
+! OK 2 - \C[^A-Z]\+
+! OK 0 - xx \ze test
+! OK 1 - xx \ze test
+! OK 2 - xx \ze test
+! OK 0 - abc\zeend
+! OK 1 - abc\zeend
+! OK 0 - abc\zsdd
+! OK 1 - abc\zsdd
+! OK 2 - abc\zsdd
+! OK 0 - aa \zsax
+! OK 1 - aa \zsax
+! OK 2 - aa \zsax
+! OK 0 - abc \zsmatch\ze abc
+! OK 1 - abc \zsmatch\ze abc
+! OK 0 - \v(a \zsif .*){2}
+! OK 1 - \v(a \zsif .*){2}
+! OK 2 - \v(a \zsif .*){2}
+! OK 0 - \>\zs.
+! OK 1 - \>\zs.
+! OK 2 - \>\zs.
+! OK 0 - abc\@=
+! OK 1 - abc\@=
+! OK 0 - abc\@=cd
+! OK 1 - abc\@=cd
+! OK 0 - abc\@=
+! OK 1 - abc\@=
+! OK 0 - abcd\@=e
+! OK 1 - abcd\@=e
+! OK 2 - abcd\@=e
+! OK 0 - abcd\@=e
+! OK 1 - abcd\@=e
+! OK 2 - abcd\@=e
+! OK 0 - \v(abc)@=..
+! OK 1 - \v(abc)@=..
+! OK 0 - \(.*John\)\@=.*Bob
+! OK 1 - \(.*John\)\@=.*Bob
+! OK 2 - \(.*John\)\@=.*Bob
+! OK 0 - \(John.*\)\@=.*Bob
+! OK 1 - \(John.*\)\@=.*Bob
+! OK 0 - .*John\&.*Bob
+! OK 1 - .*John\&.*Bob
+! OK 2 - .*John\&.*Bob
+! OK 0 - .*John\&.*Bob
+! OK 1 - .*John\&.*Bob
+! OK 0 - \v(test1)@=.*yep
+! OK 1 - \v(test1)@=.*yep
+! OK 0 - [[:alpha:]]\{-2,6}
+! OK 1 - [[:alpha:]]\{-2,6}
+! OK 2 - [[:alpha:]]\{-2,6}
+! OK 0 - 
+! OK 1 - 
+! OK 2 - 
+! OK 0 - \v(())
+! OK 1 - \v(())
+! OK 2 - \v(())
+! OK 0 - \v%(ab(xyz)c)
+! OK 1 - \v%(ab(xyz)c)
+! OK 2 - \v%(ab(xyz)c)
+! OK 0 - \v(test|)empty
+! OK 1 - \v(test|)empty
+! OK 2 - \v(test|)empty
+! OK 0 - \v(a|aa)(a|aa)
+! OK 1 - \v(a|aa)(a|aa)
+! OK 2 - \v(a|aa)(a|aa)
+! OK 0 - \%d32
+! OK 1 - \%d32
+! OK 2 - \%d32
+! OK 0 - \%o40
+! OK 1 - \%o40
+! OK 2 - \%o40
+! OK 0 - \%x20
+! OK 1 - \%x20
+! OK 2 - \%x20
+! OK 0 - \%u0020
+! OK 1 - \%u0020
+! OK 2 - \%u0020
+! OK 0 - \%U00000020
+! OK 1 - \%U00000020
+! OK 2 - \%U00000020
+! OK 0 - goo\|go
+! OK 1 - goo\|go
+! OK 2 - goo\|go
+! OK 0 - \<goo\|\<go
+! OK 1 - \<goo\|\<go
+! OK 2 - \<goo\|\<go
+! OK 0 - \<goo\|go
+! OK 1 - \<goo\|go
+! OK 2 - \<goo\|go
+! 192.168.0.1
+! 192.168.0.1
+  192.168.0.1
+*** ../vim-7.3.1019/src/testdir/test95.in	2013-05-25 14:41:58.000000000 +0200
+--- src/testdir/test95.in	2013-05-25 23:06:00.000000000 +0200
+***************
+*** 20,98 ****
+  
+  :"""" Multi-byte character tests. These will fail unless vim is compiled
+  :"""" with Multibyte (FEAT_MBYTE) or BIG/HUGE features.
+! :call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
+! :call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])								" equivalence classes
+! :call add(tl, ['[^ม ]\+', 'มม oijasoifjos ifjoisj f osij j มมมมม abcd', 'oijasoifjos'])
+! :call add(tl, [' [^ ]\+', 'start มabcdม ', ' มabcdม'])
+! :call add(tl, ['[ม[:alpha:][=a=]]\+', '879 aiaãมâมaiuvna ', 'aiaãมâมaiuvna'])
+  
+  :" this is not a normal "i" but 0xec
+! :call add(tl, ['\p\+', 'ìa', 'ìa'])
+  
+  :"""" Test recognition of some character classes
+! :call add(tl, ['\i\+', '&*¨xx ', 'xx'])
+! :call add(tl, ['\%#=1\i\+', '&*¨xx ', 'xx'])
+! :call add(tl, ['\f\+', '&*fname ', 'fname'])
+! :call add(tl, ['\%#=1\f\+', '&*fname ', 'fname'])
+  
+  :"""" Test composing character matching
+! :call add(tl, ['.ม', 'xม่x yมy', 'yม'])
+! :call add(tl, ['.ม่', 'xม่x yมy', 'xม่'])
+! :call add(tl, ["\u05b9", " x\u05b9 ", "x\u05b9"])
+! :call add(tl, [".\u05b9", " x\u05b9 ", "x\u05b9"])
+! :call add(tl, ["\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :call add(tl, [".\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :call add(tl, ["\u05bb\u05b9", " x\u05b9\u05bb "])
+! :call add(tl, [".\u05bb\u05b9", " x\u05b9\u05bb "])
+! :call add(tl, ["\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+! :call add(tl, [".\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+  
+  
+  :"""" Test \Z
+! :call add(tl, ['ú\Z', 'x'])
+! :call add(tl, ['יהוה\Z', 'יהוה', 'יהוה'])
+! :call add(tl, ['יְהוָה\Z', 'יהוה', 'יהוה'])
+! :call add(tl, ['יהוה\Z', 'יְהוָה', 'יְהוָה'])
+! :call add(tl, ['יְהוָה\Z', 'יְהוָה', 'יְהוָה'])
+! :call add(tl, ['יְ\Z', 'וְיַ', 'יַ'])
+! :call add(tl, ["ק\u200d\u05b9x\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+! :call add(tl, ["ק\u200d\u05b9x\\Z", "xק\u200dxy", "ק\u200dx"])
+! :call add(tl, ["ק\u200dx\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+! :call add(tl, ["ק\u200dx\\Z", "xק\u200dxy", "ק\u200dx"])
+! :call add(tl, ["\u05b9\\+\\Z", "xyz", "xyz"])
+! :call add(tl, ["\\Z\u05b9\\+", "xyz", "xyz"])
+  
+  :"""" Combining different tests and features
+! :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+  
+  :"""" Run the tests
+  :"
+  :for t in tl
+! :  let l = matchlist(t[1], t[0])
+  :" check the match itself
+! :  if len(l) == 0 && len(t) > 2
+! :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", did not match, expected: \"' . t[2] . '\"'
+! :  elseif len(l) > 0 && len(t) == 2
+! :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected no match'
+! :  elseif len(t) > 2 && l[0] != t[2]
+! :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected: \"' . t[2] . '\"'
+! :  else
+! :    $put ='OK - ' . t[0]
+! :  endif
+! :  if len(l) > 0
+  :"   check all the nine submatches
+! :    for i in range(1, 9)
+! :      if len(t) <= i + 2
+! :        let e = ''
+! :      else
+! :        let e = t[i + 2]
+! :      endif
+! :      if l[i] != e
+! :        $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", submatch ' . i . ': \"' . l[i] . '\", expected: \"' . e . '\"'
+! :      endif
+! :    endfor
+! :    unlet i
+! :  endif
+  :endfor
+  :unlet t tl e l
+  
+--- 20,109 ----
+  
+  :"""" Multi-byte character tests. These will fail unless vim is compiled
+  :"""" with Multibyte (FEAT_MBYTE) or BIG/HUGE features.
+! :call add(tl, [2, '[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
+! :call add(tl, [2, '[[=a=]]\+', 'ddaãâbcd', 'aãâ'])								" equivalence classes
+! :call add(tl, [2, '[^ม ]\+', 'มม oijasoifjos ifjoisj f osij j มมมมม abcd', 'oijasoifjos'])
+! :call add(tl, [2, ' [^ ]\+', 'start มabcdม ', ' มabcdม'])
+! :call add(tl, [2, '[ม[:alpha:][=a=]]\+', '879 aiaãมâมaiuvna ', 'aiaãมâมaiuvna'])
+  
+  :" this is not a normal "i" but 0xec
+! :call add(tl, [2, '\p\+', 'ìa', 'ìa'])
+  
+  :"""" Test recognition of some character classes
+! :call add(tl, [2, '\i\+', '&*¨xx ', 'xx'])
+! :call add(tl, [2, '\f\+', '&*fname ', 'fname'])
+  
+  :"""" Test composing character matching
+! :call add(tl, [2, '.ม', 'xม่x yมy', 'yม'])
+! :call add(tl, [2, '.ม่', 'xม่x yมy', 'xม่'])
+! :call add(tl, [2, "\u05b9", " x\u05b9 ", "x\u05b9"])
+! :call add(tl, [2, ".\u05b9", " x\u05b9 ", "x\u05b9"])
+! :call add(tl, [2, "\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :call add(tl, [2, ".\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :"call add(tl, [2, "\u05bb\u05b9", " x\u05b9\u05bb "])
+! :"call add(tl, [2, ".\u05bb\u05b9", " x\u05b9\u05bb "])
+! :call add(tl, [2, "\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+! :call add(tl, [2, ".\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+  
+  
+  :"""" Test \Z
+! :call add(tl, [2, 'ú\Z', 'x'])
+! :call add(tl, [2, 'יהוה\Z', 'יהוה', 'יהוה'])
+! :call add(tl, [2, 'יְהוָה\Z', 'יהוה', 'יהוה'])
+! :call add(tl, [2, 'יהוה\Z', 'יְהוָה', 'יְהוָה'])
+! :call add(tl, [2, 'יְהוָה\Z', 'יְהוָה', 'יְהוָה'])
+! :call add(tl, [2, 'יְ\Z', 'וְיַ', 'יַ'])
+! :call add(tl, [2, "ק\u200d\u05b9x\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+! :call add(tl, [2, "ק\u200d\u05b9x\\Z", "xק\u200dxy", "ק\u200dx"])
+! :call add(tl, [2, "ק\u200dx\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+! :call add(tl, [2, "ק\u200dx\\Z", "xק\u200dxy", "ק\u200dx"])
+! :"call add(tl, [2, "\u05b9\\Z", "xyz"])
+! :"call add(tl, [2, "\\Z\u05b9", "xyz"])
+! :"call add(tl, [2, "\u05b9\\+\\Z", "xyz", "xyz"])
+! :"call add(tl, [2, "\\Z\u05b9\\+", "xyz", "xyz"])
+  
+  :"""" Combining different tests and features
+! :call add(tl, [2, '[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+  
+  :"""" Run the tests
++ 
+  :"
+  :for t in tl
+! :  let re = t[0]
+! :  let pat = t[1]
+! :  let text = t[2]
+! :  let matchidx = 3
+! :  for engine in [0, 1, 2]
+! :    if engine == 2 && !re
+! :      continue
+! :    endif
+! :    let &regexpengine = engine
+! :    let l = matchlist(text, pat)
+  :" check the match itself
+! :    if len(l) == 0 && len(t) > matchidx
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", did not match, expected: \"' . t[matchidx] . '\"'
+! :    elseif len(l) > 0 && len(t) == matchidx
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", match: \"' . l[0] . '\", expected no match'
+! :    elseif len(t) > matchidx && l[0] != t[matchidx]
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", match: \"' . l[0] . '\", expected: \"' . t[matchidx] . '\"'
+! :    else
+! :      $put ='OK ' . engine . ' - ' . pat
+! :    endif
+! :    if len(l) > 0
+  :"   check all the nine submatches
+! :      for i in range(1, 9)
+! :        if len(t) <= matchidx + i
+! :          let e = ''
+! :        else
+! :          let e = t[matchidx + i]
+! :        endif
+! :        if l[i] != e
+! :          $put ='ERROR: pat: \"' . pat . '\", text: \"' . text . '\", submatch ' . i . ': \"' . l[i] . '\", expected: \"' . e . '\"'
+! :        endif
+! :      endfor
+! :      unlet i
+! :    endif
+! :  endfor
+  :endfor
+  :unlet t tl e l
+  
+*** ../vim-7.3.1019/src/testdir/test95.ok	2013-05-25 14:41:58.000000000 +0200
+--- src/testdir/test95.ok	2013-05-25 23:06:26.000000000 +0200
+***************
+*** 1,34 ****
+  Results of test95:
+! OK - [[:alpha:][=a=]]\+
+! OK - [[=a=]]\+
+! OK - [^ม ]\+
+! OK -  [^ ]\+
+! OK - [ม[:alpha:][=a=]]\+
+! OK - \p\+
+! OK - \i\+
+! OK - \%#=1\i\+
+! OK - \f\+
+! OK - \%#=1\f\+
+! OK - .ม
+! OK - .ม่
+! OK - ֹ
+! OK - .ֹ
+! OK - ֹֻ
+! OK - .ֹֻ
+! OK - ֹֻ
+! OK - .ֹֻ
+! OK - ֹ
+! OK - .ֹ
+! OK - ú\Z
+! OK - יהוה\Z
+! OK - יְהוָה\Z
+! OK - יהוה\Z
+! OK - יְהוָה\Z
+! OK - יְ\Z
+! OK - ק‍ֹx\Z
+! OK - ק‍ֹx\Z
+! OK - ק‍x\Z
+! OK - ק‍x\Z
+! OK - ֹ\+\Z
+! OK - \Zֹ\+
+! OK - [^[=a=]]\+
+--- 1,82 ----
+  Results of test95:
+! OK 0 - [[:alpha:][=a=]]\+
+! OK 1 - [[:alpha:][=a=]]\+
+! OK 2 - [[:alpha:][=a=]]\+
+! OK 0 - [[=a=]]\+
+! OK 1 - [[=a=]]\+
+! OK 2 - [[=a=]]\+
+! OK 0 - [^ม ]\+
+! OK 1 - [^ม ]\+
+! OK 2 - [^ม ]\+
+! OK 0 -  [^ ]\+
+! OK 1 -  [^ ]\+
+! OK 2 -  [^ ]\+
+! OK 0 - [ม[:alpha:][=a=]]\+
+! OK 1 - [ม[:alpha:][=a=]]\+
+! OK 2 - [ม[:alpha:][=a=]]\+
+! OK 0 - \p\+
+! OK 1 - \p\+
+! OK 2 - \p\+
+! OK 0 - \i\+
+! OK 1 - \i\+
+! OK 2 - \i\+
+! OK 0 - \f\+
+! OK 1 - \f\+
+! OK 2 - \f\+
+! OK 0 - .ม
+! OK 1 - .ม
+! OK 2 - .ม
+! OK 0 - .ม่
+! OK 1 - .ม่
+! OK 2 - .ม่
+! OK 0 - ֹ
+! OK 1 - ֹ
+! OK 2 - ֹ
+! OK 0 - .ֹ
+! OK 1 - .ֹ
+! OK 2 - .ֹ
+! OK 0 - ֹֻ
+! OK 1 - ֹֻ
+! OK 2 - ֹֻ
+! OK 0 - .ֹֻ
+! OK 1 - .ֹֻ
+! OK 2 - .ֹֻ
+! OK 0 - ֹ
+! OK 1 - ֹ
+! OK 2 - ֹ
+! OK 0 - .ֹ
+! OK 1 - .ֹ
+! OK 2 - .ֹ
+! OK 0 - ú\Z
+! OK 1 - ú\Z
+! OK 2 - ú\Z
+! OK 0 - יהוה\Z
+! OK 1 - יהוה\Z
+! OK 2 - יהוה\Z
+! OK 0 - יְהוָה\Z
+! OK 1 - יְהוָה\Z
+! OK 2 - יְהוָה\Z
+! OK 0 - יהוה\Z
+! OK 1 - יהוה\Z
+! OK 2 - יהוה\Z
+! OK 0 - יְהוָה\Z
+! OK 1 - יְהוָה\Z
+! OK 2 - יְהוָה\Z
+! OK 0 - יְ\Z
+! OK 1 - יְ\Z
+! OK 2 - יְ\Z
+! OK 0 - ק‍ֹx\Z
+! OK 1 - ק‍ֹx\Z
+! OK 2 - ק‍ֹx\Z
+! OK 0 - ק‍ֹx\Z
+! OK 1 - ק‍ֹx\Z
+! OK 2 - ק‍ֹx\Z
+! OK 0 - ק‍x\Z
+! OK 1 - ק‍x\Z
+! OK 2 - ק‍x\Z
+! OK 0 - ק‍x\Z
+! OK 1 - ק‍x\Z
+! OK 2 - ק‍x\Z
+! OK 0 - [^[=a=]]\+
+! OK 1 - [^[=a=]]\+
+! OK 2 - [^[=a=]]\+
+*** ../vim-7.3.1019/src/version.c	2013-05-25 22:04:19.000000000 +0200
+--- src/version.c	2013-05-25 23:10:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1020,
+  /**/
+
+-- 
+Engineers will go without food and hygiene for days to solve a problem.
+(Other times just because they forgot.)
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

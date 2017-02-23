@@ -1,0 +1,123 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1168
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1168
+Problem:    Python "sane" configure checks give a warning message.
+Solution:   Use single quotes intead of escaped double quotes. (Ben Fritz)
+Files:	    src/configure.in, src/auto/configure
+
+
+*** ../vim-7.3.1167/src/configure.in	2013-06-11 19:53:34.000000000 +0200
+--- src/configure.in	2013-06-11 20:15:21.000000000 +0200
+***************
+*** 958,966 ****
+  	fi
+  	PYTHON_LIBS="${vi_cv_path_python_plibs}"
+  	if test "${vi_cv_path_python_pfx}" = "${vi_cv_path_python_epfx}"; then
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME=\\\"${vi_cv_path_python_pfx}\\\""
+  	else
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -I${vi_cv_path_python_epfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME=\\\"${vi_cv_path_python_pfx}\\\""
+  	fi
+  	PYTHON_SRC="if_python.c"
+  	PYTHON_OBJ="objects/if_python.o"
+--- 958,966 ----
+  	fi
+  	PYTHON_LIBS="${vi_cv_path_python_plibs}"
+  	if test "${vi_cv_path_python_pfx}" = "${vi_cv_path_python_epfx}"; then
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME='\"${vi_cv_path_python_pfx}\"'"
+  	else
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -I${vi_cv_path_python_epfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME='\"${vi_cv_path_python_pfx}\"'"
+  	fi
+  	PYTHON_SRC="if_python.c"
+  	PYTHON_OBJ="objects/if_python.o"
+***************
+*** 1161,1169 ****
+          fi
+          PYTHON3_LIBS="${vi_cv_path_python3_plibs}"
+          if test "${vi_cv_path_python3_pfx}" = "${vi_cv_path_python3_epfx}"; then
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME=L\\\"${vi_cv_path_python3_pfx}\\\""
+          else
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -I${vi_cv_path_python3_epfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME=L\\\"${vi_cv_path_python3_pfx}\\\""
+          fi
+          PYTHON3_SRC="if_python3.c"
+          PYTHON3_OBJ="objects/if_python3.o"
+--- 1161,1169 ----
+          fi
+          PYTHON3_LIBS="${vi_cv_path_python3_plibs}"
+          if test "${vi_cv_path_python3_pfx}" = "${vi_cv_path_python3_epfx}"; then
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME='L\"${vi_cv_path_python3_pfx}\"'"
+          else
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -I${vi_cv_path_python3_epfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME='L\"${vi_cv_path_python3_pfx}\"'"
+          fi
+          PYTHON3_SRC="if_python3.c"
+          PYTHON3_OBJ="objects/if_python3.o"
+*** ../vim-7.3.1167/src/auto/configure	2013-06-11 19:53:34.000000000 +0200
+--- src/auto/configure	2013-06-11 20:15:24.000000000 +0200
+***************
+*** 5410,5418 ****
+  	fi
+  	PYTHON_LIBS="${vi_cv_path_python_plibs}"
+  	if test "${vi_cv_path_python_pfx}" = "${vi_cv_path_python_epfx}"; then
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME=\\\"${vi_cv_path_python_pfx}\\\""
+  	else
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -I${vi_cv_path_python_epfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME=\\\"${vi_cv_path_python_pfx}\\\""
+  	fi
+  	PYTHON_SRC="if_python.c"
+  	PYTHON_OBJ="objects/if_python.o"
+--- 5410,5418 ----
+  	fi
+  	PYTHON_LIBS="${vi_cv_path_python_plibs}"
+  	if test "${vi_cv_path_python_pfx}" = "${vi_cv_path_python_epfx}"; then
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME='\"${vi_cv_path_python_pfx}\"'"
+  	else
+! 	  PYTHON_CFLAGS="-I${vi_cv_path_python_pfx}/include/python${vi_cv_var_python_version} -I${vi_cv_path_python_epfx}/include/python${vi_cv_var_python_version} -DPYTHON_HOME='\"${vi_cv_path_python_pfx}\"'"
+  	fi
+  	PYTHON_SRC="if_python.c"
+  	PYTHON_OBJ="objects/if_python.o"
+***************
+*** 5729,5737 ****
+          fi
+          PYTHON3_LIBS="${vi_cv_path_python3_plibs}"
+          if test "${vi_cv_path_python3_pfx}" = "${vi_cv_path_python3_epfx}"; then
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME=L\\\"${vi_cv_path_python3_pfx}\\\""
+          else
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -I${vi_cv_path_python3_epfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME=L\\\"${vi_cv_path_python3_pfx}\\\""
+          fi
+          PYTHON3_SRC="if_python3.c"
+          PYTHON3_OBJ="objects/if_python3.o"
+--- 5729,5737 ----
+          fi
+          PYTHON3_LIBS="${vi_cv_path_python3_plibs}"
+          if test "${vi_cv_path_python3_pfx}" = "${vi_cv_path_python3_epfx}"; then
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME='L\"${vi_cv_path_python3_pfx}\"'"
+          else
+!           PYTHON3_CFLAGS="-I${vi_cv_path_python3_pfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -I${vi_cv_path_python3_epfx}/include/python${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags} -DPYTHON3_HOME='L\"${vi_cv_path_python3_pfx}\"'"
+          fi
+          PYTHON3_SRC="if_python3.c"
+          PYTHON3_OBJ="objects/if_python3.o"
+*** ../vim-7.3.1167/src/version.c	2013-06-11 19:53:34.000000000 +0200
+--- src/version.c	2013-06-11 20:17:21.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1168,
+  /**/
+
+-- 
+Although the scythe isn't pre-eminent among the weapons of war, anyone who
+has been on the wrong end of, say, a peasants' revolt will know that in
+skilled hands it is fearsome.
+					-- (Terry Pratchett, Mort)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

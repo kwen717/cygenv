@@ -1,0 +1,166 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1083
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1083
+Problem:    New regexp engine: Does not support \%^ and \%$.
+Solution:   Support matching start and end of file.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1082/src/regexp_nfa.c	2013-05-31 21:45:05.000000000 +0200
+--- src/regexp_nfa.c	2013-05-31 21:55:35.000000000 +0200
+***************
+*** 865,878 ****
+  		 * pattern -- regardless of whether or not it makes sense. */
+  		case '^':
+  		    EMIT(NFA_BOF);
+- 		    /* TODO: Not yet supported */
+- 		    return FAIL;
+  		    break;
+  
+  		case '$':
+  		    EMIT(NFA_EOF);
+- 		    /* TODO: Not yet supported */
+- 		    return FAIL;
+  		    break;
+  
+  		case '#':
+--- 865,874 ----
+***************
+*** 1780,1785 ****
+--- 1776,1783 ----
+  	case NFA_BOL:		STRCPY(code, "NFA_BOL "); break;
+  	case NFA_EOW:		STRCPY(code, "NFA_EOW "); break;
+  	case NFA_BOW:		STRCPY(code, "NFA_BOW "); break;
++ 	case NFA_EOF:		STRCPY(code, "NFA_EOF "); break;
++ 	case NFA_BOF:		STRCPY(code, "NFA_BOF "); break;
+  	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
+  	case NFA_PLUS:		STRCPY(code, "NFA_PLUS "); break;
+  	case NFA_NOT:		STRCPY(code, "NFA_NOT "); break;
+***************
+*** 3705,3710 ****
+--- 3703,3719 ----
+  		break;
+  	    }
+  
++ 	    case NFA_BOF:
++ 		if (reglnum == 0 && reginput == regline
++ 					&& (!REG_MULTI || reg_firstlnum == 1))
++ 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
++ 		break;
++ 
++ 	    case NFA_EOF:
++ 		if (reglnum == reg_maxline && curc == NUL)
++ 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
++ 		break;
++ 
+  #ifdef FEAT_MBYTE
+  	    case NFA_COMPOSING:
+  	    {
+*** ../vim-7.3.1082/src/testdir/test64.in	2013-05-31 21:45:05.000000000 +0200
+--- src/testdir/test64.in	2013-05-31 22:10:12.000000000 +0200
+***************
+*** 267,272 ****
+--- 267,281 ----
+  :call add(tl, [2, '\_f', "  \na ", "\n"])
+  :call add(tl, [2, '\_f\+', "  \na ", "\na"])
+  :"
++ :"""" Test start/end of line, start/end of file
++ :call add(tl, [2, '^a.', "a_\nb ", "a_"])
++ :call add(tl, [2, '^a.', "b a \na_"])
++ :call add(tl, [2, '.a$', " a\n "])
++ :call add(tl, [2, '.a$', " a b\n_a", "_a"])
++ :call add(tl, [2, '\%^a.', "a a\na", "a "])
++ :call add(tl, [2, '\%^a', " a \na "])
++ :call add(tl, [2, '.a\%$', " a\n "])
++ :call add(tl, [2, '.a\%$', " a\n_a", "_a"])
+  :"
+  :"""" Test recognition of some character classes
+  :call add(tl, [2, '[0-9]', '8', '8'])
+***************
+*** 466,471 ****
+--- 475,489 ----
+  :call Postest()
+  :put
+  :"
++ :" start and end of buffer
++ /\%^
++ yeGop:"
++ 50%/\%^..
++ yeGopA END:"
++ 50%/\%$
++ "ayb20gg/..\%$
++ "bybGo"apo"bp:"
++ :"
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+*** ../vim-7.3.1082/src/testdir/test64.ok	2013-05-31 21:45:05.000000000 +0200
+--- src/testdir/test64.ok	2013-05-31 22:10:47.000000000 +0200
+***************
+*** 585,590 ****
+--- 585,614 ----
+  OK 0 - \_f\+
+  OK 1 - \_f\+
+  OK 2 - \_f\+
++ OK 0 - ^a.
++ OK 1 - ^a.
++ OK 2 - ^a.
++ OK 0 - ^a.
++ OK 1 - ^a.
++ OK 2 - ^a.
++ OK 0 - .a$
++ OK 1 - .a$
++ OK 2 - .a$
++ OK 0 - .a$
++ OK 1 - .a$
++ OK 2 - .a$
++ OK 0 - \%^a.
++ OK 1 - \%^a.
++ OK 2 - \%^a.
++ OK 0 - \%^a
++ OK 1 - \%^a
++ OK 2 - \%^a
++ OK 0 - .a\%$
++ OK 1 - .a\%$
++ OK 2 - .a\%$
++ OK 0 - .a\%$
++ OK 1 - .a\%$
++ OK 2 - .a\%$
+  OK 0 - [0-9]
+  OK 1 - [0-9]
+  OK 2 - [0-9]
+***************
+*** 818,820 ****
+--- 842,848 ----
+  ab!babababababfoo
+  ba!ab##abab?bafoo
+  **!*****_
++ Test
++ Test END
++ EN
++ E
+*** ../vim-7.3.1082/src/version.c	2013-05-31 21:45:05.000000000 +0200
+--- src/version.c	2013-05-31 21:57:03.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1083,
+  /**/
+
+-- 
+Have you heard about the new Beowulf cluster? It's so fast, it executes
+an infinite loop in 6 seconds.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

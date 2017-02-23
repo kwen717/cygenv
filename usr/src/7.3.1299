@@ -1,0 +1,344 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1299
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1299
+Problem:    Errors when doing "make proto".  Didn't do "make depend" for a
+	    while.
+Solution:   Add #ifdefs.  Update dependencies.  Update proto files.
+Files:	    src/if_python3.c, src/os_win32.c, src/Makefile,
+	    src/proto/ex_docmd.pro, src/proto/if_python.pro,
+	    src/proto/if_python3.pro, src/proto/gui_w16.pro,
+	    src/proto/gui_w32.pro, src/proto/os_win32.pro
+
+
+*** ../vim-7.3.1298/src/if_python3.c	2013-07-01 22:02:58.000000000 +0200
+--- src/if_python3.c	2013-07-03 18:27:35.000000000 +0200
+***************
+*** 83,92 ****
+  #define PY_USE_CAPSULE
+  
+  #define PyInt Py_ssize_t
+! #define PyString_Check(obj) PyUnicode_Check(obj)
+  #define PyString_FromString(repr) PyUnicode_FromString(repr)
+  #define PyString_FromFormat PyUnicode_FromFormat
+! #define PyInt_Check(obj) PyLong_Check(obj)
+  #define PyInt_FromLong(i) PyLong_FromLong(i)
+  #define PyInt_AsLong(obj) PyLong_AsLong(obj)
+  #define Py_ssize_t_fmt "n"
+--- 83,96 ----
+  #define PY_USE_CAPSULE
+  
+  #define PyInt Py_ssize_t
+! #ifndef PyString_Check
+! # define PyString_Check(obj) PyUnicode_Check(obj)
+! #endif
+  #define PyString_FromString(repr) PyUnicode_FromString(repr)
+  #define PyString_FromFormat PyUnicode_FromFormat
+! #ifndef PyInt_Check
+! # define PyInt_Check(obj) PyLong_Check(obj)
+! #endif
+  #define PyInt_FromLong(i) PyLong_FromLong(i)
+  #define PyInt_AsLong(obj) PyLong_AsLong(obj)
+  #define Py_ssize_t_fmt "n"
+***************
+*** 156,162 ****
+  # define PyDict_GetItemString py3_PyDict_GetItemString
+  # define PyDict_Next py3_PyDict_Next
+  # define PyMapping_Check py3_PyMapping_Check
+! # define PyMapping_Keys py3_PyMapping_Keys
+  # define PyIter_Next py3_PyIter_Next
+  # define PyObject_GetIter py3_PyObject_GetIter
+  # define PyObject_Repr py3_PyObject_Repr
+--- 160,168 ----
+  # define PyDict_GetItemString py3_PyDict_GetItemString
+  # define PyDict_Next py3_PyDict_Next
+  # define PyMapping_Check py3_PyMapping_Check
+! # ifndef PyMapping_Keys
+! #  define PyMapping_Keys py3_PyMapping_Keys
+! # endif
+  # define PyIter_Next py3_PyIter_Next
+  # define PyObject_GetIter py3_PyObject_GetIter
+  # define PyObject_Repr py3_PyObject_Repr
+***************
+*** 202,208 ****
+  # define PyUnicode_AsEncodedString py3_PyUnicode_AsEncodedString
+  # undef PyBytes_AsString
+  # define PyBytes_AsString py3_PyBytes_AsString
+! # define PyBytes_AsStringAndSize py3_PyBytes_AsStringAndSize
+  # undef PyBytes_FromString
+  # define PyBytes_FromString py3_PyBytes_FromString
+  # define PyFloat_FromDouble py3_PyFloat_FromDouble
+--- 208,216 ----
+  # define PyUnicode_AsEncodedString py3_PyUnicode_AsEncodedString
+  # undef PyBytes_AsString
+  # define PyBytes_AsString py3_PyBytes_AsString
+! # ifndef PyBytes_AsStringAndSize
+! #  define PyBytes_AsStringAndSize py3_PyBytes_AsStringAndSize
+! # endif
+  # undef PyBytes_FromString
+  # define PyBytes_FromString py3_PyBytes_FromString
+  # define PyFloat_FromDouble py3_PyFloat_FromDouble
+*** ../vim-7.3.1298/src/os_win32.c	2013-06-29 15:40:01.000000000 +0200
+--- src/os_win32.c	2013-07-03 18:29:08.000000000 +0200
+***************
+*** 142,147 ****
+--- 142,150 ----
+  typedef int WCHAR;
+  typedef void VOID;
+  typedef int BY_HANDLE_FILE_INFORMATION;
++ typedef int SE_OBJECT_TYPE;
++ typedef int PSNSECINFO;
++ typedef int PSNSECINFOW;
+  #endif
+  
+  #ifndef FEAT_GUI_W32
+*** ../vim-7.3.1298/src/Makefile	2013-06-19 20:11:44.000000000 +0200
+--- src/Makefile	2013-07-03 18:38:50.000000000 +0200
+***************
+*** 373,378 ****
+--- 373,383 ----
+  #CONF_OPT_DARWIN = --with-mac-arch=ppc
+  #CONF_OPT_DARWIN = --with-mac-arch=both
+  
++ # Uncomment the next line to fail if one of the requested language interfaces
++ # cannot be configured.  Without this Vim will be build anyway, without
++ # the failing interfaces.
++ #CONF_OPT_FAIL = --enable-fail-if-missing
++ 
+  # LUA
+  # Uncomment one of these when you want to include the Lua interface.
+  # First one is for static linking, second one for dynamic loading.
+***************
+*** 389,399 ****
+  #CONF_OPT_PLTHOME  = --with-plthome=/usr/local/drscheme
+  #CONF_OPT_PLTHOME  = --with-plthome=/home/me/mz
+  
+- # Uncomment the next line to fail if one of the requested language interfaces
+- # cannot be configured.  Without this Vim will be build anyway, without
+- # the failing interfaces.
+- #CONF_OPT_FAIL = --enable-fail-if-missing
+- 
+  # PERL
+  # Uncomment one of these when you want to include the Perl interface.
+  # First one is for static linking, second one for dynamic loading.
+--- 394,399 ----
+***************
+*** 410,415 ****
+--- 410,416 ----
+  
+  # PYTHON
+  # Uncomment this when you want to include the Python interface.
++ # Requires small features or better, fails with tiny features.
+  # NOTE: This may cause threading to be enabled, which has side effects (such
+  # as using different libraries and debugging becomes more difficult).
+  # NOTE: Using this together with Perl may cause a crash in initialization.
+***************
+*** 2943,2949 ****
+  objects/os_unix.o: os_unix.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+!  arabic.h os_unixx.h
+  objects/pathdef.o: auto/pathdef.c vim.h auto/config.h feature.h os_unix.h \
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+--- 2944,2950 ----
+  objects/os_unix.o: os_unix.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+!  arabic.h if_mzsch.h os_unixx.h
+  objects/pathdef.o: auto/pathdef.c vim.h auto/config.h feature.h os_unix.h \
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+***************
+*** 2956,2965 ****
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+   globals.h farsi.h arabic.h
+! objects/regexp.o: regexp.c regexp_nfa.c vim.h auto/config.h feature.h os_unix.h \
+!  auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+!  regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+!  globals.h farsi.h arabic.h
+  objects/screen.o: screen.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+--- 2957,2966 ----
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+   globals.h farsi.h arabic.h
+! objects/regexp.o: regexp.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+!  ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+!  gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+!  arabic.h regexp_nfa.c
+  objects/screen.o: screen.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+***************
+*** 2998,3007 ****
+   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+   arabic.h version.h
+- objects/winclip.o: winclip.c vimio.h vim.h auto/config.h feature.h os_unix.h \
+-  auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+-  regexp.h gui.h ex_cmds.h proto.h globals.h farsi.h arabic.h \
+-  proto/winclip.pro
+  objects/window.o: window.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
+   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
+--- 2999,3004 ----
+***************
+*** 3101,3107 ****
+  objects/if_mzsch.o: if_mzsch.c vim.h auto/config.h feature.h os_unix.h \
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+!  globals.h farsi.h arabic.h if_mzsch.h
+  objects/if_perl.o: auto/if_perl.c vim.h auto/config.h feature.h os_unix.h \
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+--- 3098,3104 ----
+  objects/if_mzsch.o: if_mzsch.c vim.h auto/config.h feature.h os_unix.h \
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+!  globals.h farsi.h arabic.h if_mzsch.h mzscheme_base.c
+  objects/if_perl.o: auto/if_perl.c vim.h auto/config.h feature.h os_unix.h \
+   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+*** ../vim-7.3.1298/src/proto/ex_docmd.pro	2013-06-02 18:20:12.000000000 +0200
+--- src/proto/ex_docmd.pro	2013-07-03 18:30:13.000000000 +0200
+***************
+*** 40,45 ****
+--- 40,46 ----
+  void tabpage_new __ARGS((void));
+  void do_exedit __ARGS((exarg_T *eap, win_T *old_curwin));
+  void free_cd_dir __ARGS((void));
++ void post_chdir __ARGS((int local));
+  void ex_cd __ARGS((exarg_T *eap));
+  void do_sleep __ARGS((long msec));
+  int vim_mkdir_emsg __ARGS((char_u *name, int prot));
+***************
+*** 53,57 ****
+  int put_line __ARGS((FILE *fd, char *s));
+  void dialog_msg __ARGS((char_u *buff, char *format, char_u *fname));
+  char_u *get_behave_arg __ARGS((expand_T *xp, int idx));
+- void post_chdir __ARGS((int local));
+  /* vim: set ft=c : */
+--- 54,57 ----
+*** ../vim-7.3.1298/src/proto/if_python.pro	2013-05-17 16:39:59.000000000 +0200
+--- src/proto/if_python.pro	2013-07-03 18:30:18.000000000 +0200
+***************
+*** 3,10 ****
+  void python_end __ARGS((void));
+  int python_loaded __ARGS((void));
+  void ex_python __ARGS((exarg_T *eap));
+- void ex_pydo __ARGS((exarg_T *eap));
+  void ex_pyfile __ARGS((exarg_T *eap));
+  void python_buffer_free __ARGS((buf_T *buf));
+  void python_window_free __ARGS((win_T *win));
+  void python_tabpage_free __ARGS((tabpage_T *tab));
+--- 3,10 ----
+  void python_end __ARGS((void));
+  int python_loaded __ARGS((void));
+  void ex_python __ARGS((exarg_T *eap));
+  void ex_pyfile __ARGS((exarg_T *eap));
++ void ex_pydo __ARGS((exarg_T *eap));
+  void python_buffer_free __ARGS((buf_T *buf));
+  void python_window_free __ARGS((win_T *win));
+  void python_tabpage_free __ARGS((tabpage_T *tab));
+*** ../vim-7.3.1298/src/proto/if_python3.pro	2013-05-15 18:28:08.000000000 +0200
+--- src/proto/if_python3.pro	2013-07-03 18:30:19.000000000 +0200
+***************
+*** 3,10 ****
+  void python3_end __ARGS((void));
+  int python3_loaded __ARGS((void));
+  void ex_py3 __ARGS((exarg_T *eap));
+- void ex_py3do __ARGS((exarg_T *eap));
+  void ex_py3file __ARGS((exarg_T *eap));
+  void python3_buffer_free __ARGS((buf_T *buf));
+  void python3_window_free __ARGS((win_T *win));
+  void python3_tabpage_free __ARGS((tabpage_T *tab));
+--- 3,10 ----
+  void python3_end __ARGS((void));
+  int python3_loaded __ARGS((void));
+  void ex_py3 __ARGS((exarg_T *eap));
+  void ex_py3file __ARGS((exarg_T *eap));
++ void ex_py3do __ARGS((exarg_T *eap));
+  void python3_buffer_free __ARGS((buf_T *buf));
+  void python3_window_free __ARGS((win_T *win));
+  void python3_tabpage_free __ARGS((tabpage_T *tab));
+*** ../vim-7.3.1298/src/proto/gui_w16.pro	2013-01-23 18:37:31.000000000 +0100
+--- src/proto/gui_w16.pro	2013-07-03 18:30:37.000000000 +0200
+***************
+*** 49,56 ****
+  void gui_mch_delete_lines __ARGS((int row, int num_lines));
+  void gui_mch_insert_lines __ARGS((int row, int num_lines));
+  void gui_mch_exit __ARGS((int rc));
+- int gui_mch_init_font __ARGS((char_u *font_name, int fontset));
+  void gui_mch_wide_font_changed __ARGS((void));
+  int gui_mch_maximized __ARGS((void));
+  void gui_mch_newfont __ARGS((void));
+  void gui_mch_settitle __ARGS((char_u *title, char_u *icon));
+--- 49,56 ----
+  void gui_mch_delete_lines __ARGS((int row, int num_lines));
+  void gui_mch_insert_lines __ARGS((int row, int num_lines));
+  void gui_mch_exit __ARGS((int rc));
+  void gui_mch_wide_font_changed __ARGS((void));
++ int gui_mch_init_font __ARGS((char_u *font_name, int fontset));
+  int gui_mch_maximized __ARGS((void));
+  void gui_mch_newfont __ARGS((void));
+  void gui_mch_settitle __ARGS((char_u *title, char_u *icon));
+*** ../vim-7.3.1298/src/proto/gui_w32.pro	2013-01-23 18:37:31.000000000 +0100
+--- src/proto/gui_w32.pro	2013-07-03 18:30:38.000000000 +0200
+***************
+*** 49,56 ****
+  void gui_mch_delete_lines __ARGS((int row, int num_lines));
+  void gui_mch_insert_lines __ARGS((int row, int num_lines));
+  void gui_mch_exit __ARGS((int rc));
+- int gui_mch_init_font __ARGS((char_u *font_name, int fontset));
+  void gui_mch_wide_font_changed __ARGS((void));
+  int gui_mch_maximized __ARGS((void));
+  void gui_mch_newfont __ARGS((void));
+  void gui_mch_settitle __ARGS((char_u *title, char_u *icon));
+--- 49,56 ----
+  void gui_mch_delete_lines __ARGS((int row, int num_lines));
+  void gui_mch_insert_lines __ARGS((int row, int num_lines));
+  void gui_mch_exit __ARGS((int rc));
+  void gui_mch_wide_font_changed __ARGS((void));
++ int gui_mch_init_font __ARGS((char_u *font_name, int fontset));
+  int gui_mch_maximized __ARGS((void));
+  void gui_mch_newfont __ARGS((void));
+  void gui_mch_settitle __ARGS((char_u *title, char_u *icon));
+*** ../vim-7.3.1298/src/proto/os_win32.pro	2013-06-12 22:41:30.000000000 +0200
+--- src/proto/os_win32.pro	2013-07-03 18:30:40.000000000 +0200
+***************
+*** 42,48 ****
+  void mch_delay __ARGS((long msec, int ignoreinput));
+  int mch_remove __ARGS((char_u *name));
+  void mch_breakcheck __ARGS((void));
+- long_u mch_avail_mem __ARGS((int special));
+  int mch_wrename __ARGS((WCHAR *wold, WCHAR *wnew));
+  int mch_rename __ARGS((const char *pszOldFile, const char *pszNewFile));
+  char *default_shell __ARGS((void));
+--- 42,47 ----
+*** ../vim-7.3.1298/src/version.c	2013-07-03 17:51:07.000000000 +0200
+--- src/version.c	2013-07-03 18:29:27.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1299,
+  /**/
+
+-- 
+The war between Emacs and Vi is over.  Vi has won with 3 to 1.
+http://m.linuxjournal.com/files/linuxjournal.com/linuxjournal/articles/030/3044/3044s1.html
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

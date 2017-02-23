@@ -1,0 +1,180 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.978
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.978
+Problem:    Regexp debug logs don't have a good name.
+Solution:   Use clear names and make it possible to write logs for the old and
+	    new engines separately. (Taro Muraoka)
+Files:	    src/regexp.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.977/src/regexp.c	2013-05-19 19:16:25.000000000 +0200
+--- src/regexp.c	2013-05-20 21:41:19.000000000 +0200
+***************
+*** 51,56 ****
+--- 51,58 ----
+  # define BT_REGEXP_DUMP
+  /* save the debugging data to a file instead of displaying it */
+  # define BT_REGEXP_LOG
++ # define BT_REGEXP_DEBUG_LOG
++ # define BT_REGEXP_DEBUG_LOG_NAME	"bt_regexp_debug.log"
+  #endif
+  
+  /*
+***************
+*** 7828,7838 ****
+  
+      if (prog == NULL)	    /* error compiling regexp with initial engine */
+      {
+! #ifdef DEBUG
+  	if (regexp_engine != BACKTRACKING_ENGINE)   /* debugging log for NFA */
+  	{
+  	    FILE *f;
+! 	    f = fopen("debug.log", "a");
+  	    if (f)
+  	    {
+  		if (!syntax_error)
+--- 7830,7840 ----
+  
+      if (prog == NULL)	    /* error compiling regexp with initial engine */
+      {
+! #ifdef BT_REGEXP_DEBUG_LOG
+  	if (regexp_engine != BACKTRACKING_ENGINE)   /* debugging log for NFA */
+  	{
+  	    FILE *f;
+! 	    f = fopen(BT_REGEXP_DEBUG_LOG_NAME, "a");
+  	    if (f)
+  	    {
+  		if (!syntax_error)
+***************
+*** 7842,7848 ****
+  		fclose(f);
+  	    }
+  	    else
+! 		EMSG("(NFA) Could not open \"debug.log\" to write !!!");
+  	    /*
+  	    if (syntax_error)
+  		EMSG("NFA Regexp: Syntax Error !");
+--- 7844,7851 ----
+  		fclose(f);
+  	    }
+  	    else
+! 		EMSG2("(NFA) Could not open \"%s\" to write !!!",
+!                         BT_REGEXP_DEBUG_LOG_NAME);
+  	    /*
+  	    if (syntax_error)
+  		EMSG("NFA Regexp: Syntax Error !");
+*** ../vim-7.3.977/src/regexp_nfa.c	2013-05-20 21:26:26.000000000 +0200
+--- src/regexp_nfa.c	2013-05-20 21:41:19.000000000 +0200
+***************
+*** 9,14 ****
+--- 9,16 ----
+  /* Comment this out to disable log files. They can get pretty big */
+  # define ENABLE_LOG
+  # define LOG_NAME "log_nfarun.log"
++ # define NFA_REGEXP_DEBUG_LOG
++ # define NFA_REGEXP_DEBUG_LOG_NAME	"nfa_regexp_debug.log"
+  #endif
+  
+  /* Upper limit allowed for {m,n} repetitions handled by NFA */
+***************
+*** 2849,2860 ****
+      int		*listids = NULL;
+      int		j = 0;
+      int		len = 0;
+! #ifdef DEBUG
+!     FILE	*debug = fopen("list.log", "a");
+  
+      if (debug == NULL)
+      {
+! 	EMSG(_("(NFA) COULD NOT OPEN list.log !"));
+  	return FALSE;
+      }
+  #endif
+--- 2851,2862 ----
+      int		*listids = NULL;
+      int		j = 0;
+      int		len = 0;
+! #ifdef NFA_REGEXP_DEBUG_LOG
+!     FILE	*debug = fopen(NFA_REGEXP_DEBUG_LOG_NAME, "a");
+  
+      if (debug == NULL)
+      {
+! 	EMSG2(_("(NFA) COULD NOT OPEN %s !"), NFA_REGEXP_DEBUG_LOG_NAME);
+  	return FALSE;
+      }
+  #endif
+***************
+*** 2950,2956 ****
+  	fprintf(log_fd, "\n");
+  #endif
+  
+! #ifdef DEBUG
+  	fprintf(debug, "\n-------------------\n");
+  #endif
+  
+--- 2952,2958 ----
+  	fprintf(log_fd, "\n");
+  #endif
+  
+! #ifdef NFA_REGEXP_DEBUG_LOG
+  	fprintf(debug, "\n-------------------\n");
+  #endif
+  
+***************
+*** 2966,2972 ****
+  	    else
+  		t = &thislist->t[i];
+  
+! #ifdef DEBUG
+  	    nfa_set_code(t->state->c);
+  	    fprintf(debug, "%s, ", code);
+  #endif
+--- 2968,2974 ----
+  	    else
+  		t = &thislist->t[i];
+  
+! #ifdef NFA_REGEXP_DEBUG_LOG
+  	    nfa_set_code(t->state->c);
+  	    fprintf(debug, "%s, ", code);
+  #endif
+***************
+*** 3436,3442 ****
+      if (listids != NULL)
+  	vim_free(listids);
+  #undef ADD_POS_NEG_STATE
+! #ifdef DEBUG
+      fclose(debug);
+  #endif
+  
+--- 3438,3444 ----
+      if (listids != NULL)
+  	vim_free(listids);
+  #undef ADD_POS_NEG_STATE
+! #ifdef NFA_REGEXP_DEBUG_LOG
+      fclose(debug);
+  #endif
+  
+*** ../vim-7.3.977/src/version.c	2013-05-20 21:26:26.000000000 +0200
+--- src/version.c	2013-05-20 21:48:27.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     978,
+  /**/
+
+-- 
+SIGIRO -- irony detected (iron core dumped)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

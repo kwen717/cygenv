@@ -1,0 +1,56 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1279
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1279
+Problem:    Compiler warning for variable uninitialized. (Tony Mechelynck)
+Solution:   Add an init.
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.1278/src/ex_getln.c	2013-06-30 12:21:18.000000000 +0200
+--- src/ex_getln.c	2013-06-30 22:41:29.000000000 +0200
+***************
+*** 4951,4957 ****
+      int		*num_file;
+      char_u	***file;
+  {
+!     char_u	keep;
+      char_u	num[50];
+      char_u	*args[3];
+      int		save_current_SID = current_SID;
+--- 4951,4957 ----
+      int		*num_file;
+      char_u	***file;
+  {
+!     int		keep = 0;
+      char_u	num[50];
+      char_u	*args[3];
+      int		save_current_SID = current_SID;
+*** ../vim-7.3.1278/src/version.c	2013-06-30 17:51:46.000000000 +0200
+--- src/version.c	2013-06-30 22:42:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1279,
+  /**/
+
+-- 
+WOMAN:   Well, 'ow did you become king then?
+ARTHUR:  The Lady of the Lake, [angels sing] her arm clad in the purest
+         shimmering samite, held aloft Excalibur from the bosom of the water
+         signifying by Divine Providence that I, Arthur, was to carry
+         Excalibur.  [singing stops] That is why I am your king!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

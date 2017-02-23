@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1265
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1265 (after 7.3.1249)
+Problem:    Accepting "Vim:" for a modeline causes errors too often.
+Solution:   Require "Vim:" to be followed by "set".
+Files:	    src/buffer.c
+
+
+*** ../vim-7.3.1264/src/buffer.c	2013-06-26 20:04:28.000000000 +0200
+--- src/buffer.c	2013-06-29 14:57:59.000000000 +0200
+***************
+*** 5105,5110 ****
+--- 5105,5112 ----
+  		    e = s + 3;
+  		vers = getdigits(&e);
+  		if (*e == ':'
++ 			&& (s[0] != 'V'
++ 				  || STRNCMP(skipwhite(e + 1), "set", 3) == 0)
+  			&& (s[3] == ':'
+  			    || (VIM_VERSION_100 >= vers && isdigit(s[3]))
+  			    || (VIM_VERSION_100 < vers && s[3] == '<')
+*** ../vim-7.3.1264/src/version.c	2013-06-29 14:47:18.000000000 +0200
+--- src/version.c	2013-06-29 15:01:52.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1265,
+  /**/
+
+-- 
+You know you use Vim too much when you have this alias in your
+~/.bashrc file: alias :e=/bin/vim             (Eljay Love-Jensen)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

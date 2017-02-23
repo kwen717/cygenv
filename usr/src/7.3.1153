@@ -1,0 +1,895 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1153
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1153
+Problem:    New regexp engine: Some look-behind matches are very expensive.
+Solution:   Pospone invisible matches further, until a match is almost found.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1152/src/regexp_nfa.c	2013-06-08 23:30:00.000000000 +0200
+--- src/regexp_nfa.c	2013-06-09 16:11:41.000000000 +0200
+***************
+*** 3354,3369 ****
+  typedef struct nfa_pim_S nfa_pim_T;
+  struct nfa_pim_S
+  {
+!     nfa_state_T	*state;
+!     int		result;		/* NFA_PIM_TODO, NFA_PIM_[NO]MATCH */
+!     nfa_pim_T	*pim;		/* another PIM at the same position */
+      regsubs_T	subs;		/* submatch info, only party used */
+  };
+  
+  /* Values for done in nfa_pim_T. */
+! #define NFA_PIM_TODO    0
+! #define NFA_PIM_MATCH   1
+! #define NFA_PIM_NOMATCH -1
+  
+  
+  /* nfa_thread_T contains execution information of a NFA state */
+--- 3354,3374 ----
+  typedef struct nfa_pim_S nfa_pim_T;
+  struct nfa_pim_S
+  {
+!     int		result;		/* NFA_PIM_*, see below */
+!     nfa_state_T	*state;		/* the invisible match start state */
+      regsubs_T	subs;		/* submatch info, only party used */
++     union
++     {
++ 	lpos_T	pos;
++ 	char_u	*ptr;
++     } end;			/* where the match must end */
+  };
+  
+  /* Values for done in nfa_pim_T. */
+! #define NFA_PIM_UNUSED   0	/* pim not used */
+! #define NFA_PIM_TODO     1	/* pim not done yet */
+! #define NFA_PIM_MATCH    2	/* pim executed, matches */
+! #define NFA_PIM_NOMATCH  3	/* pim executed, no match */
+  
+  
+  /* nfa_thread_T contains execution information of a NFA state */
+***************
+*** 3371,3377 ****
+  {
+      nfa_state_T	*state;
+      int		count;
+!     nfa_pim_T	*pim;		/* if not NULL: postponed invisible match */
+      regsubs_T	subs;		/* submatch info, only party used */
+  } nfa_thread_T;
+  
+--- 3376,3383 ----
+  {
+      nfa_state_T	*state;
+      int		count;
+!     nfa_pim_T	pim;		/* if pim.result != NFA_PIM_UNUSED: postponed
+! 				 * invisible match */
+      regsubs_T	subs;		/* submatch info, only party used */
+  } nfa_thread_T;
+  
+***************
+*** 3424,3434 ****
+--- 3430,3457 ----
+  		    e == NULL ? "NULL" : e);
+  	}
+  }
++ 
++     static char *
++ pim_info(nfa_pim_T *pim)
++ {
++     static char buf[30];
++ 
++     if (pim == NULL || pim->result == NFA_PIM_UNUSED)
++ 	buf[0] = NUL;
++     else
++     {
++ 	sprintf(buf, " PIM col %d", REG_MULTI ? (int)pim->end.pos.col
++ 		: (int)(pim->end.ptr - reginput));
++     }
++     return buf;
++ }
++ 
+  #endif
+  
+  /* Used during execution: whether a match has been found. */
+  static int nfa_match;
+  
++ static void copy_pim __ARGS((nfa_pim_T *to, nfa_pim_T *from));
+  static void clear_sub __ARGS((regsub_T *sub));
+  static void copy_sub __ARGS((regsub_T *to, regsub_T *from));
+  static void copy_sub_off __ARGS((regsub_T *to, regsub_T *from));
+***************
+*** 3436,3444 ****
+  static int has_state_with_pos __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+  static int match_follows __ARGS((nfa_state_T *startstate, int depth));
+  static int state_in_list __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+! static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, int off));
+  static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, nfa_pim_T *pim, int *ip));
+  
+      static void
+  clear_sub(sub)
+      regsub_T *sub;
+--- 3459,3485 ----
+  static int has_state_with_pos __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+  static int match_follows __ARGS((nfa_state_T *startstate, int depth));
+  static int state_in_list __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+! static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, nfa_pim_T *pim, int off));
+  static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, nfa_pim_T *pim, int *ip));
+  
++ /*
++  * Copy postponed invisible match info from "from" to "to".
++  */
++     static void
++ copy_pim(to, from)
++     nfa_pim_T *to;
++     nfa_pim_T *from;
++ {
++     to->result = from->result;
++     to->state = from->state;
++     copy_sub(&to->subs.norm, &from->subs.norm);
++ #ifdef FEAT_SYN_HL
++     if (nfa_has_zsubexpr)
++ 	copy_sub(&to->subs.synt, &from->subs.synt);
++ #endif
++     to->end = from->end;
++ }
++ 
+      static void
+  clear_sub(sub)
+      regsub_T *sub;
+***************
+*** 3583,3589 ****
+  
+  #ifdef ENABLE_LOG
+      static void
+! report_state(char *action, regsub_T *sub, nfa_state_T *state, int lid)
+  {
+      int col;
+  
+--- 3624,3634 ----
+  
+  #ifdef ENABLE_LOG
+      static void
+! report_state(char *action,
+! 	     regsub_T *sub,
+! 	     nfa_state_T *state,
+! 	     int lid,
+! 	     nfa_pim_T *pim)
+  {
+      int col;
+  
+***************
+*** 3594,3601 ****
+      else
+  	col = (int)(sub->list.line[0].start - regline);
+      nfa_set_code(state->c);
+!     fprintf(log_fd, "> %s state %d to list %d. char %d: %s (start col %d)\n",
+! 	    action, abs(state->id), lid, state->c, code, col);
+  }
+  #endif
+  
+--- 3639,3647 ----
+      else
+  	col = (int)(sub->list.line[0].start - regline);
+      nfa_set_code(state->c);
+!     fprintf(log_fd, "> %s state %d to list %d. char %d: %s (start col %d)%s\n",
+! 	    action, abs(state->id), lid, state->c, code, col,
+! 	    pim_info(pim));
+  }
+  #endif
+  
+***************
+*** 3646,3651 ****
+--- 3692,3701 ----
+  	switch (state->c)
+  	{
+  	    case NFA_MATCH:
++ 	    case NFA_MCLOSE:
++ 	    case NFA_END_INVISIBLE:
++ 	    case NFA_END_INVISIBLE_NEG:
++ 	    case NFA_END_PATTERN:
+  		return TRUE;
+  
+  	    case NFA_SPLIT:
+***************
+*** 3727,3736 ****
+  }
+  
+      static void
+! addstate(l, state, subs, off)
+      nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+      regsubs_T		*subs;	/* pointers to subexpressions */
+      int			off;	/* byte offset, when -1 go to next line */
+  {
+      int			subidx;
+--- 3777,3787 ----
+  }
+  
+      static void
+! addstate(l, state, subs, pim, off)
+      nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+      regsubs_T		*subs;	/* pointers to subexpressions */
++     nfa_pim_T		*pim;   /* postponed look-behind match */
+      int			off;	/* byte offset, when -1 go to next line */
+  {
+      int			subidx;
+***************
+*** 3856,3876 ****
+  	    state->lastlist[nfa_ll_index] = l->id;
+  	    thread = &l->t[l->n++];
+  	    thread->state = state;
+! 	    thread->pim = NULL;
+  	    copy_sub(&thread->subs.norm, &subs->norm);
+  #ifdef FEAT_SYN_HL
+  	    if (nfa_has_zsubexpr)
+  		copy_sub(&thread->subs.synt, &subs->synt);
+  #endif
+  #ifdef ENABLE_LOG
+! 	    report_state("Adding", &thread->subs.norm, state, l->id);
+  	    did_print = TRUE;
+  #endif
+      }
+  
+  #ifdef ENABLE_LOG
+      if (!did_print)
+! 	report_state("Processing", &subs->norm, state, l->id);
+  #endif
+      switch (state->c)
+      {
+--- 3907,3930 ----
+  	    state->lastlist[nfa_ll_index] = l->id;
+  	    thread = &l->t[l->n++];
+  	    thread->state = state;
+! 	    if (pim == NULL)
+! 		thread->pim.result = NFA_PIM_UNUSED;
+! 	    else
+! 		copy_pim(&thread->pim, pim);
+  	    copy_sub(&thread->subs.norm, &subs->norm);
+  #ifdef FEAT_SYN_HL
+  	    if (nfa_has_zsubexpr)
+  		copy_sub(&thread->subs.synt, &subs->synt);
+  #endif
+  #ifdef ENABLE_LOG
+! 	    report_state("Adding", &thread->subs.norm, state, l->id, pim);
+  	    did_print = TRUE;
+  #endif
+      }
+  
+  #ifdef ENABLE_LOG
+      if (!did_print)
+! 	report_state("Processing", &subs->norm, state, l->id, pim);
+  #endif
+      switch (state->c)
+      {
+***************
+*** 3880,3893 ****
+  
+  	case NFA_SPLIT:
+  	    /* order matters here */
+! 	    addstate(l, state->out, subs, off);
+! 	    addstate(l, state->out1, subs, off);
+  	    break;
+  
+  	case NFA_SKIP_CHAR:
+  	case NFA_NOPEN:
+  	case NFA_NCLOSE:
+! 	    addstate(l, state->out, subs, off);
+  	    break;
+  
+  	case NFA_MOPEN:
+--- 3934,3947 ----
+  
+  	case NFA_SPLIT:
+  	    /* order matters here */
+! 	    addstate(l, state->out, subs, pim, off);
+! 	    addstate(l, state->out1, subs, pim, off);
+  	    break;
+  
+  	case NFA_SKIP_CHAR:
+  	case NFA_NOPEN:
+  	case NFA_NCLOSE:
+! 	    addstate(l, state->out, subs, pim, off);
+  	    break;
+  
+  	case NFA_MOPEN:
+***************
+*** 3983,3989 ****
+  		sub->list.line[subidx].start = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, subs, off);
+  
+  	    if (save_in_use == -1)
+  	    {
+--- 4037,4043 ----
+  		sub->list.line[subidx].start = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, subs, pim, off);
+  
+  	    if (save_in_use == -1)
+  	    {
+***************
+*** 4001,4007 ****
+  	    {
+  		/* Do not overwrite the position set by \ze. If no \ze
+  		 * encountered end will be set in nfa_regtry(). */
+! 		addstate(l, state->out, subs, off);
+  		break;
+  	    }
+  	case NFA_MCLOSE1:
+--- 4055,4061 ----
+  	    {
+  		/* Do not overwrite the position set by \ze. If no \ze
+  		 * encountered end will be set in nfa_regtry(). */
+! 		addstate(l, state->out, subs, pim, off);
+  		break;
+  	    }
+  	case NFA_MCLOSE1:
+***************
+*** 4070,4076 ****
+  		sub->list.line[subidx].end = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, subs, off);
+  
+  	    if (REG_MULTI)
+  		sub->list.multi[subidx].end = save_lpos;
+--- 4124,4130 ----
+  		sub->list.line[subidx].end = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, subs, pim, off);
+  
+  	    if (REG_MULTI)
+  		sub->list.multi[subidx].end = save_lpos;
+***************
+*** 4098,4112 ****
+      int tlen = l->n;
+      int count;
+      int listidx = *ip;
+-     int i;
+  
+      /* first add the state(s) at the end, so that we know how many there are */
+!     addstate(l, state, subs, 0);
+! 
+!     /* fill in the "pim" field in the new states */
+!     if (pim != NULL)
+! 	for (i = tlen; i < l->n; ++i)
+! 	    l->t[i].pim = pim;
+  
+      /* when "*ip" was at the end of the list, nothing to do */
+      if (listidx + 1 == tlen)
+--- 4152,4160 ----
+      int tlen = l->n;
+      int count;
+      int listidx = *ip;
+  
+      /* first add the state(s) at the end, so that we know how many there are */
+!     addstate(l, state, subs, pim, 0);
+  
+      /* when "*ip" was at the end of the list, nothing to do */
+      if (listidx + 1 == tlen)
+***************
+*** 4355,4369 ****
+      return val == pos;
+  }
+  
+! static int recursive_regmatch __ARGS((nfa_state_T *state, nfa_regprog_T *prog, regsubs_T *submatch, regsubs_T *m, int **listids));
+  static int nfa_regmatch __ARGS((nfa_regprog_T *prog, nfa_state_T *start, regsubs_T *submatch, regsubs_T *m));
+  
+  /*
+   * Recursively call nfa_regmatch()
+   */
+      static int
+! recursive_regmatch(state, prog, submatch, m, listids)
+      nfa_state_T	    *state;
+      nfa_regprog_T   *prog;
+      regsubs_T	    *submatch;
+      regsubs_T	    *m;
+--- 4403,4420 ----
+      return val == pos;
+  }
+  
+! static int recursive_regmatch __ARGS((nfa_state_T *state, nfa_pim_T *pim, nfa_regprog_T *prog, regsubs_T *submatch, regsubs_T *m, int **listids));
+  static int nfa_regmatch __ARGS((nfa_regprog_T *prog, nfa_state_T *start, regsubs_T *submatch, regsubs_T *m));
+  
+  /*
+   * Recursively call nfa_regmatch()
++  * "pim" is NULL or contains info about a Postponed Invisible Match (start
++  * position).
+   */
+      static int
+! recursive_regmatch(state, pim, prog, submatch, m, listids)
+      nfa_state_T	    *state;
++     nfa_pim_T	    *pim;
+      nfa_regprog_T   *prog;
+      regsubs_T	    *submatch;
+      regsubs_T	    *m;
+***************
+*** 4380,4397 ****
+      int		result;
+      int		need_restore = FALSE;
+  
+      if (state->c == NFA_START_INVISIBLE_BEFORE
+          || state->c == NFA_START_INVISIBLE_BEFORE_NEG)
+      {
+! 	/* The recursive match must end at the current position. */
+  	endposp = &endpos;
+  	if (REG_MULTI)
+  	{
+! 	    endpos.se_u.pos.col = (int)(reginput - regline);
+! 	    endpos.se_u.pos.lnum = reglnum;
+  	}
+  	else
+! 	    endpos.se_u.ptr = reginput;
+  
+  	/* Go back the specified number of bytes, or as far as the
+  	 * start of the previous line, to try matching "\@<=" or
+--- 4431,4468 ----
+      int		result;
+      int		need_restore = FALSE;
+  
++     if (pim != NULL)
++     {
++ 	/* start at the position where the postponed match was */
++ 	if (REG_MULTI)
++ 	    reginput = regline + pim->end.pos.col;
++ 	else
++ 	    reginput = pim->end.ptr;
++     }
++ 
+      if (state->c == NFA_START_INVISIBLE_BEFORE
+          || state->c == NFA_START_INVISIBLE_BEFORE_NEG)
+      {
+! 	/* The recursive match must end at the current position. When "pim" is
+! 	 * not NULL it specifies the current position. */
+  	endposp = &endpos;
+  	if (REG_MULTI)
+  	{
+! 	    if (pim == NULL)
+! 	    {
+! 		endpos.se_u.pos.col = (int)(reginput - regline);
+! 		endpos.se_u.pos.lnum = reglnum;
+! 	    }
+! 	    else
+! 		endpos.se_u.pos = pim->end.pos;
+  	}
+  	else
+! 	{
+! 	    if (pim == NULL)
+! 		endpos.se_u.ptr = reginput;
+! 	    else
+! 		endpos.se_u.ptr = pim->end.ptr;
+! 	}
+  
+  	/* Go back the specified number of bytes, or as far as the
+  	 * start of the previous line, to try matching "\@<=" or
+***************
+*** 4784,4790 ****
+      int		add_here;
+      int		add_count;
+      int		add_off;
+-     garray_T	pimlist;
+      int		toplevel = start->c == NFA_MOPEN;
+  #ifdef NFA_REGEXP_DEBUG_LOG
+      FILE	*debug = fopen(NFA_REGEXP_DEBUG_LOG, "a");
+--- 4855,4860 ----
+***************
+*** 4796,4802 ****
+      }
+  #endif
+      nfa_match = FALSE;
+-     ga_init2(&pimlist, sizeof(nfa_pim_T), 5);
+  
+      /* Allocate memory for the lists of nodes. */
+      size = (nstate + 1) * sizeof(nfa_thread_T);
+--- 4866,4871 ----
+***************
+*** 4845,4854 ****
+  	else
+  	    m->norm.list.line[0].start = reginput;
+  	m->norm.in_use = 1;
+! 	addstate(thislist, start->out, m, 0);
+      }
+      else
+! 	addstate(thislist, start, m, 0);
+  
+  #define	ADD_STATE_IF_MATCH(state)			\
+      if (result) {					\
+--- 4914,4923 ----
+  	else
+  	    m->norm.list.line[0].start = reginput;
+  	m->norm.in_use = 1;
+! 	addstate(thislist, start->out, m, NULL, 0);
+      }
+      else
+! 	addstate(thislist, start, m, NULL, 0);
+  
+  #define	ADD_STATE_IF_MATCH(state)			\
+      if (result) {					\
+***************
+*** 4890,4897 ****
+  	thislist->id = nfa_listid;
+  	nextlist->id = nfa_listid + 1;
+  
+- 	pimlist.ga_len = 0;
+- 
+  #ifdef ENABLE_LOG
+  	fprintf(log_fd, "------------------------------------------\n");
+  	fprintf(log_fd, ">>> Reginput is \"%s\"\n", reginput);
+--- 4959,4964 ----
+***************
+*** 4935,4942 ****
+  		else
+  		    col = (int)(t->subs.norm.list.line[0].start - regline);
+  		nfa_set_code(t->state->c);
+! 		fprintf(log_fd, "(%d) char %d %s (start col %d) ... \n",
+! 			abs(t->state->id), (int)t->state->c, code, col);
+  	    }
+  #endif
+  
+--- 5002,5010 ----
+  		else
+  		    col = (int)(t->subs.norm.list.line[0].start - regline);
+  		nfa_set_code(t->state->c);
+! 		fprintf(log_fd, "(%d) char %d %s (start col %d)%s ... \n",
+! 			abs(t->state->id), (int)t->state->c, code, col,
+! 			pim_info(&t->pim));
+  	    }
+  #endif
+  
+***************
+*** 5028,5048 ****
+  	    case NFA_START_INVISIBLE_BEFORE:
+  	    case NFA_START_INVISIBLE_BEFORE_NEG:
+  		{
+- 		    nfa_pim_T *pim;
+  		    int cout = t->state->out1->out->c;
+  
+  		    /* Do it directly when what follows is possibly end of
+  		     * match (closing paren).
+  		     * Postpone when it is \@<= or \@<!, these are expensive.
+- 		     * TODO: remove the check for t->pim and check multiple
+- 		     * where it's used?
+  		     * Otherwise first do the one that has the highest chance
+  		     * of failing. */
+  		    if ((cout >= NFA_MCLOSE && cout <= NFA_MCLOSE9)
+  #ifdef FEAT_SYN_HL
+  			    || (cout >= NFA_ZCLOSE && cout <= NFA_ZCLOSE9)
+  #endif
+! 			    || t->pim != NULL
+  			    || (t->state->c != NFA_START_INVISIBLE_BEFORE
+  			        && t->state->c != NFA_START_INVISIBLE_BEFORE_NEG
+  				&& failure_chance(t->state->out1->out, 0)
+--- 5096,5114 ----
+  	    case NFA_START_INVISIBLE_BEFORE:
+  	    case NFA_START_INVISIBLE_BEFORE_NEG:
+  		{
+  		    int cout = t->state->out1->out->c;
+  
+  		    /* Do it directly when what follows is possibly end of
+  		     * match (closing paren).
++ 		     * Do it directly if there already is a PIM.
+  		     * Postpone when it is \@<= or \@<!, these are expensive.
+  		     * Otherwise first do the one that has the highest chance
+  		     * of failing. */
+  		    if ((cout >= NFA_MCLOSE && cout <= NFA_MCLOSE9)
+  #ifdef FEAT_SYN_HL
+  			    || (cout >= NFA_ZCLOSE && cout <= NFA_ZCLOSE9)
+  #endif
+! 			    || t->pim.result != NFA_PIM_UNUSED
+  			    || (t->state->c != NFA_START_INVISIBLE_BEFORE
+  			        && t->state->c != NFA_START_INVISIBLE_BEFORE_NEG
+  				&& failure_chance(t->state->out1->out, 0)
+***************
+*** 5052,5058 ****
+  			 * First try matching the invisible match, then what
+  			 * follows.
+  			 */
+! 			result = recursive_regmatch(t->state, prog,
+  						       submatch, m, &listids);
+  
+  			/* for \@! and \@<! it is a match when the result is
+--- 5118,5124 ----
+  			 * First try matching the invisible match, then what
+  			 * follows.
+  			 */
+! 			result = recursive_regmatch(t->state, NULL, prog,
+  						       submatch, m, &listids);
+  
+  			/* for \@! and \@<! it is a match when the result is
+***************
+*** 5077,5102 ****
+  		    }
+  		    else
+  		    {
+  			/*
+! 			 * First try matching what follows at the current
+! 			 * position.  Only if a match is found, before
+! 			 * addstate() is called, then verify the invisible
+! 			 * match matches.  Add a nfa_pim_T to the following
+! 			 * states, it contains info about the invisible match.
+  			 */
+! 			if (ga_grow(&pimlist, 1) == FAIL)
+! 			    goto theend;
+! 			pim = (nfa_pim_T *)pimlist.ga_data + pimlist.ga_len;
+! 			++pimlist.ga_len;
+! 			pim->state = t->state;
+! 			pim->pim = NULL;
+! 			pim->result = NFA_PIM_TODO;
+  
+  			/* t->state->out1 is the corresponding END_INVISIBLE
+  			 * node; Add its out to the current list (zero-width
+  			 * match). */
+  			addstate_here(thislist, t->state->out1->out, &t->subs,
+! 							       pim, &listidx);
+  		    }
+  		}
+  		break;
+--- 5143,5175 ----
+  		    }
+  		    else
+  		    {
++ 			nfa_pim_T pim;
++ 
+  			/*
+! 			 * First try matching what follows.  Only if a match
+! 			 * is found verify the invisible match matches.  Add a
+! 			 * nfa_pim_T to the following states, it contains info
+! 			 * about the invisible match.
+  			 */
+! 			pim.state = t->state;
+! 			pim.result = NFA_PIM_TODO;
+! 			pim.subs.norm.in_use = 0;
+! #ifdef FEAT_SYN_HL
+! 			pim.subs.synt.in_use = 0;
+! #endif
+! 			if (REG_MULTI)
+! 			{
+! 			    pim.end.pos.col = (int)(reginput - regline);
+! 			    pim.end.pos.lnum = reglnum;
+! 			}
+! 			else
+! 			    pim.end.ptr = reginput;
+  
+  			/* t->state->out1 is the corresponding END_INVISIBLE
+  			 * node; Add its out to the current list (zero-width
+  			 * match). */
+  			addstate_here(thislist, t->state->out1->out, &t->subs,
+! 							       &pim, &listidx);
+  		    }
+  		}
+  		break;
+***************
+*** 5144,5150 ****
+  		}
+  
+  		/* First try matching the pattern. */
+! 		result = recursive_regmatch(t->state, prog,
+  						       submatch, m, &listids);
+  		if (result)
+  		{
+--- 5217,5223 ----
+  		}
+  
+  		/* First try matching the pattern. */
+! 		result = recursive_regmatch(t->state, NULL, prog,
+  						       submatch, m, &listids);
+  		if (result)
+  		{
+***************
+*** 5798,5809 ****
+  
+  	    if (add_state != NULL)
+  	    {
+! 		/* Handle the postponed invisible match before advancing to
+! 		 * the next character and for a zero-width match if the match
+! 		 * might end without advancing. */
+! 		if (t->pim != NULL && (!add_here || match_follows(add_state, 0)))
+  		{
+! 		    if (t->pim->result == NFA_PIM_TODO)
+  		    {
+  #ifdef ENABLE_LOG
+  			fprintf(log_fd, "\n");
+--- 5871,5888 ----
+  
+  	    if (add_state != NULL)
+  	    {
+! 		nfa_pim_T *pim;
+! 
+! 		if (t->pim.result == NFA_PIM_UNUSED)
+! 		    pim = NULL;
+! 		else
+! 		    pim = &t->pim;
+! 
+! 		/* Handle the postponed invisible match if the match might end
+! 		 * without advancing and before the end of the line. */
+! 		if (pim != NULL && (clen == 0 || match_follows(add_state, 0)))
+  		{
+! 		    if (pim->result == NFA_PIM_TODO)
+  		    {
+  #ifdef ENABLE_LOG
+  			fprintf(log_fd, "\n");
+***************
+*** 5811,5868 ****
+  			fprintf(log_fd, "Postponed recursive nfa_regmatch()\n");
+  			fprintf(log_fd, "\n");
+  #endif
+! 			result = recursive_regmatch(t->pim->state,
+  						 prog, submatch, m, &listids);
+! 			t->pim->result = result ? NFA_PIM_MATCH
+! 							    : NFA_PIM_NOMATCH;
+  			/* for \@! and \@<! it is a match when the result is
+  			 * FALSE */
+! 			if (result != (t->pim->state->c
+! 						    == NFA_START_INVISIBLE_NEG
+! 			            || t->pim->state->c
+  					   == NFA_START_INVISIBLE_BEFORE_NEG))
+  			{
+  			    /* Copy submatch info from the recursive call */
+! 			    copy_sub_off(&t->pim->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+  			    if (nfa_has_zsubexpr)
+! 				copy_sub_off(&t->pim->subs.synt, &m->synt);
+  #endif
+  			}
+  		    }
+  		    else
+  		    {
+! 			result = (t->pim->result == NFA_PIM_MATCH);
+  #ifdef ENABLE_LOG
+  			fprintf(log_fd, "\n");
+! 			fprintf(log_fd, "Using previous recursive nfa_regmatch() result, result == %d\n", t->pim->result);
+  			fprintf(log_fd, "MATCH = %s\n", result == TRUE ? "OK" : "FALSE");
+  			fprintf(log_fd, "\n");
+  #endif
+  		    }
+  
+  		    /* for \@! and \@<! it is a match when result is FALSE */
+! 		    if (result != (t->pim->state->c == NFA_START_INVISIBLE_NEG
+! 			        || t->pim->state->c
+  					   == NFA_START_INVISIBLE_BEFORE_NEG))
+  		    {
+  			/* Copy submatch info from the recursive call */
+! 			copy_sub_off(&t->subs.norm, &t->pim->subs.norm);
+  #ifdef FEAT_SYN_HL
+  			if (nfa_has_zsubexpr)
+! 			    copy_sub_off(&t->subs.synt, &t->pim->subs.synt);
+  #endif
+  		    }
+  		    else
+  			/* look-behind match failed, don't add the state */
+  			continue;
+  		}
+  
+  		if (add_here)
+! 		    addstate_here(thislist, add_state, &t->subs, t->pim, &listidx);
+  		else
+  		{
+! 		    addstate(nextlist, add_state, &t->subs, add_off);
+  		    if (add_count > 0)
+  			nextlist->t[nextlist->n - 1].count = add_count;
+  		}
+--- 5890,5949 ----
+  			fprintf(log_fd, "Postponed recursive nfa_regmatch()\n");
+  			fprintf(log_fd, "\n");
+  #endif
+! 			result = recursive_regmatch(pim->state, pim,
+  						 prog, submatch, m, &listids);
+! 			pim->result = result ? NFA_PIM_MATCH : NFA_PIM_NOMATCH;
+  			/* for \@! and \@<! it is a match when the result is
+  			 * FALSE */
+! 			if (result != (pim->state->c == NFA_START_INVISIBLE_NEG
+! 			            || pim->state->c
+  					   == NFA_START_INVISIBLE_BEFORE_NEG))
+  			{
+  			    /* Copy submatch info from the recursive call */
+! 			    copy_sub_off(&pim->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+  			    if (nfa_has_zsubexpr)
+! 				copy_sub_off(&pim->subs.synt, &m->synt);
+  #endif
+  			}
+  		    }
+  		    else
+  		    {
+! 			result = (pim->result == NFA_PIM_MATCH);
+  #ifdef ENABLE_LOG
+  			fprintf(log_fd, "\n");
+! 			fprintf(log_fd, "Using previous recursive nfa_regmatch() result, result == %d\n", pim->result);
+  			fprintf(log_fd, "MATCH = %s\n", result == TRUE ? "OK" : "FALSE");
+  			fprintf(log_fd, "\n");
+  #endif
+  		    }
+  
+  		    /* for \@! and \@<! it is a match when result is FALSE */
+! 		    if (result != (pim->state->c == NFA_START_INVISIBLE_NEG
+! 			        || pim->state->c
+  					   == NFA_START_INVISIBLE_BEFORE_NEG))
+  		    {
+  			/* Copy submatch info from the recursive call */
+! 			copy_sub_off(&t->subs.norm, &pim->subs.norm);
+  #ifdef FEAT_SYN_HL
+  			if (nfa_has_zsubexpr)
+! 			    copy_sub_off(&t->subs.synt, &pim->subs.synt);
+  #endif
+  		    }
+  		    else
+  			/* look-behind match failed, don't add the state */
+  			continue;
++ 
++ 		    /* Postponed invisible match was handled, don't add it to
++ 		     * following states. */
++ 		    pim = NULL;
+  		}
+  
+  		if (add_here)
+! 		    addstate_here(thislist, add_state, &t->subs, pim, &listidx);
+  		else
+  		{
+! 		    addstate(nextlist, add_state, &t->subs, pim, add_off);
+  		    if (add_count > 0)
+  			nextlist->t[nextlist->n - 1].count = add_count;
+  		}
+***************
+*** 5941,5951 ****
+  					 (colnr_T)(reginput - regline) + clen;
+  		    else
+  			m->norm.list.line[0].start = reginput + clen;
+! 		    addstate(nextlist, start->out, m, clen);
+  		}
+  	    }
+  	    else
+! 		addstate(nextlist, start, m, clen);
+  	}
+  
+  #ifdef ENABLE_LOG
+--- 6022,6032 ----
+  					 (colnr_T)(reginput - regline) + clen;
+  		    else
+  			m->norm.list.line[0].start = reginput + clen;
+! 		    addstate(nextlist, start->out, m, NULL, clen);
+  		}
+  	    }
+  	    else
+! 		addstate(nextlist, start, m, NULL, clen);
+  	}
+  
+  #ifdef ENABLE_LOG
+***************
+*** 5982,5988 ****
+      vim_free(list[0].t);
+      vim_free(list[1].t);
+      vim_free(listids);
+-     ga_clear(&pimlist);
+  #undef ADD_STATE_IF_MATCH
+  #ifdef NFA_REGEXP_DEBUG_LOG
+      fclose(debug);
+--- 6063,6068 ----
+*** ../vim-7.3.1152/src/version.c	2013-06-08 23:30:00.000000000 +0200
+--- src/version.c	2013-06-09 15:21:03.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1153,
+  /**/
+
+-- 
+"Computers in the future may weigh no more than 1.5 tons."
+                                   Popular Mechanics, 1949
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

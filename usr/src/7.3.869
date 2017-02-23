@@ -1,0 +1,358 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.869
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.869
+Problem:    bufwinnr() matches buffers in other tabs.
+Solution:   For bufwinnr() and ? only match buffers in the current tab.
+	    (Alexey Radkov)
+Files:	    src/buffer.c, src/diff.c, src/eval.c, src/ex_docmd.c,
+	    src/if_perl.xs, src/proto/buffer.pro
+
+
+*** ../vim-7.3.868/src/buffer.c	2013-02-17 15:45:34.000000000 +0100
+--- src/buffer.c	2013-03-19 14:19:17.000000000 +0100
+***************
+*** 928,934 ****
+  		if (!VIM_ISDIGIT(*arg))
+  		{
+  		    p = skiptowhite_esc(arg);
+! 		    bnr = buflist_findpat(arg, p, command == DOBUF_WIPE, FALSE);
+  		    if (bnr < 0)	    /* failed */
+  			break;
+  		    arg = p;
+--- 928,935 ----
+  		if (!VIM_ISDIGIT(*arg))
+  		{
+  		    p = skiptowhite_esc(arg);
+! 		    bnr = buflist_findpat(arg, p, command == DOBUF_WIPE,
+! 								FALSE, FALSE);
+  		    if (bnr < 0)	    /* failed */
+  			break;
+  		    arg = p;
+***************
+*** 2129,2146 ****
+      return NULL;
+  }
+  
+! #if defined(FEAT_LISTCMDS) || defined(FEAT_EVAL) || defined(FEAT_PERL) || defined(PROTO)
+  /*
+   * Find file in buffer list by a regexp pattern.
+   * Return fnum of the found buffer.
+   * Return < 0 for error.
+   */
+      int
+! buflist_findpat(pattern, pattern_end, unlisted, diffmode)
+      char_u	*pattern;
+      char_u	*pattern_end;	/* pointer to first char after pattern */
+      int		unlisted;	/* find unlisted buffers */
+      int		diffmode UNUSED; /* find diff-mode buffers only */
+  {
+      buf_T	*buf;
+      regprog_T	*prog;
+--- 2130,2149 ----
+      return NULL;
+  }
+  
+! #if defined(FEAT_LISTCMDS) || defined(FEAT_EVAL) || defined(FEAT_PERL) \
+! 	|| defined(PROTO)
+  /*
+   * Find file in buffer list by a regexp pattern.
+   * Return fnum of the found buffer.
+   * Return < 0 for error.
+   */
+      int
+! buflist_findpat(pattern, pattern_end, unlisted, diffmode, curtab_only)
+      char_u	*pattern;
+      char_u	*pattern_end;	/* pointer to first char after pattern */
+      int		unlisted;	/* find unlisted buffers */
+      int		diffmode UNUSED; /* find diff-mode buffers only */
++     int		curtab_only;	/* find buffers in current tab only */
+  {
+      buf_T	*buf;
+      regprog_T	*prog;
+***************
+*** 2208,2213 ****
+--- 2211,2233 ----
+  #endif
+  			    && buflist_match(prog, buf) != NULL)
+  		    {
++ 			if (curtab_only)
++ 			{
++ 			    /* Ignore the match if the buffer is not open in
++ 			     * the current tab. */
++ #ifdef FEAT_WINDOWS
++ 			    win_T	*wp;
++ 
++ 			    for (wp = firstwin; wp != NULL; wp = wp->w_next)
++ 				if (wp->w_buffer == buf)
++ 				    break;
++ 			    if (wp == NULL)
++ 				continue;
++ #else
++ 			    if (curwin->w_buffer != buf)
++ 				continue;
++ #endif
++ 			}
+  			if (match >= 0)		/* already found a match */
+  			{
+  			    match = -2;
+*** ../vim-7.3.868/src/diff.c	2012-10-21 22:18:17.000000000 +0200
+--- src/diff.c	2013-03-19 14:11:40.000000000 +0100
+***************
+*** 2152,2158 ****
+  	    i = atol((char *)eap->arg);
+  	else
+  	{
+! 	    i = buflist_findpat(eap->arg, p, FALSE, TRUE);
+  	    if (i < 0)
+  		return;		/* error message already given */
+  	}
+--- 2152,2158 ----
+  	    i = atol((char *)eap->arg);
+  	else
+  	{
+! 	    i = buflist_findpat(eap->arg, p, FALSE, TRUE, FALSE);
+  	    if (i < 0)
+  		return;		/* error message already given */
+  	}
+*** ../vim-7.3.868/src/eval.c	2013-03-16 14:20:45.000000000 +0100
+--- src/eval.c	2013-03-19 14:11:40.000000000 +0100
+***************
+*** 9019,9032 ****
+      rettv->vval.v_number = (buf != NULL && buf->b_ml.ml_mfp != NULL);
+  }
+  
+! static buf_T *get_buf_tv __ARGS((typval_T *tv));
+  
+  /*
+   * Get buffer by number or pattern.
+   */
+      static buf_T *
+! get_buf_tv(tv)
+      typval_T	*tv;
+  {
+      char_u	*name = tv->vval.v_string;
+      int		save_magic;
+--- 9019,9033 ----
+      rettv->vval.v_number = (buf != NULL && buf->b_ml.ml_mfp != NULL);
+  }
+  
+! static buf_T *get_buf_tv __ARGS((typval_T *tv, int curtab_only));
+  
+  /*
+   * Get buffer by number or pattern.
+   */
+      static buf_T *
+! get_buf_tv(tv, curtab_only)
+      typval_T	*tv;
++     int		curtab_only;
+  {
+      char_u	*name = tv->vval.v_string;
+      int		save_magic;
+***************
+*** 9049,9055 ****
+      p_cpo = (char_u *)"";
+  
+      buf = buflist_findnr(buflist_findpat(name, name + STRLEN(name),
+! 								TRUE, FALSE));
+  
+      p_magic = save_magic;
+      p_cpo = save_cpo;
+--- 9050,9056 ----
+      p_cpo = (char_u *)"";
+  
+      buf = buflist_findnr(buflist_findpat(name, name + STRLEN(name),
+! 						    TRUE, FALSE, curtab_only));
+  
+      p_magic = save_magic;
+      p_cpo = save_cpo;
+***************
+*** 9073,9079 ****
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0]);
+      rettv->v_type = VAR_STRING;
+      if (buf != NULL && buf->b_fname != NULL)
+  	rettv->vval.v_string = vim_strsave(buf->b_fname);
+--- 9074,9080 ----
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0], FALSE);
+      rettv->v_type = VAR_STRING;
+      if (buf != NULL && buf->b_fname != NULL)
+  	rettv->vval.v_string = vim_strsave(buf->b_fname);
+***************
+*** 9096,9102 ****
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0]);
+      --emsg_off;
+  
+      /* If the buffer isn't found and the second argument is not zero create a
+--- 9097,9103 ----
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0], FALSE);
+      --emsg_off;
+  
+      /* If the buffer isn't found and the second argument is not zero create a
+***************
+*** 9131,9137 ****
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0]);
+  #ifdef FEAT_WINDOWS
+      for (wp = firstwin; wp; wp = wp->w_next)
+      {
+--- 9132,9138 ----
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0], TRUE);
+  #ifdef FEAT_WINDOWS
+      for (wp = firstwin; wp; wp = wp->w_next)
+      {
+***************
+*** 11095,11101 ****
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0]);
+      --emsg_off;
+  
+      lnum = get_tv_lnum_buf(&argvars[1], buf);
+--- 11096,11102 ----
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0], FALSE);
+      --emsg_off;
+  
+      lnum = get_tv_lnum_buf(&argvars[1], buf);
+***************
+*** 11123,11129 ****
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      varname = get_tv_string_chk(&argvars[1]);
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0]);
+  
+      if (argvars[2].v_type != VAR_UNKNOWN)
+  	/* set the default value */
+--- 11124,11130 ----
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      varname = get_tv_string_chk(&argvars[1]);
+      ++emsg_off;
+!     buf = get_buf_tv(&argvars[0], FALSE);
+  
+      if (argvars[2].v_type != VAR_UNKNOWN)
+  	/* set the default value */
+***************
+*** 16216,16222 ****
+  	return;
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      varname = get_tv_string_chk(&argvars[1]);
+!     buf = get_buf_tv(&argvars[0]);
+      varp = &argvars[2];
+  
+      if (buf != NULL && varname != NULL && varp != NULL)
+--- 16217,16223 ----
+  	return;
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      varname = get_tv_string_chk(&argvars[1]);
+!     buf = get_buf_tv(&argvars[0], FALSE);
+      varp = &argvars[2];
+  
+      if (buf != NULL && varname != NULL && varp != NULL)
+*** ../vim-7.3.868/src/ex_docmd.c	2013-03-13 18:30:39.000000000 +0100
+--- src/ex_docmd.c	2013-03-19 14:15:17.000000000 +0100
+***************
+*** 2645,2651 ****
+  	    while (p > ea.arg && vim_iswhite(p[-1]))
+  		--p;
+  	}
+! 	ea.line2 = buflist_findpat(ea.arg, p, (ea.argt & BUFUNL) != 0, FALSE);
+  	if (ea.line2 < 0)	    /* failed */
+  	    goto doend;
+  	ea.addr_count = 1;
+--- 2645,2652 ----
+  	    while (p > ea.arg && vim_iswhite(p[-1]))
+  		--p;
+  	}
+! 	ea.line2 = buflist_findpat(ea.arg, p, (ea.argt & BUFUNL) != 0,
+! 								FALSE, FALSE);
+  	if (ea.line2 < 0)	    /* failed */
+  	    goto doend;
+  	ea.addr_count = 1;
+*** ../vim-7.3.868/src/if_perl.xs	2013-02-14 22:19:47.000000000 +0100
+--- src/if_perl.xs	2013-03-19 14:15:46.000000000 +0100
+***************
+*** 1056,1062 ****
+  
+  		pat = (char_u *)SvPV(sv, len);
+  		++emsg_off;
+! 		b = buflist_findpat(pat, pat+len, FALSE, FALSE);
+  		--emsg_off;
+  	    }
+  
+--- 1056,1062 ----
+  
+  		pat = (char_u *)SvPV(sv, len);
+  		++emsg_off;
+! 		b = buflist_findpat(pat, pat+len, FALSE, FALSE, FALSE);
+  		--emsg_off;
+  	    }
+  
+*** ../vim-7.3.868/src/proto/buffer.pro	2012-10-03 18:24:55.000000000 +0200
+--- src/proto/buffer.pro	2013-03-19 14:16:22.000000000 +0100
+***************
+*** 17,23 ****
+  void buflist_getfpos __ARGS((void));
+  buf_T *buflist_findname_exp __ARGS((char_u *fname));
+  buf_T *buflist_findname __ARGS((char_u *ffname));
+! int buflist_findpat __ARGS((char_u *pattern, char_u *pattern_end, int unlisted, int diffmode));
+  int ExpandBufnames __ARGS((char_u *pat, int *num_file, char_u ***file, int options));
+  buf_T *buflist_findnr __ARGS((int nr));
+  char_u *buflist_nr2name __ARGS((int n, int fullname, int helptail));
+--- 17,23 ----
+  void buflist_getfpos __ARGS((void));
+  buf_T *buflist_findname_exp __ARGS((char_u *fname));
+  buf_T *buflist_findname __ARGS((char_u *ffname));
+! int buflist_findpat __ARGS((char_u *pattern, char_u *pattern_end, int unlisted, int diffmode, int curtab_only));
+  int ExpandBufnames __ARGS((char_u *pat, int *num_file, char_u ***file, int options));
+  buf_T *buflist_findnr __ARGS((int nr));
+  char_u *buflist_nr2name __ARGS((int n, int fullname, int helptail));
+*** ../vim-7.3.868/src/version.c	2013-03-19 13:56:03.000000000 +0100
+--- src/version.c	2013-03-19 14:23:42.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     869,
+  /**/
+
+-- 
+Proof techniques #2: Proof by Oddity.
+	SAMPLE: To prove that horses have an infinite number of legs.
+(1) Horses have an even number of legs.
+(2) They have two legs in back and fore legs in front.
+(3) This makes a total of six legs, which certainly is an odd number of
+    legs for a horse.
+(4) But the only number that is both odd and even is infinity.
+(5) Therefore, horses must have an infinite number of legs.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

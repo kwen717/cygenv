@@ -1,0 +1,101 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.981
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.981
+Problem:    In the old regexp engine \i, \I, \f and \F don't work on
+	    multi-byte characters.
+Solution:   Dereference pointer properly.
+Files:      src/regexp.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.980/src/regexp.c	2013-05-20 21:49:08.000000000 +0200
+--- src/regexp.c	2013-05-20 23:58:32.000000000 +0200
+***************
+*** 5758,5764 ****
+        case SIDENT + ADD_NL:
+  	while (count < maxcount)
+  	{
+! 	    if (vim_isIDc(*scan) && (testval || !VIM_ISDIGIT(*scan)))
+  	    {
+  		mb_ptr_adv(scan);
+  	    }
+--- 5758,5764 ----
+        case SIDENT + ADD_NL:
+  	while (count < maxcount)
+  	{
+! 	    if (vim_isIDc(PTR2CHAR(scan)) && (testval || !VIM_ISDIGIT(*scan)))
+  	    {
+  		mb_ptr_adv(scan);
+  	    }
+***************
+*** 5819,5825 ****
+        case SFNAME + ADD_NL:
+  	while (count < maxcount)
+  	{
+! 	    if (vim_isfilec(*scan) && (testval || !VIM_ISDIGIT(*scan)))
+  	    {
+  		mb_ptr_adv(scan);
+  	    }
+--- 5819,5825 ----
+        case SFNAME + ADD_NL:
+  	while (count < maxcount)
+  	{
+! 	    if (vim_isfilec(PTR2CHAR(scan)) && (testval || !VIM_ISDIGIT(*scan)))
+  	    {
+  		mb_ptr_adv(scan);
+  	    }
+*** ../vim-7.3.980/src/testdir/test64.in	2013-05-19 19:16:25.000000000 +0200
+--- src/testdir/test64.in	2013-05-20 23:58:09.000000000 +0200
+***************
+*** 262,267 ****
+--- 262,271 ----
+  :call add(tl, ['[a-zA-Z]', 'a', 'a'])
+  :call add(tl, ['[A-Z]', 'a'])
+  :call add(tl, ['\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
++ :call add(tl, ['\i\+', '&*§xx ', 'xx'])
++ :call add(tl, ['\%#=1\i\+', '&*§xx ', 'xx'])
++ :call add(tl, ['\f\+', '&*fname ', 'fname'])
++ :call add(tl, ['\%#=1\i\+', '&*fname ', 'fname'])
+  
+  :"""" Tests for \z features
+  :call add(tl, ['xx \ze test', 'xx '])					" must match after \ze
+*** ../vim-7.3.980/src/testdir/test64.ok	2013-05-19 19:16:25.000000000 +0200
+--- src/testdir/test64.ok	2013-05-21 00:00:08.000000000 +0200
+***************
+*** 203,208 ****
+--- 203,212 ----
+  OK - [a-zA-Z]
+  OK - [A-Z]
+  OK - \C[^A-Z]\+
++ OK - \i\+
++ OK - \%#=1\i\+
++ OK - \f\+
++ OK - \%#=1\i\+
+  OK - xx \ze test
+  OK - abc\zeend
+  OK - abc\zsdd
+*** ../vim-7.3.980/src/version.c	2013-05-20 22:19:58.000000000 +0200
+--- src/version.c	2013-05-21 00:01:30.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     981,
+  /**/
+
+-- 
+   [The rest of the ARMY stand around looking at a loss.]
+INSPECTOR END OF FILM: (picks up megaphone) All right!  Clear off!  Go on!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,178 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1002
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1002
+Problem:    Valgrind errors for Python interface.
+Solution:   Fix memory leaks when running tests. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1001/src/if_py_both.h	2013-05-21 20:51:55.000000000 +0200
+--- src/if_py_both.h	2013-05-21 22:08:25.000000000 +0200
+***************
+*** 866,871 ****
+--- 866,872 ----
+      DICTKEY_UNREF
+  
+      copy_tv(&tv, &di->di_tv);
++     clear_tv(&tv);
+      return 0;
+  }
+  
+***************
+*** 1129,1134 ****
+--- 1130,1136 ----
+      {
+  	if (list_append_tv(l, &tv) == FAIL)
+  	{
++ 	    clear_tv(&tv);
+  	    PyErr_SetVim(_("Failed to add item to list"));
+  	    return -1;
+  	}
+***************
+*** 1138,1143 ****
+--- 1140,1146 ----
+  	li = list_find(l, (long) index);
+  	clear_tv(&li->li_tv);
+  	copy_tv(&tv, &li->li_tv);
++ 	clear_tv(&tv);
+      }
+      return 0;
+  }
+***************
+*** 1204,1212 ****
+--- 1207,1217 ----
+  	    return -1;
+  	if (list_insert_tv(l, &v, li) == FAIL)
+  	{
++ 	    clear_tv(&v);
+  	    PyErr_SetVim(_("internal error: failed to add item to list"));
+  	    return -1;
+  	}
++ 	clear_tv(&v);
+      }
+      return 0;
+  }
+***************
+*** 1346,1352 ****
+--- 1351,1360 ----
+  		return NULL;
+  	    }
+  	    if (ConvertFromPyObject(selfdictObject, &selfdicttv) == -1)
++ 	    {
++ 		clear_tv(&args);
+  		return NULL;
++ 	    }
+  	    selfdict = selfdicttv.vval.v_dict;
+  	}
+      }
+***************
+*** 1370,1382 ****
+      else
+  	result = ConvertToPyObject(&rettv);
+  
+-     /* FIXME Check what should really be cleared. */
+      clear_tv(&args);
+      clear_tv(&rettv);
+!     /*
+!      * if (selfdict!=NULL)
+!      *     clear_tv(selfdicttv);
+!      */
+  
+      return result;
+  }
+--- 1378,1387 ----
+      else
+  	result = ConvertToPyObject(&rettv);
+  
+      clear_tv(&args);
+      clear_tv(&rettv);
+!     if (selfdict != NULL)
+! 	clear_tv(&selfdicttv);
+  
+      return result;
+  }
+***************
+*** 1482,1488 ****
+      }
+      else if (flags & SOPT_BOOL)
+      {
+! 	PyObject *r;
+  	r = numval ? Py_True : Py_False;
+  	Py_INCREF(r);
+  	return r;
+--- 1487,1493 ----
+      }
+      else if (flags & SOPT_BOOL)
+      {
+! 	PyObject	*r;
+  	r = numval ? Py_True : Py_False;
+  	Py_INCREF(r);
+  	return r;
+***************
+*** 1492,1498 ****
+      else if (flags & SOPT_STRING)
+      {
+  	if (stringval)
+! 	    return PyBytes_FromString((char *) stringval);
+  	else
+  	{
+  	    PyErr_SetString(PyExc_RuntimeError,
+--- 1497,1507 ----
+      else if (flags & SOPT_STRING)
+      {
+  	if (stringval)
+! 	{
+! 	    PyObject	*r = PyBytes_FromString((char *) stringval);
+! 	    vim_free(stringval);
+! 	    return r;
+! 	}
+  	else
+  	{
+  	    PyErr_SetString(PyExc_RuntimeError,
+***************
+*** 1516,1524 ****
+      int		opt_type;
+      void	*from;
+  {
+!     win_T	*save_curwin;
+!     tabpage_T	*save_curtab;
+!     buf_T	*save_curbuf;
+  
+      VimTryStart();
+      switch (opt_type)
+--- 1525,1533 ----
+      int		opt_type;
+      void	*from;
+  {
+!     win_T	*save_curwin = NULL;
+!     tabpage_T	*save_curtab = NULL;
+!     buf_T	*save_curbuf = NULL;
+  
+      VimTryStart();
+      switch (opt_type)
+*** ../vim-7.3.1001/src/version.c	2013-05-21 22:00:42.000000000 +0200
+--- src/version.c	2013-05-21 22:12:54.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1002,
+  /**/
+
+-- 
+"I've been teaching myself to play the piano for about 5 years and now write
+most of my songs on it, mainly because I can never find any paper."
+		Jeff Lynne, ELO's greatest hits
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

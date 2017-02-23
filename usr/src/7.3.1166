@@ -1,0 +1,162 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1166
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1166
+Problem:    Loading Python modules is not tested.
+Solution:   Enable commented-out tests, add missing files. (ZyX)
+Files:	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok,
+	    src/testdir/python2/module.py, src/testdir/python3/module.py,
+	    src/testdir/pythonx/module.py, src/testdir/pythonx/modulex.py,
+	    Filelist
+
+
+*** ../vim-7.3.1165/src/testdir/test86.in	2013-06-10 21:27:18.000000000 +0200
+--- src/testdir/test86.in	2013-06-11 17:42:17.000000000 +0200
+***************
+*** 1069,1081 ****
+  ee('vim.current.xxx = True')
+  EOF
+  :"
+! :" Test import  TODO: BROKEN
+! :"py << EOF
+! :"vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+! :"from module import dir as d
+! :"from modulex import ddir
+! :"cb.append(d + ',' + ddir)
+! :"EOF
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+--- 1069,1081 ----
+  ee('vim.current.xxx = True')
+  EOF
+  :"
+! :" Test import
+! py << EOF
+! vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+! from module import dir as d
+! from modulex import ddir
+! cb.append(d + ',' + ddir)
+! EOF
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1165/src/testdir/test86.ok	2013-06-02 18:54:16.000000000 +0200
+--- src/testdir/test86.ok	2013-06-11 17:42:26.000000000 +0200
+***************
+*** 1083,1088 ****
+--- 1083,1089 ----
+  vim.current.window = True:(<type 'exceptions.TypeError'>, TypeError('expected vim.Window object',))
+  vim.current.tabpage = True:(<type 'exceptions.TypeError'>, TypeError('expected vim.TabPage object',))
+  vim.current.xxx = True:(<type 'exceptions.AttributeError'>, AttributeError('xxx',))
++ 2,xx
+  vim.command("throw 'abc'"):(<class 'vim.error'>, error('abc',))
+  Exe("throw 'def'"):(<class 'vim.error'>, error('def',))
+  vim.eval("Exe('throw ''ghi''')"):(<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1165/src/testdir/test87.in	2013-06-10 21:27:18.000000000 +0200
+--- src/testdir/test87.in	2013-06-11 17:42:38.000000000 +0200
+***************
+*** 1036,1048 ****
+  ee('vim.current.xxx = True')
+  EOF
+  :"
+! :" Test import  TODO: BROKEN
+! :"py3 << EOF
+! :"vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+! :"from module import dir as d
+! :"from modulex import ddir
+! :"cb.append(d + ',' + ddir)
+! :"EOF
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+--- 1036,1048 ----
+  ee('vim.current.xxx = True')
+  EOF
+  :"
+! :" Test import
+! py3 << EOF
+! vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+! from module import dir as d
+! from modulex import ddir
+! cb.append(d + ',' + ddir)
+! EOF
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1165/src/testdir/test87.ok	2013-06-02 18:54:16.000000000 +0200
+--- src/testdir/test87.ok	2013-06-11 17:42:55.000000000 +0200
+***************
+*** 1092,1097 ****
+--- 1092,1098 ----
+  vim.current.window = True:(<class 'TypeError'>, TypeError('expected vim.Window object',))
+  vim.current.tabpage = True:(<class 'TypeError'>, TypeError('expected vim.TabPage object',))
+  vim.current.xxx = True:(<class 'AttributeError'>, AttributeError('xxx',))
++ 3,xx
+  vim.command("throw 'abc'"):(<class 'vim.error'>, error('abc',))
+  Exe("throw 'def'"):(<class 'vim.error'>, error('def',))
+  vim.eval("Exe('throw ''ghi''')"):(<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1165/src/testdir/python2/module.py	1970-01-01 01:00:00.000000000 +0100
+--- src/testdir/python2/module.py	2013-06-11 17:39:40.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ dir = '2'
+*** ../vim-7.3.1165/src/testdir/python3/module.py	1970-01-01 01:00:00.000000000 +0100
+--- src/testdir/python3/module.py	2013-06-11 17:39:40.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ dir = '3'
+*** ../vim-7.3.1165/src/testdir/pythonx/module.py	1970-01-01 01:00:00.000000000 +0100
+--- src/testdir/pythonx/module.py	2013-06-11 17:39:40.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ dir = 'x'
+*** ../vim-7.3.1165/src/testdir/pythonx/modulex.py	1970-01-01 01:00:00.000000000 +0100
+--- src/testdir/pythonx/modulex.py	2013-06-11 17:39:40.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ ddir = 'xx'
+*** ../vim-7.3.1165/Filelist	2013-05-19 19:16:25.000000000 +0200
+--- Filelist	2013-06-11 18:45:13.000000000 +0200
+***************
+*** 84,89 ****
+--- 84,92 ----
+  		src/testdir/test49.vim \
+  		src/testdir/test60.vim \
+  		src/testdir/test83-tags? \
++ 		src/testdir/python2/*.py \
++ 		src/testdir/python3/*.py \
++ 		src/testdir/pythonx/*.py \
+  		src/proto.h \
+  		src/proto/blowfish.pro \
+  		src/proto/buffer.pro \
+*** ../vim-7.3.1165/src/version.c	2013-06-11 18:42:28.000000000 +0200
+--- src/version.c	2013-06-11 18:44:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1166,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+146. You experience ACTUAL physical withdrawal symptoms when away
+     from your 'puter and the net.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

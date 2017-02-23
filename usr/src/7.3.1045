@@ -1,0 +1,173 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1045
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1045
+Problem:    Python: No error handling for VimToPython function.
+Solution:   Python patch 6. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1044/src/if_py_both.h	2013-05-29 22:15:26.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:17:56.000000000 +0200
+***************
+*** 432,439 ****
+  	sprintf(ptrBuf, "%p",
+  		our_tv->v_type == VAR_LIST ? (void *)our_tv->vval.v_list
+  					   : (void *)our_tv->vval.v_dict);
+! 	result = PyDict_GetItemString(lookupDict, ptrBuf);
+! 	if (result != NULL)
+  	{
+  	    Py_INCREF(result);
+  	    return result;
+--- 432,439 ----
+  	sprintf(ptrBuf, "%p",
+  		our_tv->v_type == VAR_LIST ? (void *)our_tv->vval.v_list
+  					   : (void *)our_tv->vval.v_dict);
+! 
+! 	if ((result = PyDict_GetItemString(lookupDict, ptrBuf)))
+  	{
+  	    Py_INCREF(result);
+  	    return result;
+***************
+*** 467,510 ****
+  	list_T		*list = our_tv->vval.v_list;
+  	listitem_T	*curr;
+  
+! 	result = PyList_New(0);
+  
+! 	if (list != NULL)
+  	{
+! 	    PyDict_SetItemString(lookupDict, ptrBuf, result);
+  
+! 	    for (curr = list->lv_first; curr != NULL; curr = curr->li_next)
+  	    {
+- 		newObj = VimToPython(&curr->li_tv, depth + 1, lookupDict);
+- 		PyList_Append(result, newObj);
+  		Py_DECREF(newObj);
+  	    }
+  	}
+      }
+      else if (our_tv->v_type == VAR_DICT)
+      {
+- 	result = PyDict_New();
+  
+! 	if (our_tv->vval.v_dict != NULL)
+! 	{
+! 	    hashtab_T	*ht = &our_tv->vval.v_dict->dv_hashtab;
+! 	    long_u	todo = ht->ht_used;
+! 	    hashitem_T	*hi;
+! 	    dictitem_T	*di;
+  
+! 	    PyDict_SetItemString(lookupDict, ptrBuf, result);
+  
+! 	    for (hi = ht->ht_array; todo > 0; ++hi)
+  	    {
+! 		if (!HASHITEM_EMPTY(hi))
+! 		{
+! 		    --todo;
+  
+! 		    di = dict_lookup(hi);
+! 		    newObj = VimToPython(&di->di_tv, depth + 1, lookupDict);
+! 		    PyDict_SetItemString(result, (char *)hi->hi_key, newObj);
+  		    Py_DECREF(newObj);
+  		}
+  	    }
+  	}
+      }
+--- 467,538 ----
+  	list_T		*list = our_tv->vval.v_list;
+  	listitem_T	*curr;
+  
+! 	if (list == NULL)
+! 	    return NULL;
+! 
+! 	if (!(result = PyList_New(0)))
+! 	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookupDict, ptrBuf, result))
+  	{
+! 	    Py_DECREF(result);
+! 	    return NULL;
+! 	}
+  
+! 	for (curr = list->lv_first; curr != NULL; curr = curr->li_next)
+! 	{
+! 	    if (!(newObj = VimToPython(&curr->li_tv, depth + 1, lookupDict)))
+! 	    {
+! 		Py_DECREF(result);
+! 		return NULL;
+! 	    }
+! 	    if (PyList_Append(result, newObj))
+  	    {
+  		Py_DECREF(newObj);
++ 		Py_DECREF(result);
++ 		return NULL;
+  	    }
++ 	    Py_DECREF(newObj);
+  	}
+      }
+      else if (our_tv->v_type == VAR_DICT)
+      {
+  
+! 	hashtab_T	*ht = &our_tv->vval.v_dict->dv_hashtab;
+! 	long_u	todo = ht->ht_used;
+! 	hashitem_T	*hi;
+! 	dictitem_T	*di;
+! 	if (our_tv->vval.v_dict == NULL)
+! 	    return NULL;
+! 
+! 	if (!(result = PyDict_New()))
+! 	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookupDict, ptrBuf, result))
+! 	{
+! 	    Py_DECREF(result);
+! 	    return NULL;
+! 	}
+  
+! 	for (hi = ht->ht_array; todo > 0; ++hi)
+! 	{
+! 	    if (!HASHITEM_EMPTY(hi))
+  	    {
+! 		--todo;
+  
+! 		di = dict_lookup(hi);
+! 		if (!(newObj = VimToPython(&di->di_tv, depth + 1, lookupDict)))
+! 		{
+! 		    Py_DECREF(result);
+! 		    return NULL;
+! 		}
+! 		if (PyDict_SetItemString(result, (char *)hi->hi_key, newObj))
+! 		{
+! 		    Py_DECREF(result);
+  		    Py_DECREF(newObj);
++ 		    return NULL;
+  		}
++ 		Py_DECREF(newObj);
+  	    }
+  	}
+      }
+*** ../vim-7.3.1044/src/version.c	2013-05-29 22:15:26.000000000 +0200
+--- src/version.c	2013-05-29 22:17:30.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1045,
+  /**/
+
+-- 
+Shift happens.
+                -- Doppler
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

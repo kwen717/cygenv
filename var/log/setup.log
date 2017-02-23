@@ -1,0 +1,372 @@
+2013/10/21 19:47:25 Starting cygwin install, version 2.830
+2013/10/21 19:47:25 User has backup/restore rights
+2013/10/21 19:47:25 io_stream_cygfile: fopen(/etc/setup/setup.rc) failed 2 No such file or directory
+2013/10/21 19:47:25 Current Directory: C:\Documents and Settings\wen.su\My Documents\Downloads
+2013/10/21 19:47:25 Could not open service McShield for query, start and stop. McAfee may not be installed, or we don't have access.
+2013/10/21 19:47:27 source: network install
+2013/10/21 19:47:30 root: C:\cygwin binary system
+2013/10/21 19:47:42 Selected local directory: C:
+2013/10/21 19:47:48 net: Direct
+2013/10/21 19:48:16 site: http://cygwin.mirror.constant.com/
+2013/10/21 19:48:19 io_stream_cygfile: fopen(/etc/setup/installed.db) failed 2 No such file or directory
+2013/10/21 19:48:20 io_stream_cygfile: fopen(/etc/setup/timestamp) failed 2 No such file or directory
+2013/10/21 19:49:20 Adding required dependency bzip2: Selecting version 1.0.6-2 for installation.
+2013/10/21 19:49:20 Adding required dependency diffutils: Selecting version 3.2-1 for installation.
+2013/10/21 19:49:20 Adding required dependency groff: Selecting version 1.21-2 for installation.
+2013/10/21 19:49:20 Adding required dependency less: Selecting version 444-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libattr1: Selecting version 2.4.46-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libbz2_1: Selecting version 1.0.6-2 for installation.
+2013/10/21 19:49:20 Adding required dependency libgcc1: Selecting version 4.7.3-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libgmp10: Selecting version 5.1.3-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libgmp3: Selecting version 4.3.2-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libiconv2: Selecting version 1.14-2 for installation.
+2013/10/21 19:49:20 Adding required dependency libintl8: Selecting version 0.18.1.1-2 for installation.
+2013/10/21 19:49:20 Adding required dependency liblzma5: Selecting version 5.0.2_20110517-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libmpfr4: Selecting version 3.1.2-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libncurses10: Selecting version 5.7-18 for installation.
+2013/10/21 19:49:20 Adding required dependency libncursesw10: Selecting version 5.7-18 for installation.
+2013/10/21 19:49:20 Adding required dependency libpcre0: Selecting version 8.21-2 for installation.
+2013/10/21 19:49:20 Adding required dependency libpcre1: Selecting version 8.33-1 for installation.
+2013/10/21 19:49:20 Adding required dependency libpopt0: Selecting version 1.6.4-4 for installation.
+2013/10/21 19:49:20 Adding required dependency libstdc++6: Selecting version 4.7.3-1 for installation.
+2013/10/21 19:49:20 Adding required dependency texinfo: Selecting version 4.13-4 for installation.
+2013/10/21 19:49:20 Adding required dependency xz: Selecting version 5.0.2_20110517-1 for installation.
+2013/10/21 19:49:20 Adding required dependency _autorebase: Selecting version 000421-1 for installation.
+2013/10/21 19:49:20 Adding required dependency _update-info-dir: Selecting version 01193-1 for installation.
+2013/10/21 19:49:21 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_autorebase/_autorebase-000421-1.tar.bz2
+2013/10/21 19:49:21 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_update-info-dir/_update-info-dir-01193-1.tar.bz2
+2013/10/21 19:49:23 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/alternatives/alternatives-1.3.30c-10.tar.bz2
+2013/10/21 19:49:23 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/base-cygwin/base-cygwin-3.3-1.tar.bz2
+2013/10/21 19:49:24 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/base-files/base-files-4.1-1.tar.bz2
+2013/10/21 19:49:29 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/bash/bash-4.1.10-4.tar.bz2
+2013/10/21 19:49:32 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/bzip2/bzip2-1.0.6-2.tar.bz2
+2013/10/21 19:49:47 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/coreutils/coreutils-8.15-1.tar.bz2
+2013/10/21 19:49:48 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygutils/cygutils-1.4.14-1.tar.bz2
+2013/10/21 19:49:59 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygwin/cygwin-1.7.25-1.tar.bz2
+2013/10/21 19:50:00 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/dash/dash-0.5.7-1.tar.bz2
+2013/10/21 19:50:14 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/diffutils/diffutils-3.2-1.tar.bz2
+2013/10/21 19:50:15 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/dos2unix/dos2unix-6.0.3-1.tar.bz2
+2013/10/21 19:50:16 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/editrights/editrights-1.01-2.tar.bz2
+2013/10/21 19:50:19 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/file/file-5.11-1.tar.bz2
+2013/10/21 19:50:23 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/findutils/findutils-4.5.11-1.tar.bz2
+2013/10/21 19:50:31 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gawk/gawk-4.1.0-1.tar.bz2
+2013/10/21 19:50:32 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/grep/grep-2.14-3.tar.xz
+2013/10/21 19:50:48 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/groff/groff-1.21-2.tar.bz2
+2013/10/21 19:50:49 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gzip/gzip-1.4-1.tar.bz2
+2013/10/21 19:50:50 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ipc-utils/ipc-utils-1.0-1.tar.bz2
+2013/10/21 19:50:52 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/less/less-444-1.tar.bz2
+2013/10/21 19:50:52 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/attr/libattr1/libattr1-2.4.46-1.tar.bz2
+2013/10/21 19:50:53 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/bzip2/libbz2_1/libbz2_1-1.0.6-2.tar.bz2
+2013/10/21 19:50:54 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gcc/libgcc1/libgcc1-4.7.3-1.tar.bz2
+2013/10/21 19:50:56 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gmp/libgmp10/libgmp10-5.1.3-1.tar.xz
+2013/10/21 19:50:58 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gmp/libgmp3/libgmp3-4.3.2-1.tar.bz2
+2013/10/21 19:51:01 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libiconv/libiconv2/libiconv2-1.14-2.tar.bz2
+2013/10/21 19:51:02 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gettext/libintl8/libintl8-0.18.1.1-2.tar.bz2
+2013/10/21 19:51:03 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/xz/liblzma5/liblzma5-5.0.2_20110517-1.tar.bz2
+2013/10/21 19:51:05 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/mpfr/libmpfr4/libmpfr4-3.1.2-1.tar.bz2
+2013/10/21 19:51:06 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ncurses/libncurses10/libncurses10-5.7-18.tar.bz2
+2013/10/21 19:51:08 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ncursesw/libncursesw10/libncursesw10-5.7-18.tar.bz2
+2013/10/21 19:51:09 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/pcre/libpcre0/libpcre0-8.21-2.tar.bz2
+2013/10/21 19:51:10 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/pcre/libpcre1/libpcre1-8.33-1.tar.bz2
+2013/10/21 19:51:11 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/popt/libpopt0/libpopt0-1.6.4-4.tar.bz2
+2013/10/21 19:51:12 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/readline/libreadline7/libreadline7-6.1.2-3.tar.bz2
+2013/10/21 19:51:14 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gcc/libstdc++6/libstdc++6-4.7.3-1.tar.bz2
+2013/10/21 19:51:15 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/login/login-1.10-10.tar.bz2
+2013/10/21 19:51:17 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/man/man-1.6g-2.tar.bz2
+2013/10/21 19:51:18 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/mintty/mintty-1.1.3-1.tar.bz2
+2013/10/21 19:51:20 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/rebase/rebase-4.4.0-1.tar.bz2
+2013/10/21 19:51:21 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/run/run-1.3.0-1.tar.bz2
+2013/10/21 19:51:22 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/sed/sed-4.2.2-3.tar.bz2
+2013/10/21 19:51:26 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tar/tar-1.26-1.tar.bz2
+2013/10/21 19:51:27 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/terminfo/terminfo-5.7_20091114-14.tar.bz2
+2013/10/21 19:51:33 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/texinfo/texinfo-4.13-4.tar.bz2
+2013/10/21 19:51:36 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tzcode/tzcode-2013d-1.tar.bz2
+2013/10/21 19:51:38 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-minimal/vim-minimal-7.3.1314-1.tar.xz
+2013/10/21 19:51:39 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/which/which-2.20-2.tar.bz2
+2013/10/21 19:51:40 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/xz/xz-5.0.2_20110517-1.tar.bz2
+2013/10/21 19:51:41 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/zlib/zlib0/zlib0-1.2.8-1.tar.bz2
+2013/10/21 19:51:43 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_autorebase/_autorebase-000421-1.tar.bz2
+2013/10/21 19:51:43 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_update-info-dir/_update-info-dir-01193-1.tar.bz2
+2013/10/21 19:51:43 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/alternatives/alternatives-1.3.30c-10.tar.bz2
+2013/10/21 19:51:43 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/base-cygwin/base-cygwin-3.3-1.tar.bz2
+2013/10/21 19:51:43 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/base-files/base-files-4.1-1.tar.bz2
+2013/10/21 19:51:43 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/bash/bash-4.1.10-4.tar.bz2
+2013/10/21 19:51:44 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/bzip2/bzip2-1.0.6-2.tar.bz2
+2013/10/21 19:51:45 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/coreutils/coreutils-8.15-1.tar.bz2
+2013/10/21 19:51:52 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygutils/cygutils-1.4.14-1.tar.bz2
+2013/10/21 19:51:52 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygwin/cygwin-1.7.25-1.tar.bz2
+2013/10/21 19:51:55 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/dash/dash-0.5.7-1.tar.bz2
+2013/10/21 19:51:55 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/diffutils/diffutils-3.2-1.tar.bz2
+2013/10/21 19:51:56 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/dos2unix/dos2unix-6.0.3-1.tar.bz2
+2013/10/21 19:51:56 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/editrights/editrights-1.01-2.tar.bz2
+2013/10/21 19:51:56 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/file/file-5.11-1.tar.bz2
+2013/10/21 19:51:56 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/findutils/findutils-4.5.11-1.tar.bz2
+2013/10/21 19:51:57 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gawk/gawk-4.1.0-1.tar.bz2
+2013/10/21 19:51:57 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/grep/grep-2.14-3.tar.xz
+2013/10/21 19:51:58 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/groff/groff-1.21-2.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gzip/gzip-1.4-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ipc-utils/ipc-utils-1.0-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/less/less-444-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/attr/libattr1/libattr1-2.4.46-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/bzip2/libbz2_1/libbz2_1-1.0.6-2.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gcc/libgcc1/libgcc1-4.7.3-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gmp/libgmp10/libgmp10-5.1.3-1.tar.xz
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gmp/libgmp3/libgmp3-4.3.2-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libiconv/libiconv2/libiconv2-1.14-2.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gettext/libintl8/libintl8-0.18.1.1-2.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/xz/liblzma5/liblzma5-5.0.2_20110517-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/mpfr/libmpfr4/libmpfr4-3.1.2-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ncurses/libncurses10/libncurses10-5.7-18.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ncursesw/libncursesw10/libncursesw10-5.7-18.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/pcre/libpcre0/libpcre0-8.21-2.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/pcre/libpcre1/libpcre1-8.33-1.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/popt/libpopt0/libpopt0-1.6.4-4.tar.bz2
+2013/10/21 19:52:01 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/readline/libreadline7/libreadline7-6.1.2-3.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gcc/libstdc++6/libstdc++6-4.7.3-1.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/login/login-1.10-10.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/man/man-1.6g-2.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/mintty/mintty-1.1.3-1.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/rebase/rebase-4.4.0-1.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/run/run-1.3.0-1.tar.bz2
+2013/10/21 19:52:02 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/sed/sed-4.2.2-3.tar.bz2
+2013/10/21 19:52:03 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tar/tar-1.26-1.tar.bz2
+2013/10/21 19:52:03 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/terminfo/terminfo-5.7_20091114-14.tar.bz2
+2013/10/21 19:52:04 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/texinfo/texinfo-4.13-4.tar.bz2
+2013/10/21 19:52:04 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tzcode/tzcode-2013d-1.tar.bz2
+2013/10/21 19:52:09 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-minimal/vim-minimal-7.3.1314-1.tar.xz
+2013/10/21 19:52:09 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/which/which-2.20-2.tar.bz2
+2013/10/21 19:52:10 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/xz/xz-5.0.2_20110517-1.tar.bz2
+2013/10/21 19:52:10 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/zlib/zlib0/zlib0-1.2.8-1.tar.bz2
+2013/10/21 19:52:10 Changing gid back to original
+2013/10/21 19:52:10 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/000-cygwin-post-install.sh"
+2013/10/21 19:52:23 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/update-info-dir.sh"
+2013/10/21 19:52:35 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/terminfo.sh"
+2013/10/21 19:52:41 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/bash.sh"
+2013/10/21 19:52:43 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/coreutils.sh"
+2013/10/21 19:52:44 running: cmd.exe /c "C:\cygwin\etc\postinstall\autorebase.bat"
+2013/10/21 19:52:53 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/base-files-profile.sh"
+2013/10/21 19:53:03 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/base-files-mketc.sh"
+2013/10/21 19:53:09 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/man.sh"
+2013/10/21 19:53:09 Changing gid to Administrators
+2013/10/21 19:53:46 note: Installation Complete
+2013/10/21 19:53:46 Ending cygwin install
+2013/10/21 19:58:18 Starting cygwin install, version 2.830
+2013/10/21 19:58:18 User has backup/restore rights
+2013/10/21 19:58:18 Current Directory: C:
+2013/10/21 19:58:18 Could not open service McShield for query, start and stop. McAfee may not be installed, or we don't have access.
+2013/10/21 19:58:27 source: network install
+2013/10/21 19:58:32 root: C:\cygwin binary system
+2013/10/21 19:58:35 Selected local directory: C:
+2013/10/21 19:58:37 net: Direct
+2013/10/21 19:58:39 site: http://cygwin.mirror.constant.com/
+2013/10/21 19:59:23 Changing gid back to original
+2013/10/21 19:59:23 Changing gid to Administrators
+2013/10/21 19:59:33 note: Nothing needed to be installed
+2013/10/21 19:59:33 Ending cygwin install
+2013/10/22 09:13:32 Starting cygwin install, version 2.830
+2013/10/22 09:13:32 User has backup/restore rights
+2013/10/22 09:13:32 Current Directory: C:
+2013/10/22 09:13:32 Could not open service McShield for query, start and stop. McAfee may not be installed, or we don't have access.
+2013/10/22 09:13:36 source: network install
+2013/10/22 09:13:38 root: C:\cygwin binary system
+2013/10/22 09:13:40 Selected local directory: C:
+2013/10/22 09:13:41 net: Direct
+2013/10/22 09:13:44 site: http://cygwin.mirror.constant.com/
+2013/10/22 09:15:31 Adding required dependency ca-certificates: Selecting version 1.94-1 for installation.
+2013/10/22 09:15:31 Adding required dependency cpio: Selecting version 2.11-2 for installation.
+2013/10/22 09:15:31 Adding required dependency crypt: Selecting version 1.2-1 for installation.
+2013/10/22 09:15:31 Adding required dependency cvs: Selecting version 1.12.13-10 for installation.
+2013/10/22 09:15:31 Adding required dependency cvsps: Selecting version 2.2b1-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libasn1_8: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libcom_err2: Selecting version 1.42.7-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libcurl4: Selecting version 7.32.0-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libdb4.5: Selecting version 4.5.20.2-3 for installation.
+2013/10/22 09:15:31 Adding required dependency libdb4.8: Selecting version 4.8.30-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libexpat1: Selecting version 2.1.0-3 for installation.
+2013/10/22 09:15:31 Adding required dependency libgcrypt11: Selecting version 1.4.6-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libgdbm4: Selecting version 1.8.3-20 for installation.
+2013/10/22 09:15:31 Adding required dependency libgnutls26: Selecting version 2.12.20-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libgpg-error0: Selecting version 1.10-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libgssapi3: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libheimbase1: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libheimntlm0: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libhx509_5: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libidn11: Selecting version 1.26-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libkrb5_26: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency liblzo2_2: Selecting version 2.06-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libopenldap2_4_2: Selecting version 2.4.35-2 for installation.
+2013/10/22 09:15:31 Adding required dependency libopenssl098: Selecting version 0.9.8y-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libopenssl100: Selecting version 1.0.1e-2 for installation.
+2013/10/22 09:15:31 Adding required dependency libp11-kit0: Selecting version 0.18.7-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libroken18: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libsasl2_3: Selecting version 2.1.26-5 for installation.
+2013/10/22 09:15:31 Adding required dependency libsqlite3_0: Selecting version 3.7.17-3 for installation.
+2013/10/22 09:15:31 Adding required dependency libssh2_1: Selecting version 1.4.2-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libssp0: Selecting version 4.7.3-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libtasn1_3: Selecting version 2.14-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libtasn1_6: Selecting version 3.3-1 for installation.
+2013/10/22 09:15:31 Adding required dependency libwind0: Selecting version 1.5.2-4 for installation.
+2013/10/22 09:15:31 Adding required dependency libxml2: Selecting version 2.9.1-1 for installation.
+2013/10/22 09:15:31 Adding required dependency p11-kit: Selecting version 0.18.7-1 for installation.
+2013/10/22 09:15:31 Adding required dependency p11-kit-trust: Selecting version 0.18.7-1 for installation.
+2013/10/22 09:15:31 Adding required dependency perl: Selecting version 5.14.2-3 for installation.
+2013/10/22 09:15:31 Adding required dependency perl-Error: Selecting version 0.17016-1 for installation.
+2013/10/22 09:15:31 Adding required dependency perl_vendor: Selecting version 5.14.2-3 for installation.
+2013/10/22 09:15:31 Adding required dependency vim-common: Selecting version 7.3.1314-1 for installation.
+2013/10/22 09:15:31 Adding required dependency xxd: Selecting version 7.3.1314-1 for installation.
+2013/10/22 09:15:32 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_autorebase/_autorebase-000424-1.tar.bz2
+2013/10/22 09:15:32 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_update-info-dir/_update-info-dir-01194-1.tar.bz2
+2013/10/22 09:15:34 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ca-certificates/ca-certificates-1.94-1.tar.xz
+2013/10/22 09:15:36 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cpio/cpio-2.11-2.tar.bz2
+2013/10/22 09:15:37 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/crypt/crypt-1.2-1.tar.bz2
+2013/10/22 09:15:38 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cscope/cscope-15.8.0.1-1.tar.bz2
+2013/10/22 09:15:42 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cscope/cscope-15.8.0.1-1-src.tar.bz2
+2013/10/22 09:15:44 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ctags/ctags-5.8-1.tar.bz2
+2013/10/22 09:15:46 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ctags/ctags-5.8-1-src.tar.bz2
+2013/10/22 09:15:51 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cvs/cvs-1.12.13-10.tar.bz2
+2013/10/22 09:15:52 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cvsps/cvsps-2.2b1-1.tar.bz2
+2013/10/22 09:16:08 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/git/git-1.7.9-1.tar.bz2
+2013/10/22 09:16:22 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/git/git-1.7.9-1-src.tar.bz2
+2013/10/22 09:16:24 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libasn1_8/libasn1_8-1.5.2-4.tar.bz2
+2013/10/22 09:16:24 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/e2fsprogs/libcom_err2/libcom_err2-1.42.7-1.tar.bz2
+2013/10/22 09:16:26 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/curl/libcurl4/libcurl4-7.32.0-1.tar.bz2
+2013/10/22 09:16:29 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/db/db4.5/libdb4.5/libdb4.5-4.5.20.2-3.tar.bz2
+2013/10/22 09:16:32 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/db/db4.8/libdb4.8/libdb4.8-4.8.30-1.tar.bz2
+2013/10/22 09:16:33 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/expat/libexpat1/libexpat1-2.1.0-3.tar.bz2
+2013/10/22 09:16:35 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libgcrypt/libgcrypt11/libgcrypt11-1.4.6-1.tar.bz2
+2013/10/22 09:16:35 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gdbm/libgdbm4/libgdbm4-1.8.3-20.tar.bz2
+2013/10/22 09:16:37 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gnutls/libgnutls26/libgnutls26-2.12.20-1.tar.bz2
+2013/10/22 09:16:38 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libgpg-error/libgpg-error0/libgpg-error0-1.10-1.tar.bz2
+2013/10/22 09:16:39 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libgssapi3/libgssapi3-1.5.2-4.tar.bz2
+2013/10/22 09:16:40 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libheimbase1/libheimbase1-1.5.2-4.tar.bz2
+2013/10/22 09:16:40 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libheimntlm0/libheimntlm0-1.5.2-4.tar.bz2
+2013/10/22 09:16:41 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libhx509_5/libhx509_5-1.5.2-4.tar.bz2
+2013/10/22 09:16:43 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libidn/libidn11/libidn11-1.26-1.tar.bz2
+2013/10/22 09:16:44 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkrb5_26/libkrb5_26-1.5.2-4.tar.bz2
+2013/10/22 09:16:45 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/liblzo2/liblzo2_2/liblzo2_2-2.06-1.tar.bz2
+2013/10/22 09:16:47 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openldap/libopenldap2_4_2/libopenldap2_4_2-2.4.35-2.tar.bz2
+2013/10/22 09:16:50 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssl/libopenssl098/libopenssl098-0.9.8y-1.tar.bz2
+2013/10/22 09:16:54 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssl/libopenssl100/libopenssl100-1.0.1e-2.tar.bz2
+2013/10/22 09:16:55 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/p11-kit/libp11-kit0/libp11-kit0-0.18.7-1.tar.xz
+2013/10/22 09:16:56 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libroken18/libroken18-1.5.2-4.tar.bz2
+2013/10/22 09:16:58 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cyrus-sasl/libsasl2_3/libsasl2_3-2.1.26-5.tar.bz2
+2013/10/22 09:17:00 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/sqlite3/libsqlite3_0/libsqlite3_0-3.7.17-3.tar.bz2
+2013/10/22 09:17:01 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libssh2/libssh2_1/libssh2_1-1.4.2-1.tar.bz2
+2013/10/22 09:17:02 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gcc/libssp0/libssp0-4.7.3-1.tar.bz2
+2013/10/22 09:17:03 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libtasn1/libtasn1_3/libtasn1_3-2.14-1.tar.bz2
+2013/10/22 09:17:03 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libtasn1/libtasn1_6/libtasn1_6-3.3-1.tar.bz2
+2013/10/22 09:17:05 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libwind0/libwind0-1.5.2-4.tar.bz2
+2013/10/22 09:17:08 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libxml2/libxml2-2.9.1-1.tar.bz2
+2013/10/22 09:17:10 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/p11-kit/p11-kit-0.18.7-1.tar.xz
+2013/10/22 09:17:11 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/p11-kit/p11-kit-trust/p11-kit-trust-0.18.7-1.tar.xz
+2013/10/22 09:17:58 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/perl/perl-5.14.2-3.tar.bz2
+2013/10/22 09:17:59 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/perl/perl-Error/perl-Error-0.17016-1.tar.bz2
+2013/10/22 09:18:09 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/perl/perl_vendor/perl_vendor-5.14.2-3.tar.bz2
+2013/10/22 09:18:13 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-7.3.1314-1.tar.xz
+2013/10/22 09:18:52 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-7.3.1314-1-src.tar.xz
+2013/10/22 09:19:10 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-common/vim-common-7.3.1314-1.tar.xz
+2013/10/22 09:19:13 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/wget/wget-1.13.4-1.tar.bz2
+2013/10/22 09:19:19 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/wget/wget-1.13.4-1-src.tar.bz2
+2013/10/22 09:19:20 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/xxd/xxd-7.3.1314-1.tar.xz
+2013/10/22 09:19:22 Running preremove script for  _autorebase
+2013/10/22 09:19:22 Running preremove script for  _update-info-dir
+2013/10/22 09:19:22 Uninstalling _autorebase
+2013/10/22 09:19:22 Uninstalling _update-info-dir
+2013/10/22 09:19:22 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_autorebase/_autorebase-000424-1.tar.bz2
+2013/10/22 09:19:22 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/_update-info-dir/_update-info-dir-01194-1.tar.bz2
+2013/10/22 09:19:22 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ca-certificates/ca-certificates-1.94-1.tar.xz
+2013/10/22 09:19:22 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cpio/cpio-2.11-2.tar.bz2
+2013/10/22 09:19:23 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/crypt/crypt-1.2-1.tar.bz2
+2013/10/22 09:19:23 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cscope/cscope-15.8.0.1-1.tar.bz2
+2013/10/22 09:19:23 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ctags/ctags-5.8-1.tar.bz2
+2013/10/22 09:19:23 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cvs/cvs-1.12.13-10.tar.bz2
+2013/10/22 09:19:24 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cvsps/cvsps-2.2b1-1.tar.bz2
+2013/10/22 09:19:24 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/git/git-1.7.9-1.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libasn1_8/libasn1_8-1.5.2-4.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/e2fsprogs/libcom_err2/libcom_err2-1.42.7-1.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/curl/libcurl4/libcurl4-7.32.0-1.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/db/db4.5/libdb4.5/libdb4.5-4.5.20.2-3.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/db/db4.8/libdb4.8/libdb4.8-4.8.30-1.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/expat/libexpat1/libexpat1-2.1.0-3.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libgcrypt/libgcrypt11/libgcrypt11-1.4.6-1.tar.bz2
+2013/10/22 09:19:28 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gdbm/libgdbm4/libgdbm4-1.8.3-20.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gnutls/libgnutls26/libgnutls26-2.12.20-1.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libgpg-error/libgpg-error0/libgpg-error0-1.10-1.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libgssapi3/libgssapi3-1.5.2-4.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libheimbase1/libheimbase1-1.5.2-4.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libheimntlm0/libheimntlm0-1.5.2-4.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libhx509_5/libhx509_5-1.5.2-4.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libidn/libidn11/libidn11-1.26-1.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkrb5_26/libkrb5_26-1.5.2-4.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/liblzo2/liblzo2_2/liblzo2_2-2.06-1.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openldap/libopenldap2_4_2/libopenldap2_4_2-2.4.35-2.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssl/libopenssl098/libopenssl098-0.9.8y-1.tar.bz2
+2013/10/22 09:19:29 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssl/libopenssl100/libopenssl100-1.0.1e-2.tar.bz2
+2013/10/22 09:19:30 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/p11-kit/libp11-kit0/libp11-kit0-0.18.7-1.tar.xz
+2013/10/22 09:19:30 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libroken18/libroken18-1.5.2-4.tar.bz2
+2013/10/22 09:19:30 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cyrus-sasl/libsasl2_3/libsasl2_3-2.1.26-5.tar.bz2
+2013/10/22 09:19:31 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/sqlite3/libsqlite3_0/libsqlite3_0-3.7.17-3.tar.bz2
+2013/10/22 09:19:31 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libssh2/libssh2_1/libssh2_1-1.4.2-1.tar.bz2
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/gcc/libssp0/libssp0-4.7.3-1.tar.bz2
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libtasn1/libtasn1_3/libtasn1_3-2.14-1.tar.bz2
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libtasn1/libtasn1_6/libtasn1_6-3.3-1.tar.bz2
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libwind0/libwind0-1.5.2-4.tar.bz2
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libxml2/libxml2-2.9.1-1.tar.bz2
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/p11-kit/p11-kit-0.18.7-1.tar.xz
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/p11-kit/p11-kit-trust/p11-kit-trust-0.18.7-1.tar.xz
+2013/10/22 09:19:32 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/perl/perl-5.14.2-3.tar.bz2
+2013/10/22 09:19:42 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/perl/perl-Error/perl-Error-0.17016-1.tar.bz2
+2013/10/22 09:19:42 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/perl/perl_vendor/perl_vendor-5.14.2-3.tar.bz2
+2013/10/22 09:19:44 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-7.3.1314-1.tar.xz
+2013/10/22 09:19:45 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-common/vim-common-7.3.1314-1.tar.xz
+2013/10/22 09:19:50 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/wget/wget-1.13.4-1.tar.bz2
+2013/10/22 09:19:50 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/xxd/xxd-7.3.1314-1.tar.xz
+2013/10/22 09:19:51 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cscope/cscope-15.8.0.1-1-src.tar.bz2
+2013/10/22 09:19:51 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/ctags/ctags-5.8-1-src.tar.bz2
+2013/10/22 09:19:51 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/git/git-1.7.9-1-src.tar.bz2
+2013/10/22 09:19:51 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/vim/vim-7.3.1314-1-src.tar.xz
+2013/10/22 09:19:55 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/wget/wget-1.13.4-1-src.tar.bz2
+2013/10/22 09:19:55 Changing gid back to original
+2013/10/22 09:19:55 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/update-info-dir.sh"
+2013/10/22 09:19:59 running: cmd.exe /c "C:\cygwin\etc\postinstall\autorebase.bat"
+2013/10/22 09:20:06 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/ca-certificates.sh"
+2013/10/22 09:20:10 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/libxml2.sh"
+2013/10/22 09:20:10 running: C:\cygwin\bin\bash.exe --norc --noprofile "/etc/postinstall/wget.sh"
+2013/10/22 09:20:11 Changing gid to Administrators
+2013/10/22 09:20:16 note: Installation Complete
+2013/10/22 09:20:16 Ending cygwin install
+2013/12/18 13:26:19 Starting cygwin install, version 2.831
+2013/12/18 13:26:19 User has backup/restore rights
+2013/12/18 13:26:19 Current Directory: C:
+2013/12/18 13:26:19 Could not open service McShield for query, start and stop. McAfee may not be installed, or we don't have access.
+2013/12/18 13:26:30 source: from cwd
+2013/12/18 13:26:33 root: C:\cygwin binary system
+2013/12/18 13:26:45 Selected local directory: C:
+2013/12/18 13:31:19 source: network install
+2013/12/18 13:31:28 root: C:\cygwin binary system
+2013/12/18 13:31:29 Selected local directory: C:
+2013/12/18 13:31:31 net: Direct
+2013/12/18 13:31:32 site: http://cygwin.mirror.constant.com/
+2013/12/18 13:33:23 Adding required dependency csih: Selecting version 0.9.7-1 for installation.
+2013/12/18 13:33:23 Adding required dependency cygrunsrv: Selecting version 1.50-1 for installation.
+2013/12/18 13:33:23 Adding required dependency libedit0: Selecting version 20130712-1 for installation.
+2013/12/18 13:33:23 Adding required dependency libkafs0: Selecting version 1.5.2-4 for installation.
+2013/12/18 13:33:23 Adding required dependency libwrap0: Selecting version 7.6-22 for installation.
+2013/12/18 13:33:25 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2
+2013/12/18 13:33:26 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz
+2013/12/18 13:33:27 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz
+2013/12/18 13:33:28 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2
+2013/12/18 13:33:28 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz
+2013/12/18 13:33:29 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz
+2013/12/18 13:33:35 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1-src.tar.xz
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz
+2013/12/18 13:33:37 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1-src.tar.xz
+2013/12/18 13:33:37 Changing gid back to original
+2013/12/18 13:33:37 Changing gid to Administrators
+2013/12/18 13:35:33 note: Installation Complete
+2013/12/18 13:35:33 Ending cygwin install

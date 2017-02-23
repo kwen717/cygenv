@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1208
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1208
+Problem:    Compiler warnings on MS-Windows.
+Solution:   Add type cast.  Move variable declaration. (Mike Williams)
+Files:	    src/option.c, src/os_mswin.c
+
+
+*** ../vim-7.3.1207/src/option.c	2013-06-08 18:19:40.000000000 +0200
+--- src/option.c	2013-06-16 15:59:00.000000000 +0200
+***************
+*** 3181,3187 ****
+  	    if (opt_idx >= 0)
+  	    {
+  #if !defined(HAVE_AVAIL_MEM) && !defined(HAVE_TOTAL_MEM)
+! 		if ((long)options[opt_idx].def_val[VI_DEFAULT] > n
+  			|| (long)options[opt_idx].def_val[VI_DEFAULT] == 0L)
+  #endif
+  		    options[opt_idx].def_val[VI_DEFAULT] = (char_u *)n;
+--- 3181,3187 ----
+  	    if (opt_idx >= 0)
+  	    {
+  #if !defined(HAVE_AVAIL_MEM) && !defined(HAVE_TOTAL_MEM)
+! 		if ((long)options[opt_idx].def_val[VI_DEFAULT] > (long)n
+  			|| (long)options[opt_idx].def_val[VI_DEFAULT] == 0L)
+  #endif
+  		    options[opt_idx].def_val[VI_DEFAULT] = (char_u *)n;
+*** ../vim-7.3.1207/src/os_mswin.c	2013-05-06 04:21:35.000000000 +0200
+--- src/os_mswin.c	2013-06-16 15:59:41.000000000 +0200
+***************
+*** 1897,1903 ****
+  	HWND		sender = (HWND)wParam;
+  	COPYDATASTRUCT	reply;
+  	char_u		*res;
+- 	char_u		winstr[30];
+  	int		retval;
+  	char_u		*str;
+  	char_u		*tofree;
+--- 1897,1902 ----
+***************
+*** 1970,1975 ****
+--- 1969,1976 ----
+  #ifdef FEAT_AUTOCMD
+  		else if (data->dwData == COPYDATA_REPLY)
+  		{
++ 		    char_u	winstr[30];
++ 
+  		    sprintf((char *)winstr, PRINTF_HEX_LONG_U, (long_u)sender);
+  		    apply_autocmds(EVENT_REMOTEREPLY, winstr, str,
+  								TRUE, curbuf);
+*** ../vim-7.3.1207/src/version.c	2013-06-16 15:43:43.000000000 +0200
+--- src/version.c	2013-06-16 15:57:31.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1208,
+  /**/
+
+-- 
+Get a life?  What is the URL where it can be downloaded?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

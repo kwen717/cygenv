@@ -1,0 +1,91 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.863
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.863 (after 7.3.859)
+Problem:    Problem with 'ambiwidth' detection for ANSI terminal.
+Solution:   Work around not recognizing a term response. (Hayaki Saito)
+Files:	    src/term.c
+
+
+*** ../vim-7.3.862/src/term.c	2013-03-13 19:29:24.000000000 +0100
+--- src/term.c	2013-03-16 14:29:00.000000000 +0100
+***************
+*** 3926,3933 ****
+       * Check at several positions in typebuf.tb_buf[], to catch something like
+       * "x<Up>" that can be mapped. Stop at max_offset, because characters
+       * after that cannot be used for mapping, and with @r commands
+!      * typebuf.tb_buf[]
+!      * can become very long.
+       * This is used often, KEEP IT FAST!
+       */
+      for (offset = 0; offset < max_offset; ++offset)
+--- 3926,3932 ----
+       * Check at several positions in typebuf.tb_buf[], to catch something like
+       * "x<Up>" that can be mapped. Stop at max_offset, because characters
+       * after that cannot be used for mapping, and with @r commands
+!      * typebuf.tb_buf[] can become very long.
+       * This is used often, KEEP IT FAST!
+       */
+      for (offset = 0; offset < max_offset; ++offset)
+***************
+*** 4098,4104 ****
+  #ifdef FEAT_TERMRESPONSE
+  	if (key_name[0] == NUL
+  	    /* URXVT mouse uses <ESC>[#;#;#M, but we are matching <ESC>[ */
+! 	    || key_name[0] == KS_URXVT_MOUSE)
+  	{
+  	    /* Check for some responses from terminal start with "<Esc>[" or
+  	     * CSI.
+--- 4097,4107 ----
+  #ifdef FEAT_TERMRESPONSE
+  	if (key_name[0] == NUL
+  	    /* URXVT mouse uses <ESC>[#;#;#M, but we are matching <ESC>[ */
+! 	    || key_name[0] == KS_URXVT_MOUSE
+! # ifdef FEAT_MBYTE
+! 	    || u7_status == U7_SENT
+! # endif
+!             )
+  	{
+  	    /* Check for some responses from terminal start with "<Esc>[" or
+  	     * CSI.
+***************
+*** 4129,4135 ****
+  
+  #ifdef FEAT_MBYTE
+  		/* eat it when it has 2 arguments and ends in 'R' */
+! 		if (u7_status == U7_SENT && j == 1 && tp[i] == 'R')
+  		{
+  		    char *p = NULL;
+  
+--- 4132,4138 ----
+  
+  #ifdef FEAT_MBYTE
+  		/* eat it when it has 2 arguments and ends in 'R' */
+! 		if (j == 1 && tp[i] == 'R')
+  		{
+  		    char *p = NULL;
+  
+*** ../vim-7.3.862/src/version.c	2013-03-16 14:20:45.000000000 +0100
+--- src/version.c	2013-03-16 14:33:16.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     863,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+54. You start tilting your head sideways to smile. :-)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

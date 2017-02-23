@@ -1,0 +1,400 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1146
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1146
+Problem:    New regexp engine: look-behind match not checked when followed by
+	    zero-width match.
+Solution:   Do the look-behind match before adding the zero-width state.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1145/src/regexp_nfa.c	2013-06-07 22:39:35.000000000 +0200
+--- src/regexp_nfa.c	2013-06-08 13:16:52.000000000 +0200
+***************
+*** 4332,4337 ****
+--- 4332,4338 ----
+      nfa_list_T	*nextlist;
+      int		*listids = NULL;
+      nfa_state_T *add_state;
++     int		add_here;
+      int		add_count;
+      int		add_off;
+      garray_T	pimlist;
+***************
+*** 4495,4500 ****
+--- 4496,4502 ----
+  	     * The most important is NFA_MATCH.
+  	     */
+  	    add_state = NULL;
++ 	    add_here = FALSE;
+  	    add_count = 0;
+  	    switch (t->state->c)
+  	    {
+***************
+*** 4621,4638 ****
+  			    /* t->state->out1 is the corresponding
+  			     * END_INVISIBLE node; Add its out to the current
+  			     * list (zero-width match). */
+! 			    addstate_here(thislist, t->state->out1->out,
+! 						  &t->subs, t->pim, &listidx);
+  			}
+  		    }
+  		    else
+  		    {
+  			/*
+  			 * First try matching what follows at the current
+! 			 * position.  Only if a match is found, addstate() is
+! 			 * called, then verify the invisible match matches.
+! 			 * Add a nfa_pim_T to the following states, it
+! 			 * contains info about the invisible match.
+  			 */
+  			if (ga_grow(&pimlist, 1) == FAIL)
+  			    goto theend;
+--- 4623,4640 ----
+  			    /* t->state->out1 is the corresponding
+  			     * END_INVISIBLE node; Add its out to the current
+  			     * list (zero-width match). */
+! 			    add_here = TRUE;
+! 			    add_state = t->state->out1->out;
+  			}
+  		    }
+  		    else
+  		    {
+  			/*
+  			 * First try matching what follows at the current
+! 			 * position.  Only if a match is found, before
+! 			 * addstate() is called, then verify the invisible
+! 			 * match matches.  Add a nfa_pim_T to the following
+! 			 * states, it contains info about the invisible match.
+  			 */
+  			if (ga_grow(&pimlist, 1) == FAIL)
+  			    goto theend;
+***************
+*** 4727,4734 ****
+  			/* empty match, output of corresponding
+  			 * NFA_END_PATTERN/NFA_SKIP to be used at current
+  			 * position */
+! 			addstate_here(thislist, t->state->out1->out->out,
+! 						  &t->subs, t->pim, &listidx);
+  		    }
+  		    else if (bytelen <= clen)
+  		    {
+--- 4729,4736 ----
+  			/* empty match, output of corresponding
+  			 * NFA_END_PATTERN/NFA_SKIP to be used at current
+  			 * position */
+! 			add_here = TRUE;
+! 			add_state = t->state->out1->out->out;
+  		    }
+  		    else if (bytelen <= clen)
+  		    {
+***************
+*** 4751,4764 ****
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_EOL:
+  		if (curc == NUL)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_BOW:
+--- 4753,4770 ----
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_EOL:
+  		if (curc == NUL)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_BOW:
+***************
+*** 4784,4791 ****
+  				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    result = FALSE;
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_EOW:
+--- 4790,4799 ----
+  				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    result = FALSE;
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_EOW:
+***************
+*** 4810,4830 ****
+  					   && vim_iswordc_buf(curc, reg_buf)))
+  		    result = FALSE;
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_BOF:
+  		if (reglnum == 0 && reginput == regline
+  					&& (!REG_MULTI || reg_firstlnum == 1))
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_EOF:
+  		if (reglnum == reg_maxline && curc == NUL)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  #ifdef FEAT_MBYTE
+--- 4818,4844 ----
+  					   && vim_iswordc_buf(curc, reg_buf)))
+  		    result = FALSE;
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_BOF:
+  		if (reglnum == 0 && reginput == regline
+  					&& (!REG_MULTI || reg_firstlnum == 1))
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_EOF:
+  		if (reglnum == reg_maxline && curc == NUL)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  #ifdef FEAT_MBYTE
+***************
+*** 5183,5190 ****
+  		    {
+  			/* empty match always works, output of NFA_SKIP to be
+  			 * used next */
+! 			addstate_here(thislist, t->state->out->out, &t->subs,
+! 							    t->pim, &listidx);
+  		    }
+  		    else if (bytelen <= clen)
+  		    {
+--- 5197,5204 ----
+  		    {
+  			/* empty match always works, output of NFA_SKIP to be
+  			 * used next */
+! 			add_here = TRUE;
+! 			add_state = t->state->out->out;
+  		    }
+  		    else if (bytelen <= clen)
+  		    {
+***************
+*** 5228,5235 ****
+  			nfa_re_num_cmp(t->state->val, t->state->c - NFA_LNUM,
+  			    (long_u)(reglnum + reg_firstlnum)));
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_COL:
+--- 5242,5251 ----
+  			nfa_re_num_cmp(t->state->val, t->state->c - NFA_LNUM,
+  			    (long_u)(reglnum + reg_firstlnum)));
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_COL:
+***************
+*** 5238,5245 ****
+  		result = nfa_re_num_cmp(t->state->val, t->state->c - NFA_COL,
+  			(long_u)(reginput - regline) + 1);
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_VCOL:
+--- 5254,5263 ----
+  		result = nfa_re_num_cmp(t->state->val, t->state->c - NFA_COL,
+  			(long_u)(reginput - regline) + 1);
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_VCOL:
+***************
+*** 5250,5257 ****
+  			    reg_win == NULL ? curwin : reg_win,
+  			    regline, (colnr_T)(reginput - regline)) + 1);
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_MARK:
+--- 5268,5277 ----
+  			    reg_win == NULL ? curwin : reg_win,
+  			    regline, (colnr_T)(reginput - regline)) + 1);
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_MARK:
+***************
+*** 5273,5280 ****
+  				    ? t->state->c == NFA_MARK_GT
+  				    : t->state->c == NFA_MARK_LT)));
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  	      }
+  
+--- 5293,5302 ----
+  				    ? t->state->c == NFA_MARK_GT
+  				    : t->state->c == NFA_MARK_LT)));
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  	      }
+  
+***************
+*** 5284,5299 ****
+  			&& ((colnr_T)(reginput - regline)
+  						   == reg_win->w_cursor.col));
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_VISUAL:
+  #ifdef FEAT_VISUAL
+  		result = reg_match_visual();
+  		if (result)
+! 		    addstate_here(thislist, t->state->out, &t->subs,
+! 							    t->pim, &listidx);
+  #endif
+  		break;
+  
+--- 5306,5325 ----
+  			&& ((colnr_T)(reginput - regline)
+  						   == reg_win->w_cursor.col));
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  		break;
+  
+  	    case NFA_VISUAL:
+  #ifdef FEAT_VISUAL
+  		result = reg_match_visual();
+  		if (result)
+! 		{
+! 		    add_here = TRUE;
+! 		    add_state = t->state->out;
+! 		}
+  #endif
+  		break;
+  
+***************
+*** 5327,5333 ****
+  		if (t->pim != NULL)
+  		{
+  		    /* postponed invisible match */
+- 		    /* TODO: also do t->pim->pim recursively? */
+  		    if (t->pim->result == NFA_PIM_TODO)
+  		    {
+  #ifdef ENABLE_LOG
+--- 5353,5358 ----
+***************
+*** 5383,5391 ****
+  			continue;
+  		}
+  
+! 		addstate(nextlist, add_state, &t->subs, add_off);
+! 		if (add_count > 0)
+! 		    nextlist->t[nextlist->n - 1].count = add_count;
+  	    }
+  
+  	} /* for (thislist = thislist; thislist->state; thislist++) */
+--- 5408,5421 ----
+  			continue;
+  		}
+  
+! 		if (add_here)
+! 		    addstate_here(thislist, add_state, &t->subs, NULL, &listidx);
+! 		else
+! 		{
+! 		    addstate(nextlist, add_state, &t->subs, add_off);
+! 		    if (add_count > 0)
+! 			nextlist->t[nextlist->n - 1].count = add_count;
+! 		}
+  	    }
+  
+  	} /* for (thislist = thislist; thislist->state; thislist++) */
+*** ../vim-7.3.1145/src/version.c	2013-06-07 22:39:35.000000000 +0200
+--- src/version.c	2013-06-08 13:30:41.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1146,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+111. You and your friends get together regularly on IRC, even though
+     all of you live in the same city.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

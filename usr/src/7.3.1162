@@ -1,0 +1,163 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1162
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1162
+Problem:    Python: Memory leaks
+Solution:   Add more Py_DECREF(). (ZyX)
+Files:	    src/if_py_both.h, src/if_python.c
+
+
+*** ../vim-7.3.1161/src/if_py_both.h	2013-06-10 20:38:58.000000000 +0200
+--- src/if_py_both.h	2013-06-10 20:43:01.000000000 +0200
+***************
+*** 5354,5359 ****
+--- 5354,5360 ----
+  {
+      int		i;
+      PyObject	*other_module;
++     PyObject	*attr;
+  
+      for (i = 0; i < (int)(sizeof(numeric_constants)
+  					   / sizeof(struct numeric_constant));
+***************
+*** 5392,5405 ****
+      if (!(py_chdir = PyObject_GetAttrString(other_module, "chdir")))
+  	return -1;
+      ADD_OBJECT(m, "_chdir", py_chdir);
+!     if (PyObject_SetAttrString(other_module, "chdir", get_attr(m, "chdir")))
+  	return -1;
+  
+      if ((py_fchdir = PyObject_GetAttrString(other_module, "fchdir")))
+      {
+  	ADD_OBJECT(m, "_fchdir", py_fchdir);
+! 	if (PyObject_SetAttrString(other_module,"fchdir",get_attr(m,"fchdir")))
+  	    return -1;
+      }
+      else
+  	PyErr_Clear();
+--- 5393,5418 ----
+      if (!(py_chdir = PyObject_GetAttrString(other_module, "chdir")))
+  	return -1;
+      ADD_OBJECT(m, "_chdir", py_chdir);
+!     if (!(attr = get_attr(m, "chdir")))
+  	return -1;
++     if (PyObject_SetAttrString(other_module, "chdir", attr))
++     {
++ 	Py_DECREF(attr);
++ 	return -1;
++     }
++     Py_DECREF(attr);
+  
+      if ((py_fchdir = PyObject_GetAttrString(other_module, "fchdir")))
+      {
+  	ADD_OBJECT(m, "_fchdir", py_fchdir);
+! 	if (!(attr = get_attr(m, "fchdir")))
+! 	    return -1;
+! 	if (PyObject_SetAttrString(other_module, "fchdir", attr))
+! 	{
+! 	    Py_DECREF(attr);
+  	    return -1;
++ 	}
++ 	Py_DECREF(attr);
+      }
+      else
+  	PyErr_Clear();
+*** ../vim-7.3.1161/src/if_python.c	2013-06-10 18:36:20.000000000 +0200
+--- src/if_python.c	2013-06-10 20:42:44.000000000 +0200
+***************
+*** 210,215 ****
+--- 210,216 ----
+  # define PyMapping_Check dll_PyMapping_Check
+  # define PyIter_Next dll_PyIter_Next
+  # define PyModule_GetDict dll_PyModule_GetDict
++ # define PyModule_AddObject dll_PyModule_AddObject
+  # define PyRun_SimpleString dll_PyRun_SimpleString
+  # define PyRun_String dll_PyRun_String
+  # define PyObject_GetAttrString dll_PyObject_GetAttrString
+***************
+*** 344,349 ****
+--- 345,351 ----
+  static int (*dll_PyMapping_Check)(PyObject *);
+  static PyObject* (*dll_PyIter_Next)(PyObject *);
+  static PyObject*(*dll_PyModule_GetDict)(PyObject *);
++ static int(*dll_PyModule_AddObject)(PyObject *, const char *, PyObject *);
+  static int(*dll_PyRun_SimpleString)(char *);
+  static PyObject *(*dll_PyRun_String)(char *, int, PyObject *, PyObject *);
+  static PyObject* (*dll_PyObject_GetAttrString)(PyObject *, const char *);
+***************
+*** 509,514 ****
+--- 511,517 ----
+      {"PyMapping_Check", (PYTHON_PROC*)&dll_PyMapping_Check},
+      {"PyIter_Next", (PYTHON_PROC*)&dll_PyIter_Next},
+      {"PyModule_GetDict", (PYTHON_PROC*)&dll_PyModule_GetDict},
++     {"PyModule_AddObject", (PYTHON_PROC*)&dll_PyModule_AddObject},
+      {"PyRun_SimpleString", (PYTHON_PROC*)&dll_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&dll_PyRun_String},
+      {"PyObject_GetAttrString", (PYTHON_PROC*)&dll_PyObject_GetAttrString},
+***************
+*** 1357,1375 ****
+  #endif
+  
+      static int
+- add_object(PyObject *dict, const char *name, PyObject *object)
+- {
+-     if (PyDict_SetItemString(dict, (char *) name, object))
+- 	return -1;
+-     Py_DECREF(object);
+-     return 0;
+- }
+- 
+-     static int
+  PythonMod_Init(void)
+  {
+      PyObject *mod;
+-     PyObject *dict;
+  
+      /* The special value is removed from sys.path in Python_Init(). */
+      static char *(argv[2]) = {"/must>not&exist/foo", NULL};
+--- 1360,1368 ----
+***************
+*** 1382,1390 ****
+  
+      mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL,
+  			    PYTHON_API_VERSION);
+-     dict = PyModule_GetDict(mod);
+  
+!     return populate_module(dict, add_object, PyDict_GetItemString);
+  }
+  
+  /*************************************************************************
+--- 1375,1382 ----
+  
+      mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL,
+  			    PYTHON_API_VERSION);
+  
+!     return populate_module(mod, PyModule_AddObject, PyObject_GetAttrString);
+  }
+  
+  /*************************************************************************
+*** ../vim-7.3.1161/src/version.c	2013-06-10 20:38:58.000000000 +0200
+--- src/version.c	2013-06-10 20:40:25.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1162,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+137. You decide to stay in college for an additional year or two,
+     just so you can have the free Internet access.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

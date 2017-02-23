@@ -1,0 +1,2899 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.925
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.925
+Problem:    Typos in source files.
+Solution:   Fix the typos. (Ken Takata)
+Files:	    runtime/plugin/matchparen.vim, runtime/tools/vim_vs_net.cmd,
+	    src/GvimExt/gvimext.cpp, src/INSTALLvms.txt, src/Make_cyg.mak,
+	    src/Make_mvc.mak, src/Make_sas.mak, src/Make_vms.mms,
+	    src/Make_w16.mak, src/Makefile, src/VisVim/OleAut.cpp,
+	    src/VisVim/README_VisVim.txt, src/auto/configure, src/buffer.c,
+	    src/configure.in, src/diff.c, src/dosinst.c, src/edit.c,
+	    src/eval.c, src/ex_cmds2.c, src/ex_docmd.c, src/ex_eval.c,
+	    src/farsi.c, src/feature.h, src/fileio.c, src/glbl_ime.cpp,
+	    src/gui.c, src/gui_athena.c, src/gui_beval.c, src/gui_gtk_x11.c,
+	    src/gui_mac.c, src/gui_motif.c, src/gui_photon.c, src/gui_w16.c,
+	    src/gui_w32.c, src/gui_w48.c, src/gui_xmebw.c, src/gui_xmebwp.h,
+	    src/hardcopy.c, src/if_cscope.c, src/if_mzsch.c, src/if_ole.cpp,
+	    src/if_perl.xs, src/if_py_both.h, src/if_python.c,
+	    src/if_python3.c, src/if_ruby.c, src/main.aap, src/mbyte.c,
+	    src/memfile.c, src/memline.c, src/misc1.c, src/misc2.c,
+	    src/nbdebug.c, src/normal.c, src/ops.c, src/os_amiga.c,
+	    src/os_mac.h, src/os_msdos.c, src/os_mswin.c, src/os_win16.h,
+	    src/os_win32.c, src/os_win32.h, src/quickfix.c, src/screen.c,
+	    src/search.c, src/spell.c, src/structs.h, src/syntax.c,
+	    src/window.c, vimtutor.com
+
+
+*** ../vim-7.3.924/runtime/plugin/matchparen.vim	2013-03-19 13:33:18.000000000 +0100
+--- runtime/plugin/matchparen.vim	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 5,11 ****
+  " Exit quickly when:
+  " - this plugin was already loaded (or disabled)
+  " - when 'compatible' is set
+! " - the "CursorMoved" autocmd event is not availble.
+  if exists("g:loaded_matchparen") || &cp || !exists("##CursorMoved")
+    finish
+  endif
+--- 5,11 ----
+  " Exit quickly when:
+  " - this plugin was already loaded (or disabled)
+  " - when 'compatible' is set
+! " - the "CursorMoved" autocmd event is not available.
+  if exists("g:loaded_matchparen") || &cp || !exists("##CursorMoved")
+    finish
+  endif
+*** ../vim-7.3.924/runtime/tools/vim_vs_net.cmd	2010-08-15 21:57:12.000000000 +0200
+--- runtime/tools/vim_vs_net.cmd	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 7,18 ****
+  @rem      Arguments - +$(CurLine) $(ItemPath)
+  @rem      Init Dir  - Empty
+  @rem
+! @rem Coutesy of Brian Sturk
+  @rem
+  @rem --remote-silent +%1 is a command +954, move ahead 954 lines
+  @rem --remote-silent %2 full path to file
+  @rem In Vim
+! @rem    :h --remote-silent for mor details
+  @rem
+  @rem --servername VS_NET
+  @rem This will create a new instance of vim called VS_NET.  So if you
+--- 7,18 ----
+  @rem      Arguments - +$(CurLine) $(ItemPath)
+  @rem      Init Dir  - Empty
+  @rem
+! @rem Courtesy of Brian Sturk
+  @rem
+  @rem --remote-silent +%1 is a command +954, move ahead 954 lines
+  @rem --remote-silent %2 full path to file
+  @rem In Vim
+! @rem    :h --remote-silent for more details
+  @rem
+  @rem --servername VS_NET
+  @rem This will create a new instance of vim called VS_NET.  So if you
+*** ../vim-7.3.924/src/GvimExt/gvimext.cpp	2011-08-10 16:31:18.000000000 +0200
+--- src/GvimExt/gvimext.cpp	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 527,533 ****
+  //
+  //  PARAMETERS:
+  //    pIDFolder - Specifies the parent folder
+! //    pDataObj  - Spefifies the set of items selected in that folder.
+  //    hRegKey   - Specifies the type of the focused item in the selection.
+  //
+  //  RETURN VALUE:
+--- 527,533 ----
+  //
+  //  PARAMETERS:
+  //    pIDFolder - Specifies the parent folder
+! //    pDataObj  - Specifies the set of items selected in that folder.
+  //    hRegKey   - Specifies the type of the focused item in the selection.
+  //
+  //  RETURN VALUE:
+*** ../vim-7.3.924/src/INSTALLvms.txt	2010-08-15 21:57:25.000000000 +0200
+--- src/INSTALLvms.txt	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 330,336 ****
+       Also VMS_JACKETS.EXE from OpenVMS Porting Library.
+  
+       Please note, that GTK uses /name=(as_is,short)/float=ieee/ieee=denorm
+!      complier directives that is not compatible with "standard" VMS usage,
+       therefore other external features might fail as PERL, PYTHON and TCL
+       support.
+  
+--- 330,336 ----
+       Also VMS_JACKETS.EXE from OpenVMS Porting Library.
+  
+       Please note, that GTK uses /name=(as_is,short)/float=ieee/ieee=denorm
+!      compiler directives that is not compatible with "standard" VMS usage,
+       therefore other external features might fail as PERL, PYTHON and TCL
+       support.
+  
+*** ../vim-7.3.924/src/Make_cyg.mak	2013-03-07 15:16:16.000000000 +0100
+--- src/Make_cyg.mak	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1,6 ****
+  #
+  # Makefile for VIM on Win32, using Cygnus gcc
+! # Last updated by Dan Sharp.  Last Change: 2013 Feb 17
+  #
+  # Also read INSTALLpc.txt!
+  #
+--- 1,6 ----
+  #
+  # Makefile for VIM on Win32, using Cygnus gcc
+! # Last updated by Dan Sharp.  Last Change: 2013 Apr 22
+  #
+  # Also read INSTALLpc.txt!
+  #
+***************
+*** 48,54 ****
+  # USEDLL	no or yes: set to yes to use the Runtime library DLL (no)
+  #		For USEDLL=yes the cygwin1.dll is required to run Vim.
+  #		For "no" the mingw-gcc-g++ package or the mingw64-i686-gcc-g++
+! #		package is required to complie Vim.  Or set CC to gcc-3 and add
+  #		-L/lib/w32api to EXTRA_LIBS.
+  # POSTSCRIPT	no or yes: set to yes for PostScript printing (no)
+  # FEATURES	TINY, SMALL, NORMAL, BIG or HUGE (BIG)
+--- 48,54 ----
+  # USEDLL	no or yes: set to yes to use the Runtime library DLL (no)
+  #		For USEDLL=yes the cygwin1.dll is required to run Vim.
+  #		For "no" the mingw-gcc-g++ package or the mingw64-i686-gcc-g++
+! #		package is required to compile Vim.  Or set CC to gcc-3 and add
+  #		-L/lib/w32api to EXTRA_LIBS.
+  # POSTSCRIPT	no or yes: set to yes for PostScript printing (no)
+  # FEATURES	TINY, SMALL, NORMAL, BIG or HUGE (BIG)
+*** ../vim-7.3.924/src/Make_mvc.mak	2013-02-26 14:56:24.000000000 +0100
+--- src/Make_mvc.mak	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 418,424 ****
+  !endif
+  !endif
+  
+! # Abort bulding VIM if version of VC is unrecognised.
+  !ifndef MSVCVER
+  !message *** ERROR
+  !message Cannot determine Visual C version being used.  If you are using the
+--- 418,424 ----
+  !endif
+  !endif
+  
+! # Abort building VIM if version of VC is unrecognised.
+  !ifndef MSVCVER
+  !message *** ERROR
+  !message Cannot determine Visual C version being used.  If you are using the
+*** ../vim-7.3.924/src/Make_sas.mak	2010-08-15 21:57:27.000000000 +0200
+--- src/Make_sas.mak	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 251,257 ****
+  
+  # generate GlobalSymbolTable, which speeds up the compile time.
+  #
+! # A preprocessing stage is used to work arounda bug in the GST generator, in
+  # that it does not handle nested makefiles properly in this stage.
+  # Ignore error message for not producing any code (105).
+  $(GST): scoptions vim.h keymap.h macros.h ascii.h term.h structs.h
+--- 251,257 ----
+  
+  # generate GlobalSymbolTable, which speeds up the compile time.
+  #
+! # A preprocessing stage is used to work around a bug in the GST generator, in
+  # that it does not handle nested makefiles properly in this stage.
+  # Ignore error message for not producing any code (105).
+  $(GST): scoptions vim.h keymap.h macros.h ascii.h term.h structs.h
+***************
+*** 283,289 ****
+  .c.pro:
+  	$(CC) $(CFLAGS) GPFILE=proto/$*.pro $(PROPT) $*.c
+  
+! # dependancies
+  blowfish.o:		blowfish.c
+  proto/blowfish.pro:	blowfish.c
+  buffer.o:		buffer.c
+--- 283,289 ----
+  .c.pro:
+  	$(CC) $(CFLAGS) GPFILE=proto/$*.pro $(PROPT) $*.c
+  
+! # dependencies
+  blowfish.o:		blowfish.c
+  proto/blowfish.pro:	blowfish.c
+  buffer.o:		buffer.c
+*** ../vim-7.3.924/src/Make_vms.mms	2010-08-15 21:57:32.000000000 +0200
+--- src/Make_vms.mms	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 34,40 ****
+  # SMALL  - Few features enabled, as basic as possible
+  # NORMAL - A default selection of features enabled
+  # BIG    - Many features enabled, as rich as possible. (default)
+! # HUGE   - All possible featues enabled.
+  # Please select one of these alternatives above.
+  MODEL = HUGE
+  
+--- 34,40 ----
+  # SMALL  - Few features enabled, as basic as possible
+  # NORMAL - A default selection of features enabled
+  # BIG    - Many features enabled, as rich as possible. (default)
+! # HUGE   - All possible features enabled.
+  # Please select one of these alternatives above.
+  MODEL = HUGE
+  
+***************
+*** 55,61 ****
+  # Comment out if you want the compiler version with :ver command.
+  # NOTE: This part can make some complications if you're using some
+  # predefined symbols/flags for your compiler. If does, just leave behind
+! # the comment varialbe CCVER.
+  CCVER = YES
+  
+  # Uncomment if want a debug version. Resulting executable is DVIM.EXE
+--- 55,61 ----
+  # Comment out if you want the compiler version with :ver command.
+  # NOTE: This part can make some complications if you're using some
+  # predefined symbols/flags for your compiler. If does, just leave behind
+! # the comment variable CCVER.
+  CCVER = YES
+  
+  # Uncomment if want a debug version. Resulting executable is DVIM.EXE
+*** ../vim-7.3.924/src/Make_w16.mak	2013-02-26 14:56:24.000000000 +0100
+--- src/Make_w16.mak	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 4,10 ****
+  # *************************************************************
+  # * WARNING!
+  # * This was originally produced by the IDE, but has since been
+! # * modifed to make it work properly. Adjust with care!
+  # * In particular, leave LinkerLocalOptsAtW16_gvim16dexe alone
+  # * unless you are a guru.
+  # *************************************************************
+--- 4,10 ----
+  # *************************************************************
+  # * WARNING!
+  # * This was originally produced by the IDE, but has since been
+! # * modified to make it work properly. Adjust with care!
+  # * In particular, leave LinkerLocalOptsAtW16_gvim16dexe alone
+  # * unless you are a guru.
+  # *************************************************************
+*** ../vim-7.3.924/src/Makefile	2013-02-26 14:56:24.000000000 +0100
+--- src/Makefile	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 200,206 ****
+  #Solaris 2.5 (sun4m)  cc (SC4.0)     +X11R6 +GUI (CDE)	4.6b (E) Andrew Large
+  #Solaris 2.5	      cc	     +X11 +GUI Athena	4.2  (9) Sonia Heimann
+  #Solaris 2.5	      gcc 2.5.6      +X11 Motif		5.0m (R) Ant. Colombo
+! #Solaris 2.6	      gcc 2.8.1      ncursus		5.3  (G) Larry W. Virden
+  #Solaris with -lthread					5.5  (W) K. Nagano
+  #Solaris	      gcc				     (b) Riccardo
+  #SunOS 4.1.x			     +X11 -GUI		5.1b (J) Bram Moolenaar
+--- 200,206 ----
+  #Solaris 2.5 (sun4m)  cc (SC4.0)     +X11R6 +GUI (CDE)	4.6b (E) Andrew Large
+  #Solaris 2.5	      cc	     +X11 +GUI Athena	4.2  (9) Sonia Heimann
+  #Solaris 2.5	      gcc 2.5.6      +X11 Motif		5.0m (R) Ant. Colombo
+! #Solaris 2.6	      gcc 2.8.1      ncurses		5.3  (G) Larry W. Virden
+  #Solaris with -lthread					5.5  (W) K. Nagano
+  #Solaris	      gcc				     (b) Riccardo
+  #SunOS 4.1.x			     +X11 -GUI		5.1b (J) Bram Moolenaar
+***************
+*** 231,238 ****
+  # (D)  Uncomment lines below for QNX
+  # (E)  You might want to use termlib instead of termcap, see below.
+  # (F)  See below for instructions.
+! # (G)  Using ncursus version 4.2 has reported to cause a crash.  Use the
+! #      Sun cursus library instead.
+  # (H)  See line for EXTRA_LIBS below.
+  # (I)  SINIX-N 5.42 and 5.43 need some EXTRA_LIBS.  Also for Reliant-Unix.
+  # (J)  If you get undefined symbols, see below for a solution.
+--- 231,238 ----
+  # (D)  Uncomment lines below for QNX
+  # (E)  You might want to use termlib instead of termcap, see below.
+  # (F)  See below for instructions.
+! # (G)  Using ncurses version 4.2 has reported to cause a crash.  Use the
+! #      Sun curses library instead.
+  # (H)  See line for EXTRA_LIBS below.
+  # (I)  SINIX-N 5.42 and 5.43 need some EXTRA_LIBS.  Also for Reliant-Unix.
+  # (J)  If you get undefined symbols, see below for a solution.
+***************
+*** 402,408 ****
+  # to the command line.	If you see strange flags during compilation, check in
+  # auto/config.mk where they come from.  If it's PERL_CFLAGS, try commenting
+  # the next line.
+! # When you get an error for a missing "perl.exp" file, try creating an emtpy
+  # one: "touch perl.exp".
+  # This requires at least "small" features, "tiny" doesn't work.
+  #CONF_OPT_PERL = --enable-perlinterp
+--- 402,408 ----
+  # to the command line.	If you see strange flags during compilation, check in
+  # auto/config.mk where they come from.  If it's PERL_CFLAGS, try commenting
+  # the next line.
+! # When you get an error for a missing "perl.exp" file, try creating an empty
+  # one: "touch perl.exp".
+  # This requires at least "small" features, "tiny" doesn't work.
+  #CONF_OPT_PERL = --enable-perlinterp
+***************
+*** 601,607 ****
+  # Might not work with GUI or Perl.
+  # For unknown reasons adding "-lc" fixes a linking problem with some versions
+  # of GCC.  That's probably a bug in the "-pg" implementation.
+! # After running Vim see the profile result with: gmon vim gmon.out | vim -
+  # Need to recompile everything after changing this: "make clean" "make".
+  #PROFILE_CFLAGS = -pg -g -DWE_ARE_PROFILING
+  #PROFILE_LIBS = -pg
+--- 601,607 ----
+  # Might not work with GUI or Perl.
+  # For unknown reasons adding "-lc" fixes a linking problem with some versions
+  # of GCC.  That's probably a bug in the "-pg" implementation.
+! # After running Vim see the profile result with: gprof vim gmon.out | vim -
+  # Need to recompile everything after changing this: "make clean" "make".
+  #PROFILE_CFLAGS = -pg -g -DWE_ARE_PROFILING
+  #PROFILE_LIBS = -pg
+***************
+*** 1294,1300 ****
+  ### prototype headers are ignored due to -DPROTO, system
+  ### headers #include <...> are ignored if we use the -MM option, as
+  ### e.g. provided by gcc-cpp.
+! ### Include FEAT_GUI to get gependency on gui.h
+  ### Need to change "-I /<path>" to "-isystem /<path>" for GCC 3.x.
+  CPP_DEPEND = $(CC) -I$(srcdir) -M$(CPP_MM) \
+  		`echo "$(DEPEND_CFLAGS)" $(DEPEND_CFLAGS_FILTER)`
+--- 1294,1300 ----
+  ### prototype headers are ignored due to -DPROTO, system
+  ### headers #include <...> are ignored if we use the -MM option, as
+  ### e.g. provided by gcc-cpp.
+! ### Include FEAT_GUI to get dependency on gui.h
+  ### Need to change "-I /<path>" to "-isystem /<path>" for GCC 3.x.
+  CPP_DEPEND = $(CC) -I$(srcdir) -M$(CPP_MM) \
+  		`echo "$(DEPEND_CFLAGS)" $(DEPEND_CFLAGS_FILTER)`
+***************
+*** 1717,1723 ****
+  
+  
+  # Link the target for normal use or debugging.
+! # A shell script is used to try linking without unneccesary libraries.
+  $(VIMTARGET): auto/config.mk objects $(OBJ) version.c version.h
+  	$(CCC) version.c -o objects/version.o
+  	@LINK="$(PURIFY) $(SHRPENV) $(CClink) $(ALL_LIB_DIRS) $(LDFLAGS) \
+--- 1717,1723 ----
+  
+  
+  # Link the target for normal use or debugging.
+! # A shell script is used to try linking without unnecessary libraries.
+  $(VIMTARGET): auto/config.mk objects $(OBJ) version.c version.h
+  	$(CCC) version.c -o objects/version.o
+  	@LINK="$(PURIFY) $(SHRPENV) $(CClink) $(ALL_LIB_DIRS) $(LDFLAGS) \
+***************
+*** 1837,1844 ****
+  #
+  # This will produce a lot of garbage on your screen, including a few error
+  # messages.  Don't worry about that.
+! # If there is a real error, there will be a difference between "test.out" and
+! # a "test99.ok" file.
+  # If everything is alright, the final message will be "ALL DONE".  If not you
+  # get "TEST FAILURE".
+  #
+--- 1837,1844 ----
+  #
+  # This will produce a lot of garbage on your screen, including a few error
+  # messages.  Don't worry about that.
+! # If there is a real error, there will be a difference between "testXX.out" and
+! # a "testXX.ok" file.
+  # If everything is alright, the final message will be "ALL DONE".  If not you
+  # get "TEST FAILURE".
+  #
+***************
+*** 2779,2787 ****
+  	mv gui_mac.rsrc.rsrcfork $(RESDIR)/$(VIMNAME).rsrc
+  
+  # po/Make_osx.pl says something about generating a Mac message file
+! # for Ukrananian.  Would somebody using Mac OS X in Ukranian
+  # *really* be upset that Carbon Vim was not localised in
+! # Ukranian?
+  #
+  #bundle-language: bundle-dir po/Make_osx.pl
+  #	cd po && perl Make_osx.pl --outdir ../$(RESDIR) $(MULTILANG)
+--- 2779,2787 ----
+  	mv gui_mac.rsrc.rsrcfork $(RESDIR)/$(VIMNAME).rsrc
+  
+  # po/Make_osx.pl says something about generating a Mac message file
+! # for Ukrainian.  Would somebody using Mac OS X in Ukrainian
+  # *really* be upset that Carbon Vim was not localised in
+! # Ukrainian?
+  #
+  #bundle-language: bundle-dir po/Make_osx.pl
+  #	cd po && perl Make_osx.pl --outdir ../$(RESDIR) $(MULTILANG)
+*** ../vim-7.3.924/src/VisVim/OleAut.cpp	2010-08-15 21:57:27.000000000 +0200
+--- src/VisVim/OleAut.cpp	2013-05-06 04:04:07.000000000 +0200
+***************
+*** 654,660 ****
+  	}
+  
+  	char Buf[256];
+! 	sprintf (Buf, "An OLE error occured:\r\nCode = %s\r\nResult = %lx.",
+  		 (char*) ErrName, m_hResult);
+  	MessageBox (NULL, Buf, "OLE Error", MB_OK);
+  }
+--- 654,660 ----
+  	}
+  
+  	char Buf[256];
+! 	sprintf (Buf, "An OLE error occurred:\r\nCode = %s\r\nResult = %lx.",
+  		 (char*) ErrName, m_hResult);
+  	MessageBox (NULL, Buf, "OLE Error", MB_OK);
+  }
+*** ../vim-7.3.924/src/VisVim/README_VisVim.txt	2010-08-15 21:57:27.000000000 +0200
+--- src/VisVim/README_VisVim.txt	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 17,28 ****
+  VisVim is based upon VisEmacs by Christopher Payne
+  (Copyright (C) Christopher Payne 1997).
+  
+! Author: Heiko Erhardt <Heiko.Erhardt@munich.netsurf.de>
+  Based upon: VisEmacs by Christopher Payne <payneca@sagian.com>
+  Version: 1.0
+  Created: 23 Oct 1997
+  Date: 23 Oct 1997
+  
+  VisVim is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+--- 17,32 ----
+  VisVim is based upon VisEmacs by Christopher Payne
+  (Copyright (C) Christopher Payne 1997).
+  
+! Author: Heiko Erhardt <heiko.erhardt@gmx.net>
+  Based upon: VisEmacs by Christopher Payne <payneca@sagian.com>
+  Version: 1.0
+  Created: 23 Oct 1997
+  Date: 23 Oct 1997
+  
++ VisVim was originally GNU GPL licensed, as stated below.  On March 21 2012
++ Heiko Erhardt declared this work to be relicensed under the Vim license, as
++ stated in ../../runtime/doc/uganda.txt (or ":help uganda" in Vim).
++ 
+  VisVim is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+***************
+*** 216,222 ****
+  		 2. Close Visual Studio.
+  		 3. Delete VisVim.dll or move it somewhere it can't be found.
+  		 4. Run Visual Studio.
+! 		 5. Tools -> Cursomize ->Add-ins and Macro-Files.
+  		 6. A message appears:
+  		    ".../VisVim.dll" "This add-in no longer exists.  It will
+  		    no longer be displayed."
+--- 220,226 ----
+  		 2. Close Visual Studio.
+  		 3. Delete VisVim.dll or move it somewhere it can't be found.
+  		 4. Run Visual Studio.
+! 		 5. Tools -> Customize ->Add-ins and Macro-Files.
+  		 6. A message appears:
+  		    ".../VisVim.dll" "This add-in no longer exists.  It will
+  		    no longer be displayed."
+***************
+*** 294,300 ****
+  P8  Execute :tag command in Vim for word under cursor in DevStudio
+  
+  P7  Controlling the Visual Studio Debugger from inside Vim
+!     See message above. Also a 'Debug' highligh group and a
+      command to highlight a certain line would be necessary.
+  
+  P6  Provide an option to open the current file in VisVim in
+--- 298,304 ----
+  P8  Execute :tag command in Vim for word under cursor in DevStudio
+  
+  P7  Controlling the Visual Studio Debugger from inside Vim
+!     See message above. Also a 'Debug' highlight group and a
+      command to highlight a certain line would be necessary.
+  
+  P6  Provide an option to open the current file in VisVim in
+***************
+*** 318,322 ****
+  Have fun!
+  
+  Heiko Erhardt
+! Heiko.Erhardt@munich.netsurf.de
+  
+--- 322,326 ----
+  Have fun!
+  
+  Heiko Erhardt
+! heiko.erhardt@gmx.net
+  
+*** ../vim-7.3.924/src/auto/configure	2013-05-04 04:40:06.000000000 +0200
+--- src/auto/configure	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 5831,5837 ****
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first pyhton version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, char *prefix)
+--- 5831,5837 ----
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first python version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, char *prefix)
+***************
+*** 5897,5903 ****
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first pyhton version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, wchar_t *prefix)
+--- 5897,5903 ----
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first python version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, wchar_t *prefix)
+***************
+*** 10593,10599 ****
+  _ACEOF
+  
+    if test "x$vim_cv_tty_mode" = "x" ; then
+!     as_fn_error "It seems you're cross compiling and have 'vim_cv_tty_group' set, please also set the environment variable 'vim_cv_tty_mode' to the correct mode (propably 0620)" "$LINENO" 5
+    else
+      $as_echo "#define PTYMODE 0620" >>confdefs.h
+  
+--- 10593,10599 ----
+  _ACEOF
+  
+    if test "x$vim_cv_tty_mode" = "x" ; then
+!     as_fn_error "It seems you're cross compiling and have 'vim_cv_tty_group' set, please also set the environment variable 'vim_cv_tty_mode' to the correct mode (probably 0620)" "$LINENO" 5
+    else
+      $as_echo "#define PTYMODE 0620" >>confdefs.h
+  
+*** ../vim-7.3.924/src/buffer.c	2013-04-24 16:52:28.000000000 +0200
+--- src/buffer.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 2005,2011 ****
+  	 * "buf" if one exists */
+  	if (swb_flags & SWB_USEOPEN)
+  	    wp = buf_jump_open_win(buf);
+! 	/* If 'switchbuf' contians "usetab": jump to first window in any tab
+  	 * page containing "buf" if one exists */
+  	if (wp == NULL && (swb_flags & SWB_USETAB))
+  	    wp = buf_jump_open_tab(buf);
+--- 2005,2011 ----
+  	 * "buf" if one exists */
+  	if (swb_flags & SWB_USEOPEN)
+  	    wp = buf_jump_open_win(buf);
+! 	/* If 'switchbuf' contains "usetab": jump to first window in any tab
+  	 * page containing "buf" if one exists */
+  	if (wp == NULL && (swb_flags & SWB_USETAB))
+  	    wp = buf_jump_open_tab(buf);
+*** ../vim-7.3.924/src/configure.in	2013-05-04 04:40:06.000000000 +0200
+--- src/configure.in	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 306,312 ****
+  AC_SUBST(line_break)
+  
+  if test "$cf_cv_ebcdic" = "yes"; then
+! dnl If we have EBCDIC we most likley have z/OS Unix, let's test it!
+  AC_MSG_CHECKING(for z/OS Unix)
+  case `uname` in
+      OS/390)	zOSUnix="yes";
+--- 306,312 ----
+  AC_SUBST(line_break)
+  
+  if test "$cf_cv_ebcdic" = "yes"; then
+! dnl If we have EBCDIC we most likely have z/OS Unix, let's test it!
+  AC_MSG_CHECKING(for z/OS Unix)
+  case `uname` in
+      OS/390)	zOSUnix="yes";
+***************
+*** 1228,1234 ****
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first pyhton version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, char *prefix)
+--- 1228,1234 ----
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first python version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, char *prefix)
+***************
+*** 1274,1280 ****
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first pyhton version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, wchar_t *prefix)
+--- 1274,1280 ----
+      /* If this program fails, then RTLD_GLOBAL is needed.
+       * RTLD_GLOBAL will be used and then it is not possible to
+       * have both python versions enabled in the same vim instance.
+!      * Only the first python version used will be switched on.
+       */
+  
+      int no_rtl_global_needed_for(char *python_instsoname, wchar_t *prefix)
+***************
+*** 3002,3008 ****
+  if test "x$vim_cv_tty_group" != "xworld" ; then
+    AC_DEFINE_UNQUOTED(PTYGROUP,$vim_cv_tty_group)
+    if test "x$vim_cv_tty_mode" = "x" ; then
+!     AC_MSG_ERROR([It seems you're cross compiling and have 'vim_cv_tty_group' set, please also set the environment variable 'vim_cv_tty_mode' to the correct mode (propably 0620)])
+    else
+      AC_DEFINE(PTYMODE, 0620)
+    fi
+--- 3002,3008 ----
+  if test "x$vim_cv_tty_group" != "xworld" ; then
+    AC_DEFINE_UNQUOTED(PTYGROUP,$vim_cv_tty_group)
+    if test "x$vim_cv_tty_mode" = "x" ; then
+!     AC_MSG_ERROR([It seems you're cross compiling and have 'vim_cv_tty_group' set, please also set the environment variable 'vim_cv_tty_mode' to the correct mode (probably 0620)])
+    else
+      AC_DEFINE(PTYMODE, 0620)
+    fi
+*** ../vim-7.3.924/src/diff.c	2013-03-19 14:25:50.000000000 +0100
+--- src/diff.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1110,1116 ****
+  }
+  
+  /*
+!  * Set options to show difs for the current window.
+   */
+      void
+  ex_diffthis(eap)
+--- 1110,1116 ----
+  }
+  
+  /*
+!  * Set options to show diffs for the current window.
+   */
+      void
+  ex_diffthis(eap)
+*** ../vim-7.3.924/src/dosinst.c	2013-02-13 14:36:39.000000000 +0100
+--- src/dosinst.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1609,1615 ****
+  
+  /*
+   * Only add the choice for the open-with menu entry when gvim.exe was found
+!  * and and regedit.exe exist.
+   */
+      static void
+  init_openwith_choice(void)
+--- 1609,1615 ----
+  
+  /*
+   * Only add the choice for the open-with menu entry when gvim.exe was found
+!  * and regedit.exe exist.
+   */
+      static void
+  init_openwith_choice(void)
+*** ../vim-7.3.924/src/edit.c	2013-03-19 16:46:59.000000000 +0100
+--- src/edit.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1418,1424 ****
+  
+  normalchar:
+  	    /*
+! 	     * Insert a nomal character.
+  	     */
+  #ifdef FEAT_AUTOCMD
+  	    if (!p_paste)
+--- 1418,1424 ----
+  
+  normalchar:
+  	    /*
+! 	     * Insert a normal character.
+  	     */
+  #ifdef FEAT_AUTOCMD
+  	    if (!p_paste)
+***************
+*** 7162,7168 ****
+  	    /*
+  	     * Count each sequence of folded lines as one logical line.
+  	     */
+! 	    /* go to the the start of the current fold */
+  	    (void)hasFolding(lnum, &lnum, NULL);
+  
+  	    while (n--)
+--- 7162,7168 ----
+  	    /*
+  	     * Count each sequence of folded lines as one logical line.
+  	     */
+! 	    /* go to the start of the current fold */
+  	    (void)hasFolding(lnum, &lnum, NULL);
+  
+  	    while (n--)
+***************
+*** 7213,7219 ****
+  	(void)hasFolding(lnum, NULL, &lnum);
+  #endif
+  	/* This fails if the cursor is already in the last line or would move
+! 	 * beyound the last line and '-' is in 'cpoptions' */
+  	if (lnum >= curbuf->b_ml.ml_line_count
+  		|| (lnum + n > curbuf->b_ml.ml_line_count
+  		    && vim_strchr(p_cpo, CPO_MINUS) != NULL))
+--- 7213,7219 ----
+  	(void)hasFolding(lnum, NULL, &lnum);
+  #endif
+  	/* This fails if the cursor is already in the last line or would move
+! 	 * beyond the last line and '-' is in 'cpoptions' */
+  	if (lnum >= curbuf->b_ml.ml_line_count
+  		|| (lnum + n > curbuf->b_ml.ml_line_count
+  		    && vim_strchr(p_cpo, CPO_MINUS) != NULL))
+***************
+*** 7715,7721 ****
+  /*
+   * return TRUE if 'cinkeys' contains the key "keytyped",
+   * when == '*':	    Only if key is preceded with '*'	(indent before insert)
+!  * when == '!':	    Only if key is prededed with '!'	(don't insert)
+   * when == ' ':	    Only if key is not preceded with '*'(indent afterwards)
+   *
+   * "keytyped" can have a few special values:
+--- 7715,7721 ----
+  /*
+   * return TRUE if 'cinkeys' contains the key "keytyped",
+   * when == '*':	    Only if key is preceded with '*'	(indent before insert)
+!  * when == '!':	    Only if key is preceded with '!'	(don't insert)
+   * when == ' ':	    Only if key is not preceded with '*'(indent afterwards)
+   *
+   * "keytyped" can have a few special values:
+***************
+*** 8541,8547 ****
+  #endif
+  
+  /*
+!  * <Insert> key in Insert mode: toggle insert/remplace mode.
+   */
+      static void
+  ins_insert(replaceState)
+--- 8541,8547 ----
+  #endif
+  
+  /*
+!  * <Insert> key in Insert mode: toggle insert/replace mode.
+   */
+      static void
+  ins_insert(replaceState)
+*** ../vim-7.3.924/src/eval.c	2013-05-06 03:52:44.000000000 +0200
+--- src/eval.c	2013-05-06 04:07:45.000000000 +0200
+***************
+*** 16669,16675 ****
+      tabpage_T	*save_curtab;
+  {
+  #ifdef FEAT_WINDOWS
+!     /* Restore current tabpage and window, if still valid (autocomands can
+       * make them invalid). */
+      if (valid_tabpage(save_curtab))
+  	goto_tabpage_tp(save_curtab, TRUE);
+--- 16669,16675 ----
+      tabpage_T	*save_curtab;
+  {
+  #ifdef FEAT_WINDOWS
+!     /* Restore current tabpage and window, if still valid (autocommands can
+       * make them invalid). */
+      if (valid_tabpage(save_curtab))
+  	goto_tabpage_tp(save_curtab, TRUE);
+*** ../vim-7.3.924/src/ex_cmds2.c	2013-03-19 16:46:59.000000000 +0100
+--- src/ex_cmds2.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 2851,2857 ****
+  	EMSG(_(e_argreq));
+  
+      else if (eap != NULL && eap->forceit)
+! 	/* ":source!": read Normal mdoe commands
+  	 * Need to execute the commands directly.  This is required at least
+  	 * for:
+  	 * - ":g" command busy
+--- 2851,2857 ----
+  	EMSG(_(e_argreq));
+  
+      else if (eap != NULL && eap->forceit)
+! 	/* ":source!": read Normal mode commands
+  	 * Need to execute the commands directly.  This is required at least
+  	 * for:
+  	 * - ":g" command busy
+*** ../vim-7.3.924/src/ex_docmd.c	2013-03-19 14:25:50.000000000 +0100
+--- src/ex_docmd.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1093,1099 ****
+  		msg_didany = FALSE; /* no output yet */
+  		msg_start();
+  		msg_scroll = TRUE;  /* put messages below each other */
+! 		++no_wait_return;   /* dont wait for return until finished */
+  		++RedrawingDisabled;
+  		did_inc = TRUE;
+  	    }
+--- 1093,1099 ----
+  		msg_didany = FALSE; /* no output yet */
+  		msg_start();
+  		msg_scroll = TRUE;  /* put messages below each other */
+! 		++no_wait_return;   /* don't wait for return until finished */
+  		++RedrawingDisabled;
+  		did_inc = TRUE;
+  	    }
+***************
+*** 1298,1304 ****
+  	    && !(did_emsg
+  #ifdef FEAT_EVAL
+  		/* Keep going when inside try/catch, so that the error can be
+! 		 * dealth with, except when it is a syntax error, it may cause
+  		 * the :endtry to be missed. */
+  		&& (cstack.cs_trylevel == 0 || did_emsg_syntax)
+  #endif
+--- 1298,1304 ----
+  	    && !(did_emsg
+  #ifdef FEAT_EVAL
+  		/* Keep going when inside try/catch, so that the error can be
+! 		 * deal with, except when it is a syntax error, it may cause
+  		 * the :endtry to be missed. */
+  		&& (cstack.cs_trylevel == 0 || did_emsg_syntax)
+  #endif
+***************
+*** 10982,10988 ****
+  		*p = '/';
+      }
+  
+!     /* escapse special characters */
+      p = vim_strsave_fnameescape(sname, FALSE);
+      vim_free(sname);
+      if (p == NULL)
+--- 10982,10988 ----
+  		*p = '/';
+      }
+  
+!     /* escape special characters */
+      p = vim_strsave_fnameescape(sname, FALSE);
+      vim_free(sname);
+      if (p == NULL)
+*** ../vim-7.3.924/src/ex_eval.c	2010-08-15 21:57:25.000000000 +0200
+--- src/ex_eval.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 44,50 ****
+   * executed.  Otherwise, errors and/or interrupts are converted into catchable
+   * exceptions (did_throw additionally set), which terminate the script only if
+   * not caught.  For user exceptions, only did_throw is set.  (Note: got_int can
+!  * be set asyncronously afterwards by a SIGINT, so did_throw && got_int is not
+   * a reliant test that the exception currently being thrown is an interrupt
+   * exception.  Similarly, did_emsg can be set afterwards on an error in an
+   * (unskipped) conditional command inside an inactive conditional, so did_throw
+--- 44,50 ----
+   * executed.  Otherwise, errors and/or interrupts are converted into catchable
+   * exceptions (did_throw additionally set), which terminate the script only if
+   * not caught.  For user exceptions, only did_throw is set.  (Note: got_int can
+!  * be set asynchronously afterwards by a SIGINT, so did_throw && got_int is not
+   * a reliant test that the exception currently being thrown is an interrupt
+   * exception.  Similarly, did_emsg can be set afterwards on an error in an
+   * (unskipped) conditional command inside an inactive conditional, so did_throw
+***************
+*** 2091,2101 ****
+   * Values used for "searched_cond" are (CSF_WHILE | CSF_FOR) or CSF_TRY or 0,
+   * the latter meaning the innermost try conditional not in its finally clause.
+   * "inclusive" tells whether the conditional searched for should be made
+!  * inactive itself (a try conditional not in its finally claused possibly find
+   * before is always made inactive).  If "inclusive" is TRUE and
+   * "searched_cond" is CSF_TRY|CSF_SILENT, the saved former value of
+   * "emsg_silent", if reset when the try conditional finally reached was
+!  * entered, is restored (unsed by ex_endtry()).  This is normally done only
+   * when such a try conditional is left.
+   */
+      int
+--- 2091,2101 ----
+   * Values used for "searched_cond" are (CSF_WHILE | CSF_FOR) or CSF_TRY or 0,
+   * the latter meaning the innermost try conditional not in its finally clause.
+   * "inclusive" tells whether the conditional searched for should be made
+!  * inactive itself (a try conditional not in its finally clause possibly find
+   * before is always made inactive).  If "inclusive" is TRUE and
+   * "searched_cond" is CSF_TRY|CSF_SILENT, the saved former value of
+   * "emsg_silent", if reset when the try conditional finally reached was
+!  * entered, is restored (used by ex_endtry()).  This is normally done only
+   * when such a try conditional is left.
+   */
+      int
+*** ../vim-7.3.924/src/farsi.c	2012-07-16 17:26:18.000000000 +0200
+--- src/farsi.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1841,1847 ****
+  }
+  
+  /*
+!  * Convert the Farsi VIM into Farsi 3342 standad.
+   */
+      void
+  conv_to_pstd()
+--- 1841,1847 ----
+  }
+  
+  /*
+!  * Convert the Farsi VIM into Farsi 3342 standard.
+   */
+      void
+  conv_to_pstd()
+*** ../vim-7.3.924/src/feature.h	2013-04-15 15:40:08.000000000 +0200
+--- src/feature.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1007,1013 ****
+  
+  /*
+   * MODIFIED_BY		Name of who modified Vim.  Required when distributing
+!  *			a modifed version of Vim.
+   *			Also from the "--with-modified-by" configure argument.
+   */
+  /* #define MODIFIED_BY "John Doe" */
+--- 1007,1013 ----
+  
+  /*
+   * MODIFIED_BY		Name of who modified Vim.  Required when distributing
+!  *			a modified version of Vim.
+   *			Also from the "--with-modified-by" configure argument.
+   */
+  /* #define MODIFIED_BY "John Doe" */
+*** ../vim-7.3.924/src/fileio.c	2013-04-24 16:33:58.000000000 +0200
+--- src/fileio.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 3279,3285 ****
+  	overwriting = FALSE;
+  
+      if (exiting)
+! 	settmode(TMODE_COOK);	    /* when exiting allow typahead now */
+  
+      ++no_wait_return;		    /* don't wait for return yet */
+  
+--- 3279,3285 ----
+  	overwriting = FALSE;
+  
+      if (exiting)
+! 	settmode(TMODE_COOK);	    /* when exiting allow typeahead now */
+  
+      ++no_wait_return;		    /* don't wait for return yet */
+  
+***************
+*** 3303,3309 ****
+  	int		empty_memline = (buf->b_ml.ml_mfp == NULL);
+  
+  	/*
+! 	 * Apply PRE aucocommands.
+  	 * Set curbuf to the buffer to be written.
+  	 * Careful: The autocommands may call buf_write() recursively!
+  	 */
+--- 3303,3309 ----
+  	int		empty_memline = (buf->b_ml.ml_mfp == NULL);
+  
+  	/*
+! 	 * Apply PRE autocommands.
+  	 * Set curbuf to the buffer to be written.
+  	 * Careful: The autocommands may call buf_write() recursively!
+  	 */
+***************
+*** 8866,8872 ****
+      else
+      {
+  	/* There is no window for "buf", use "aucmd_win".  To minimize the side
+! 	 * effects, insert it in a the current tab page.
+  	 * Anything related to a window (e.g., setting folds) may have
+  	 * unexpected results. */
+  	aco->use_aucmd_win = TRUE;
+--- 8866,8872 ----
+      else
+      {
+  	/* There is no window for "buf", use "aucmd_win".  To minimize the side
+! 	 * effects, insert it in the current tab page.
+  	 * Anything related to a window (e.g., setting folds) may have
+  	 * unexpected results. */
+  	aco->use_aucmd_win = TRUE;
+*** ../vim-7.3.924/src/glbl_ime.cpp	2010-08-15 21:57:27.000000000 +0200
+--- src/glbl_ime.cpp	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 156,162 ****
+  }
+  
+  /*
+!  * Set position of IME compotision window.
+   *
+   * You have to call this before starting composition.  If once composition
+   * started, this can take no effect until that composition have finished.  So
+--- 156,162 ----
+  }
+  
+  /*
+!  * Set position of IME composition window.
+   *
+   * You have to call this before starting composition.  If once composition
+   * started, this can take no effect until that composition have finished.  So
+*** ../vim-7.3.924/src/gui.c	2013-04-03 21:11:33.000000000 +0200
+--- src/gui.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 826,832 ****
+  #endif
+  
+  /*
+!  * Set the font.  "font_list" is a a comma separated list of font names.  The
+   * first font name that works is used.  If none is found, use the default
+   * font.
+   * If "fontset" is TRUE, the "font_list" is used as one name for the fontset.
+--- 826,832 ----
+  #endif
+  
+  /*
+!  * Set the font.  "font_list" is a comma separated list of font names.  The
+   * first font name that works is used.  If none is found, use the default
+   * font.
+   * If "fontset" is TRUE, the "font_list" is used as one name for the fontset.
+***************
+*** 2376,2382 ****
+      {
+  	int	start;		/* index of bytes to be drawn */
+  	int	cells;		/* cellwidth of bytes to be drawn */
+! 	int	thislen;	/* length of bytes to be drawin */
+  	int	cn;		/* cellwidth of current char */
+  	int	i;		/* index of current char */
+  	int	c;		/* current char value */
+--- 2376,2382 ----
+      {
+  	int	start;		/* index of bytes to be drawn */
+  	int	cells;		/* cellwidth of bytes to be drawn */
+! 	int	thislen;	/* length of bytes to be drawn */
+  	int	cn;		/* cellwidth of current char */
+  	int	i;		/* index of current char */
+  	int	c;		/* current char value */
+***************
+*** 3886,3892 ****
+  	gui.dragged_sb = SBAR_NONE;
+  #ifdef FEAT_GUI_GTK
+  	/* Keep the "dragged_wp" value until after the scrolling, for when the
+! 	 * moust button is released.  GTK2 doesn't send the button-up event. */
+  	gui.dragged_wp = NULL;
+  #endif
+      }
+--- 3886,3892 ----
+  	gui.dragged_sb = SBAR_NONE;
+  #ifdef FEAT_GUI_GTK
+  	/* Keep the "dragged_wp" value until after the scrolling, for when the
+! 	 * mouse button is released.  GTK2 doesn't send the button-up event. */
+  	gui.dragged_wp = NULL;
+  #endif
+      }
+*** ../vim-7.3.924/src/gui_athena.c	2011-01-17 20:08:03.000000000 +0100
+--- src/gui_athena.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 519,525 ****
+  	    &color[TOP_SHADOW].pixel,
+  	    &color[HIGHLIGHT].pixel);
+  
+!     /* Setup the color subsititution table */
+      attrs.valuemask = XpmColorSymbols;
+      attrs.colorsymbols = color;
+      attrs.numsymbols = 5;
+--- 519,525 ----
+  	    &color[TOP_SHADOW].pixel,
+  	    &color[HIGHLIGHT].pixel);
+  
+!     /* Setup the color substitution table */
+      attrs.valuemask = XpmColorSymbols;
+      attrs.colorsymbols = color;
+      attrs.numsymbols = 5;
+*** ../vim-7.3.924/src/gui_beval.c	2012-10-21 00:58:34.000000000 +0200
+--- src/gui_beval.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 726,732 ****
+      BalloonEval	*beval;
+      XEvent	*event;
+  {
+!     Position	distance;	    /* a measure of how much the ponter moved */
+      Position	delta;		    /* used to compute distance */
+  
+      switch (event->type)
+--- 726,732 ----
+      BalloonEval	*beval;
+      XEvent	*event;
+  {
+!     Position	distance;	    /* a measure of how much the pointer moved */
+      Position	delta;		    /* used to compute distance */
+  
+      switch (event->type)
+*** ../vim-7.3.924/src/gui_gtk_x11.c	2013-03-13 17:50:20.000000000 +0100
+--- src/gui_gtk_x11.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1257,1263 ****
+  	}
+      }
+  
+!     /* Chop off any traiing NUL bytes.  OpenOffice sends these. */
+      while (len > 0 && text[len - 1] == NUL)
+  	--len;
+  
+--- 1257,1263 ----
+  	}
+      }
+  
+!     /* Chop off any trailing NUL bytes.  OpenOffice sends these. */
+      while (len > 0 && text[len - 1] == NUL)
+  	--len;
+  
+*** ../vim-7.3.924/src/gui_mac.c	2012-11-20 17:18:56.000000000 +0100
+--- src/gui_mac.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 41,47 ****
+  #define USE_AEVENT		/* Enable AEVENT */
+  #undef USE_OFFSETED_WINDOW	/* Debugging feature: start Vim window OFFSETed */
+  
+! /* Compile as CodeWarior External Editor */
+  #if defined(FEAT_CW_EDITOR) && !defined(USE_AEVENT)
+  # define USE_AEVENT /* Need Apple Event Support */
+  #endif
+--- 41,47 ----
+  #define USE_AEVENT		/* Enable AEVENT */
+  #undef USE_OFFSETED_WINDOW	/* Debugging feature: start Vim window OFFSETed */
+  
+! /* Compile as CodeWarrior External Editor */
+  #if defined(FEAT_CW_EDITOR) && !defined(USE_AEVENT)
+  # define USE_AEVENT /* Need Apple Event Support */
+  #endif
+***************
+*** 1478,1484 ****
+  /*
+   *  gui_mac_get_menu_item_index
+   *
+!  *  Returns the index inside the menu wher
+   */
+      short /* Should we return MenuItemIndex? */
+  gui_mac_get_menu_item_index(vimmenu_T *pMenu)
+--- 1478,1484 ----
+  /*
+   *  gui_mac_get_menu_item_index
+   *
+!  *  Returns the index inside the menu where
+   */
+      short /* Should we return MenuItemIndex? */
+  gui_mac_get_menu_item_index(vimmenu_T *pMenu)
+***************
+*** 1693,1699 ****
+  
+      if (theControl != NUL)
+      {
+! 	/* We hit a scollbar */
+  
+  	if (thePortion != kControlIndicatorPart)
+  	{
+--- 1693,1699 ----
+  
+      if (theControl != NUL)
+      {
+! 	/* We hit a scrollbar */
+  
+  	if (thePortion != kControlIndicatorPart)
+  	{
+***************
+*** 2630,2636 ****
+      {
+  	/* Handle the menu CntxMenuID, CntxMenuItem */
+  	/* The submenu can be handle directly by gui_mac_handle_menu */
+! 	/* But what about the current menu, is the meny changed by ContextualMenuSelect */
+  	gui_mac_handle_menu((CntxMenuID << 16) + CntxMenuItem);
+      }
+      else if (CntxMenuID == kCMShowHelpSelected)
+--- 2630,2636 ----
+      {
+  	/* Handle the menu CntxMenuID, CntxMenuItem */
+  	/* The submenu can be handle directly by gui_mac_handle_menu */
+! 	/* But what about the current menu, is the many changed by ContextualMenuSelect */
+  	gui_mac_handle_menu((CntxMenuID << 16) + CntxMenuItem);
+      }
+      else if (CntxMenuID == kCMShowHelpSelected)
+***************
+*** 5356,5362 ****
+      char_u *initdir,
+      char_u *filter)
+  {
+!     /* TODO: Add Ammon's safety checl (Dany) */
+      NavReplyRecord	reply;
+      char_u		*fname = NULL;
+      char_u		**fnames = NULL;
+--- 5356,5362 ----
+      char_u *initdir,
+      char_u *filter)
+  {
+!     /* TODO: Add Ammon's safety check (Dany) */
+      NavReplyRecord	reply;
+      char_u		*fname = NULL;
+      char_u		**fnames = NULL;
+***************
+*** 5704,5710 ****
+  
+  	/* Resize the button to fit its name */
+  	width = StringWidth(name) + 2 * dfltButtonEdge;
+! 	/* Limite the size of any button to an acceptable value. */
+  	/* TODO: Should be based on the message width */
+  	if (width > maxButtonWidth)
+  	    width = maxButtonWidth;
+--- 5704,5710 ----
+  
+  	/* Resize the button to fit its name */
+  	width = StringWidth(name) + 2 * dfltButtonEdge;
+! 	/* Limit the size of any button to an acceptable value. */
+  	/* TODO: Should be based on the message width */
+  	if (width > maxButtonWidth)
+  	    width = maxButtonWidth;
+***************
+*** 5887,5893 ****
+      /* Free the modal filterProc */
+      DisposeRoutineDescriptor(dialogUPP);
+  
+!     /* Get ride of th edialog (free memory) */
+      DisposeDialog(theDialog);
+  
+      return itemHit;
+--- 5887,5893 ----
+      /* Free the modal filterProc */
+      DisposeRoutineDescriptor(dialogUPP);
+  
+!     /* Get ride of the dialog (free memory) */
+      DisposeDialog(theDialog);
+  
+      return itemHit;
+***************
+*** 5967,5975 ****
+  	/* New way */
+  
+  	/*
+! 	 * Get first devoice with one button.
+! 	 * This will probably be the standad mouse
+! 	 * startat head of cursor dev list
+  	 *
+  	 */
+  
+--- 5967,5975 ----
+  	/* New way */
+  
+  	/*
+! 	 * Get first device with one button.
+! 	 * This will probably be the standard mouse
+! 	 * start at head of cursor dev list
+  	 *
+  	 */
+  
+***************
+*** 6151,6157 ****
+  }
+  
+  /*
+!  * Convert a FSSpec to a fuill path
+   */
+  
+  char_u *FullPathFromFSSpec_save(FSSpec file)
+--- 6151,6157 ----
+  }
+  
+  /*
+!  * Convert a FSSpec to a full path
+   */
+  
+  char_u *FullPathFromFSSpec_save(FSSpec file)
+***************
+*** 6215,6222 ****
+  
+  #ifdef USE_UNIXFILENAME
+      /*
+!      * The function used here are available in Carbon, but
+!      * do nothing une MacOS 8 and 9
+       */
+      if (error == fnfErr)
+      {
+--- 6215,6222 ----
+  
+  #ifdef USE_UNIXFILENAME
+      /*
+!      * The functions used here are available in Carbon, but do nothing on
+!      * MacOS 8 and 9.
+       */
+      if (error == fnfErr)
+      {
+***************
+*** 6544,6550 ****
+  
+  // when the tabline is hidden, vim doesn't call update_tabline(). When
+  // the tabline is shown again, show_tabline() is called before update_tabline(),
+! // and because of this, the tab labels and vims internal tabs are out of sync
+  // for a very short time. to prevent inconsistent state, we store the labels
+  // of the tabs, not pointers to the tabs (which are invalid for a short time).
+  static CFStringRef *tabLabels = NULL;
+--- 6544,6550 ----
+  
+  // when the tabline is hidden, vim doesn't call update_tabline(). When
+  // the tabline is shown again, show_tabline() is called before update_tabline(),
+! // and because of this, the tab labels and vim's internal tabs are out of sync
+  // for a very short time. to prevent inconsistent state, we store the labels
+  // of the tabs, not pointers to the tabs (which are invalid for a short time).
+  static CFStringRef *tabLabels = NULL;
+***************
+*** 6578,6584 ****
+  
+      // assert(property == kTabsColumn); // why is this violated??
+  
+!     // changeValue is true if we have a modifieable list and data was changed.
+      // In our case, it's always false.
+      // (that is: if (changeValue) updateInternalData(); else return
+      // internalData();
+--- 6578,6584 ----
+  
+      // assert(property == kTabsColumn); // why is this violated??
+  
+!     // changeValue is true if we have a modifiable list and data was changed.
+      // In our case, it's always false.
+      // (that is: if (changeValue) updateInternalData(); else return
+      // internalData();
+*** ../vim-7.3.924/src/gui_motif.c	2011-01-17 20:08:03.000000000 +0100
+--- src/gui_motif.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1344,1350 ****
+  	else
+  	{
+  	    /* Without shadows one can't sense whatever the button has been
+! 	     * pressed or not! However we wan't to save a bit of space...
+  	     * Need the highlightThickness to see the focus.
+  	     */
+  	    XtSetArg(args[n], XmNhighlightThickness, 1); n++;
+--- 1344,1350 ----
+  	else
+  	{
+  	    /* Without shadows one can't sense whatever the button has been
+! 	     * pressed or not! However we want to save a bit of space...
+  	     * Need the highlightThickness to see the focus.
+  	     */
+  	    XtSetArg(args[n], XmNhighlightThickness, 1); n++;
+***************
+*** 3205,3211 ****
+  # ifdef FEAT_FOOTER
+  /*
+   * The next toolbar enter/leave callbacks should really do balloon help.  But
+!  * I have to use footer help for backwards compatability.  Hopefully both will
+   * get implemented and the user will have a choice.
+   */
+      static void
+--- 3205,3211 ----
+  # ifdef FEAT_FOOTER
+  /*
+   * The next toolbar enter/leave callbacks should really do balloon help.  But
+!  * I have to use footer help for backwards compatibility.  Hopefully both will
+   * get implemented and the user will have a choice.
+   */
+      static void
+*** ../vim-7.3.924/src/gui_photon.c	2012-11-20 16:53:34.000000000 +0100
+--- src/gui_photon.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 61,67 ****
+  static PhPoint_t    gui_ph_raw_offset;
+  static PtWidget_t   *gui_ph_timer_cursor;   /* handle cursor blinking */
+  static PtWidget_t   *gui_ph_timer_timeout;  /* used in gui_mch_wait_for_chars */
+! static short	    is_timeout;		    /* Has the timeout occured? */
+  
+  /*
+   * This is set inside the mouse callback for a right mouse
+--- 61,67 ----
+  static PhPoint_t    gui_ph_raw_offset;
+  static PtWidget_t   *gui_ph_timer_cursor;   /* handle cursor blinking */
+  static PtWidget_t   *gui_ph_timer_timeout;  /* used in gui_mch_wait_for_chars */
+! static short	    is_timeout;		    /* Has the timeout occurred? */
+  
+  /*
+   * This is set inside the mouse callback for a right mouse
+***************
+*** 1156,1162 ****
+      PtSetArg(&args[ n++ ], Pt_ARG_POS, &pos, 0);
+  
+  #ifdef USE_PANEL_GROUP
+!     /* Put in a temprary place holder title */
+      PtSetArg(&args[ n++ ], Pt_ARG_PG_PANEL_TITLES, &empty_title, 1);
+  
+      gui.vimPanelGroup = PtCreateWidget(PtPanelGroup, gui.vimWindow, n, args);
+--- 1156,1162 ----
+      PtSetArg(&args[ n++ ], Pt_ARG_POS, &pos, 0);
+  
+  #ifdef USE_PANEL_GROUP
+!     /* Put in a temporary place holder title */
+      PtSetArg(&args[ n++ ], Pt_ARG_PG_PANEL_TITLES, &empty_title, 1);
+  
+      gui.vimPanelGroup = PtCreateWidget(PtPanelGroup, gui.vimWindow, n, args);
+***************
+*** 1527,1533 ****
+      /* There is one less separator than buttons, so bump up the button count */
+      button_count = 1;
+  
+!     /* Count string length and number of seperators */
+      for (str = buttons; *str; str++)
+      {
+  	len++;
+--- 1527,1533 ----
+      /* There is one less separator than buttons, so bump up the button count */
+      button_count = 1;
+  
+!     /* Count string length and number of separators */
+      for (str = buttons; *str; str++)
+      {
+  	len++;
+*** ../vim-7.3.924/src/gui_w16.c	2012-11-20 16:53:34.000000000 +0100
+--- src/gui_w16.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 511,517 ****
+      workarea_rect.right = GetSystemMetrics(SM_CXSCREEN);
+      workarea_rect.bottom = GetSystemMetrics(SM_CYFULLSCREEN);
+  
+!     /* get current posision of our window */
+      wndpl.length = sizeof(WINDOWPLACEMENT);
+      GetWindowPlacement(s_hwnd, &wndpl);
+      if (wndpl.showCmd == SW_SHOWNORMAL)
+--- 511,517 ----
+      workarea_rect.right = GetSystemMetrics(SM_CXSCREEN);
+      workarea_rect.bottom = GetSystemMetrics(SM_CYFULLSCREEN);
+  
+!     /* get current position of our window */
+      wndpl.length = sizeof(WINDOWPLACEMENT);
+      GetWindowPlacement(s_hwnd, &wndpl);
+      if (wndpl.showCmd == SW_SHOWNORMAL)
+***************
+*** 1161,1167 ****
+  	return -1;
+  
+      /*
+!      * make a copy of 'buttons' to fiddle with it.  complier grizzles because
+       * vim_strsave() doesn't take a const arg (why not?), so cast away the
+       * const.
+       */
+--- 1161,1167 ----
+  	return -1;
+  
+      /*
+!      * make a copy of 'buttons' to fiddle with it.  compiler grizzles because
+       * vim_strsave() doesn't take a const arg (why not?), so cast away the
+       * const.
+       */
+*** ../vim-7.3.924/src/gui_w32.c	2013-03-19 14:48:25.000000000 +0100
+--- src/gui_w32.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1258,1264 ****
+  
+  #ifdef FEAT_NETBEANS_INTG
+      {
+! 	/* stolen from gui_x11.x */
+  	int arg;
+  
+  	for (arg = 1; arg < *argc; arg++)
+--- 1258,1264 ----
+  
+  #ifdef FEAT_NETBEANS_INTG
+      {
+! 	/* stolen from gui_x11.c */
+  	int arg;
+  
+  	for (arg = 1; arg < *argc; arg++)
+***************
+*** 1676,1682 ****
+       * used by the taskbar or appbars. */
+      get_work_area(&workarea_rect);
+  
+!     /* Get current posision of our window.  Note that the .left and .top are
+       * relative to the work area.  */
+      wndpl.length = sizeof(WINDOWPLACEMENT);
+      GetWindowPlacement(s_hwnd, &wndpl);
+--- 1676,1682 ----
+       * used by the taskbar or appbars. */
+      get_work_area(&workarea_rect);
+  
+!     /* Get current position of our window.  Note that the .left and .top are
+       * relative to the work area.  */
+      wndpl.length = sizeof(WINDOWPLACEMENT);
+      GetWindowPlacement(s_hwnd, &wndpl);
+***************
+*** 3100,3106 ****
+  	return -1;
+  
+      /*
+!      * make a copy of 'buttons' to fiddle with it.  complier grizzles because
+       * vim_strsave() doesn't take a const arg (why not?), so cast away the
+       * const.
+       */
+--- 3100,3106 ----
+  	return -1;
+  
+      /*
+!      * make a copy of 'buttons' to fiddle with it.  compiler grizzles because
+       * vim_strsave() doesn't take a const arg (why not?), so cast away the
+       * const.
+       */
+***************
+*** 4391,4397 ****
+      }
+  
+      sign.hImage = NULL;
+!     ext = signfile + STRLEN(signfile) - 4; /* get extention */
+      if (ext > signfile)
+      {
+  	int do_load = 1;
+--- 4391,4397 ----
+      }
+  
+      sign.hImage = NULL;
+!     ext = signfile + STRLEN(signfile) - 4; /* get extension */
+      if (ext > signfile)
+      {
+  	int do_load = 1;
+*** ../vim-7.3.924/src/gui_w48.c	2013-03-19 14:48:25.000000000 +0100
+--- src/gui_w48.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1222,1228 ****
+  
+      /* When side scroll bar is unshown, the size of window will change.
+       * then, the text area move left or right. thus client rect should be
+!      * forcely redraw. (Yasuhiro Matsumoto) */
+      if (oldx != x || oldy != y)
+      {
+  	InvalidateRect(s_hwnd, NULL, FALSE);
+--- 1222,1228 ----
+  
+      /* When side scroll bar is unshown, the size of window will change.
+       * then, the text area move left or right. thus client rect should be
+!      * forcedly redrawn. (Yasuhiro Matsumoto) */
+      if (oldx != x || oldy != y)
+      {
+  	InvalidateRect(s_hwnd, NULL, FALSE);
+*** ../vim-7.3.924/src/gui_xmebw.c	2012-06-29 13:19:23.000000000 +0200
+--- src/gui_xmebw.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 345,351 ****
+  	    &eb->primitive.top_shadow_color,
+  	    &eb->primitive.highlight_color);
+  
+!     /* Setup color subsititution table. */
+      color[0].pixel = eb->core.background_pixel;
+      color[1].pixel = eb->core.background_pixel;
+      color[2].pixel = eb->core.background_pixel;
+--- 345,351 ----
+  	    &eb->primitive.top_shadow_color,
+  	    &eb->primitive.highlight_color);
+  
+!     /* Setup color substitution table. */
+      color[0].pixel = eb->core.background_pixel;
+      color[1].pixel = eb->core.background_pixel;
+      color[2].pixel = eb->core.background_pixel;
+***************
+*** 919,926 ****
+      }
+  
+      /*
+!      * Plase note that we manipulate the width only in case of push buttons not
+!      * used in the context of a menu pane.
+       */
+      if (Lab_IsMenupane(newtb))
+      {
+--- 919,926 ----
+      }
+  
+      /*
+!      * Please note that we manipulate the width only in case of push buttons
+!      * not used in the context of a menu pane.
+       */
+      if (Lab_IsMenupane(newtb))
+      {
+***************
+*** 1006,1012 ****
+  	XmString str;
+  	set_pixmap(eb);
+  
+! 	/* FIXME: this is not the perfect way to deal with menues, which do not
+  	 * have any string set right now.  */
+  	str = XmStringCreateLocalized("");
+  	XtVaSetValues((Widget) eb, XmNlabelString, str, NULL);
+--- 1006,1012 ----
+  	XmString str;
+  	set_pixmap(eb);
+  
+! 	/* FIXME: this is not the perfect way to deal with menus, which do not
+  	 * have any string set right now.  */
+  	str = XmStringCreateLocalized("");
+  	XtVaSetValues((Widget) eb, XmNlabelString, str, NULL);
+*** ../vim-7.3.924/src/gui_xmebwp.h	2010-08-15 21:57:27.000000000 +0200
+--- src/gui_xmebwp.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 26,32 ****
+  
+  
+  /*
+!  * EnahncedButton class structure.
+   */
+  typedef struct _XmEnhancedButtonClassPart
+  {
+--- 26,32 ----
+  
+  
+  /*
+!  * EnhancedButton class structure.
+   */
+  typedef struct _XmEnhancedButtonClassPart
+  {
+***************
+*** 49,55 ****
+  extern XmEnhancedButtonClassRec xmEnhancedButtonClassRec;
+  
+  /*
+!  * EnahncedButton instance record.
+   */
+  typedef struct _XmEnhancedButtonPart
+  {
+--- 49,55 ----
+  extern XmEnhancedButtonClassRec xmEnhancedButtonClassRec;
+  
+  /*
+!  * EnhancedButton instance record.
+   */
+  typedef struct _XmEnhancedButtonPart
+  {
+*** ../vim-7.3.924/src/hardcopy.c	2011-04-11 21:35:03.000000000 +0200
+--- src/hardcopy.c	2013-05-06 04:00:47.000000000 +0200
+***************
+*** 2186,2192 ****
+      if (num_copies > 1)
+      {
+  	prt_write_string(" numcopies(");
+! 	/* Note: no space wanted so dont use prt_write_int() */
+  	sprintf((char *)prt_line_buffer, "%d", num_copies);
+  	prt_write_file(prt_line_buffer);
+  	prt_write_string(")");
+--- 2186,2192 ----
+      if (num_copies > 1)
+      {
+  	prt_write_string(" numcopies(");
+! 	/* Note: no space wanted so don't use prt_write_int() */
+  	sprintf((char *)prt_line_buffer, "%d", num_copies);
+  	prt_write_file(prt_line_buffer);
+  	prt_write_string(")");
+*** ../vim-7.3.924/src/if_cscope.c	2011-06-12 21:24:56.000000000 +0200
+--- src/if_cscope.c	2013-05-06 03:58:29.000000000 +0200
+***************
+*** 1192,1200 ****
+      if (nummatches == NULL)
+  	return FALSE;
+  
+!     /* send query to all open connections, then count the total number
+!      * of matches so we can alloc matchesp all in one swell foop
+!      */
+      for (i = 0; i < csinfo_size; i++)
+  	nummatches[i] = 0;
+      totmatches = 0;
+--- 1192,1199 ----
+      if (nummatches == NULL)
+  	return FALSE;
+  
+!     /* Send query to all open connections, then count the total number
+!      * of matches so we can alloc all in one swell foop. */
+      for (i = 0; i < csinfo_size; i++)
+  	nummatches[i] = 0;
+      totmatches = 0;
+*** ../vim-7.3.924/src/if_mzsch.c	2013-01-31 21:09:10.000000000 +0100
+--- src/if_mzsch.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 3053,3059 ****
+  		status = FAIL;
+  	    else
+  	    {
+! 		/* add the value in advance to allow handling of self-referencial
+  		 * data structures */
+  		typval_T    *visited_tv = (typval_T *)alloc(sizeof(typval_T));
+  		copy_tv(tv, visited_tv);
+--- 3053,3059 ----
+  		status = FAIL;
+  	    else
+  	    {
+! 		/* add the value in advance to allow handling of self-referential
+  		 * data structures */
+  		typval_T    *visited_tv = (typval_T *)alloc(sizeof(typval_T));
+  		copy_tv(tv, visited_tv);
+***************
+*** 3088,3094 ****
+  			if (status == FAIL)
+  			    break;
+  		    }
+! 		    /* impoper list not terminated with null
+  		     * need to handle the last element */
+  		    if (status == OK && !SCHEME_NULLP(curr))
+  		    {
+--- 3088,3094 ----
+  			if (status == FAIL)
+  			    break;
+  		    }
+! 		    /* improper list not terminated with null
+  		     * need to handle the last element */
+  		    if (status == OK && !SCHEME_NULLP(curr))
+  		    {
+***************
+*** 3136,3142 ****
+  	    {
+  		if (((Scheme_Hash_Table *) obj)->vals[i] != NULL)
+  		{
+! 		    /* generate item for `diplay'ed Scheme key */
+  		    dictitem_T  *item = dictitem_alloc((char_u *)string_to_line(
+  				((Scheme_Hash_Table *) obj)->keys[i]));
+  		    /* convert Scheme val to Vim and add it to the dict */
+--- 3136,3142 ----
+  	    {
+  		if (((Scheme_Hash_Table *) obj)->vals[i] != NULL)
+  		{
+! 		    /* generate item for `display'ed Scheme key */
+  		    dictitem_T  *item = dictitem_alloc((char_u *)string_to_line(
+  				((Scheme_Hash_Table *) obj)->keys[i]));
+  		    /* convert Scheme val to Vim and add it to the dict */
+*** ../vim-7.3.924/src/if_ole.cpp	2010-08-15 21:57:32.000000000 +0200
+--- src/if_ole.cpp	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 645,651 ****
+      CoTaskMemFree(wGUID);
+  }
+  
+! // Delete a key and all of its descendents
+  static void RecursiveDeleteKey(HKEY hKeyParent, const char *child)
+  {
+      // Open the child
+--- 645,651 ----
+      CoTaskMemFree(wGUID);
+  }
+  
+! // Delete a key and all of its descendants
+  static void RecursiveDeleteKey(HKEY hKeyParent, const char *child)
+  {
+      // Open the child
+***************
+*** 655,661 ****
+      if (result != ERROR_SUCCESS)
+  	return;
+  
+!     // Enumerate all of the decendents of this child
+      FILETIME time;
+      char buffer[1024];
+      DWORD size = 1024;
+--- 655,661 ----
+      if (result != ERROR_SUCCESS)
+  	return;
+  
+!     // Enumerate all of the descendants of this child
+      FILETIME time;
+      char buffer[1024];
+      DWORD size = 1024;
+***************
+*** 663,669 ****
+      while (RegEnumKeyEx(hKeyChild, 0, buffer, &size, NULL,
+  			NULL, NULL, &time) == S_OK)
+      {
+! 	// Delete the decendents of this child
+  	RecursiveDeleteKey(hKeyChild, buffer);
+  	size = 256;
+      }
+--- 663,669 ----
+      while (RegEnumKeyEx(hKeyChild, 0, buffer, &size, NULL,
+  			NULL, NULL, &time) == S_OK)
+      {
+! 	// Delete the descendants of this child
+  	RecursiveDeleteKey(hKeyChild, buffer);
+  	size = 256;
+      }
+*** ../vim-7.3.924/src/if_perl.xs	2013-03-19 14:25:50.000000000 +0100
+--- src/if_perl.xs	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 657,663 ****
+  
+  /*
+   * perl_win_free
+!  *	Remove all refences to the window to be destroyed
+   */
+      void
+  perl_win_free(wp)
+--- 657,663 ----
+  
+  /*
+   * perl_win_free
+!  *	Remove all references to the window to be destroyed
+   */
+      void
+  perl_win_free(wp)
+*** ../vim-7.3.924/src/if_py_both.h	2013-05-06 03:52:44.000000000 +0200
+--- src/if_py_both.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 2160,2166 ****
+      static int
+  SetBufferLine(buf_T *buf, PyInt n, PyObject *line, PyInt *len_change)
+  {
+!     /* First of all, we check the thpe of the supplied Python object.
+       * There are three cases:
+       *	  1. NULL, or None - this is a deletion.
+       *	  2. A string	   - this is a replacement.
+--- 2160,2166 ----
+      static int
+  SetBufferLine(buf_T *buf, PyInt n, PyObject *line, PyInt *len_change)
+  {
+!     /* First of all, we check the type of the supplied Python object.
+       * There are three cases:
+       *	  1. NULL, or None - this is a deletion.
+       *	  2. A string	   - this is a replacement.
+***************
+*** 2251,2257 ****
+      static int
+  SetBufferLineList(buf_T *buf, PyInt lo, PyInt hi, PyObject *list, PyInt *len_change)
+  {
+!     /* First of all, we check the thpe of the supplied Python object.
+       * There are three cases:
+       *	  1. NULL, or None - this is a deletion.
+       *	  2. A list	   - this is a replacement.
+--- 2251,2257 ----
+      static int
+  SetBufferLineList(buf_T *buf, PyInt lo, PyInt hi, PyObject *list, PyInt *len_change)
+  {
+!     /* First of all, we check the type of the supplied Python object.
+       * There are three cases:
+       *	  1. NULL, or None - this is a deletion.
+       *	  2. A list	   - this is a replacement.
+***************
+*** 2428,2434 ****
+      }
+  }
+  
+! /* Insert a number of lines into the specified buffer after the specifed line.
+   * The line number is in Vim format (1-based). The lines to be inserted are
+   * given as a Python list of string objects or as a single string. The lines
+   * to be added are checked for validity and correct format. Errors are
+--- 2428,2434 ----
+      }
+  }
+  
+! /* Insert a number of lines into the specified buffer after the specified line.
+   * The line number is in Vim format (1-based). The lines to be inserted are
+   * given as a Python list of string objects or as a single string. The lines
+   * to be added are checked for validity and correct format. Errors are
+***************
+*** 2819,2825 ****
+  	return NULL;
+      }
+  
+!     /* Ckeck for keyboard interrupt */
+      if (VimErrorCheck())
+  	return NULL;
+  
+--- 2819,2825 ----
+  	return NULL;
+      }
+  
+!     /* Check for keyboard interrupt */
+      if (VimErrorCheck())
+  	return NULL;
+  
+*** ../vim-7.3.924/src/if_python.c	2013-05-06 03:52:44.000000000 +0200
+--- src/if_python.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 773,779 ****
+  
+  	/* Remove the element from sys.path that was added because of our
+  	 * argv[0] value in PythonMod_Init().  Previously we used an empty
+! 	 * string, but dependinding on the OS we then get an empty entry or
+  	 * the current directory in sys.path. */
+  	PyRun_SimpleString("import sys; sys.path = filter(lambda x: x != '/must>not&exist', sys.path)");
+  
+--- 773,779 ----
+  
+  	/* Remove the element from sys.path that was added because of our
+  	 * argv[0] value in PythonMod_Init().  Previously we used an empty
+! 	 * string, but depending on the OS we then get an empty entry or
+  	 * the current directory in sys.path. */
+  	PyRun_SimpleString("import sys; sys.path = filter(lambda x: x != '/must>not&exist', sys.path)");
+  
+*** ../vim-7.3.924/src/if_python3.c	2013-05-06 03:52:44.000000000 +0200
+--- src/if_python3.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 766,772 ****
+  
+  	/* Remove the element from sys.path that was added because of our
+  	 * argv[0] value in Py3Init_vim().  Previously we used an empty
+! 	 * string, but dependinding on the OS we then get an empty entry or
+  	 * the current directory in sys.path.
+  	 * Only after vim has been imported, the element does exist in
+  	 * sys.path.
+--- 766,772 ----
+  
+  	/* Remove the element from sys.path that was added because of our
+  	 * argv[0] value in Py3Init_vim().  Previously we used an empty
+! 	 * string, but depending on the OS we then get an empty entry or
+  	 * the current directory in sys.path.
+  	 * Only after vim has been imported, the element does exist in
+  	 * sys.path.
+*** ../vim-7.3.924/src/if_ruby.c	2013-04-14 16:18:52.000000000 +0200
+--- src/if_ruby.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 113,119 ****
+  #endif
+  
+  /*
+!  * Backward compatiblity for Ruby 1.8 and earlier.
+   * Ruby 1.9 does not provide STR2CSTR, instead StringValuePtr is provided.
+   * Ruby 1.9 does not provide RXXX(s)->len and RXXX(s)->ptr, instead
+   * RXXX_LEN(s) and RXXX_PTR(s) are provided.
+--- 113,119 ----
+  #endif
+  
+  /*
+!  * Backward compatibility for Ruby 1.8 and earlier.
+   * Ruby 1.9 does not provide STR2CSTR, instead StringValuePtr is provided.
+   * Ruby 1.9 does not provide RXXX(s)->len and RXXX(s)->ptr, instead
+   * RXXX_LEN(s) and RXXX_PTR(s) are provided.
+***************
+*** 1333,1339 ****
+      rb_global_variable(&objtbl);
+  
+      /* The Vim module used to be called "VIM", but "Vim" is better.  Make an
+!      * alias "VIM" for backwards compatiblity. */
+      mVIM = rb_define_module("Vim");
+      rb_define_const(rb_cObject, "VIM", mVIM);
+      rb_define_const(mVIM, "VERSION_MAJOR", INT2NUM(VIM_VERSION_MAJOR));
+--- 1333,1339 ----
+      rb_global_variable(&objtbl);
+  
+      /* The Vim module used to be called "VIM", but "Vim" is better.  Make an
+!      * alias "VIM" for backwards compatibility. */
+      mVIM = rb_define_module("Vim");
+      rb_define_const(rb_cObject, "VIM", mVIM);
+      rb_define_const(mVIM, "VERSION_MAJOR", INT2NUM(VIM_VERSION_MAJOR));
+*** ../vim-7.3.924/src/main.aap	2010-08-15 21:57:28.000000000 +0200
+--- src/main.aap	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1213,1221 ****
+      :move gui_mac.rsrc.rsrcfork $(RESDIR)/$(VIMNAME).rsrc
+  
+  # po/Make_osx.pl says something about generating a Mac message file
+! # for Ukrananian.  Would somebody using Mac OS X in Ukranian
+  # *really* be upset that Carbon Vim was not localised in
+! # Ukranian?
+  #
+  #bundle-language: bundle-dir po/Make_osx.pl
+  #	cd po && perl Make_osx.pl --outdir ../$(RESDIR) $(MULTILANG)
+--- 1213,1221 ----
+      :move gui_mac.rsrc.rsrcfork $(RESDIR)/$(VIMNAME).rsrc
+  
+  # po/Make_osx.pl says something about generating a Mac message file
+! # for Ukrainian.  Would somebody using Mac OS X in Ukrainian
+  # *really* be upset that Carbon Vim was not localised in
+! # Ukrainian?
+  #
+  #bundle-language: bundle-dir po/Make_osx.pl
+  #	cd po && perl Make_osx.pl --outdir ../$(RESDIR) $(MULTILANG)
+*** ../vim-7.3.924/src/mbyte.c	2013-02-26 14:56:24.000000000 +0100
+--- src/mbyte.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 903,909 ****
+  {
+      switch (enc_dbcs)
+      {
+! 	/* please add classfy routine for your language in here */
+  
+  	case DBCS_JPNU:	/* ? */
+  	case DBCS_JPN:
+--- 903,909 ----
+  {
+      switch (enc_dbcs)
+      {
+! 	/* please add classify routine for your language in here */
+  
+  	case DBCS_JPNU:	/* ? */
+  	case DBCS_JPN:
+***************
+*** 1003,1009 ****
+  		 * 26 : Box Drawings
+  		 * 27 : Unit Symbols
+  		 * 28 : Circled/Parenthesized Letter
+! 		 * 29 : Hirigana/Katakana
+  		 * 30 : Cyrillic Letter
+  		 */
+  
+--- 1003,1009 ----
+  		 * 26 : Box Drawings
+  		 * 27 : Unit Symbols
+  		 * 28 : Circled/Parenthesized Letter
+! 		 * 29 : Hiragana/Katakana
+  		 * 30 : Cyrillic Letter
+  		 */
+  
+***************
+*** 1054,1060 ****
+  			    return 28;
+  		    case 0xAA:
+  		    case 0xAB:
+! 			/* Hirigana/Katakana */
+  			return 29;
+  		    case 0xAC:
+  			/* Cyrillic Letter */
+--- 1054,1060 ----
+  			    return 28;
+  		    case 0xAA:
+  		    case 0xAB:
+! 			/* Hiragana/Katakana */
+  			return 29;
+  		    case 0xAC:
+  			/* Cyrillic Letter */
+***************
+*** 4599,4605 ****
+      }
+  
+      /* The thing which setting "preedit_start_col" to MAXCOL means that
+!      * "preedit_start_col" will be set forcely when calling
+       * preedit_changed_cb() next time.
+       * "preedit_start_col" should not reset with MAXCOL on this part. Vim
+       * is simulating the preediting by using add_to_input_str(). when
+--- 4599,4605 ----
+      }
+  
+      /* The thing which setting "preedit_start_col" to MAXCOL means that
+!      * "preedit_start_col" will be set forcedly when calling
+       * preedit_changed_cb() next time.
+       * "preedit_start_col" should not reset with MAXCOL on this part. Vim
+       * is simulating the preediting by using add_to_input_str(). when
+*** ../vim-7.3.924/src/memfile.c	2011-05-10 16:41:13.000000000 +0200
+--- src/memfile.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 628,634 ****
+  	 * sync from the system itself).
+  	 */
+  #  if defined(__EMX__)
+!    error "Dont use fsync with EMX! Read emxdoc.doc or emxfix01.doc for info."
+  #  endif
+  	if (STRCMP(p_sws, "fsync") == 0)
+  	{
+--- 628,634 ----
+  	 * sync from the system itself).
+  	 */
+  #  if defined(__EMX__)
+!    error "Don't use fsync with EMX! Read emxdoc.doc or emxfix01.doc for info."
+  #  endif
+  	if (STRCMP(p_sws, "fsync") == 0)
+  	{
+***************
+*** 1075,1081 ****
+  	if (nr > mfp->mf_infile_count)		/* beyond end of file */
+  	{
+  	    nr = mfp->mf_infile_count;
+! 	    hp2 = mf_find_hash(mfp, nr);	/* NULL catched below */
+  	}
+  	else
+  	    hp2 = hp;
+--- 1075,1081 ----
+  	if (nr > mfp->mf_infile_count)		/* beyond end of file */
+  	{
+  	    nr = mfp->mf_infile_count;
+! 	    hp2 = mf_find_hash(mfp, nr);	/* NULL caught below */
+  	}
+  	else
+  	    hp2 = hp;
+***************
+*** 1184,1190 ****
+      {
+  	new_bnum = freep->bh_bnum;
+  	/*
+! 	 * If the page count of the free block was larger, recude it.
+  	 * If the page count matches, remove the block from the free list
+  	 */
+  	if (freep->bh_page_count > page_count)
+--- 1184,1190 ----
+      {
+  	new_bnum = freep->bh_bnum;
+  	/*
+! 	 * If the page count of the free block was larger, reduce it.
+  	 * If the page count matches, remove the block from the free list
+  	 */
+  	if (freep->bh_page_count > page_count)
+***************
+*** 1309,1315 ****
+      mf_set_ffname(mfp);
+  #if defined(MSDOS) || defined(MSWIN)
+      /*
+!      * A ":!cd e:xxx" may change the directory without us knowning, use the
+       * full pathname always.  Careful: This frees fname!
+       */
+      mf_fullname(mfp);
+--- 1309,1315 ----
+      mf_set_ffname(mfp);
+  #if defined(MSDOS) || defined(MSWIN)
+      /*
+!      * A ":!cd e:xxx" may change the directory without us knowing, use the
+       * full pathname always.  Careful: This frees fname!
+       */
+      mf_fullname(mfp);
+*** ../vim-7.3.924/src/memline.c	2012-10-03 18:24:55.000000000 +0200
+--- src/memline.c	2013-05-06 04:01:02.000000000 +0200
+***************
+*** 3141,3147 ****
+  	   )
+  	    set_keep_msg((char_u *)_(no_lines_msg), 0);
+  
+! 	/* FEAT_BYTEOFF already handled in there, dont worry 'bout it below */
+  	i = ml_replace((linenr_T)1, (char_u *)"", TRUE);
+  	buf->b_ml.ml_flags |= ML_EMPTY;
+  
+--- 3141,3147 ----
+  	   )
+  	    set_keep_msg((char_u *)_(no_lines_msg), 0);
+  
+! 	/* FEAT_BYTEOFF already handled in there, don't worry 'bout it below */
+  	i = ml_replace((linenr_T)1, (char_u *)"", TRUE);
+  	buf->b_ml.ml_flags |= ML_EMPTY;
+  
+*** ../vim-7.3.924/src/misc1.c	2013-05-04 03:40:22.000000000 +0200
+--- src/misc1.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1654,1660 ****
+  	    if (vim_iswhite(string[0]))
+  	    {
+  		if (i == 0 || !vim_iswhite(line[i - 1]))
+! 		    continue;  /* missing shite space */
+  		while (vim_iswhite(string[0]))
+  		    ++string;
+  	    }
+--- 1654,1660 ----
+  	    if (vim_iswhite(string[0]))
+  	    {
+  		if (i == 0 || !vim_iswhite(line[i - 1]))
+! 		    continue;  /* missing white space */
+  		while (vim_iswhite(string[0]))
+  		    ++string;
+  	    }
+*** ../vim-7.3.924/src/misc2.c	2013-04-12 14:42:35.000000000 +0200
+--- src/misc2.c	2013-05-06 03:59:29.000000000 +0200
+***************
+*** 2907,2913 ****
+      int	modifiers = *modp;
+  
+  #ifdef MACOS
+!     /* Command-key really special, No fancynest */
+      if (!(modifiers & MOD_MASK_CMD))
+  #endif
+      if ((modifiers & MOD_MASK_SHIFT) && ASCII_ISALPHA(key))
+--- 2907,2913 ----
+      int	modifiers = *modp;
+  
+  #ifdef MACOS
+!     /* Command-key really special, no fancynest */
+      if (!(modifiers & MOD_MASK_CMD))
+  #endif
+      if ((modifiers & MOD_MASK_SHIFT) && ASCII_ISALPHA(key))
+***************
+*** 2934,2940 ****
+  	    key = K_ZERO;
+      }
+  #ifdef MACOS
+!     /* Command-key really special, No fancynest */
+      if (!(modifiers & MOD_MASK_CMD))
+  #endif
+      if ((modifiers & MOD_MASK_ALT) && key < 0x80
+--- 2934,2940 ----
+  	    key = K_ZERO;
+      }
+  #ifdef MACOS
+!     /* Command-key really special, no fancynest */
+      if (!(modifiers & MOD_MASK_CMD))
+  #endif
+      if ((modifiers & MOD_MASK_ALT) && key < 0x80
+*** ../vim-7.3.924/src/nbdebug.c	2010-08-15 21:57:29.000000000 +0200
+--- src/nbdebug.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 17,23 ****
+   * debugging startup problems because gvim will be started automatically from
+   * netbeans and cannot be run directly from a debugger. The only way to debug
+   * a gvim started by netbeans is by attaching a debugger to it. Without this
+!  * tool all starup code will have completed before you can get the pid and
+   * attach.
+   *
+   * The second tool is a log tool.
+--- 17,23 ----
+   * debugging startup problems because gvim will be started automatically from
+   * netbeans and cannot be run directly from a debugger. The only way to debug
+   * a gvim started by netbeans is by attaching a debugger to it. Without this
+!  * tool all startup code will have completed before you can get the pid and
+   * attach.
+   *
+   * The second tool is a log tool.
+*** ../vim-7.3.924/src/normal.c	2013-04-24 18:34:40.000000000 +0200
+--- src/normal.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 2513,2519 ****
+  
+  #ifndef FEAT_VISUAL
+      /*
+!      * ALT is only used for starging/extending Visual mode.
+       */
+      if ((mod_mask & MOD_MASK_ALT))
+  	return FALSE;
+--- 2513,2519 ----
+  
+  #ifndef FEAT_VISUAL
+      /*
+!      * ALT is only used for starting/extending Visual mode.
+       */
+      if ((mod_mask & MOD_MASK_ALT))
+  	return FALSE;
+***************
+*** 5084,5090 ****
+  		}
+  		break;
+  
+! 		/* "zE": erease all folds */
+      case 'E':	if (foldmethodIsManual(curwin))
+  		{
+  		    clearFolding(curwin);
+--- 5084,5090 ----
+  		}
+  		break;
+  
+! 		/* "zE": erase all folds */
+      case 'E':	if (foldmethodIsManual(curwin))
+  		{
+  		    clearFolding(curwin);
+***************
+*** 7465,7471 ****
+      static char_u trans[] = "YyDdCcxdXdAAIIrr";
+  
+      /* Uppercase means linewise, except in block mode, then "D" deletes till
+!      * the end of the line, and "C" replaces til EOL */
+      if (isupper(cap->cmdchar))
+      {
+  	if (VIsual_mode != Ctrl_V)
+--- 7465,7471 ----
+      static char_u trans[] = "YyDdCcxdXdAAIIrr";
+  
+      /* Uppercase means linewise, except in block mode, then "D" deletes till
+!      * the end of the line, and "C" replaces till EOL */
+      if (isupper(cap->cmdchar))
+      {
+  	if (VIsual_mode != Ctrl_V)
+***************
+*** 8804,8810 ****
+  		 * at first, but it's really more what we mean when we say
+  		 * 'cw'.
+  		 * Another strangeness: When standing on the end of a word
+! 		 * "ce" will change until the end of the next wordt, but "cw"
+  		 * will change only one character! This is done by setting
+  		 * flag.
+  		 */
+--- 8804,8810 ----
+  		 * at first, but it's really more what we mean when we say
+  		 * 'cw'.
+  		 * Another strangeness: When standing on the end of a word
+! 		 * "ce" will change until the end of the next word, but "cw"
+  		 * will change only one character! This is done by setting
+  		 * flag.
+  		 */
+***************
+*** 9150,9156 ****
+  		{
+  		    int save_State = State;
+  
+! 		    /* Pretent Insert mode here to allow the cursor on the
+  		     * character past the end of the line */
+  		    State = INSERT;
+  		    coladvance((colnr_T)MAXCOL);
+--- 9150,9156 ----
+  		{
+  		    int save_State = State;
+  
+! 		    /* Pretend Insert mode here to allow the cursor on the
+  		     * character past the end of the line */
+  		    State = INSERT;
+  		    coladvance((colnr_T)MAXCOL);
+***************
+*** 9189,9195 ****
+  	{
+  	    int save_State = State;
+  
+! 	    /* Pretent Insert mode here to allow the cursor on the
+  	     * character past the end of the line */
+  	    State = INSERT;
+  	    coladvance(getviscol());
+--- 9189,9195 ----
+  	{
+  	    int save_State = State;
+  
+! 	    /* Pretend Insert mode here to allow the cursor on the
+  	     * character past the end of the line */
+  	    State = INSERT;
+  	    coladvance(getviscol());
+*** ../vim-7.3.924/src/ops.c	2013-03-13 17:50:20.000000000 +0100
+--- src/ops.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 398,404 ****
+  #ifdef FEAT_RIGHTLEFT
+      int			old_p_ri = p_ri;
+  
+!     p_ri = 0;			/* don't want revins in ident */
+  #endif
+  
+      State = INSERT;		/* don't want REPLACE for State */
+--- 398,404 ----
+  #ifdef FEAT_RIGHTLEFT
+      int			old_p_ri = p_ri;
+  
+!     p_ri = 0;			/* don't want revins in indent */
+  #endif
+  
+      State = INSERT;		/* don't want REPLACE for State */
+*** ../vim-7.3.924/src/os_amiga.c	2012-11-20 16:53:34.000000000 +0100
+--- src/os_amiga.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 118,124 ****
+  }
+  
+  /*
+!  * mch_inchar(): low level input funcion.
+   * Get a characters from the keyboard.
+   * If time == 0 do not wait for characters.
+   * If time == n wait a short time for characters.
+--- 118,124 ----
+  }
+  
+  /*
+!  * mch_inchar(): low level input function.
+   * Get a characters from the keyboard.
+   * If time == 0 do not wait for characters.
+   * If time == n wait a short time for characters.
+*** ../vim-7.3.924/src/os_mac.h	2010-08-15 21:57:32.000000000 +0200
+--- src/os_mac.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 45,51 ****
+  /* Get stat.h or something similar. Comment: How come some OS get in in vim.h */
+  # include <sys/stat.h>
+  /* && defined(HAVE_CURSE) */
+! /* The curses.h from MacOS X provides by default some BACKWARD compatibilty
+   * definition which can cause us problem later on. So we undefine a few of them. */
+  # include <curses.h>
+  # undef reg
+--- 45,51 ----
+  /* Get stat.h or something similar. Comment: How come some OS get in in vim.h */
+  # include <sys/stat.h>
+  /* && defined(HAVE_CURSE) */
+! /* The curses.h from MacOS X provides by default some BACKWARD compatibility
+   * definition which can cause us problem later on. So we undefine a few of them. */
+  # include <curses.h>
+  # undef reg
+*** ../vim-7.3.924/src/os_msdos.c	2012-11-20 16:53:34.000000000 +0100
+--- src/os_msdos.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 702,708 ****
+   * If Vim should work over the serial line after a 'ctty com1' we must use
+   * kbhit() and getch(). (jw)
+   * Usually kbhit() is not used, because then CTRL-C and CTRL-P
+!  * will be catched by DOS (mool).
+   *
+   * return TRUE if a character is available, FALSE otherwise
+   */
+--- 702,708 ----
+   * If Vim should work over the serial line after a 'ctty com1' we must use
+   * kbhit() and getch(). (jw)
+   * Usually kbhit() is not used, because then CTRL-C and CTRL-P
+!  * will be caught by DOS (mool).
+   *
+   * return TRUE if a character is available, FALSE otherwise
+   */
+***************
+*** 971,977 ****
+  }
+  
+  /*
+!  * mch_inchar(): low level input funcion.
+   * Get a characters from the keyboard.
+   * If time == 0 do not wait for characters.
+   * If time == n wait a short time for characters.
+--- 971,977 ----
+  }
+  
+  /*
+!  * mch_inchar(): low level input function.
+   * Get a characters from the keyboard.
+   * If time == 0 do not wait for characters.
+   * If time == n wait a short time for characters.
+***************
+*** 993,999 ****
+  
+      /*
+       * if we got a ctrl-C when we were busy, there will be a "^C" somewhere
+!      * on the sceen, so we need to redisplay it.
+       */
+      if (delayed_redraw)
+      {
+--- 993,999 ----
+  
+      /*
+       * if we got a ctrl-C when we were busy, there will be a "^C" somewhere
+!      * on the screen, so we need to redisplay it.
+       */
+      if (delayed_redraw)
+      {
+***************
+*** 1745,1751 ****
+  mch_setmouse(int on)
+  {
+      mouse_active = on;
+!     mouse_hidden = TRUE;	/* dont show it until moved */
+  }
+  #endif
+  
+--- 1745,1751 ----
+  mch_setmouse(int on)
+  {
+      mouse_active = on;
+!     mouse_hidden = TRUE;	/* don't show it until moved */
+  }
+  #endif
+  
+***************
+*** 2438,2444 ****
+      long    start_time;
+      int	    tick_count;
+  
+!     /* int 02xf, AX = 0x1701 attempts to open the Windows clipboard.  Upon
+       * return from the interrupt, if AX is non-zero, the clipboard was
+       * successfully opened.  If AX is zero, the clipboard could not be opened
+       * because it is currently in use by another process.
+--- 2438,2444 ----
+      long    start_time;
+      int	    tick_count;
+  
+!     /* int 0x2f, AX = 0x1701 attempts to open the Windows clipboard.  Upon
+       * return from the interrupt, if AX is non-zero, the clipboard was
+       * successfully opened.  If AX is zero, the clipboard could not be opened
+       * because it is currently in use by another process.
+***************
+*** 2533,2539 ****
+  {
+      __dpmi_regs  dpmi_regs;
+  
+!     /* int 02xf, AX = 0x1702 attempts to empty the Windows clipboard.  Upon
+       * return from the interrupt, if AX == 0, the clipboard could not be
+       * emptied (for some reason).
+       */
+--- 2533,2539 ----
+  {
+      __dpmi_regs  dpmi_regs;
+  
+!     /* int 0x2f, AX = 0x1702 attempts to empty the Windows clipboard.  Upon
+       * return from the interrupt, if AX == 0, the clipboard could not be
+       * emptied (for some reason).
+       */
+***************
+*** 2616,2622 ****
+      case CF_TEXT:		    /* Windows text */
+      case CF_OEMTEXT:		    /* DOS (OEM) text */
+  
+! 	/* int 02xf, AX = 0x1704 returns the number of bytes of data currently
+  	 * on the Windows clipboard, for the specified format.  Upon return
+  	 * from the interrupt, DX:AX = the number of bytes, rounded up to the
+  	 * nearest multiple of 32.
+--- 2616,2622 ----
+      case CF_TEXT:		    /* Windows text */
+      case CF_OEMTEXT:		    /* DOS (OEM) text */
+  
+! 	/* int 0x2f, AX = 0x1704 returns the number of bytes of data currently
+  	 * on the Windows clipboard, for the specified format.  Upon return
+  	 * from the interrupt, DX:AX = the number of bytes, rounded up to the
+  	 * nearest multiple of 32.
+***************
+*** 2820,2826 ****
+  	clip_data_size);		/* how many bytes to copy */
+  
+      /* Send data from the DOS transfer buffer to the Windows clipboard.
+!      * int 02xf, AX = 0x1703 sends SI:CX bytes of data from the buffer
+       * at ES:BX, to the clipboard.
+       */
+      dpmi_regs.x.ax = 0x1703;			/* send clipboard data */
+--- 2820,2826 ----
+  	clip_data_size);		/* how many bytes to copy */
+  
+      /* Send data from the DOS transfer buffer to the Windows clipboard.
+!      * int 0x2f, AX = 0x1703 sends SI:CX bytes of data from the buffer
+       * at ES:BX, to the clipboard.
+       */
+      dpmi_regs.x.ax = 0x1703;			/* send clipboard data */
+*** ../vim-7.3.924/src/os_mswin.c	2013-03-19 14:48:25.000000000 +0100
+--- src/os_mswin.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1794,1800 ****
+   *
+   * So we create a hidden window, and arrange to destroy it on exit.
+   */
+! HWND message_window = 0;	    /* window that's handling messsages */
+  
+  #define VIM_CLASSNAME      "VIM_MESSAGES"
+  #define VIM_CLASSNAME_LEN  (sizeof(VIM_CLASSNAME) - 1)
+--- 1794,1800 ----
+   *
+   * So we create a hidden window, and arrange to destroy it on exit.
+   */
+! HWND message_window = 0;	    /* window that's handling messages */
+  
+  #define VIM_CLASSNAME      "VIM_MESSAGES"
+  #define VIM_CLASSNAME_LEN  (sizeof(VIM_CLASSNAME) - 1)
+***************
+*** 1857,1863 ****
+  
+  static int save_reply(HWND server, char_u *reply, int expr);
+  
+! /*s
+   * The window procedure for the hidden message window.
+   * It handles callback messages and notifications from servers.
+   * In order to process these messages, it is necessary to run a
+--- 1857,1863 ----
+  
+  static int save_reply(HWND server, char_u *reply, int expr);
+  
+! /*
+   * The window procedure for the hidden message window.
+   * It handles callback messages and notifications from servers.
+   * In order to process these messages, it is necessary to run a
+***************
+*** 2603,2609 ****
+  
+      ReleaseDC(hwnd, hdc);
+  
+!     /* If we couldn't find a useable font, return failure */
+      if (n == 1)
+  	return FAIL;
+  
+--- 2603,2609 ----
+  
+      ReleaseDC(hwnd, hdc);
+  
+!     /* If we couldn't find a usable font, return failure */
+      if (n == 1)
+  	return FAIL;
+  
+*** ../vim-7.3.924/src/os_win16.h	2012-11-20 16:53:34.000000000 +0100
+--- src/os_win16.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 50,56 ****
+  #endif
+  
+  /* toupper() is not really broken, but it's very slow.	Probably because of
+!  * using unicde characters on Windows NT */
+  #define BROKEN_TOUPPER
+  
+  #define FNAME_ILLEGAL "\"*?><|" /* illegal characters in a file name */
+--- 50,56 ----
+  #endif
+  
+  /* toupper() is not really broken, but it's very slow.	Probably because of
+!  * using unicode characters on Windows NT */
+  #define BROKEN_TOUPPER
+  
+  #define FNAME_ILLEGAL "\"*?><|" /* illegal characters in a file name */
+*** ../vim-7.3.924/src/os_win32.c	2013-03-19 14:48:25.000000000 +0100
+--- src/os_win32.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 161,167 ****
+  
+  #ifndef PROTO
+  
+! /* Enable common dialogs input unicode from IME if posible. */
+  #ifdef FEAT_MBYTE
+  LRESULT (WINAPI *pDispatchMessage)(CONST MSG *) = DispatchMessage;
+  BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT) = GetMessage;
+--- 161,167 ----
+  
+  #ifndef PROTO
+  
+! /* Enable common dialogs input unicode from IME if possible. */
+  #ifdef FEAT_MBYTE
+  LRESULT (WINAPI *pDispatchMessage)(CONST MSG *) = DispatchMessage;
+  BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT) = GetMessage;
+***************
+*** 1032,1038 ****
+  	    DWORD dwLR = (pmer->dwButtonState & LEFT_RIGHT);
+  
+  	    /* if either left or right button only is pressed, see if the
+! 	     * the next mouse event has both of them pressed */
+  	    if (dwLR == LEFT || dwLR == RIGHT)
+  	    {
+  		for (;;)
+--- 1032,1038 ----
+  	    DWORD dwLR = (pmer->dwButtonState & LEFT_RIGHT);
+  
+  	    /* if either left or right button only is pressed, see if the
+! 	     * next mouse event has both of them pressed */
+  	    if (dwLR == LEFT || dwLR == RIGHT)
+  	    {
+  		for (;;)
+*** ../vim-7.3.924/src/os_win32.h	2013-03-19 14:48:25.000000000 +0100
+--- src/os_win32.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 201,207 ****
+  
+  #ifndef PROTO
+  
+! /* Enable common dialogs input unicode from IME if posible. */
+  #ifdef FEAT_MBYTE
+      /* The variables are defined in os_win32.c. */
+  extern LRESULT (WINAPI *pDispatchMessage)(CONST MSG *);
+--- 201,207 ----
+  
+  #ifndef PROTO
+  
+! /* Enable common dialogs input unicode from IME if possible. */
+  #ifdef FEAT_MBYTE
+      /* The variables are defined in os_win32.c. */
+  extern LRESULT (WINAPI *pDispatchMessage)(CONST MSG *);
+*** ../vim-7.3.924/src/quickfix.c	2013-03-07 16:32:49.000000000 +0100
+--- src/quickfix.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 3235,3241 ****
+      mch_dirname(dirname_start, MAXPATHL);
+  
+  #ifdef FEAT_AUTOCMD
+!      /* Remeber the value of qf_start, so that we can check for autocommands
+        * changing the current quickfix list. */
+      cur_qf_start = qi->qf_lists[qi->qf_curlist].qf_start;
+  #endif
+--- 3235,3241 ----
+      mch_dirname(dirname_start, MAXPATHL);
+  
+  #ifdef FEAT_AUTOCMD
+!      /* Remember the value of qf_start, so that we can check for autocommands
+        * changing the current quickfix list. */
+      cur_qf_start = qi->qf_lists[qi->qf_curlist].qf_start;
+  #endif
+*** ../vim-7.3.924/src/screen.c	2013-02-13 12:15:59.000000000 +0100
+--- src/screen.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 4044,4050 ****
+  
+  		/* If a double-width char doesn't fit at the left side display
+  		 * a '<' in the first column.  Don't do this for unprintable
+! 		 * charactes. */
+  		if (n_skip > 0 && mb_l > 1 && n_extra == 0)
+  		{
+  		    n_extra = 1;
+--- 4044,4050 ----
+  
+  		/* If a double-width char doesn't fit at the left side display
+  		 * a '<' in the first column.  Don't do this for unprintable
+! 		 * characters. */
+  		if (n_skip > 0 && mb_l > 1 && n_extra == 0)
+  		{
+  		    n_extra = 1;
+*** ../vim-7.3.924/src/search.c	2013-04-03 21:14:25.000000000 +0200
+--- src/search.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 73,79 ****
+  {
+      char_u	    *pat;	/* the pattern (in allocated memory) or NULL */
+      int		    magic;	/* magicness of the pattern */
+!     int		    no_scs;	/* no smarcase for this pattern */
+      struct soffset  off;
+  };
+  
+--- 73,79 ----
+  {
+      char_u	    *pat;	/* the pattern (in allocated memory) or NULL */
+      int		    magic;	/* magicness of the pattern */
+!     int		    no_scs;	/* no smartcase for this pattern */
+      struct soffset  off;
+  };
+  
+***************
+*** 3546,3552 ****
+  
+  /*
+   * Find block under the cursor, cursor at end.
+!  * "what" and "other" are two matching parenthesis/paren/etc.
+   */
+      int
+  current_block(oap, count, include, what, other)
+--- 3546,3552 ----
+  
+  /*
+   * Find block under the cursor, cursor at end.
+!  * "what" and "other" are two matching parenthesis/brace/etc.
+   */
+      int
+  current_block(oap, count, include, what, other)
+*** ../vim-7.3.924/src/spell.c	2012-06-29 12:57:03.000000000 +0200
+--- src/spell.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 4228,4234 ****
+      ga_init2(&ga, sizeof(langp_T), 2);
+      clear_midword(wp);
+  
+!     /* Make a copy of 'spellang', the SpellFileMissing autocommands may change
+       * it under our fingers. */
+      spl_copy = vim_strsave(wp->w_s->b_p_spl);
+      if (spl_copy == NULL)
+--- 4228,4234 ----
+      ga_init2(&ga, sizeof(langp_T), 2);
+      clear_midword(wp);
+  
+!     /* Make a copy of 'spelllang', the SpellFileMissing autocommands may change
+       * it under our fingers. */
+      spl_copy = vim_strsave(wp->w_s->b_p_spl);
+      if (spl_copy == NULL)
+***************
+*** 7645,7651 ****
+  
+  	/* Compress both trees.  Either they both have many nodes, which makes
+  	 * compression useful, or one of them is small, which means
+! 	 * compression goes fast.  But when filling the souldfold word tree
+  	 * there is no keep-case tree. */
+  	wordtree_compress(spin, spin->si_foldroot);
+  	if (affixID >= 0)
+--- 7645,7651 ----
+  
+  	/* Compress both trees.  Either they both have many nodes, which makes
+  	 * compression useful, or one of them is small, which means
+! 	 * compression goes fast.  But when filling the soundfold word tree
+  	 * there is no keep-case tree. */
+  	wordtree_compress(spin, spin->si_foldroot);
+  	if (affixID >= 0)
+***************
+*** 8671,8677 ****
+      unsigned	words_done = 0;
+      int		wordcount[MAXWLEN];
+  
+!     /* We use si_foldroot for the souldfolded trie. */
+      spin->si_foldroot = wordtree_alloc(spin);
+      if (spin->si_foldroot == NULL)
+  	return FAIL;
+--- 8671,8677 ----
+      unsigned	words_done = 0;
+      int		wordcount[MAXWLEN];
+  
+!     /* We use si_foldroot for the soundfolded trie. */
+      spin->si_foldroot = wordtree_alloc(spin);
+      if (spin->si_foldroot == NULL)
+  	return FAIL;
+***************
+*** 13019,13025 ****
+  
+  /*
+   * Combine the list of suggestions in su->su_ga and su->su_sga.
+!  * They are intwined.
+   */
+      static void
+  score_combine(su)
+--- 13019,13025 ----
+  
+  /*
+   * Combine the list of suggestions in su->su_ga and su->su_sga.
+!  * They are entwined.
+   */
+      static void
+  score_combine(su)
+***************
+*** 13457,13463 ****
+  
+  		/* Add a small penalty for changing the first letter from
+  		 * lower to upper case.  Helps for "tath" -> "Kath", which is
+! 		 * less common thatn "tath" -> "path".  Don't do it when the
+  		 * letter is the same, that has already been counted. */
+  		gc = PTR2CHAR(p);
+  		if (SPELL_ISUPPER(gc))
+--- 13457,13463 ----
+  
+  		/* Add a small penalty for changing the first letter from
+  		 * lower to upper case.  Helps for "tath" -> "Kath", which is
+! 		 * less common than "tath" -> "path".  Don't do it when the
+  		 * letter is the same, that has already been counted. */
+  		gc = PTR2CHAR(p);
+  		if (SPELL_ISUPPER(gc))
+*** ../vim-7.3.924/src/structs.h	2013-04-15 12:27:30.000000000 +0200
+--- src/structs.h	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 1215,1221 ****
+  #ifdef FEAT_SYN_HL
+      hashtab_T	b_keywtab;		/* syntax keywords hash table */
+      hashtab_T	b_keywtab_ic;		/* idem, ignore case */
+!     int		b_syn_error;		/* TRUE when error occured in HL */
+      int		b_syn_ic;		/* ignore case for :syn cmds */
+      int		b_syn_spell;		/* SYNSPL_ values */
+      garray_T	b_syn_patterns;		/* table for syntax patterns */
+--- 1215,1221 ----
+  #ifdef FEAT_SYN_HL
+      hashtab_T	b_keywtab;		/* syntax keywords hash table */
+      hashtab_T	b_keywtab_ic;		/* idem, ignore case */
+!     int		b_syn_error;		/* TRUE when error occurred in HL */
+      int		b_syn_ic;		/* ignore case for :syn cmds */
+      int		b_syn_spell;		/* SYNSPL_ values */
+      garray_T	b_syn_patterns;		/* table for syntax patterns */
+*** ../vim-7.3.924/src/syntax.c	2013-05-04 03:42:30.000000000 +0200
+--- src/syntax.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 6069,6075 ****
+      static int	depth = 0;
+      int		r;
+  
+!     /* If spp has a "containedin" list and "cur_si" is in it, return TRUE. */
+      if (cur_si != NULL && ssp->cont_in_list != NULL
+  					    && !(cur_si->si_flags & HL_MATCH))
+      {
+--- 6069,6075 ----
+      static int	depth = 0;
+      int		r;
+  
+!     /* If ssp has a "containedin" list and "cur_si" is in it, return TRUE. */
+      if (cur_si != NULL && ssp->cont_in_list != NULL
+  					    && !(cur_si->si_flags & HL_MATCH))
+      {
+*** ../vim-7.3.924/src/window.c	2013-04-15 15:55:15.000000000 +0200
+--- src/window.c	2013-05-06 04:06:04.000000000 +0200
+***************
+*** 3687,3693 ****
+  
+  /*
+   * Prepare for leaving the current tab page.
+!  * When autocomands change "curtab" we don't leave the tab page and return
+   * FAIL.
+   * Careful: When OK is returned need to get a new tab page very very soon!
+   */
+--- 3687,3693 ----
+  
+  /*
+   * Prepare for leaving the current tab page.
+!  * When autocommands change "curtab" we don't leave the tab page and return
+   * FAIL.
+   * Careful: When OK is returned need to get a new tab page very very soon!
+   */
+*** ../vim-7.3.924/vimtutor.com	2010-08-15 21:57:32.000000000 +0200
+--- vimtutor.com	2013-05-06 04:04:07.000000000 +0200
+***************
+*** 30,36 ****
+  $ !
+  $	if f$search ("vim:vim.exe") .eqs. ""
+  $	then
+! $	    write sys$error "Error - Can't run tutoral. VIM not found."
+  $	    exit
+  $	endif
+  $ !
+--- 30,36 ----
+  $ !
+  $	if f$search ("vim:vim.exe") .eqs. ""
+  $	then
+! $	    write sys$error "Error - Can't run tutorial. VIM not found."
+  $	    exit
+  $	endif
+  $ !
+*** ../vim-7.3.924/src/version.c	2013-05-06 03:52:44.000000000 +0200
+--- src/version.c	2013-05-06 04:03:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     925,
+  /**/
+
+-- 
+    A KNIGHT rides into shot and hacks him to the ground.  He rides off.
+    We stay for a moment on the glade.  A MIDDLE-AGED LADY in a C. & A.
+    twin-set emerges from the trees and looks in horror at the body of her
+    HUSBAND.
+MRS HISTORIAN: FRANK!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

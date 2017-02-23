@@ -1,0 +1,285 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1085
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1085
+Problem:    New regexp engine: Non-greedy multi doesn't work.
+Solution:   Implement \{-}.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1084/src/regexp_nfa.c	2013-05-31 23:17:56.000000000 +0200
+--- src/regexp_nfa.c	2013-06-01 12:22:17.000000000 +0200
+***************
+*** 38,46 ****
+  
+      NFA_CONCAT,
+      NFA_OR,
+!     NFA_STAR,
+!     NFA_QUEST,
+!     NFA_QUEST_NONGREEDY,	    /* Non-greedy version of \? */
+      NFA_NOT,			    /* used for [^ab] negated char ranges */
+  
+      NFA_BOL,			    /* ^    Begin line */
+--- 38,47 ----
+  
+      NFA_CONCAT,
+      NFA_OR,
+!     NFA_STAR,			    /* greedy * */
+!     NFA_STAR_NONGREEDY,		    /* non-greedy * */
+!     NFA_QUEST,			    /* greedy \? */
+!     NFA_QUEST_NONGREEDY,	    /* non-greedy \? */
+      NFA_NOT,			    /* used for [^ab] negated char ranges */
+  
+      NFA_BOL,			    /* ^    Begin line */
+***************
+*** 1430,1445 ****
+  	    }
+  	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to
+  	     *  <atom>*  */
+! 	    if (minval == 0 && maxval == MAX_LIMIT && greedy)
+  	    {
+! 		EMIT(NFA_STAR);
+  		break;
+  	    }
+  
+- 	    /* TODO: \{-} doesn't work yet */
+- 	    if (maxval == MAX_LIMIT && !greedy)
+- 		return FAIL;
+- 
+  	    /* Special case: x{0} or x{-0} */
+  	    if (maxval == 0)
+  	    {
+--- 1431,1447 ----
+  	    }
+  	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to
+  	     *  <atom>*  */
+! 	    if (minval == 0 && maxval == MAX_LIMIT)
+  	    {
+! 		if (greedy)
+! 		    /* \{}, \{0,} */
+! 		    EMIT(NFA_STAR);
+! 		else
+! 		    /* \{-}, \{-0,} */
+! 		    EMIT(NFA_STAR_NONGREEDY);
+  		break;
+  	    }
+  
+  	    /* Special case: x{0} or x{-0} */
+  	    if (maxval == 0)
+  	    {
+***************
+*** 1470,1476 ****
+  		if (i + 1 > minval)
+  		{
+  		    if (maxval == MAX_LIMIT)
+! 			EMIT(NFA_STAR);
+  		    else
+  			EMIT(quest);
+  		}
+--- 1472,1483 ----
+  		if (i + 1 > minval)
+  		{
+  		    if (maxval == MAX_LIMIT)
+! 		    {
+! 			if (greedy)
+! 			    EMIT(NFA_STAR);
+! 			else
+! 			    EMIT(NFA_STAR_NONGREEDY);
+! 		    }
+  		    else
+  			EMIT(quest);
+  		}
+***************
+*** 1776,1786 ****
+  	case NFA_EOF:		STRCPY(code, "NFA_EOF "); break;
+  	case NFA_BOF:		STRCPY(code, "NFA_BOF "); break;
+  	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
+  	case NFA_NOT:		STRCPY(code, "NFA_NOT "); break;
+  	case NFA_SKIP_CHAR:	STRCPY(code, "NFA_SKIP_CHAR"); break;
+  	case NFA_OR:		STRCPY(code, "NFA_OR"); break;
+- 	case NFA_QUEST:		STRCPY(code, "NFA_QUEST"); break;
+- 	case NFA_QUEST_NONGREEDY: STRCPY(code, "NFA_QUEST_NON_GREEDY"); break;
+  	case NFA_END_NEG_RANGE:	STRCPY(code, "NFA_END_NEG_RANGE"); break;
+  	case NFA_CLASS_ALNUM:	STRCPY(code, "NFA_CLASS_ALNUM"); break;
+  	case NFA_CLASS_ALPHA:	STRCPY(code, "NFA_CLASS_ALPHA"); break;
+--- 1783,1794 ----
+  	case NFA_EOF:		STRCPY(code, "NFA_EOF "); break;
+  	case NFA_BOF:		STRCPY(code, "NFA_BOF "); break;
+  	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
++ 	case NFA_STAR_NONGREEDY: STRCPY(code, "NFA_STAR_NONGREEDY "); break;
++ 	case NFA_QUEST:		STRCPY(code, "NFA_QUEST"); break;
++ 	case NFA_QUEST_NONGREEDY: STRCPY(code, "NFA_QUEST_NON_GREEDY"); break;
+  	case NFA_NOT:		STRCPY(code, "NFA_NOT "); break;
+  	case NFA_SKIP_CHAR:	STRCPY(code, "NFA_SKIP_CHAR"); break;
+  	case NFA_OR:		STRCPY(code, "NFA_OR"); break;
+  	case NFA_END_NEG_RANGE:	STRCPY(code, "NFA_END_NEG_RANGE"); break;
+  	case NFA_CLASS_ALNUM:	STRCPY(code, "NFA_CLASS_ALNUM"); break;
+  	case NFA_CLASS_ALPHA:	STRCPY(code, "NFA_CLASS_ALPHA"); break;
+***************
+*** 2297,2303 ****
+  	    break;
+  
+  	case NFA_STAR:
+! 	    /* Zero or more */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+  		nstate++;
+--- 2305,2311 ----
+  	    break;
+  
+  	case NFA_STAR:
+! 	    /* Zero or more, prefer more */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+  		nstate++;
+***************
+*** 2311,2316 ****
+--- 2319,2339 ----
+  	    PUSH(frag(s, list1(&s->out1)));
+  	    break;
+  
++ 	case NFA_STAR_NONGREEDY:
++ 	    /* Zero or more, prefer zero */
++ 	    if (nfa_calc_size == TRUE)
++ 	    {
++ 		nstate++;
++ 		break;
++ 	    }
++ 	    e = POP();
++ 	    s = new_state(NFA_SPLIT, NULL, e.start);
++ 	    if (s == NULL)
++ 		goto theend;
++ 	    patch(e.out, s);
++ 	    PUSH(frag(s, list1(&s->out)));
++ 	    break;
++ 
+  	case NFA_QUEST:
+  	    /* one or zero atoms=> greedy match */
+  	    if (nfa_calc_size == TRUE)
+*** ../vim-7.3.1084/src/testdir/test64.in	2013-05-31 23:17:56.000000000 +0200
+--- src/testdir/test64.in	2013-06-01 12:29:19.000000000 +0200
+***************
+*** 23,30 ****
+  :call add(tl, [2, 'ab', 'aab', 'ab'])
+  :call add(tl, [2, 'b', 'abcdef', 'b'])
+  :call add(tl, [2, 'bc*', 'abccccdef', 'bcccc'])
+! :call add(tl, [0, 'bc\{-}', 'abccccdef', 'b'])
+! :call add(tl, [0, 'bc\{-}\(d\)', 'abccccdef', 'bccccd', 'd'])
+  :call add(tl, [2, 'bc*', 'abbdef', 'b'])
+  :call add(tl, [2, 'c*', 'ccc', 'ccc'])
+  :call add(tl, [2, 'bc*', 'abdef', 'b'])
+--- 23,30 ----
+  :call add(tl, [2, 'ab', 'aab', 'ab'])
+  :call add(tl, [2, 'b', 'abcdef', 'b'])
+  :call add(tl, [2, 'bc*', 'abccccdef', 'bcccc'])
+! :call add(tl, [2, 'bc\{-}', 'abccccdef', 'b'])
+! :call add(tl, [2, 'bc\{-}\(d\)', 'abccccdef', 'bccccd', 'd'])
+  :call add(tl, [2, 'bc*', 'abbdef', 'b'])
+  :call add(tl, [2, 'c*', 'ccc', 'ccc'])
+  :call add(tl, [2, 'bc*', 'abdef', 'b'])
+***************
+*** 201,216 ****
+  :call add(tl, [2, 'a\{-0}', 'asoiuj', ''])
+  :call add(tl, [2, 'a\{-2}', 'aaaa', 'aa'])
+  :call add(tl, [2, 'a\{-2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, [0, 'a\{-0,}', 'oij sdigfusnf', ''])
+! :call add(tl, [0, 'a\{-0,}', 'aaaaa aa', ''])
+  :call add(tl, [2, 'a\{-2,}', 'sdfiougjdsafg'])
+! :call add(tl, [0, 'a\{-2,}', 'aaaaasfoij ', 'aa'])
+  :call add(tl, [2, 'a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{-,5}', 'abcd', ''])
+  :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+  :" anti-greedy version of 'a*'
+! :call add(tl, [0, 'a\{-}', 'bbbcddiuhfcd', ''])
+! :call add(tl, [0, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+  :"
+  :" Test groups of characters and submatches
+  :call add(tl, [2, '\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+--- 201,216 ----
+  :call add(tl, [2, 'a\{-0}', 'asoiuj', ''])
+  :call add(tl, [2, 'a\{-2}', 'aaaa', 'aa'])
+  :call add(tl, [2, 'a\{-2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, [2, 'a\{-0,}', 'oij sdigfusnf', ''])
+! :call add(tl, [2, 'a\{-0,}', 'aaaaa aa', ''])
+  :call add(tl, [2, 'a\{-2,}', 'sdfiougjdsafg'])
+! :call add(tl, [2, 'a\{-2,}', 'aaaaasfoij ', 'aa'])
+  :call add(tl, [2, 'a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{-,5}', 'abcd', ''])
+  :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+  :" anti-greedy version of 'a*'
+! :call add(tl, [2, 'a\{-}', 'bbbcddiuhfcd', ''])
+! :call add(tl, [2, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+  :"
+  :" Test groups of characters and submatches
+  :call add(tl, [2, '\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+*** ../vim-7.3.1084/src/testdir/test64.ok	2013-05-31 23:17:56.000000000 +0200
+--- src/testdir/test64.ok	2013-06-01 12:29:38.000000000 +0200
+***************
+*** 10,17 ****
+--- 10,19 ----
+  OK 2 - bc*
+  OK 0 - bc\{-}
+  OK 1 - bc\{-}
++ OK 2 - bc\{-}
+  OK 0 - bc\{-}\(d\)
+  OK 1 - bc\{-}\(d\)
++ OK 2 - bc\{-}\(d\)
+  OK 0 - bc*
+  OK 1 - bc*
+  OK 2 - bc*
+***************
+*** 437,449 ****
+--- 439,454 ----
+  OK 2 - a\{-2}
+  OK 0 - a\{-0,}
+  OK 1 - a\{-0,}
++ OK 2 - a\{-0,}
+  OK 0 - a\{-0,}
+  OK 1 - a\{-0,}
++ OK 2 - a\{-0,}
+  OK 0 - a\{-2,}
+  OK 1 - a\{-2,}
+  OK 2 - a\{-2,}
+  OK 0 - a\{-2,}
+  OK 1 - a\{-2,}
++ OK 2 - a\{-2,}
+  OK 0 - a\{-,0}
+  OK 1 - a\{-,0}
+  OK 2 - a\{-,0}
+***************
+*** 455,462 ****
+--- 460,469 ----
+  OK 2 - a\{-,5}
+  OK 0 - a\{-}
+  OK 1 - a\{-}
++ OK 2 - a\{-}
+  OK 0 - a\{-}
+  OK 1 - a\{-}
++ OK 2 - a\{-}
+  OK 0 - \(abc\)*
+  OK 1 - \(abc\)*
+  OK 2 - \(abc\)*
+*** ../vim-7.3.1084/src/version.c	2013-05-31 23:17:56.000000000 +0200
+--- src/version.c	2013-06-01 12:39:01.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1085,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+35. Your husband tells you he's had the beard for 2 months.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

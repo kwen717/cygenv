@@ -1,0 +1,26 @@
+NAME="openssh"
+VERSION="6.4p1"
+RELEASE=1
+CATEGORY="Net"
+REQUIRES="coreutils csih cygrunsrv diffutils editrights gawk grep"
+SUMMARY="The OpenSSH server and client programs"
+DESCRIPTION="OpenSSH is a program for logging into a remote machine and for
+	executing commands on a remote machine.  It can replace rlogin and rsh,
+	providing encrypted communication between two machines."
+HOMEPAGE="http://www.openssh.com/"
+SRC_URI="ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/${P}.tar.gz
+         ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/${P}.tar.gz.asc"
+
+CYGCONF_ARGS="--libexecdir=/usr/sbin \
+	      --with-kerberos5=/usr \
+	      --with-tcp-wrappers \
+	      --with-libedit \
+	      --with-xauth=/usr/bin/xauth \
+	      --disable-strip"
+
+src_install() {
+  cd ${B}
+  cyginstall
+  cd ${S}/contrib/cygwin
+  cygmake cygwin-postinstall DESTDIR=${D}
+}

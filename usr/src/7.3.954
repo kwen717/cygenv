@@ -1,0 +1,94 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.954
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.954
+Problem:    No check if PyObject_IsTrue fails.
+Solution:   Add a check for -1 value. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.953/src/if_py_both.h	2013-05-15 15:51:03.000000000 +0200
+--- src/if_py_both.h	2013-05-15 16:08:53.000000000 +0200
+***************
+*** 700,706 ****
+  	}
+  	else
+  	{
+! 	    if (PyObject_IsTrue(val))
+  		this->dict->dv_lock = VAR_LOCKED;
+  	    else
+  		this->dict->dv_lock = 0;
+--- 700,709 ----
+  	}
+  	else
+  	{
+! 	    int		istrue = PyObject_IsTrue(val);
+! 	    if (istrue == -1)
+! 		return -1;
+! 	    else if (istrue)
+  		this->dict->dv_lock = VAR_LOCKED;
+  	    else
+  		this->dict->dv_lock = 0;
+***************
+*** 1201,1207 ****
+  	}
+  	else
+  	{
+! 	    if (PyObject_IsTrue(val))
+  		this->list->lv_lock = VAR_LOCKED;
+  	    else
+  		this->list->lv_lock = 0;
+--- 1204,1213 ----
+  	}
+  	else
+  	{
+! 	    int		istrue = PyObject_IsTrue(val);
+! 	    if (istrue == -1)
+! 		return -1;
+! 	    else if (istrue)
+  		this->list->lv_lock = VAR_LOCKED;
+  	    else
+  		this->list->lv_lock = 0;
+***************
+*** 1479,1485 ****
+  
+      if (flags & SOPT_BOOL)
+      {
+! 	r = set_option_value_for(key, PyObject_IsTrue(valObject), NULL,
+  				opt_flags, this->opt_type, this->from);
+      }
+      else if (flags & SOPT_NUM)
+--- 1485,1494 ----
+  
+      if (flags & SOPT_BOOL)
+      {
+! 	int	istrue = PyObject_IsTrue(valObject);
+! 	if (istrue == -1)
+! 	    return -1;
+! 	r = set_option_value_for(key, istrue, NULL,
+  				opt_flags, this->opt_type, this->from);
+      }
+      else if (flags & SOPT_NUM)
+*** ../vim-7.3.953/src/version.c	2013-05-15 16:04:34.000000000 +0200
+--- src/version.c	2013-05-15 16:08:26.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     954,
+  /**/
+
+-- 
+The early bird gets the worm. The second mouse gets the cheese.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,1542 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1149
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1149
+Problem:    New regexp engine: Matching plain text could be faster.
+Solution:   Detect a plain text match and handle it specifically.  Add
+	    vim_regfree().
+Files:	    src/regexp.c, src/regexp.h, src/regexp_nfa.c,
+	    src/proto/regexp.pro, src/buffer.c, src/edit.c, src/eval.c,
+	    src/ex_cmds.c, src/ex_cmds2.c, src/ex_docmd.c, src/ex_eval.c,
+	    src/ex_getln.c, src/fileio.c, src/gui.c, src/misc1.c, src/misc2.c,
+	    src/option.c, src/syntax.c, src/quickfix.c, src/search.c,
+	    src/spell.c, src/tag.c, src/window.c, src/screen.c, src/macros.h,
+	    src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1148/src/regexp.c	2013-06-06 18:04:47.000000000 +0200
+--- src/regexp.c	2013-06-08 17:13:06.000000000 +0200
+***************
+*** 1297,1303 ****
+      return p;
+  }
+  
+! static regprog_T    *bt_regcomp __ARGS((char_u *expr, int re_flags));
+  
+  /*
+   * bt_regcomp() - compile a regular expression into internal code for the
+--- 1297,1304 ----
+      return p;
+  }
+  
+! static regprog_T  *bt_regcomp __ARGS((char_u *expr, int re_flags));
+! static void bt_regfree __ARGS((regprog_T *prog));
+  
+  /*
+   * bt_regcomp() - compile a regular expression into internal code for the
+***************
+*** 1455,1460 ****
+--- 1456,1471 ----
+  }
+  
+  /*
++  * Free a compiled regexp program, returned by bt_regcomp().
++  */
++     static void
++ bt_regfree(prog)
++     regprog_T   *prog;
++ {
++     vim_free(prog);
++ }
++ 
++ /*
+   * Setup to parse the regexp.  Used once to get the length and once to do it.
+   */
+      static void
+***************
+*** 7876,7881 ****
+--- 7887,7893 ----
+  static regengine_T bt_regengine =
+  {
+      bt_regcomp,
++     bt_regfree,
+      bt_regexec,
+  #if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+  	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
+***************
+*** 7893,7898 ****
+--- 7905,7911 ----
+  static regengine_T nfa_regengine =
+  {
+      nfa_regcomp,
++     nfa_regfree,
+      nfa_regexec,
+  #if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+  	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
+***************
+*** 7920,7926 ****
+  
+  /*
+   * Compile a regular expression into internal code.
+!  * Returns the program in allocated memory.  Returns NULL for an error.
+   */
+      regprog_T *
+  vim_regcomp(expr_arg, re_flags)
+--- 7933,7941 ----
+  
+  /*
+   * Compile a regular expression into internal code.
+!  * Returns the program in allocated memory.
+!  * Use vim_regfree() to free the memory.
+!  * Returns NULL for an error.
+   */
+      regprog_T *
+  vim_regcomp(expr_arg, re_flags)
+***************
+*** 7997,8002 ****
+--- 8012,8028 ----
+  }
+  
+  /*
++  * Free a compiled regexp program, returned by vim_regcomp().
++  */
++     void
++ vim_regfree(prog)
++     regprog_T   *prog;
++ {
++     if (prog != NULL)
++ 	prog->engine->regfree(prog);
++ }
++ 
++ /*
+   * Match a regexp against a string.
+   * "rmp->regprog" is a compiled regexp as returned by vim_regcomp().
+   * Uses curbuf for line count and 'iskeyword'.
+*** ../vim-7.3.1148/src/regexp.h	2013-06-07 16:31:45.000000000 +0200
+--- src/regexp.h	2013-06-08 15:43:33.000000000 +0200
+***************
+*** 89,94 ****
+--- 89,95 ----
+  
+      int			reganch;	/* pattern starts with ^ */
+      int			regstart;	/* char at start of pattern */
++     char_u		*match_text;	/* plain text to match with */
+  
+      int			has_zend;	/* pattern contains \ze */
+      int			has_backref;	/* pattern contains \1 .. \9 */
+***************
+*** 147,152 ****
+--- 148,154 ----
+  struct regengine
+  {
+      regprog_T	*(*regcomp)(char_u*, int);
++     void	(*regfree)(regprog_T *);
+      int		(*regexec)(regmatch_T*, char_u*, colnr_T);
+  #if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+  	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
+*** ../vim-7.3.1148/src/regexp_nfa.c	2013-06-08 14:38:23.000000000 +0200
+--- src/regexp_nfa.c	2013-06-08 18:04:40.000000000 +0200
+***************
+*** 270,275 ****
+--- 270,276 ----
+  static int nfa_regcomp_start __ARGS((char_u *expr, int re_flags));
+  static int nfa_get_reganch __ARGS((nfa_state_T *start, int depth));
+  static int nfa_get_regstart __ARGS((nfa_state_T *start, int depth));
++ static char_u *nfa_get_match_text __ARGS((nfa_state_T *start));
+  static int nfa_recognize_char_class __ARGS((char_u *start, char_u *end, int extra_newl));
+  static int nfa_emit_equi_class __ARGS((int c));
+  static int nfa_regatom __ARGS((void));
+***************
+*** 295,300 ****
+--- 296,302 ----
+  static long nfa_regtry __ARGS((nfa_regprog_T *prog, colnr_T col));
+  static long nfa_regexec_both __ARGS((char_u *line, colnr_T col));
+  static regprog_T *nfa_regcomp __ARGS((char_u *expr, int re_flags));
++ static void nfa_regfree __ARGS((regprog_T *prog));
+  static int nfa_regexec __ARGS((regmatch_T *rmp, char_u *line, colnr_T col));
+  static long nfa_regexec_multi __ARGS((regmmatch_T *rmp, win_T *win, buf_T *buf, linenr_T lnum, colnr_T col, proftime_T *tm));
+  
+***************
+*** 493,498 ****
+--- 495,546 ----
+  }
+  
+  /*
++  * Figure out if the NFA state list contains just literal text and nothing
++  * else.  If so return a string with what must match after regstart.
++  * Otherwise return NULL.
++  */
++     static char_u *
++ nfa_get_match_text(start)
++     nfa_state_T *start;
++ {
++     nfa_state_T *p = start;
++     int		len = 0;
++     char_u	*ret;
++     char_u	*s;
++ 
++     if (p->c != NFA_MOPEN)
++ 	return NULL; /* just in case */
++     p = p->out;
++     while (p->c > 0)
++     {
++ 	len += MB_CHAR2LEN(p->c);
++ 	p = p->out;
++     }
++     if (p->c != NFA_MCLOSE || p->out->c != NFA_MATCH)
++ 	return NULL;
++ 
++     ret = alloc(len);
++     if (ret != NULL)
++     {
++ 	len = 0;
++ 	p = start->out->out; /* skip first char, it goes into regstart */
++ 	s = ret;
++ 	while (p->c > 0)
++ 	{
++ #ifdef FEAT_MBYTE
++ 	    if (has_mbyte)
++ 		s += (*mb_char2bytes)(p->c, s);
++ 	    else
++ #endif
++ 		*s++ = p->c;
++ 	    p = p->out;
++ 	}
++ 	*s = NUL;
++     }
++     return ret;
++ }
++ 
++ /*
+   * Allocate more space for post_start.  Called when
+   * running above the estimated number of states.
+   */
+***************
+*** 2280,2287 ****
+      {
+  	nfa_print_state(debugf, prog->start);
+  
+! 	fprintf(debugf, "reganch: %d\n", prog->reganch);
+! 	fprintf(debugf, "regstart: %d\n", prog->regstart);
+  
+  	fclose(debugf);
+      }
+--- 2328,2340 ----
+      {
+  	nfa_print_state(debugf, prog->start);
+  
+! 	if (prog->reganch)
+! 	    fprintf(debugf, "reganch: %d\n", prog->reganch);
+! 	if (prog->regstart != NUL)
+! 	    fprintf(debugf, "regstart: %c (decimal: %d)\n",
+! 					      prog->regstart, prog->regstart);
+! 	if (prog->match_text != NULL)
+! 	    fprintf(debugf, "match_text: \"%s\"\n", prog->match_text);
+  
+  	fclose(debugf);
+      }
+***************
+*** 4154,4159 ****
+--- 4207,4213 ----
+  
+  static int failure_chance __ARGS((nfa_state_T *state, int depth));
+  static int skip_to_start __ARGS((int c, colnr_T *colp));
++ static long find_match_text __ARGS((colnr_T startcol, int regstart, char_u *match_text));
+  
+  /*
+   * Estimate the chance of a match with "state" failing.
+***************
+*** 4331,4336 ****
+--- 4385,4453 ----
+  }
+  
+  /*
++  * Check for a match with match_text.
++  * Called after skip_to_start() has find regstart.
++  * Returns zero for no match, 1 for a match.
++  */
++     static long
++ find_match_text(startcol, regstart, match_text)
++     colnr_T startcol;
++     int	    regstart;
++     char_u  *match_text;
++ {
++     colnr_T col = startcol;
++     int	    c1, c2;
++     int	    len1, len2;
++     int	    match;
++ 
++     for (;;)
++     {
++ 	match = TRUE;
++ 	len2 = MB_CHAR2LEN(regstart); /* skip regstart */
++ 	for (len1 = 0; match_text[len1] != NUL; len1 += MB_CHAR2LEN(c1))
++ 	{
++ 	    c1 = PTR2CHAR(match_text + len1);
++ 	    c2 = PTR2CHAR(regline + col + len2);
++ 	    if (c1 != c2 && (!ireg_ic || MB_TOLOWER(c1) != MB_TOLOWER(c2)))
++ 	    {
++ 		match = FALSE;
++ 		break;
++ 	    }
++ 	    len2 += MB_CHAR2LEN(c2);
++ 	}
++ 	if (match
++ #ifdef FEAT_MBYTE
++ 		/* check that no composing char follows */
++ 		&& !(enc_utf8
++ 			   && utf_iscomposing(PTR2CHAR(regline + col + len2)))
++ #endif
++ 		)
++ 	{
++ 	    cleanup_subexpr();
++ 	    if (REG_MULTI)
++ 	    {
++ 		reg_startpos[0].lnum = reglnum;
++ 		reg_startpos[0].col = col;
++ 		reg_endpos[0].lnum = reglnum;
++ 		reg_endpos[0].col = col + len2;
++ 	    }
++ 	    else
++ 	    {
++ 		reg_startp[0] = regline + col;
++ 		reg_endp[0] = regline + col + len2;
++ 	    }
++ 	    return 1L;
++ 	}
++ 
++ 	/* Try finding regstart after the current match. */
++ 	col += MB_CHAR2LEN(regstart); /* skip regstart */
++ 	if (skip_to_start(regstart, &col) == FAIL)
++ 	    break;
++     }
++     return 0L;
++ }
++ 
++ /*
+   * Main matching routine.
+   *
+   * Run NFA to determine whether it matches reginput.
+***************
+*** 5584,5600 ****
+  #endif
+  
+      reginput = regline + col;
+-     need_clear_subexpr = TRUE;
+- #ifdef FEAT_SYN_HL
+-     /* Clear the external match subpointers if necessary. */
+-     if (prog->reghasz == REX_SET)
+-     {
+- 	nfa_has_zsubexpr = TRUE;
+- 	need_clear_zsubexpr = TRUE;
+-     }
+-     else
+- 	nfa_has_zsubexpr = FALSE;
+- #endif
+  
+  #ifdef ENABLE_LOG
+      f = fopen(NFA_REGEXP_RUN_LOG, "a");
+--- 5701,5706 ----
+***************
+*** 5764,5775 ****
+--- 5870,5900 ----
+      if (prog->reganch && col > 0)
+  	return 0L;
+  
++     need_clear_subexpr = TRUE;
++ #ifdef FEAT_SYN_HL
++     /* Clear the external match subpointers if necessary. */
++     if (prog->reghasz == REX_SET)
++     {
++ 	nfa_has_zsubexpr = TRUE;
++ 	need_clear_zsubexpr = TRUE;
++     }
++     else
++ 	nfa_has_zsubexpr = FALSE;
++ #endif
++ 
+      if (prog->regstart != NUL)
++     {
+  	/* Skip ahead until a character we know the match must start with.
+  	 * When there is none there is no match. */
+  	if (skip_to_start(prog->regstart, &col) == FAIL)
+  	    return 0L;
+  
++ 	/* If match_text is set it contains the full text that must match.
++ 	 * Nothing else to try. Doesn't handle combining chars well. */
++ 	if (prog->match_text != NULL && !ireg_icombine)
++ 	    return find_match_text(col, prog->regstart, prog->match_text);
++     }
++ 
+      /* If the start column is past the maximum column: no need to try. */
+      if (ireg_maxcol > 0 && col >= ireg_maxcol)
+  	goto theend;
+***************
+*** 5876,5881 ****
+--- 6001,6008 ----
+      prog->reganch = nfa_get_reganch(prog->start, 0);
+      prog->regstart = nfa_get_regstart(prog->start, 0);
+  
++     prog->match_text = nfa_get_match_text(prog->start);
++ 
+  #ifdef ENABLE_LOG
+      nfa_postfix_dump(expr, OK);
+      nfa_dump(prog);
+***************
+*** 5885,5891 ****
+      prog->reghasz = re_has_z;
+  #endif
+  #ifdef DEBUG
+!     prog->pattern = vim_strsave(expr); /* memory will leak */
+      nfa_regengine.expr = NULL;
+  #endif
+  
+--- 6012,6018 ----
+      prog->reghasz = re_has_z;
+  #endif
+  #ifdef DEBUG
+!     prog->pattern = vim_strsave(expr);
+      nfa_regengine.expr = NULL;
+  #endif
+  
+***************
+*** 5907,5912 ****
+--- 6034,6055 ----
+      goto out;
+  }
+  
++ /*
++  * Free a compiled regexp program, returned by nfa_regcomp().
++  */
++     static void
++ nfa_regfree(prog)
++     regprog_T   *prog;
++ {
++     if (prog != NULL)
++     {
++ 	vim_free(((nfa_regprog_T *)prog)->match_text);
++ #ifdef DEBUG
++ 	vim_free(((nfa_regprog_T *)prog)->pattern);
++ #endif
++ 	vim_free(prog);
++     }
++ }
+  
+  /*
+   * Match a regexp against a string.
+*** ../vim-7.3.1148/src/proto/regexp.pro	2010-08-15 21:57:28.000000000 +0200
+--- src/proto/regexp.pro	2013-06-08 15:41:49.000000000 +0200
+***************
+*** 2,17 ****
+  int re_multiline __ARGS((regprog_T *prog));
+  int re_lookbehind __ARGS((regprog_T *prog));
+  char_u *skip_regexp __ARGS((char_u *startp, int dirc, int magic, char_u **newp));
+- regprog_T *vim_regcomp __ARGS((char_u *expr, int re_flags));
+  int vim_regcomp_had_eol __ARGS((void));
+  void free_regexp_stuff __ARGS((void));
+- int vim_regexec __ARGS((regmatch_T *rmp, char_u *line, colnr_T col));
+- int vim_regexec_nl __ARGS((regmatch_T *rmp, char_u *line, colnr_T col));
+- long vim_regexec_multi __ARGS((regmmatch_T *rmp, win_T *win, buf_T *buf, linenr_T lnum, colnr_T col, proftime_T *tm));
+  reg_extmatch_T *ref_extmatch __ARGS((reg_extmatch_T *em));
+  void unref_extmatch __ARGS((reg_extmatch_T *em));
+  char_u *regtilde __ARGS((char_u *source, int magic));
+  int vim_regsub __ARGS((regmatch_T *rmp, char_u *source, char_u *dest, int copy, int magic, int backslash));
+  int vim_regsub_multi __ARGS((regmmatch_T *rmp, linenr_T lnum, char_u *source, char_u *dest, int copy, int magic, int backslash));
+  char_u *reg_submatch __ARGS((int no));
+  /* vim: set ft=c : */
+--- 2,18 ----
+  int re_multiline __ARGS((regprog_T *prog));
+  int re_lookbehind __ARGS((regprog_T *prog));
+  char_u *skip_regexp __ARGS((char_u *startp, int dirc, int magic, char_u **newp));
+  int vim_regcomp_had_eol __ARGS((void));
+  void free_regexp_stuff __ARGS((void));
+  reg_extmatch_T *ref_extmatch __ARGS((reg_extmatch_T *em));
+  void unref_extmatch __ARGS((reg_extmatch_T *em));
+  char_u *regtilde __ARGS((char_u *source, int magic));
+  int vim_regsub __ARGS((regmatch_T *rmp, char_u *source, char_u *dest, int copy, int magic, int backslash));
+  int vim_regsub_multi __ARGS((regmmatch_T *rmp, linenr_T lnum, char_u *source, char_u *dest, int copy, int magic, int backslash));
+  char_u *reg_submatch __ARGS((int no));
++ regprog_T *vim_regcomp __ARGS((char_u *expr_arg, int re_flags));
++ void vim_regfree __ARGS((regprog_T *prog));
++ int vim_regexec __ARGS((regmatch_T *rmp, char_u *line, colnr_T col));
++ int vim_regexec_nl __ARGS((regmatch_T *rmp, char_u *line, colnr_T col));
++ long vim_regexec_multi __ARGS((regmmatch_T *rmp, win_T *win, buf_T *buf, linenr_T lnum, colnr_T col, proftime_T *tm));
+  /* vim: set ft=c : */
+*** ../vim-7.3.1148/src/buffer.c	2013-06-07 20:17:06.000000000 +0200
+--- src/buffer.c	2013-06-08 16:06:38.000000000 +0200
+***************
+*** 1898,1904 ****
+  #ifdef FEAT_SPELL
+      clear_string_option(&buf->b_s.b_p_spc);
+      clear_string_option(&buf->b_s.b_p_spf);
+!     vim_free(buf->b_s.b_cap_prog);
+      buf->b_s.b_cap_prog = NULL;
+      clear_string_option(&buf->b_s.b_p_spl);
+  #endif
+--- 1898,1904 ----
+  #ifdef FEAT_SPELL
+      clear_string_option(&buf->b_s.b_p_spc);
+      clear_string_option(&buf->b_s.b_p_spf);
+!     vim_regfree(buf->b_s.b_cap_prog);
+      buf->b_s.b_cap_prog = NULL;
+      clear_string_option(&buf->b_s.b_p_spl);
+  #endif
+***************
+*** 2246,2252 ****
+  			match = buf->b_fnum;	/* remember first match */
+  		    }
+  
+! 		vim_free(prog);
+  		if (match >= 0)			/* found one match */
+  		    break;
+  	    }
+--- 2246,2252 ----
+  			match = buf->b_fnum;	/* remember first match */
+  		    }
+  
+! 		vim_regfree(prog);
+  		if (match >= 0)			/* found one match */
+  		    break;
+  	    }
+***************
+*** 2355,2368 ****
+  		*file = (char_u **)alloc((unsigned)(count * sizeof(char_u *)));
+  		if (*file == NULL)
+  		{
+! 		    vim_free(prog);
+  		    if (patc != pat)
+  			vim_free(patc);
+  		    return FAIL;
+  		}
+  	    }
+  	}
+! 	vim_free(prog);
+  	if (count)		/* match(es) found, break here */
+  	    break;
+      }
+--- 2355,2368 ----
+  		*file = (char_u **)alloc((unsigned)(count * sizeof(char_u *)));
+  		if (*file == NULL)
+  		{
+! 		    vim_regfree(prog);
+  		    if (patc != pat)
+  			vim_free(patc);
+  		    return FAIL;
+  		}
+  	    }
+  	}
+! 	vim_regfree(prog);
+  	if (count)		/* match(es) found, break here */
+  	    break;
+      }
+*** ../vim-7.3.1148/src/edit.c	2013-05-19 21:15:08.000000000 +0200
+--- src/edit.c	2013-06-08 15:46:43.000000000 +0200
+***************
+*** 3134,3140 ****
+  
+  theend:
+      p_scs = save_p_scs;
+!     vim_free(regmatch.regprog);
+      vim_free(buf);
+  }
+  
+--- 3134,3140 ----
+  
+  theend:
+      p_scs = save_p_scs;
+!     vim_regfree(regmatch.regprog);
+      vim_free(buf);
+  }
+  
+*** ../vim-7.3.1148/src/eval.c	2013-06-06 21:31:02.000000000 +0200
+--- src/eval.c	2013-06-08 15:48:23.000000000 +0200
+***************
+*** 4560,4566 ****
+  			    if (regmatch.regprog != NULL)
+  			    {
+  				n1 = vim_regexec_nl(&regmatch, s1, (colnr_T)0);
+! 				vim_free(regmatch.regprog);
+  				if (type == TYPE_NOMATCH)
+  				    n1 = !n1;
+  			    }
+--- 4560,4566 ----
+  			    if (regmatch.regprog != NULL)
+  			    {
+  				n1 = vim_regexec_nl(&regmatch, s1, (colnr_T)0);
+! 				vim_regfree(regmatch.regprog);
+  				if (type == TYPE_NOMATCH)
+  				    n1 = !n1;
+  			    }
+***************
+*** 13981,13987 ****
+  		rettv->vval.v_number += (varnumber_T)(str - expr);
+  	    }
+  	}
+! 	vim_free(regmatch.regprog);
+      }
+  
+  theend:
+--- 13981,13987 ----
+  		rettv->vval.v_number += (varnumber_T)(str - expr);
+  	    }
+  	}
+! 	vim_regfree(regmatch.regprog);
+      }
+  
+  theend:
+***************
+*** 17214,17220 ****
+  	    str = regmatch.endp[0];
+  	}
+  
+! 	vim_free(regmatch.regprog);
+      }
+  
+      p_cpo = save_cpo;
+--- 17214,17220 ----
+  	    str = regmatch.endp[0];
+  	}
+  
+! 	vim_regfree(regmatch.regprog);
+      }
+  
+      p_cpo = save_cpo;
+***************
+*** 21066,21072 ****
+  			    list_func_head(fp, FALSE);
+  		    }
+  		}
+! 		vim_free(regmatch.regprog);
+  	    }
+  	}
+  	if (*p == '/')
+--- 21066,21072 ----
+  			    list_func_head(fp, FALSE);
+  		    }
+  		}
+! 		vim_regfree(regmatch.regprog);
+  	    }
+  	}
+  	if (*p == '/')
+***************
+*** 24220,24226 ****
+  	if (ga.ga_data != NULL)
+  	    STRCPY((char *)ga.ga_data + ga.ga_len, tail);
+  
+! 	vim_free(regmatch.regprog);
+      }
+  
+      ret = vim_strsave(ga.ga_data == NULL ? str : (char_u *)ga.ga_data);
+--- 24220,24226 ----
+  	if (ga.ga_data != NULL)
+  	    STRCPY((char *)ga.ga_data + ga.ga_len, tail);
+  
+! 	vim_regfree(regmatch.regprog);
+      }
+  
+      ret = vim_strsave(ga.ga_data == NULL ? str : (char_u *)ga.ga_data);
+*** ../vim-7.3.1148/src/ex_cmds.c	2013-05-30 11:43:11.000000000 +0200
+--- src/ex_cmds.c	2013-06-08 16:07:02.000000000 +0200
+***************
+*** 571,577 ****
+      vim_free(nrs);
+      vim_free(sortbuf1);
+      vim_free(sortbuf2);
+!     vim_free(regmatch.regprog);
+      if (got_int)
+  	EMSG(_(e_interr));
+  }
+--- 571,577 ----
+      vim_free(nrs);
+      vim_free(sortbuf1);
+      vim_free(sortbuf2);
+!     vim_regfree(regmatch.regprog);
+      if (got_int)
+  	EMSG(_(e_interr));
+  }
+***************
+*** 5261,5267 ****
+  	changed_window_setting();
+  #endif
+  
+!     vim_free(regmatch.regprog);
+  }
+  
+  /*
+--- 5261,5267 ----
+  	changed_window_setting();
+  #endif
+  
+!     vim_regfree(regmatch.regprog);
+  }
+  
+  /*
+***************
+*** 5436,5442 ****
+  	global_exe(cmd);
+  
+      ml_clearmarked();	   /* clear rest of the marks */
+!     vim_free(regmatch.regprog);
+  }
+  
+  /*
+--- 5436,5442 ----
+  	global_exe(cmd);
+  
+      ml_clearmarked();	   /* clear rest of the marks */
+!     vim_regfree(regmatch.regprog);
+  }
+  
+  /*
+*** ../vim-7.3.1148/src/ex_cmds2.c	2013-06-06 14:01:35.000000000 +0200
+--- src/ex_cmds2.c	2013-06-08 15:49:57.000000000 +0200
+***************
+*** 652,658 ****
+  	while (gap->ga_len > 0)
+  	{
+  	    vim_free(DEBUGGY(gap, todel).dbg_name);
+! 	    vim_free(DEBUGGY(gap, todel).dbg_prog);
+  	    --gap->ga_len;
+  	    if (todel < gap->ga_len)
+  		mch_memmove(&DEBUGGY(gap, todel), &DEBUGGY(gap, todel + 1),
+--- 652,658 ----
+  	while (gap->ga_len > 0)
+  	{
+  	    vim_free(DEBUGGY(gap, todel).dbg_name);
+! 	    vim_regfree(DEBUGGY(gap, todel).dbg_prog);
+  	    --gap->ga_len;
+  	    if (todel < gap->ga_len)
+  		mch_memmove(&DEBUGGY(gap, todel), &DEBUGGY(gap, todel + 1),
+***************
+*** 1985,1991 ****
+  		    --match;
+  		}
+  
+! 	    vim_free(regmatch.regprog);
+  	    vim_free(p);
+  	    if (!didone)
+  		EMSG2(_(e_nomatch2), ((char_u **)new_ga.ga_data)[i]);
+--- 1985,1991 ----
+  		    --match;
+  		}
+  
+! 	    vim_regfree(regmatch.regprog);
+  	    vim_free(p);
+  	    if (!didone)
+  		EMSG2(_(e_nomatch2), ((char_u **)new_ga.ga_data)[i]);
+*** ../vim-7.3.1148/src/ex_docmd.c	2013-06-08 15:24:41.000000000 +0200
+--- src/ex_docmd.c	2013-06-08 15:50:07.000000000 +0200
+***************
+*** 7779,7785 ****
+  		curwin->w_cursor.col = (colnr_T)(regmatch.startp[0] - p);
+  	    else
+  		EMSG(_(e_nomatch));
+! 	    vim_free(regmatch.regprog);
+  	}
+  	/* Move to the NUL, ignore any other arguments. */
+  	eap->arg += STRLEN(eap->arg);
+--- 7779,7785 ----
+  		curwin->w_cursor.col = (colnr_T)(regmatch.startp[0] - p);
+  	    else
+  		EMSG(_(e_nomatch));
+! 	    vim_regfree(regmatch.regprog);
+  	}
+  	/* Move to the NUL, ignore any other arguments. */
+  	eap->arg += STRLEN(eap->arg);
+*** ../vim-7.3.1148/src/ex_eval.c	2013-05-06 04:21:35.000000000 +0200
+--- src/ex_eval.c	2013-06-08 15:50:28.000000000 +0200
+***************
+*** 1576,1582 ****
+  		    caught = vim_regexec_nl(&regmatch, current_exception->value,
+  			    (colnr_T)0);
+  		    got_int |= prev_got_int;
+! 		    vim_free(regmatch.regprog);
+  		}
+  	    }
+  	}
+--- 1576,1582 ----
+  		    caught = vim_regexec_nl(&regmatch, current_exception->value,
+  			    (colnr_T)0);
+  		    got_int |= prev_got_int;
+! 		    vim_regfree(regmatch.regprog);
+  		}
+  	    }
+  	}
+*** ../vim-7.3.1148/src/ex_getln.c	2013-06-08 15:24:41.000000000 +0200
+--- src/ex_getln.c	2013-06-08 15:51:13.000000000 +0200
+***************
+*** 4717,4723 ****
+  	    }
+      }
+  
+!     vim_free(regmatch.regprog);
+  
+      return ret;
+  #endif /* FEAT_CMDL_COMPL */
+--- 4717,4723 ----
+  	    }
+      }
+  
+!     vim_regfree(regmatch.regprog);
+  
+      return ret;
+  #endif /* FEAT_CMDL_COMPL */
+***************
+*** 5785,5791 ****
+  	if (history[histype][idx].hisstr == NULL)
+  	    hisidx[histype] = -1;
+      }
+!     vim_free(regmatch.regprog);
+      return found;
+  }
+  
+--- 5785,5791 ----
+  	if (history[histype][idx].hisstr == NULL)
+  	    hisidx[histype] = -1;
+      }
+!     vim_regfree(regmatch.regprog);
+      return found;
+  }
+  
+*** ../vim-7.3.1148/src/fileio.c	2013-05-06 04:50:26.000000000 +0200
+--- src/fileio.c	2013-06-08 15:52:10.000000000 +0200
+***************
+*** 7921,7927 ****
+  	    if (ap->pat == NULL)
+  	    {
+  		*prev_ap = ap->next;
+! 		vim_free(ap->reg_prog);
+  		vim_free(ap);
+  	    }
+  	    else
+--- 7921,7927 ----
+  	    if (ap->pat == NULL)
+  	    {
+  		*prev_ap = ap->next;
+! 		vim_regfree(ap->reg_prog);
+  		vim_free(ap);
+  	    }
+  	    else
+***************
+*** 10070,10076 ****
+  	result = TRUE;
+  
+      if (prog == NULL)
+! 	vim_free(regmatch.regprog);
+      return result;
+  }
+  #endif
+--- 10070,10076 ----
+  	result = TRUE;
+  
+      if (prog == NULL)
+! 	vim_regfree(regmatch.regprog);
+      return result;
+  }
+  #endif
+*** ../vim-7.3.1148/src/gui.c	2013-05-06 04:21:35.000000000 +0200
+--- src/gui.c	2013-06-08 15:52:24.000000000 +0200
+***************
+*** 5319,5325 ****
+  	    }
+  	    else
+  		MSG(_("No match at cursor, finding next"));
+! 	    vim_free(regmatch.regprog);
+  	}
+      }
+  
+--- 5319,5325 ----
+  	    }
+  	    else
+  		MSG(_("No match at cursor, finding next"));
+! 	    vim_regfree(regmatch.regprog);
+  	}
+      }
+  
+*** ../vim-7.3.1148/src/misc1.c	2013-06-05 19:35:31.000000000 +0200
+--- src/misc1.c	2013-06-08 15:53:36.000000000 +0200
+***************
+*** 456,463 ****
+  	    pos.coladd = 0;
+  #endif
+  	}
+      }
+-     vim_free(regmatch.regprog);
+  
+      if (pos.lnum == 0 || *ml_get_pos(&pos) == NUL)
+  	return -1;
+--- 456,463 ----
+  	    pos.coladd = 0;
+  #endif
+  	}
++ 	vim_regfree(regmatch.regprog);
+      }
+  
+      if (pos.lnum == 0 || *ml_get_pos(&pos) == NUL)
+  	return -1;
+***************
+*** 9751,9757 ****
+  # endif
+  #endif
+      vim_free(buf);
+!     vim_free(regmatch.regprog);
+      vim_free(matchname);
+  
+      matches = gap->ga_len - start_len;
+--- 9751,9757 ----
+  # endif
+  #endif
+      vim_free(buf);
+!     vim_regfree(regmatch.regprog);
+      vim_free(matchname);
+  
+      matches = gap->ga_len - start_len;
+***************
+*** 9993,9999 ****
+      }
+  
+      vim_free(buf);
+!     vim_free(regmatch.regprog);
+  
+      matches = gap->ga_len - start_len;
+      if (matches > 0)
+--- 9993,9999 ----
+      }
+  
+      vim_free(buf);
+!     vim_regfree(regmatch.regprog);
+  
+      matches = gap->ga_len - start_len;
+      if (matches > 0)
+***************
+*** 10358,10364 ****
+  	vim_free(in_curdir);
+      }
+      ga_clear_strings(&path_ga);
+!     vim_free(regmatch.regprog);
+  
+      if (sort_again)
+  	remove_duplicates(gap);
+--- 10358,10364 ----
+  	vim_free(in_curdir);
+      }
+      ga_clear_strings(&path_ga);
+!     vim_regfree(regmatch.regprog);
+  
+      if (sort_again)
+  	remove_duplicates(gap);
+*** ../vim-7.3.1148/src/misc2.c	2013-05-06 04:21:35.000000000 +0200
+--- src/misc2.c	2013-06-08 16:07:33.000000000 +0200
+***************
+*** 1134,1140 ****
+      /* Free some global vars. */
+      vim_free(username);
+  # ifdef FEAT_CLIPBOARD
+!     vim_free(clip_exclude_prog);
+  # endif
+      vim_free(last_cmdline);
+  # ifdef FEAT_CMDHIST
+--- 1134,1140 ----
+      /* Free some global vars. */
+      vim_free(username);
+  # ifdef FEAT_CLIPBOARD
+!     vim_regfree(clip_exclude_prog);
+  # endif
+      vim_free(last_cmdline);
+  # ifdef FEAT_CMDHIST
+***************
+*** 5008,5015 ****
+  #endif
+  		{
+  		    /*
+! 		     * we don't have further wildcards to expand, so we have to
+! 		     * check for the final file now
+  		     */
+  		    for (i = stackp->ffs_filearray_cur;
+  					  i < stackp->ffs_filearray_size; ++i)
+--- 5008,5015 ----
+  #endif
+  		{
+  		    /*
+! 		     * We don't have further wildcards to expand, so we have to
+! 		     * check for the final file now.
+  		     */
+  		    for (i = stackp->ffs_filearray_cur;
+  					  i < stackp->ffs_filearray_size; ++i)
+*** ../vim-7.3.1148/src/option.c	2013-06-04 22:13:45.000000000 +0200
+--- src/option.c	2013-06-08 16:30:58.000000000 +0200
+***************
+*** 7491,7497 ****
+  	clip_autoselect_plus = new_autoselect_plus;
+  	clip_autoselectml = new_autoselectml;
+  	clip_html = new_html;
+! 	vim_free(clip_exclude_prog);
+  	clip_exclude_prog = new_exclude_prog;
+  #ifdef FEAT_GUI_GTK
+  	if (gui.in_use)
+--- 7491,7497 ----
+  	clip_autoselect_plus = new_autoselect_plus;
+  	clip_autoselectml = new_autoselectml;
+  	clip_html = new_html;
+! 	vim_regfree(clip_exclude_prog);
+  	clip_exclude_prog = new_exclude_prog;
+  #ifdef FEAT_GUI_GTK
+  	if (gui.in_use)
+***************
+*** 7502,7508 ****
+  #endif
+      }
+      else
+! 	vim_free(new_exclude_prog);
+  
+      return errmsg;
+  }
+--- 7502,7508 ----
+  #endif
+      }
+      else
+! 	vim_regfree(new_exclude_prog);
+  
+      return errmsg;
+  }
+***************
+*** 7529,7544 ****
+  	if (re != NULL)
+  	{
+  	    synblock->b_cap_prog = vim_regcomp(re, RE_MAGIC);
+  	    if (synblock->b_cap_prog == NULL)
+  	    {
+  		synblock->b_cap_prog = rp; /* restore the previous program */
+  		return e_invarg;
+  	    }
+- 	    vim_free(re);
+  	}
+      }
+  
+!     vim_free(rp);
+      return NULL;
+  }
+  #endif
+--- 7529,7544 ----
+  	if (re != NULL)
+  	{
+  	    synblock->b_cap_prog = vim_regcomp(re, RE_MAGIC);
++ 	    vim_free(re);
+  	    if (synblock->b_cap_prog == NULL)
+  	    {
+  		synblock->b_cap_prog = rp; /* restore the previous program */
+  		return e_invarg;
+  	    }
+  	}
+      }
+  
+!     vim_regfree(rp);
+      return NULL;
+  }
+  #endif
+*** ../vim-7.3.1148/src/syntax.c	2013-06-08 15:24:41.000000000 +0200
+--- src/syntax.c	2013-06-08 16:10:08.000000000 +0200
+***************
+*** 3495,3501 ****
+      block->b_syn_sync_maxlines = 0;
+      block->b_syn_sync_linebreaks = 0;
+  
+!     vim_free(block->b_syn_linecont_prog);
+      block->b_syn_linecont_prog = NULL;
+      vim_free(block->b_syn_linecont_pat);
+      block->b_syn_linecont_pat = NULL;
+--- 3495,3501 ----
+      block->b_syn_sync_maxlines = 0;
+      block->b_syn_sync_linebreaks = 0;
+  
+!     vim_regfree(block->b_syn_linecont_prog);
+      block->b_syn_linecont_prog = NULL;
+      vim_free(block->b_syn_linecont_pat);
+      block->b_syn_linecont_pat = NULL;
+***************
+*** 3544,3550 ****
+      curwin->w_s->b_syn_sync_maxlines = 0;
+      curwin->w_s->b_syn_sync_linebreaks = 0;
+  
+!     vim_free(curwin->w_s->b_syn_linecont_prog);
+      curwin->w_s->b_syn_linecont_prog = NULL;
+      vim_free(curwin->w_s->b_syn_linecont_pat);
+      curwin->w_s->b_syn_linecont_pat = NULL;
+--- 3544,3550 ----
+      curwin->w_s->b_syn_sync_maxlines = 0;
+      curwin->w_s->b_syn_sync_linebreaks = 0;
+  
+!     vim_regfree(curwin->w_s->b_syn_linecont_prog);
+      curwin->w_s->b_syn_linecont_prog = NULL;
+      vim_free(curwin->w_s->b_syn_linecont_pat);
+      curwin->w_s->b_syn_linecont_pat = NULL;
+***************
+*** 3583,3589 ****
+      int		i;
+  {
+      vim_free(SYN_ITEMS(block)[i].sp_pattern);
+!     vim_free(SYN_ITEMS(block)[i].sp_prog);
+      /* Only free sp_cont_list and sp_next_list of first start pattern */
+      if (i == 0 || SYN_ITEMS(block)[i - 1].sp_type != SPTYPE_START)
+      {
+--- 3583,3589 ----
+      int		i;
+  {
+      vim_free(SYN_ITEMS(block)[i].sp_pattern);
+!     vim_regfree(SYN_ITEMS(block)[i].sp_prog);
+      /* Only free sp_cont_list and sp_next_list of first start pattern */
+      if (i == 0 || SYN_ITEMS(block)[i - 1].sp_type != SPTYPE_START)
+      {
+***************
+*** 4991,4997 ****
+      /*
+       * Something failed, free the allocated memory.
+       */
+!     vim_free(item.sp_prog);
+      vim_free(item.sp_pattern);
+      vim_free(syn_opt_arg.cont_list);
+      vim_free(syn_opt_arg.cont_in_list);
+--- 4991,4997 ----
+      /*
+       * Something failed, free the allocated memory.
+       */
+!     vim_regfree(item.sp_prog);
+      vim_free(item.sp_pattern);
+      vim_free(syn_opt_arg.cont_list);
+      vim_free(syn_opt_arg.cont_in_list);
+***************
+*** 5248,5254 ****
+  	{
+  	    if (!success)
+  	    {
+! 		vim_free(ppp->pp_synp->sp_prog);
+  		vim_free(ppp->pp_synp->sp_pattern);
+  	    }
+  	    vim_free(ppp->pp_synp);
+--- 5248,5254 ----
+  	{
+  	    if (!success)
+  	    {
+! 		vim_regfree(ppp->pp_synp->sp_prog);
+  		vim_free(ppp->pp_synp->sp_pattern);
+  	    }
+  	    vim_free(ppp->pp_synp);
+***************
+*** 6022,6028 ****
+  			    id = -1;	    /* remember that we found one */
+  			}
+  		    }
+! 		    vim_free(regmatch.regprog);
+  		}
+  	    }
+  	    vim_free(name);
+--- 6022,6028 ----
+  			    id = -1;	    /* remember that we found one */
+  			}
+  		    }
+! 		    vim_regfree(regmatch.regprog);
+  		}
+  	    }
+  	    vim_free(name);
+***************
+*** 6295,6301 ****
+  	curwin->w_p_spell = FALSE;	/* No spell checking */
+  	clear_string_option(&curwin->w_s->b_p_spc);
+  	clear_string_option(&curwin->w_s->b_p_spf);
+! 	vim_free(curwin->w_s->b_cap_prog);
+  	curwin->w_s->b_cap_prog = NULL;
+  	clear_string_option(&curwin->w_s->b_p_spl);
+  #endif
+--- 6295,6301 ----
+  	curwin->w_p_spell = FALSE;	/* No spell checking */
+  	clear_string_option(&curwin->w_s->b_p_spc);
+  	clear_string_option(&curwin->w_s->b_p_spf);
+! 	vim_regfree(curwin->w_s->b_cap_prog);
+  	curwin->w_s->b_cap_prog = NULL;
+  	clear_string_option(&curwin->w_s->b_p_spl);
+  #endif
+*** ../vim-7.3.1148/src/quickfix.c	2013-05-11 15:50:02.000000000 +0200
+--- src/quickfix.c	2013-06-08 15:57:08.000000000 +0200
+***************
+*** 863,869 ****
+      for (fmt_ptr = fmt_first; fmt_ptr != NULL; fmt_ptr = fmt_first)
+      {
+  	fmt_first = fmt_ptr->next;
+! 	vim_free(fmt_ptr->prog);
+  	vim_free(fmt_ptr);
+      }
+      qf_clean_dir_stack(&dir_stack);
+--- 863,869 ----
+      for (fmt_ptr = fmt_first; fmt_ptr != NULL; fmt_ptr = fmt_first)
+      {
+  	fmt_first = fmt_ptr->next;
+! 	vim_regfree(fmt_ptr->prog);
+  	vim_free(fmt_ptr);
+      }
+      qf_clean_dir_stack(&dir_stack);
+***************
+*** 3487,3493 ****
+      vim_free(dirname_now);
+      vim_free(dirname_start);
+      vim_free(target_dir);
+!     vim_free(regmatch.regprog);
+  }
+  
+  /*
+--- 3487,3493 ----
+      vim_free(dirname_now);
+      vim_free(dirname_start);
+      vim_free(target_dir);
+!     vim_regfree(regmatch.regprog);
+  }
+  
+  /*
+***************
+*** 4178,4184 ****
+  	    }
+  	}
+  
+! 	vim_free(regmatch.regprog);
+  #ifdef FEAT_MBYTE
+  	if (vc.vc_type != CONV_NONE)
+  	    convert_setup(&vc, NULL, NULL);
+--- 4178,4184 ----
+  	    }
+  	}
+  
+! 	vim_regfree(regmatch.regprog);
+  #ifdef FEAT_MBYTE
+  	if (vc.vc_type != CONV_NONE)
+  	    convert_setup(&vc, NULL, NULL);
+*** ../vim-7.3.1148/src/search.c	2013-05-06 04:21:35.000000000 +0200
+--- src/search.c	2013-06-08 15:59:38.000000000 +0200
+***************
+*** 972,978 ****
+      }
+      while (--count > 0 && found);   /* stop after count matches or no match */
+  
+!     vim_free(regmatch.regprog);
+  
+      called_emsg |= save_called_emsg;
+  
+--- 972,978 ----
+      }
+      while (--count > 0 && found);   /* stop after count matches or no match */
+  
+!     vim_regfree(regmatch.regprog);
+  
+      called_emsg |= save_called_emsg;
+  
+***************
+*** 4680,4686 ****
+      }
+  
+      called_emsg |= save_called_emsg;
+!     vim_free(regmatch.regprog);
+      return result;
+  }
+  #endif /* FEAT_VISUAL */
+--- 4680,4686 ----
+      }
+  
+      called_emsg |= save_called_emsg;
+!     vim_regfree(regmatch.regprog);
+      return result;
+  }
+  #endif /* FEAT_VISUAL */
+***************
+*** 5402,5410 ****
+  
+  fpip_end:
+      vim_free(file_line);
+!     vim_free(regmatch.regprog);
+!     vim_free(incl_regmatch.regprog);
+!     vim_free(def_regmatch.regprog);
+  }
+  
+      static void
+--- 5402,5410 ----
+  
+  fpip_end:
+      vim_free(file_line);
+!     vim_regfree(regmatch.regprog);
+!     vim_regfree(incl_regmatch.regprog);
+!     vim_regfree(def_regmatch.regprog);
+  }
+  
+      static void
+*** ../vim-7.3.1148/src/spell.c	2013-05-06 04:21:35.000000000 +0200
+--- src/spell.c	2013-06-08 16:10:52.000000000 +0200
+***************
+*** 2658,2664 ****
+      ga_clear(gap);
+  
+      for (i = 0; i < lp->sl_prefixcnt; ++i)
+! 	vim_free(lp->sl_prefprog[i]);
+      lp->sl_prefixcnt = 0;
+      vim_free(lp->sl_prefprog);
+      lp->sl_prefprog = NULL;
+--- 2658,2664 ----
+      ga_clear(gap);
+  
+      for (i = 0; i < lp->sl_prefixcnt; ++i)
+! 	vim_regfree(lp->sl_prefprog[i]);
+      lp->sl_prefixcnt = 0;
+      vim_free(lp->sl_prefprog);
+      lp->sl_prefprog = NULL;
+***************
+*** 2669,2675 ****
+      vim_free(lp->sl_midword);
+      lp->sl_midword = NULL;
+  
+!     vim_free(lp->sl_compprog);
+      vim_free(lp->sl_comprules);
+      vim_free(lp->sl_compstartflags);
+      vim_free(lp->sl_compallflags);
+--- 2669,2675 ----
+      vim_free(lp->sl_midword);
+      lp->sl_midword = NULL;
+  
+!     vim_regfree(lp->sl_compprog);
+      vim_free(lp->sl_comprules);
+      vim_free(lp->sl_compstartflags);
+      vim_free(lp->sl_compallflags);
+***************
+*** 5802,5808 ****
+  					{
+  					    sprintf((char *)buf, "^%s",
+  							  aff_entry->ae_cond);
+! 					    vim_free(aff_entry->ae_prog);
+  					    aff_entry->ae_prog = vim_regcomp(
+  						    buf, RE_MAGIC + RE_STRING);
+  					}
+--- 5802,5808 ----
+  					{
+  					    sprintf((char *)buf, "^%s",
+  							  aff_entry->ae_cond);
+! 					    vim_regfree(aff_entry->ae_prog);
+  					    aff_entry->ae_prog = vim_regcomp(
+  						    buf, RE_MAGIC + RE_STRING);
+  					}
+***************
+*** 6507,6513 ****
+  		--todo;
+  		ah = HI2AH(hi);
+  		for (ae = ah->ah_first; ae != NULL; ae = ae->ae_next)
+! 		    vim_free(ae->ae_prog);
+  	    }
+  	}
+  	if (ht == &aff->af_suff)
+--- 6507,6513 ----
+  		--todo;
+  		ah = HI2AH(hi);
+  		for (ae = ah->ah_first; ae != NULL; ae = ae->ae_next)
+! 		    vim_regfree(ae->ae_prog);
+  	    }
+  	}
+  	if (ht == &aff->af_suff)
+*** ../vim-7.3.1148/src/tag.c	2012-09-12 18:19:39.000000000 +0200
+--- src/tag.c	2013-06-08 16:03:31.000000000 +0200
+***************
+*** 2491,2497 ****
+  
+  findtag_end:
+      vim_free(lbuf);
+!     vim_free(orgpat.regmatch.regprog);
+      vim_free(tag_fname);
+  #ifdef FEAT_EMACS_TAGS
+      vim_free(ebuf);
+--- 2491,2497 ----
+  
+  findtag_end:
+      vim_free(lbuf);
+!     vim_regfree(orgpat.regmatch.regprog);
+      vim_free(tag_fname);
+  #ifdef FEAT_EMACS_TAGS
+      vim_free(ebuf);
+*** ../vim-7.3.1148/src/window.c	2013-05-18 20:55:31.000000000 +0200
+--- src/window.c	2013-06-08 16:03:54.000000000 +0200
+***************
+*** 6818,6824 ****
+  	wp->w_match_head = cur->next;
+      else
+  	prev->next = cur->next;
+!     vim_free(cur->match.regprog);
+      vim_free(cur->pattern);
+      vim_free(cur);
+      redraw_later(SOME_VALID);
+--- 6818,6824 ----
+  	wp->w_match_head = cur->next;
+      else
+  	prev->next = cur->next;
+!     vim_regfree(cur->match.regprog);
+      vim_free(cur->pattern);
+      vim_free(cur);
+      redraw_later(SOME_VALID);
+***************
+*** 6837,6843 ****
+      while (wp->w_match_head != NULL)
+      {
+  	m = wp->w_match_head->next;
+! 	vim_free(wp->w_match_head->match.regprog);
+  	vim_free(wp->w_match_head->pattern);
+  	vim_free(wp->w_match_head);
+  	wp->w_match_head = m;
+--- 6837,6843 ----
+      while (wp->w_match_head != NULL)
+      {
+  	m = wp->w_match_head->next;
+! 	vim_regfree(wp->w_match_head->match.regprog);
+  	vim_free(wp->w_match_head->pattern);
+  	vim_free(wp->w_match_head);
+  	wp->w_match_head = m;
+*** ../vim-7.3.1148/src/screen.c	2013-06-07 20:17:06.000000000 +0200
+--- src/screen.c	2013-06-08 16:09:18.000000000 +0200
+***************
+*** 7082,7088 ****
+  {
+      if (search_hl.rm.regprog != NULL)
+      {
+! 	vim_free(search_hl.rm.regprog);
+  	search_hl.rm.regprog = NULL;
+      }
+  }
+--- 7082,7088 ----
+  {
+      if (search_hl.rm.regprog != NULL)
+      {
+! 	vim_regfree(search_hl.rm.regprog);
+  	search_hl.rm.regprog = NULL;
+      }
+  }
+***************
+*** 7284,7290 ****
+  	    if (shl == &search_hl)
+  	    {
+  		/* don't free regprog in the match list, it's a copy */
+! 		vim_free(shl->rm.regprog);
+  		no_hlsearch = TRUE;
+  	    }
+  	    shl->rm.regprog = NULL;
+--- 7284,7290 ----
+  	    if (shl == &search_hl)
+  	    {
+  		/* don't free regprog in the match list, it's a copy */
+! 		vim_regfree(shl->rm.regprog);
+  		no_hlsearch = TRUE;
+  	    }
+  	    shl->rm.regprog = NULL;
+*** ../vim-7.3.1148/src/macros.h	2012-07-19 17:18:21.000000000 +0200
+--- src/macros.h	2013-06-08 16:53:34.000000000 +0200
+***************
+*** 272,277 ****
+--- 272,278 ----
+  
+  # define MB_COPY_CHAR(f, t) if (has_mbyte) mb_copy_char(&f, &t); else *t++ = *f++
+  # define MB_CHARLEN(p)	    (has_mbyte ? mb_charlen(p) : (int)STRLEN(p))
++ # define MB_CHAR2LEN(c)	    (has_mbyte ? mb_char2len(c) : 1)
+  # define PTR2CHAR(p)	    (has_mbyte ? mb_ptr2char(p) : (int)*(p))
+  #else
+  # define MB_PTR2LEN(p)		1
+***************
+*** 280,285 ****
+--- 281,287 ----
+  # define mb_ptr_back(s, p)	--p
+  # define MB_COPY_CHAR(f, t)	*t++ = *f++
+  # define MB_CHARLEN(p)		STRLEN(p)
++ # define MB_CHAR2LEN(c)		1
+  # define PTR2CHAR(p)		((int)*(p))
+  #endif
+  
+*** ../vim-7.3.1148/src/testdir/test64.in	2013-06-05 18:52:36.000000000 +0200
+--- src/testdir/test64.in	2013-06-08 13:05:08.000000000 +0200
+***************
+*** 260,265 ****
+--- 260,267 ----
+  :call add(tl, [2, '[^[:alpha:]]\+','abcccadfoij7787ysf287yrnccdu','7787'])
+  :call add(tl, [2, '[-a]', '-', '-'])
+  :call add(tl, [2, '[a-]', '-', '-'])
++ :call add(tl, [2, '[a-f]*\c','ABCDEFGH','ABCDEF'])
++ :call add(tl, [2, '[abc][xyz]\c','-af-AF-BY--','BY'])
+  :" filename regexp
+  :call add(tl, [2, '[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])
+  :" special chars
+***************
+*** 385,390 ****
+--- 387,398 ----
+  :call add(tl, [2, '\(<<\)\@2<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+  :call add(tl, [2, '\(foo\)\@<!bar.', 'xx foobar1 xbar2 xx', 'bar2'])
+  :"
++ :" look-behind match in front of a zero-width item
++ :call add(tl, [2, '\v\C%(<Last Changed:\s+)@<=.*$', '" test header'])
++ :call add(tl, [2, '\v\C%(<Last Changed:\s+)@<=.*$', '" Last Changed: 1970', '1970'])
++ :call add(tl, [2, '\(foo\)\@<=\>', 'foobar'])
++ :call add(tl, [2, '\(foo\)\@<=\>', 'barfoo', '', 'foo'])
++ :"
+  :""""" \@>
+  :call add(tl, [2, '\(a*\)\@>a', 'aaaa'])
+  :call add(tl, [2, '\(a*\)\@>b', 'aaab', 'aaab', 'aaa'])
+*** ../vim-7.3.1148/src/testdir/test64.ok	2013-06-05 18:52:36.000000000 +0200
+--- src/testdir/test64.ok	2013-06-08 13:16:59.000000000 +0200
+***************
+*** 584,589 ****
+--- 584,595 ----
+  OK 0 - [a-]
+  OK 1 - [a-]
+  OK 2 - [a-]
++ OK 0 - [a-f]*\c
++ OK 1 - [a-f]*\c
++ OK 2 - [a-f]*\c
++ OK 0 - [abc][xyz]\c
++ OK 1 - [abc][xyz]\c
++ OK 2 - [abc][xyz]\c
+  OK 0 - [-./[:alnum:]_~]\+
+  OK 1 - [-./[:alnum:]_~]\+
+  OK 2 - [-./[:alnum:]_~]\+
+***************
+*** 872,877 ****
+--- 878,895 ----
+  OK 0 - \(foo\)\@<!bar.
+  OK 1 - \(foo\)\@<!bar.
+  OK 2 - \(foo\)\@<!bar.
++ OK 0 - \v\C%(<Last Changed:\s+)@<=.*$
++ OK 1 - \v\C%(<Last Changed:\s+)@<=.*$
++ OK 2 - \v\C%(<Last Changed:\s+)@<=.*$
++ OK 0 - \v\C%(<Last Changed:\s+)@<=.*$
++ OK 1 - \v\C%(<Last Changed:\s+)@<=.*$
++ OK 2 - \v\C%(<Last Changed:\s+)@<=.*$
++ OK 0 - \(foo\)\@<=\>
++ OK 1 - \(foo\)\@<=\>
++ OK 2 - \(foo\)\@<=\>
++ OK 0 - \(foo\)\@<=\>
++ OK 1 - \(foo\)\@<=\>
++ OK 2 - \(foo\)\@<=\>
+  OK 0 - \(a*\)\@>a
+  OK 1 - \(a*\)\@>a
+  OK 2 - \(a*\)\@>a
+*** ../vim-7.3.1148/src/version.c	2013-06-08 15:24:41.000000000 +0200
+--- src/version.c	2013-06-08 18:09:41.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1149,
+  /**/
+
+-- 
+FIXME and XXX are two common keywords used to mark broken or incomplete code
+not only since XXX as a sex reference would grab everybody's attention but
+simply due to the fact that Vim would highlight these words.
+					-- Hendrik Scholz
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

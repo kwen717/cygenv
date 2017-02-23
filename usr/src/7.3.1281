@@ -1,0 +1,62 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1281
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1281
+Problem:    When 'ttymouse' is set to "xterm2" clicking in column 123 moves
+	    the cursor to column 96. (Kevin Goodsell)
+Solution:   Decode KE_CSI.
+Files:	    src/term.c
+
+
+*** ../vim-7.3.1280/src/term.c	2013-06-30 17:51:46.000000000 +0200
+--- src/term.c	2013-07-01 19:58:02.000000000 +0200
+***************
+*** 2947,2954 ****
+  		return -1;
+  	    if (buf[len++] == (int)KS_ZERO)
+  		c = NUL;
+! 	    ++len;	/* skip KE_FILLER */
+! 	    /* else it should be KS_SPECIAL, and c already equals K_SPECIAL */
+  	}
+  	else if (c == CSI && buf[len] == KS_EXTRA
+  					       && buf[len + 1] == (int)KE_CSI)
+--- 2947,2956 ----
+  		return -1;
+  	    if (buf[len++] == (int)KS_ZERO)
+  		c = NUL;
+! 	    /* else it should be KS_SPECIAL; when followed by KE_FILLER c is
+! 	     * K_SPECIAL, or followed by KE_CSI and c must be CSI. */
+! 	    if (buf[len++] == (int)KE_CSI)
+! 		c = CSI;
+  	}
+  	else if (c == CSI && buf[len] == KS_EXTRA
+  					       && buf[len + 1] == (int)KE_CSI)
+*** ../vim-7.3.1280/src/version.c	2013-06-30 23:24:03.000000000 +0200
+--- src/version.c	2013-07-01 20:00:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1281,
+  /**/
+
+-- 
+ARTHUR:  Be quiet!
+DENNIS:  Well you can't expect to wield supreme executive power just 'cause
+         some watery tart threw a sword at you!
+ARTHUR:  Shut up!
+DENNIS:  I mean, if I went around sayin' I was an empereror just because some
+         moistened bint had lobbed a scimitar at me they'd put me away!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

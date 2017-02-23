@@ -1,0 +1,57 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.919
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.919 (after 7.3.788)
+Problem:    An empty nl.po file does not work with an old msgfmt.
+Solution:   Put a single # in the file. (Laurent Blume)
+Files:	    src/po/Makefile
+
+
+*** ../vim-7.3.918/src/po/Makefile	2013-01-30 12:50:50.000000000 +0100
+--- src/po/Makefile	2013-04-27 14:04:45.000000000 +0200
+***************
+*** 176,184 ****
+  
+  converted: $(MOCONVERTED)
+  
+! # nl.po was added later, if it does not exist use an empty file.
+  nl.po:
+! 	touch nl.po
+  
+  # Norwegian/Bokmal: "nb" is an alias for "no".
+  # Copying the file is not efficient, but I don't know of another way to make
+--- 176,185 ----
+  
+  converted: $(MOCONVERTED)
+  
+! # nl.po was added later, if it does not exist use a file with just a # in it
+! # (an empty file doesn't work with old msgfmt).
+  nl.po:
+! 	@( echo \# > nl.po )
+  
+  # Norwegian/Bokmal: "nb" is an alias for "no".
+  # Copying the file is not efficient, but I don't know of another way to make
+*** ../vim-7.3.918/src/version.c	2013-04-24 18:34:40.000000000 +0200
+--- src/version.c	2013-05-04 03:30:05.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     919,
+  /**/
+
+-- 
+God made the integers; all else is the work of Man.
+		-- Kronecker
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,114 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.935
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.935 (after 7.3.933)
+Problem:    Init stack works differently on 64 bit systems.
+Solution:   Handle 64 bit systems and also static library. (Yukihiro
+	    Nakadaira)
+Files:	    src/if_ruby.c
+
+
+*** ../vim-7.3.934/src/if_ruby.c	2013-05-11 13:56:12.000000000 +0200
+--- src/if_ruby.c	2013-05-11 17:31:55.000000000 +0200
+***************
+*** 227,233 ****
+  # define rb_float_new			dll_rb_float_new
+  # define rb_ary_new			dll_rb_ary_new
+  # define rb_ary_push			dll_rb_ary_push
+! # define ruby_init_stack		dll_ruby_init_stack
+  #else
+  # define rb_str2cstr			dll_rb_str2cstr
+  #endif
+--- 227,239 ----
+  # define rb_float_new			dll_rb_float_new
+  # define rb_ary_new			dll_rb_ary_new
+  # define rb_ary_push			dll_rb_ary_push
+! # ifdef __ia64
+! #  define rb_ia64_bsp		dll_rb_ia64_bsp
+! #  undef ruby_init_stack
+! #  define ruby_init_stack(addr)	dll_ruby_init_stack((addr), rb_ia64_bsp())
+! # else
+! #  define ruby_init_stack	dll_ruby_init_stack
+! # endif
+  #else
+  # define rb_str2cstr			dll_rb_str2cstr
+  #endif
+***************
+*** 336,342 ****
+  static VALUE (*dll_rb_float_new) (double);
+  static VALUE (*dll_rb_ary_new) (void);
+  static VALUE (*dll_rb_ary_push) (VALUE, VALUE);
+! static void (*ruby_init_stack)(VALUE*);
+  #endif
+  #ifdef RUBY19_OR_LATER
+  static VALUE (*dll_rb_int2big)(SIGNED_VALUE);
+--- 342,353 ----
+  static VALUE (*dll_rb_float_new) (double);
+  static VALUE (*dll_rb_ary_new) (void);
+  static VALUE (*dll_rb_ary_push) (VALUE, VALUE);
+! # ifdef __ia64
+! static void * (*dll_rb_ia64_bsp) (void);
+! static void (*dll_ruby_init_stack)(VALUE*, void*);
+! # else
+! static void (*dll_ruby_init_stack)(VALUE*);
+! # endif
+  #endif
+  #ifdef RUBY19_OR_LATER
+  static VALUE (*dll_rb_int2big)(SIGNED_VALUE);
+***************
+*** 476,481 ****
+--- 487,495 ----
+  #endif
+  #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+      {"rb_string_value_ptr", (RUBY_PROC*)&dll_rb_string_value_ptr},
++ # ifdef __ia64
++     {"rb_ia64_bsp", (RUBY_PROC*)&dll_rb_ia64_bsp},
++ # endif
+      {"ruby_init_stack", (RUBY_PROC*)&dll_ruby_init_stack},
+  # if DYNAMIC_RUBY_VER <= 19
+      {"rb_float_new", (RUBY_PROC*)&dll_rb_float_new},
+***************
+*** 717,723 ****
+  	    NtInitialize(&argc, &argv);
+  #endif
+  	    {
+! #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+  		ruby_init_stack(ruby_stack_start);
+  #endif
+  		ruby_init();
+--- 731,737 ----
+  	    NtInitialize(&argc, &argv);
+  #endif
+  	    {
+! #if defined(RUBY_VERSION) && RUBY_VERSION >= 18
+  		ruby_init_stack(ruby_stack_start);
+  #endif
+  		ruby_init();
+*** ../vim-7.3.934/src/version.c	2013-05-11 15:50:02.000000000 +0200
+--- src/version.c	2013-05-11 17:39:08.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     935,
+  /**/
+
+-- 
+ARTHUR:    Well, it doesn't matter.  Will you go and tell your master that
+           Arthur from the Court of Camelot is here.
+GUARD #1:  Listen, in order to maintain air-speed velocity, a swallow
+           needs to beat its wings 43 times every second, right?
+ARTHUR:    Please!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

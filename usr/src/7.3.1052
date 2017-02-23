@@ -1,0 +1,48 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1052
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1052
+Problem:    Python: possible SEGV and negative refcount.
+Solution:   Python patch 13: Fix IterIter function. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1051/src/if_py_both.h	2013-05-29 22:49:21.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:51:59.000000000 +0200
+***************
+*** 814,819 ****
+--- 814,820 ----
+      static PyObject *
+  IterIter(PyObject *self)
+  {
++     Py_INCREF(self);
+      return self;
+  }
+  
+*** ../vim-7.3.1051/src/version.c	2013-05-29 22:49:21.000000000 +0200
+--- src/version.c	2013-05-29 22:51:45.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1052,
+  /**/
+
+-- 
+Q: What is the difference betwee open-source and commercial software?
+A: If you have a problem with commercial software you can call a phone
+   number and they will tell you it might be solved in a future version.
+   For open-source software there isn't a phone number to call, but you
+   get the solution within a day.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

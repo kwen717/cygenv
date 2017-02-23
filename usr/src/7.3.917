@@ -1,0 +1,85 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.917
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.917
+Problem:    When a path ends in a backslash appending a comma has the wrong
+	    effect.
+Solution:   Replace a trailing backslash with a slash. (Nazri Ramliy)
+Files:	    src/misc1.c, src/testdir/test73.in, src/testdir/test73.ok
+
+
+*** ../vim-7.3.916/src/misc1.c	2013-04-15 15:47:07.000000000 +0200
+--- src/misc1.c	2013-04-24 17:25:45.000000000 +0200
+***************
+*** 10135,10140 ****
+--- 10135,10149 ----
+  
+  	if (ga_grow(gap, 1) == FAIL)
+  	    break;
++ 
++ # if defined(MSWIN) || defined(MSDOS)
++ 	/* Avoid the path ending in a backslash, it fails when a comma is
++ 	 * appended. */
++ 	len = STRLEN(buf);
++ 	if (buf[len - 1] == '\\')
++ 	    buf[len - 1] = '/';
++ # endif
++ 
+  	p = vim_strsave(buf);
+  	if (p == NULL)
+  	    break;
+*** ../vim-7.3.916/src/testdir/test73.in	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test73.in	2013-04-24 17:22:14.000000000 +0200
+***************
+*** 158,163 ****
+--- 158,173 ----
+  :" Find the file containing 'E.T.' in the Xfind/in/path directory
+  :find file	
+  :exec "w >>" . test_out
++ :"
++ :" Test that completion works when path=.,,
++ :"
++ :set path=.,,
++ :" Open Jimmy Hoffa file
++ :e in/file.txt
++ :exec "w >>" . test_out
++ :" Search for the file containing Holy Grail in same directory as in/path.txt
++ :find stu	
++ :exec "w >>" . test_out
+  :q
+  :exec "cd " . cwd
+  :call DeleteDirectory("Xfind")
+*** ../vim-7.3.916/src/testdir/test73.ok	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test73.ok	2013-04-24 17:22:28.000000000 +0200
+***************
+*** 17,19 ****
+--- 17,21 ----
+  Voyager 2
+  Jimmy Hoffa
+  E.T.
++ Jimmy Hoffa
++ Another Holy Grail
+*** ../vim-7.3.916/src/version.c	2013-04-24 16:52:28.000000000 +0200
+--- src/version.c	2013-04-24 17:27:55.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     917,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+229. You spend so much time thinking what to add on this list.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

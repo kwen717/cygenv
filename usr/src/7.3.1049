@@ -1,0 +1,177 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1049
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1049
+Problem:    Python: no consistent naming
+Solution:   Python patch 10: Rename DICTKEY_GET_NOTEMPTY to DICTKEY_GET. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1048/src/if_py_both.h	2013-05-29 22:39:46.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:42:26.000000000 +0200
+***************
+*** 34,40 ****
+      PyObject	*dictkey_todecref;
+  #define DICTKEY_GET(err) \
+      if (!(key = StringToChars(keyObject, &dictkey_todecref))) \
+! 	return err;
+  #define DICTKEY_UNREF \
+      Py_XDECREF(dictkey_todecref);
+  
+--- 34,45 ----
+      PyObject	*dictkey_todecref;
+  #define DICTKEY_GET(err) \
+      if (!(key = StringToChars(keyObject, &dictkey_todecref))) \
+! 	return err; \
+!     if (*key == NUL) \
+!     { \
+! 	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+! 	return err; \
+!     }
+  #define DICTKEY_UNREF \
+      Py_XDECREF(dictkey_todecref);
+  
+***************
+*** 851,864 ****
+  
+  static PyTypeObject DictionaryType;
+  
+- #define DICTKEY_GET_NOTEMPTY(err) \
+-     DICTKEY_GET(err) \
+-     if (*key == NUL) \
+-     { \
+- 	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+- 	return err; \
+-     }
+- 
+  typedef struct
+  {
+      PyObject_HEAD
+--- 856,861 ----
+***************
+*** 950,956 ****
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+!     DICTKEY_GET_NOTEMPTY(NULL)
+  
+      di = dict_find(self->dict, key, -1);
+  
+--- 947,953 ----
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+!     DICTKEY_GET(NULL)
+  
+      di = dict_find(self->dict, key, -1);
+  
+***************
+*** 980,986 ****
+  	return -1;
+      }
+  
+!     DICTKEY_GET_NOTEMPTY(-1)
+  
+      di = dict_find(dict, key, -1);
+  
+--- 977,983 ----
+  	return -1;
+      }
+  
+!     DICTKEY_GET(-1)
+  
+      di = dict_find(dict, key, -1);
+  
+***************
+*** 1653,1659 ****
+      if (self->Check(self->from))
+  	return NULL;
+  
+!     DICTKEY_GET_NOTEMPTY(NULL)
+  
+      flags = get_option_value_strict(key, &numval, &stringval,
+  				    self->opt_type, self->from);
+--- 1650,1656 ----
+      if (self->Check(self->from))
+  	return NULL;
+  
+!     DICTKEY_GET(NULL)
+  
+      flags = get_option_value_strict(key, &numval, &stringval,
+  				    self->opt_type, self->from);
+***************
+*** 1792,1798 ****
+      if (self->Check(self->from))
+  	return -1;
+  
+!     DICTKEY_GET_NOTEMPTY(-1)
+  
+      flags = get_option_value_strict(key, NULL, NULL,
+  				    self->opt_type, self->from);
+--- 1789,1795 ----
+      if (self->Check(self->from))
+  	return -1;
+  
+!     DICTKEY_GET(-1)
+  
+      flags = get_option_value_strict(key, NULL, NULL,
+  				    self->opt_type, self->from);
+***************
+*** 4037,4043 ****
+  	if (valObject == NULL)
+  	    return -1;
+  
+! 	DICTKEY_GET_NOTEMPTY(-1)
+  
+  	di = dictitem_alloc(key);
+  
+--- 4034,4040 ----
+  	if (valObject == NULL)
+  	    return -1;
+  
+! 	DICTKEY_GET(-1)
+  
+  	di = dictitem_alloc(key);
+  
+***************
+*** 4111,4117 ****
+  	    return -1;
+  	}
+  
+! 	DICTKEY_GET_NOTEMPTY(-1)
+  
+  	valObject = PyTuple_GetItem(litem, 1);
+  	if (valObject == NULL)
+--- 4108,4114 ----
+  	    return -1;
+  	}
+  
+! 	DICTKEY_GET(-1)
+  
+  	valObject = PyTuple_GetItem(litem, 1);
+  	if (valObject == NULL)
+*** ../vim-7.3.1048/src/version.c	2013-05-29 22:39:46.000000000 +0200
+--- src/version.c	2013-05-29 22:42:23.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1049,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+24. You realize there is not a sound in the house and you have no idea where
+    your children are.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,99 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1177
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1177
+Problem:    Wasting memory on padding.
+Solution:   Reorder struct fields. (Dominique Pelle)
+Files:	    src/structs.h, src/fileio.c
+
+
+*** ../vim-7.3.1176/src/structs.h	2013-06-06 14:55:16.000000000 +0200
+--- src/structs.h	2013-06-12 19:21:02.000000000 +0200
+***************
+*** 1180,1191 ****
+   */
+  struct dictvar_S
+  {
+      int		dv_refcount;	/* reference count */
+-     hashtab_T	dv_hashtab;	/* hashtab that refers to the items */
+      int		dv_copyID;	/* ID used by deepcopy() */
+      dict_T	*dv_copydict;	/* copied dict used by deepcopy() */
+-     char	dv_lock;	/* zero, VAR_LOCKED, VAR_FIXED */
+-     char	dv_scope;	/* zero, VAR_SCOPE, VAR_DEF_SCOPE */
+      dict_T	*dv_used_next;	/* next dict in used dicts list */
+      dict_T	*dv_used_prev;	/* previous dict in used dicts list */
+  };
+--- 1180,1191 ----
+   */
+  struct dictvar_S
+  {
++     char	dv_lock;	/* zero, VAR_LOCKED, VAR_FIXED */
++     char	dv_scope;	/* zero, VAR_SCOPE, VAR_DEF_SCOPE */
+      int		dv_refcount;	/* reference count */
+      int		dv_copyID;	/* ID used by deepcopy() */
++     hashtab_T	dv_hashtab;	/* hashtab that refers to the items */
+      dict_T	*dv_copydict;	/* copied dict used by deepcopy() */
+      dict_T	*dv_used_next;	/* next dict in used dicts list */
+      dict_T	*dv_used_prev;	/* previous dict in used dicts list */
+  };
+*** ../vim-7.3.1176/src/fileio.c	2013-06-08 18:19:39.000000000 +0200
+--- src/fileio.c	2013-06-12 19:23:35.000000000 +0200
+***************
+*** 7614,7629 ****
+  
+  typedef struct AutoPat
+  {
+-     int		    group;		/* group ID */
+      char_u	    *pat;		/* pattern as typed (NULL when pattern
+  					   has been removed) */
+-     int		    patlen;		/* strlen() of pat */
+      regprog_T	    *reg_prog;		/* compiled regprog for pattern */
+-     char	    allow_dirs;		/* Pattern may match whole path */
+-     char	    last;		/* last pattern for apply_autocmds() */
+      AutoCmd	    *cmds;		/* list of commands to do */
+      struct AutoPat  *next;		/* next AutoPat in AutoPat list */
+      int		    buflocal_nr;	/* !=0 for buffer-local AutoPat */
+  } AutoPat;
+  
+  static struct event_name
+--- 7614,7629 ----
+  
+  typedef struct AutoPat
+  {
+      char_u	    *pat;		/* pattern as typed (NULL when pattern
+  					   has been removed) */
+      regprog_T	    *reg_prog;		/* compiled regprog for pattern */
+      AutoCmd	    *cmds;		/* list of commands to do */
+      struct AutoPat  *next;		/* next AutoPat in AutoPat list */
++     int		    group;		/* group ID */
++     int		    patlen;		/* strlen() of pat */
+      int		    buflocal_nr;	/* !=0 for buffer-local AutoPat */
++     char	    allow_dirs;		/* Pattern may match whole path */
++     char	    last;		/* last pattern for apply_autocmds() */
+  } AutoPat;
+  
+  static struct event_name
+*** ../vim-7.3.1176/src/version.c	2013-06-12 18:13:31.000000000 +0200
+--- src/version.c	2013-06-12 19:20:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1177,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+174. You know what a listserv is.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

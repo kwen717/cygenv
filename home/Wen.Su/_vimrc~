@@ -1,0 +1,231 @@
+"
+" @Author	:	Wen.Su
+" 
+" @Time		: 	2015/10
+"
+" @Desc		:	basic settings of my vim resource
+"
+" @TODO		: 	Hotkey, ColorScheme, plugin about preprocessor, syntax check
+" 				auto Completion, etc
+""""""""""""""""""""""""""""""
+" @Basic
+""""""""""""""""""""""""""""""
+" Use Vim settings, rather than Vi settings (much better!).
+" This must be first, because it changes other options as a side effect.
+set nocompatible
+" Allow backspace in insert mode 
+set backspace=indent,eol,start
+" Enable filetype plugins TODO
+filetype plugin on
+filetype indent on
+" Show the cursor all the time
+set ruler
+" Disable cursor blink
+set gcr=a:blinkon0
+" Autoread when a file is changed from the outside
+set autoread
+" No sounds
+set visualbell
+" Show current mode/cmd at the bottome
+set showcmd 
+
+" Other
+set history=500
+
+
+""""""""""""""""""""""""""""""
+" @Swap Files
+""""""""""""""""""""""""""""""
+if 0
+set noswapfile
+set nobackup
+set nowb
+endif
+
+""""""""""""""""""""""""""""""
+" @Indentation 
+""""""""""""""""""""""""""""""
+"TODO
+if 0
+set autoindent
+set smartindent
+set cindent
+set shiftwidth=2
+set softtabstop=2
+set tabstop=4
+set expandtab
+set smarttab
+" Display tabs and trailing blank visually
+"set list listchars=tab:\ \ ,trail:·
+" Wrap lines and wrapping at proper position
+set wrap
+set linebreak
+endif 
+
+
+""""""""""""""""""""""""""""""
+" @Completion
+""""""""""""""""""""""""""""""
+set wildmode=list:longest
+" Enable Ctrl-n, Ctrl-p to scroll through matches
+set wildmenu
+" Stuff to ignore when tab completing
+set wildignore=*.o,*.obj,*~,*.swp
+set wildignore+=*vim/backups*
+set wildignore+=*sass-cache*
+set wildignore+=*DS_Store*
+set wildignore+=*.gem
+set wildignore+=log/**
+set wildignore+=tmp/**
+set wildignore+=*.png,*.jpg,*.gif
+
+""""""""""""""""""""""""""""""
+" @scrolling 
+""""""""""""""""""""""""""""""
+" Start scrolling when we're 8 lines away from margins
+set scrolloff=8
+set sidescrolloff=15
+set sidescroll=1
+
+
+""""""""""""""""""""""""""""""
+" @Search
+""""""""""""""""""""""""""""""
+set incsearch
+set hlsearch
+" Ignore Case when searching
+set ignorecase
+" Unless we type a capital 
+set smartcase
+
+""""""""""""""""""""""""""""""
+" @ColorScheme 
+" https://code.google.com/p/vimcolorschemetest/
+"
+" 1. Download name_scheme.vim
+" 2. mv name_scheme.vim ~/.vim/colors/
+" 3. colorscheme name_scheme   #put in ~/.vimrc
+" 4. :colorscheme name_scheme
+""""""""""""""""""""""""""""""
+" Enable syntax highlighting
+syntax enable
+set t_Co=256
+
+" TODO Use the unix as the standard file type
+set ffs=unix,mac,dos
+" TODO
+if 0
+set encoding=utf8
+colorscheme colorful256
+endif
+
+
+""""""""""""""""""""""""""""""
+" @Persistent Undo 
+""""""""""""""""""""""""""""""
+" Keep undo history across sessions, by storing in file.
+" Only works all the time.
+if has('persistent_undo') && !isdirectory(expand('~').'/.vim/backups')
+  silent !mkdir ~/.vim/backups > /dev/null 2>&1
+  set undodir=~/.vim/backups
+  set undofile
+endif
+""""""""""""""""""""""""""""""
+" @HOT KEY
+""""""""""""""""""""""""""""""
+" TODO
+" Fast saving
+nmap <leader>w :w!<cr>
+" Fast quit
+nmap <leader>q :q!
+" Remap 0 to first non-blank char.
+map 0 ^
+
+" In many terminal emulators the mouse works just fine, thus enable it.
+if has('mouse')
+  set mouse=a
+endif
+
+
+" Only do this part when compiled with support for autocommands.
+if has("autocmd")
+
+  " Enable file type detection.
+  " Use the default filetype settings, so that mail gets 'tw' set to 72,
+  " 'cindent' is on in C files, etc.
+  " Also load indent files, to automatically do language-dependent indenting.
+  filetype plugin indent on
+
+  " Put these in an autocmd group, so that we can delete them easily.
+  augroup vimrcEx
+  au!
+
+  " For all text files set 'textwidth' to 78 characters.
+  autocmd FileType text setlocal textwidth=78
+
+  " When editing a file, always jump to the last known cursor position.
+  " Don't do it when the position is invalid or when inside an event handler
+  " (happens when dropping a file on gvim).
+  " Also don't do it when the mark is in the first line, that is the default
+  " position when opening a file.
+  autocmd BufReadPost *
+    \ if line("'\"") > 1 && line("'\"") <= line("$") |
+    \   exe "normal! g`\"" |
+    \ endif
+
+  augroup END
+
+else
+
+  set autoindent		" always set autoindenting on
+
+endif " has("autocmd")
+
+" Convenient command to see the difference between the current buffer and the
+" file it was loaded from, thus the changes you made.
+" Only define it when not defined already.
+if !exists(":DiffOrig")
+  command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
+		  \ | wincmd p | diffthis
+endif
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+map <f9> :Tlist<CR>
+
+set ts=4
+"
+"
+filetype plugin on
+"
+"
+"
+let g:acp_completeOption = '.,t,i,b'
+
+" For cscope
+"
+if has("cscope")
+	set csprg=/usr/bin/cscope
+	set csto=1
+	set cst
+	set nocsverb
+	" add any database in current directory
+	if filereadable("cscope.out")
+		cs add cscope.out
+	endif
+	set csverb
+endif
+
+nmap <C-@>s :cs find s <C-R>=expand("<cword>")<CR><CR>
+nmap <C-@>g :cs find g <C-R>=expand("<cword>")<CR><CR>
+nmap <C-@>c :cs find c <C-R>=expand("<cword>")<CR><CR>
+nmap <C-@>t :cs find t <C-R>=expand("<cword>")<CR><CR>
+nmap <C-@>e :cs find e <C-R>=expand("<cword>")<CR><CR>
+nmap <C-@>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
+nmap <C-@>i :cs find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+nmap <C-@>d :cs find d <C-R>=expand("<cword>")<CR><CR>
+
+
+
+
+
+

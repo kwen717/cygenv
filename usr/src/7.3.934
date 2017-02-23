@@ -1,0 +1,81 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.934
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.934
+Problem:    E381 and E380 make the user think nothing happened.
+Solution:   Display the message indicating what error list is now active.
+	    (Christian Brabandt)
+Files:	    src/quickfix.c
+
+
+*** ../vim-7.3.933/src/quickfix.c	2013-05-06 04:21:35.000000000 +0200
+--- src/quickfix.c	2013-05-11 13:50:56.000000000 +0200
+***************
+*** 2085,2091 ****
+  	    if (qi->qf_curlist == 0)
+  	    {
+  		EMSG(_("E380: At bottom of quickfix stack"));
+! 		return;
+  	    }
+  	    --qi->qf_curlist;
+  	}
+--- 2085,2091 ----
+  	    if (qi->qf_curlist == 0)
+  	    {
+  		EMSG(_("E380: At bottom of quickfix stack"));
+! 		break;
+  	    }
+  	    --qi->qf_curlist;
+  	}
+***************
+*** 2094,2106 ****
+  	    if (qi->qf_curlist >= qi->qf_listcount - 1)
+  	    {
+  		EMSG(_("E381: At top of quickfix stack"));
+! 		return;
+  	    }
+  	    ++qi->qf_curlist;
+  	}
+      }
+      qf_msg(qi);
+- 
+  }
+  
+      static void
+--- 2094,2105 ----
+  	    if (qi->qf_curlist >= qi->qf_listcount - 1)
+  	    {
+  		EMSG(_("E381: At top of quickfix stack"));
+! 		break;
+  	    }
+  	    ++qi->qf_curlist;
+  	}
+      }
+      qf_msg(qi);
+  }
+  
+      static void
+*** ../vim-7.3.933/src/version.c	2013-05-11 13:56:12.000000000 +0200
+--- src/version.c	2013-05-11 15:46:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     934,
+  /**/
+
+-- 
+"A mouse can be just as dangerous as a bullet or a bomb."
+             (US Representative Lamar Smith, R-Texas)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

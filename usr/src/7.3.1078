@@ -1,0 +1,205 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1078
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1078
+Problem:    New regexp engine: \@! doesn't work.
+Solution:   Implement the negated version of \@=.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1077/src/regexp_nfa.c	2013-05-30 21:42:09.000000000 +0200
+--- src/regexp_nfa.c	2013-05-30 22:39:40.000000000 +0200
+***************
+*** 1390,1395 ****
+--- 1390,1398 ----
+  		case '=':
+  		    EMIT(NFA_PREV_ATOM_NO_WIDTH);
+  		    break;
++ 		case '!':
++ 		    EMIT(NFA_PREV_ATOM_NO_WIDTH_NEG);
++ 		    break;
+  		case '0':
+  		case '1':
+  		case '2':
+***************
+*** 1400,1406 ****
+  		case '7':
+  		case '8':
+  		case '9':
+- 		case '!':
+  		case '<':
+  		case '>':
+  		    /* Not supported yet */
+--- 1403,1408 ----
+***************
+*** 2373,2379 ****
+--- 2375,2383 ----
+  	    break;
+  
+  	case NFA_PREV_ATOM_NO_WIDTH:
++ 	case NFA_PREV_ATOM_NO_WIDTH_NEG:
+  	    /* The \@= operator: match the preceding atom with zero width.
++ 	     * The \@! operator: no match for the preceding atom.
+  	     * Surrounds the preceding atom with START_INVISIBLE and
+  	     * END_INVISIBLE, similarly to MOPEN. */
+  
+***************
+*** 2391,2396 ****
+--- 2395,2406 ----
+  	    s = new_state(NFA_START_INVISIBLE, e.start, s1);
+  	    if (s == NULL)
+  		goto theend;
++ 	    if (*p == NFA_PREV_ATOM_NO_WIDTH_NEG)
++ 	    {
++ 		s->negated = TRUE;
++ 		s1->negated = TRUE;
++ 	    }
++ 
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+  
+***************
+*** 3541,3548 ****
+  		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		else
+  		{
+! 		    /* TODO: only copy positions in use. */
+! 		    *m = t->sub;
+  		    nfa_match = TRUE;
+  		}
+  		break;
+--- 3551,3560 ----
+  		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		else
+  		{
+! 		    /* do not set submatches for \@! */
+! 		    if (!t->state->negated)
+! 			/* TODO: only copy positions in use. */
+! 			*m = t->sub;
+  		    nfa_match = TRUE;
+  		}
+  		break;
+***************
+*** 3593,3599 ****
+  		    log_fd = stderr;
+  		}
+  #endif
+! 		if (result == TRUE)
+  		{
+  		    int j;
+  
+--- 3605,3612 ----
+  		    log_fd = stderr;
+  		}
+  #endif
+! 		/* for \@! it is a match when result is FALSE */
+! 		if (result != t->state->negated)
+  		{
+  		    int j;
+  
+*** ../vim-7.3.1077/src/testdir/test64.in	2013-05-30 21:42:09.000000000 +0200
+--- src/testdir/test64.in	2013-05-30 22:41:38.000000000 +0200
+***************
+*** 303,315 ****
+  :" will never match
+  :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])
+  :call add(tl, [2, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+- :" no match
+  :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])
+  :call add(tl, [2, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+- :" no match
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])
+  :call add(tl, [2, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [2, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  :"
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+--- 303,322 ----
+  :" will never match
+  :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])
+  :call add(tl, [2, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+  :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])
+  :call add(tl, [2, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])
+  :call add(tl, [2, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [2, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
++ :call add(tl, [2, 'foo\(bar\)\@!', 'foobar'])
++ :call add(tl, [2, 'foo\(bar\)\@!', 'foo bar', 'foo'])
++ :call add(tl, [2, 'if \(\(then\)\@!.\)*$', ' if then else'])
++ :call add(tl, [2, 'if \(\(then\)\@!.\)*$', ' if else ', 'if else ', ' '])
++ :call add(tl, [2, '\(foo\)\@!bar', 'foobar', 'bar'])
++ :call add(tl, [2, '\(foo\)\@!...bar', 'foobar'])
++ :call add(tl, [2, '^\%(.*bar\)\@!.*\zsfoo', ' bar foo '])
++ :call add(tl, [2, '^\%(.*bar\)\@!.*\zsfoo', ' foo bar '])
++ :call add(tl, [2, '^\%(.*bar\)\@!.*\zsfoo', ' foo xxx ', 'foo'])
+  :"
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+*** ../vim-7.3.1077/src/testdir/test64.ok	2013-05-30 21:42:09.000000000 +0200
+--- src/testdir/test64.ok	2013-05-30 22:42:02.000000000 +0200
+***************
+*** 678,683 ****
+--- 678,710 ----
+  OK 0 - \v(test1)@=.*yep
+  OK 1 - \v(test1)@=.*yep
+  OK 2 - \v(test1)@=.*yep
++ OK 0 - foo\(bar\)\@!
++ OK 1 - foo\(bar\)\@!
++ OK 2 - foo\(bar\)\@!
++ OK 0 - foo\(bar\)\@!
++ OK 1 - foo\(bar\)\@!
++ OK 2 - foo\(bar\)\@!
++ OK 0 - if \(\(then\)\@!.\)*$
++ OK 1 - if \(\(then\)\@!.\)*$
++ OK 2 - if \(\(then\)\@!.\)*$
++ OK 0 - if \(\(then\)\@!.\)*$
++ OK 1 - if \(\(then\)\@!.\)*$
++ OK 2 - if \(\(then\)\@!.\)*$
++ OK 0 - \(foo\)\@!bar
++ OK 1 - \(foo\)\@!bar
++ OK 2 - \(foo\)\@!bar
++ OK 0 - \(foo\)\@!...bar
++ OK 1 - \(foo\)\@!...bar
++ OK 2 - \(foo\)\@!...bar
++ OK 0 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 1 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 2 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 0 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 1 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 2 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 0 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 1 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 2 - ^\%(.*bar\)\@!.*\zsfoo
+  OK 0 - [[:alpha:]]\{-2,6}
+  OK 1 - [[:alpha:]]\{-2,6}
+  OK 2 - [[:alpha:]]\{-2,6}
+*** ../vim-7.3.1077/src/version.c	2013-05-30 22:06:28.000000000 +0200
+--- src/version.c	2013-05-30 22:42:59.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1078,
+  /**/
+
+-- 
+The startling truth finally became apparent, and it was this: Numbers
+written on restaurant checks within the confines of restaurants do not follow
+the same mathematical laws as numbers written on any other pieces of paper in
+any other parts of the Universe.  This single statement took the scientific
+world by storm.  So many mathematical conferences got held in such good
+restaurants that many of the finest minds of a generation died of obesity and
+heart failure, and the science of mathematics was put back by years.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

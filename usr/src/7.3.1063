@@ -1,0 +1,661 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1063
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1063
+Problem:    Python: Function is not standard.
+Solution:   Python patch 22: make Function subclassable. (ZyX)
+Files:	    src/eval.c, src/if_py_both.h, src/proto/eval.pro,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1062/src/eval.c	2013-05-30 13:01:14.000000000 +0200
+--- src/eval.c	2013-05-30 13:13:53.000000000 +0200
+***************
+*** 21933,21938 ****
+--- 21933,21947 ----
+  }
+  #endif
+  
++     int
++ translated_function_exists(name)
++     char_u	*name;
++ {
++     if (builtin_function(name))
++ 	return find_internal_func(name) >= 0;
++     return find_func(name) != NULL;
++ }
++ 
+  /*
+   * Return TRUE if a function "name" exists.
+   */
+***************
+*** 21950,21961 ****
+      /* Only accept "funcname", "funcname ", "funcname (..." and
+       * "funcname(...", not "funcname!...". */
+      if (p != NULL && (*nm == NUL || *nm == '('))
+!     {
+! 	if (builtin_function(p))
+! 	    n = (find_internal_func(p) >= 0);
+! 	else
+! 	    n = (find_func(p) != NULL);
+!     }
+      vim_free(p);
+      return n;
+  }
+--- 21959,21965 ----
+      /* Only accept "funcname", "funcname ", "funcname (..." and
+       * "funcname(...", not "funcname!...". */
+      if (p != NULL && (*nm == NUL || *nm == '('))
+! 	n = translated_function_exists(p);
+      vim_free(p);
+      return n;
+  }
+***************
+*** 21971,21988 ****
+      p = trans_function_name(&nm, FALSE, TFN_INT|TFN_QUIET, NULL);
+  
+      if (p != NULL && *nm == NUL)
+!     {
+! 	if (!check)
+  	    return p;
+! 	else if (builtin_function(p))
+! 	{
+! 	    if (find_internal_func(p) >= 0)
+! 		return p;
+! 	}
+! 	else
+! 	    if (find_func(p) != NULL)
+! 		return p;
+!     }
+      vim_free(p);
+      return NULL;
+  }
+--- 21975,21983 ----
+      p = trans_function_name(&nm, FALSE, TFN_INT|TFN_QUIET, NULL);
+  
+      if (p != NULL && *nm == NUL)
+! 	if (!check || translated_function_exists(p))
+  	    return p;
+! 
+      vim_free(p);
+      return NULL;
+  }
+*** ../vim-7.3.1062/src/if_py_both.h	2013-05-30 13:05:55.000000000 +0200
+--- src/if_py_both.h	2013-05-30 13:08:09.000000000 +0200
+***************
+*** 1991,2020 ****
+  
+  static PyTypeObject FunctionType;
+  
+      static PyObject *
+! FunctionNew(char_u *name)
+  {
+      FunctionObject	*self;
+  
+!     self = PyObject_NEW(FunctionObject, &FunctionType);
+      if (self == NULL)
+  	return NULL;
+!     self->name = PyMem_New(char_u, STRLEN(name) + 1);
+!     if (self->name == NULL)
+      {
+! 	PyErr_NoMemory();
+! 	return NULL;
+      }
+!     STRCPY(self->name, name);
+!     func_ref(name);
+      return (PyObject *)(self);
+  }
+  
+      static void
+  FunctionDestructor(FunctionObject *self)
+  {
+      func_unref(self->name);
+!     PyMem_Free(self->name);
+  
+      DESTRUCTOR_FINISH(self);
+  }
+--- 1991,2063 ----
+  
+  static PyTypeObject FunctionType;
+  
++ #define NEW_FUNCTION(name) FunctionNew(&FunctionType, name)
++ 
+      static PyObject *
+! FunctionNew(PyTypeObject *subtype, char_u *name)
+  {
+      FunctionObject	*self;
+  
+!     self = (FunctionObject *) subtype->tp_alloc(subtype, 0);
+! 
+      if (self == NULL)
+  	return NULL;
+! 
+!     if (isdigit(*name))
+      {
+! 	if (!translated_function_exists(name))
+! 	{
+! 	    PyErr_SetString(PyExc_ValueError,
+! 		    _("unnamed function does not exist"));
+! 	    return NULL;
+! 	}
+! 	self->name = vim_strsave(name);
+! 	func_ref(self->name);
+      }
+!     else
+!     {
+! 	self->name = get_expanded_name(name, TRUE);
+! 	if (self->name == NULL)
+! 	{
+! 	    if (script_autoload(name, TRUE) && !aborting())
+! 		self->name = get_expanded_name(name, TRUE);
+! 	    if (self->name == NULL)
+! 	    {
+! 		PyErr_SetString(PyExc_ValueError, _("function does not exist"));
+! 		return NULL;
+! 	    }
+! 	}
+!     }
+! 
+      return (PyObject *)(self);
+  }
+  
++     static PyObject *
++ FunctionConstructor(PyTypeObject *subtype, PyObject *args, PyObject *kwargs)
++ {
++     PyObject	*self;
++     char_u	*name;
++ 
++     if (kwargs)
++     {
++ 	PyErr_SetString(PyExc_TypeError,
++ 		_("function constructor does not accept keyword arguments"));
++ 	return NULL;
++     }
++ 
++     if (!PyArg_ParseTuple(args, "s", &name))
++ 	return NULL;
++ 
++     self = FunctionNew(subtype, name);
++ 
++     return self;
++ }
++ 
+      static void
+  FunctionDestructor(FunctionObject *self)
+  {
+      func_unref(self->name);
+!     vim_free(self->name);
+  
+      DESTRUCTOR_FINISH(self);
+  }
+***************
+*** 2093,2099 ****
+  }
+  
+  static struct PyMethodDef FunctionMethods[] = {
+-     {"__call__",(PyCFunction)FunctionCall,  METH_VARARGS|METH_KEYWORDS,	""},
+      {"__dir__",	(PyCFunction)FunctionDir,   METH_NOARGS,		""},
+      { NULL,	NULL,			0,				NULL}
+  };
+--- 2136,2141 ----
+***************
+*** 4895,4901 ****
+  	case VAR_DICT:
+  	    return NEW_DICTIONARY(tv->vval.v_dict);
+  	case VAR_FUNC:
+! 	    return FunctionNew(tv->vval.v_string == NULL
+  					  ? (char_u *)"" : tv->vval.v_string);
+  	case VAR_UNKNOWN:
+  	    Py_INCREF(Py_None);
+--- 4937,4943 ----
+  	case VAR_DICT:
+  	    return NEW_DICTIONARY(tv->vval.v_dict);
+  	case VAR_FUNC:
+! 	    return NEW_FUNCTION(tv->vval.v_string == NULL
+  					  ? (char_u *)"" : tv->vval.v_string);
+  	case VAR_UNKNOWN:
+  	    Py_INCREF(Py_None);
+***************
+*** 5105,5114 ****
+      FunctionType.tp_basicsize = sizeof(FunctionObject);
+      FunctionType.tp_dealloc = (destructor)FunctionDestructor;
+      FunctionType.tp_call = (ternaryfunc)FunctionCall;
+!     FunctionType.tp_flags = Py_TPFLAGS_DEFAULT;
+      FunctionType.tp_doc = "object that calls vim function";
+      FunctionType.tp_methods = FunctionMethods;
+      FunctionType.tp_repr = (reprfunc)FunctionRepr;
+  #if PY_MAJOR_VERSION >= 3
+      FunctionType.tp_getattro = (getattrofunc)FunctionGetattro;
+  #else
+--- 5147,5158 ----
+      FunctionType.tp_basicsize = sizeof(FunctionObject);
+      FunctionType.tp_dealloc = (destructor)FunctionDestructor;
+      FunctionType.tp_call = (ternaryfunc)FunctionCall;
+!     FunctionType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE;
+      FunctionType.tp_doc = "object that calls vim function";
+      FunctionType.tp_methods = FunctionMethods;
+      FunctionType.tp_repr = (reprfunc)FunctionRepr;
++     FunctionType.tp_new = (newfunc)FunctionConstructor;
++     FunctionType.tp_alloc = (allocfunc)PyType_GenericAlloc;
+  #if PY_MAJOR_VERSION >= 3
+      FunctionType.tp_getattro = (getattrofunc)FunctionGetattro;
+  #else
+*** ../vim-7.3.1062/src/proto/eval.pro	2013-05-30 13:01:14.000000000 +0200
+--- src/proto/eval.pro	2013-05-30 13:08:09.000000000 +0200
+***************
+*** 79,84 ****
+--- 79,85 ----
+  char_u *get_function_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expr_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expanded_name __ARGS((char_u *name, int check));
++ int translated_function_exists __ARGS((char_u *name));
+  int func_call __ARGS((char_u *name, typval_T *args, dict_T *selfdict, typval_T *rettv));
+  void mzscheme_call_vim __ARGS((char_u *name, typval_T *args, typval_T *rettv));
+  long do_searchpair __ARGS((char_u *spat, char_u *mpat, char_u *epat, int dir, char_u *skip, int flags, pos_T *match_pos, linenr_T lnum_stop, long time_limit));
+*** ../vim-7.3.1062/src/testdir/test86.in	2013-05-30 13:05:55.000000000 +0200
+--- src/testdir/test86.in	2013-05-30 13:08:09.000000000 +0200
+***************
+*** 31,36 ****
+--- 31,39 ----
+  :"
+  :" Extending Dictionary directly with different types
+  :let d = {}
++ :fun d.f()
++ :  return 1
++ :endfun
+  py << EOF
+  d=vim.bindeval('d')
+  d['1']='asd'
+***************
+*** 44,55 ****
+  dv.sort(key=repr)
+  di.sort(key=repr)
+  EOF
+  :$put =pyeval('repr(dk)')
+  :$put =substitute(pyeval('repr(dv)'),'0x\x\+','','g')
+  :$put =substitute(pyeval('repr(di)'),'0x\x\+','','g')
+! :for [key, val] in sort(items(d))
+! :  $put =string(key) . ' : ' . string(val)
+! :  unlet key val
+  :endfor
+  :"
+  :" removing items with del
+--- 47,59 ----
+  dv.sort(key=repr)
+  di.sort(key=repr)
+  EOF
++ :$put =pyeval('d[''f''](self={})')
+  :$put =pyeval('repr(dk)')
+  :$put =substitute(pyeval('repr(dv)'),'0x\x\+','','g')
+  :$put =substitute(pyeval('repr(di)'),'0x\x\+','','g')
+! :for [key, Val] in sort(items(d))
+! :  $put =string(key) . ' : ' . string(Val)
+! :  unlet key Val
+  :endfor
+  :"
+  :" removing items with del
+***************
+*** 66,71 ****
+--- 70,76 ----
+  :$put =string(l)
+  :"
+  :py del d['-1']
++ :py del d['f']
+  :$put =string(pyeval('d.get(''b'', 1)'))
+  :$put =string(pyeval('d.pop(''b'')'))
+  :$put =string(pyeval('d.get(''b'', 1)'))
+***************
+*** 187,195 ****
+  :catch
+  :   $put =v:exception[:16]
+  :endtry
+  :delfunction New
+  :try
+! :   py l[0](1, 2, 3)
+  :catch
+  :   $put =v:exception[:16]
+  :endtry
+--- 192,201 ----
+  :catch
+  :   $put =v:exception[:16]
+  :endtry
++ :py f=l[0]
+  :delfunction New
+  :try
+! :   py f(1, 2, 3)
+  :catch
+  :   $put =v:exception[:16]
+  :endtry
+***************
+*** 737,742 ****
+--- 743,749 ----
+  :$put =string(pyeval('vim.Dictionary(((''a'', 1),))'))
+  :$put =string(pyeval('vim.List()'))
+  :$put =string(pyeval('vim.List(iter(''abc''))'))
++ :$put =string(pyeval('vim.Function(''tr'')'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+***************
+*** 747,752 ****
+--- 754,763 ----
+  :redir END
+  :$put =string(substitute(messages, '\d\+', '', 'g'))
+  :" Test subclassing
++ :fun Put(...)
++ :   $put =string(a:000)
++ :   return a:000
++ :endfun
+  py << EOF
+  class DupDict(vim.Dictionary):
+      def __setitem__(self, key, value):
+***************
+*** 762,771 ****
+--- 773,789 ----
+  dl = DupList()
+  dl2 = DupList(iter('abc'))
+  dl.extend(dl2[0])
++ 
++ class DupFun(vim.Function):
++     def __call__(self, arg):
++         return super(DupFun, self).__call__(arg, arg)
++ 
++ df = DupFun('Put')
+  EOF
+  :$put =string(sort(keys(pyeval('dd'))))
+  :$put =string(pyeval('dl'))
+  :$put =string(pyeval('dl2'))
++ :$put =string(pyeval('df(2)'))
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1062/src/testdir/test86.ok	2013-05-30 13:05:55.000000000 +0200
+--- src/testdir/test86.ok	2013-05-30 13:08:09.000000000 +0200
+***************
+*** 4,16 ****
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! ['-1', '0', '1', 'b']
+! ['asd', -1L, <vim.dictionary object at >, <vim.list object at >]
+! [('-1', <vim.dictionary object at >), ('0', -1L), ('1', 'asd'), ('b', <vim.list object at >)]
+  '-1' : {'a': 1}
+  '0' : -1
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
+  [0, function('strlen')]
+  [3]
+  [1, 2, function('strlen')]
+--- 4,18 ----
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! 1
+! ['-1', '0', '1', 'b', 'f']
+! ['asd', -1L, <vim.Function '1'>, <vim.dictionary object at >, <vim.list object at >]
+! [('-1', <vim.dictionary object at >), ('0', -1L), ('1', 'asd'), ('b', <vim.list object at >), ('f', <vim.Function '1'>)]
+  '-1' : {'a': 1}
+  '0' : -1
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
++ 'f' : function('1')
+  [0, function('strlen')]
+  [3]
+  [1, 2, function('strlen')]
+***************
+*** 407,419 ****
+  range:__dir__,__members__,append,end,start
+  dictionary:__dir__,__members__,get,has_key,items,keys,locked,pop,popitem,scope,update,values
+  list:__dir__,__members__,extend,locked
+! function:__call__,__dir__,__members__,softspace
+  output:__dir__,__members__,flush,softspace,write,writelines
+  {}
+  {'a': 1}
+  {'a': 1}
+  []
+  ['a', 'b', 'c']
+  '
+  abcdef
+  line  :
+--- 409,422 ----
+  range:__dir__,__members__,append,end,start
+  dictionary:__dir__,__members__,get,has_key,items,keys,locked,pop,popitem,scope,update,values
+  list:__dir__,__members__,extend,locked
+! function:__dir__,__members__,softspace
+  output:__dir__,__members__,flush,softspace,write,writelines
+  {}
+  {'a': 1}
+  {'a': 1}
+  []
+  ['a', 'b', 'c']
++ function('tr')
+  '
+  abcdef
+  line  :
+***************
+*** 424,429 ****
+--- 427,434 ----
+  ['a', 'dup_a']
+  ['a', 'a']
+  ['a', 'b', 'c']
++ [2, 2]
++ [2, 2]
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1062/src/testdir/test87.in	2013-05-30 13:05:55.000000000 +0200
+--- src/testdir/test87.in	2013-05-30 13:08:09.000000000 +0200
+***************
+*** 26,31 ****
+--- 26,34 ----
+  :"
+  :" Extending Dictionary directly with different types
+  :let d = {}
++ :fun d.f()
++ :  return 1
++ :endfun
+  py3 << EOF
+  d=vim.bindeval('d')
+  d['1']='asd'
+***************
+*** 39,50 ****
+  dv.sort(key=repr)
+  di.sort(key=repr)
+  EOF
+  :$put =py3eval('repr(dk)')
+  :$put =substitute(py3eval('repr(dv)'),'0x\x\+','','g')
+  :$put =substitute(py3eval('repr(di)'),'0x\x\+','','g')
+! :for [key, val] in sort(items(d))
+! :  $put =string(key) . ' : ' . string(val)
+! :  unlet key val
+  :endfor
+  :"
+  :" removing items with del
+--- 42,54 ----
+  dv.sort(key=repr)
+  di.sort(key=repr)
+  EOF
++ :$put =py3eval('d[''f''](self={})')
+  :$put =py3eval('repr(dk)')
+  :$put =substitute(py3eval('repr(dv)'),'0x\x\+','','g')
+  :$put =substitute(py3eval('repr(di)'),'0x\x\+','','g')
+! :for [key, Val] in sort(items(d))
+! :  $put =string(key) . ' : ' . string(Val)
+! :  unlet key Val
+  :endfor
+  :"
+  :" removing items with del
+***************
+*** 61,66 ****
+--- 65,71 ----
+  :$put =string(l)
+  :"
+  :py3 del d['-1']
++ :py3 del d['f']
+  :$put =string(py3eval('d.get(''b'', 1)'))
+  :$put =string(py3eval('d.pop(''b'')'))
+  :$put =string(py3eval('d.get(''b'', 1)'))
+***************
+*** 182,190 ****
+  :catch
+  :   $put =v:exception[:13]
+  :endtry
+  :delfunction New
+  :try
+! :   py3 l[0](1, 2, 3)
+  :catch
+  :   $put =v:exception[:13]
+  :endtry
+--- 187,196 ----
+  :catch
+  :   $put =v:exception[:13]
+  :endtry
++ :py3 f=l[0]
+  :delfunction New
+  :try
+! :   py3 f(1, 2, 3)
+  :catch
+  :   $put =v:exception[:13]
+  :endtry
+***************
+*** 698,703 ****
+--- 704,710 ----
+  :$put =string(py3eval('vim.Dictionary(((''a'', 1),))'))
+  :$put =string(py3eval('vim.List()'))
+  :$put =string(py3eval('vim.List(iter(''abc''))'))
++ :$put =string(py3eval('vim.Function(''tr'')'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+***************
+*** 708,713 ****
+--- 715,724 ----
+  :redir END
+  :$put =string(substitute(messages, '\d\+', '', 'g'))
+  :" Test subclassing
++ :fun Put(...)
++ :   $put =string(a:000)
++ :   return a:000
++ :endfun
+  py3 << EOF
+  class DupDict(vim.Dictionary):
+      def __setitem__(self, key, value):
+***************
+*** 723,732 ****
+--- 734,750 ----
+  dl = DupList()
+  dl2 = DupList(iter('abc'))
+  dl.extend(dl2[0])
++ 
++ class DupFun(vim.Function):
++     def __call__(self, arg):
++         return super(DupFun, self).__call__(arg, arg)
++ 
++ df = DupFun('Put')
+  EOF
+  :$put =string(sort(keys(py3eval('dd'))))
+  :$put =string(py3eval('dl'))
+  :$put =string(py3eval('dl2'))
++ :$put =string(py3eval('df(2)'))
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1062/src/testdir/test87.ok	2013-05-30 13:05:55.000000000 +0200
+--- src/testdir/test87.ok	2013-05-30 13:08:09.000000000 +0200
+***************
+*** 4,16 ****
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! [b'-1', b'0', b'1', b'b']
+! [-1, <vim.dictionary object at >, <vim.list object at >, b'asd']
+! [(b'-1', <vim.dictionary object at >), (b'0', -1), (b'1', b'asd'), (b'b', <vim.list object at >)]
+  '-1' : {'a': 1}
+  '0' : -1
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
+  [0, function('strlen')]
+  [3]
+  [1, 2, function('strlen')]
+--- 4,18 ----
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! 1
+! [b'-1', b'0', b'1', b'b', b'f']
+! [-1, <vim.Function '1'>, <vim.dictionary object at >, <vim.list object at >, b'asd']
+! [(b'-1', <vim.dictionary object at >), (b'0', -1), (b'1', b'asd'), (b'b', <vim.list object at >), (b'f', <vim.Function '1'>)]
+  '-1' : {'a': 1}
+  '0' : -1
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
++ 'f' : function('1')
+  [0, function('strlen')]
+  [3]
+  [1, 2, function('strlen')]
+***************
+*** 396,408 ****
+  range:__dir__,append,end,start
+  dictionary:__dir__,get,has_key,items,keys,locked,pop,popitem,scope,update,values
+  list:__dir__,extend,locked
+! function:__call__,__dir__,softspace
+  output:__dir__,flush,softspace,write,writelines
+  {}
+  {'a': 1}
+  {'a': 1}
+  []
+  ['a', 'b', 'c']
+  '
+  abcdef
+  line  :
+--- 398,411 ----
+  range:__dir__,append,end,start
+  dictionary:__dir__,get,has_key,items,keys,locked,pop,popitem,scope,update,values
+  list:__dir__,extend,locked
+! function:__dir__,softspace
+  output:__dir__,flush,softspace,write,writelines
+  {}
+  {'a': 1}
+  {'a': 1}
+  []
+  ['a', 'b', 'c']
++ function('tr')
+  '
+  abcdef
+  line  :
+***************
+*** 413,418 ****
+--- 416,423 ----
+  ['a', 'dup_a']
+  ['a', 'a']
+  ['a', 'b', 'c']
++ [2, 2]
++ [2, 2]
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1062/src/version.c	2013-05-30 13:05:55.000000000 +0200
+--- src/version.c	2013-05-30 13:07:47.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1063,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+6. In the memo field of all your checks, write "for sexual favors".
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

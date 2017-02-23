@@ -1,0 +1,240 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1043
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1043
+Problem:    Python: Dynamic compilation with 2.3 fails.
+Solution:   Python patch 4. (ZyX)
+Files:	    src/if_python.c
+
+
+*** ../vim-7.3.1042/src/if_python.c	2013-05-29 22:02:18.000000000 +0200
+--- src/if_python.c	2013-05-29 22:04:43.000000000 +0200
+***************
+*** 194,199 ****
+--- 194,200 ----
+  # define PyDict_New dll_PyDict_New
+  # define PyDict_GetItemString dll_PyDict_GetItemString
+  # define PyDict_Next dll_PyDict_Next
++ # define PyDict_Type (*dll_PyDict_Type)
+  # ifdef PyMapping_Items
+  #  define PY_NO_MAPPING_ITEMS
+  # else
+***************
+*** 234,241 ****
+  # define Py_IsInitialized dll_Py_IsInitialized
+  # define _PyObject_New dll__PyObject_New
+  # define _PyObject_GC_New dll__PyObject_GC_New
+! # define PyObject_GC_Del dll_PyObject_GC_Del
+! # define PyObject_GC_UnTrack dll_PyObject_GC_UnTrack
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02070000
+  #  define _PyObject_NextNotImplemented (*dll__PyObject_NextNotImplemented)
+  # endif
+--- 235,248 ----
+  # define Py_IsInitialized dll_Py_IsInitialized
+  # define _PyObject_New dll__PyObject_New
+  # define _PyObject_GC_New dll__PyObject_GC_New
+! # ifdef PyObject_GC_Del
+! #  define Py_underscore_GC
+! #  define _PyObject_GC_Del dll__PyObject_GC_Del
+! #  define _PyObject_GC_UnTrack dll__PyObject_GC_UnTrack
+! # else
+! #  define PyObject_GC_Del dll_PyObject_GC_Del
+! #  define PyObject_GC_UnTrack dll_PyObject_GC_UnTrack
+! # endif
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02070000
+  #  define _PyObject_NextNotImplemented (*dll__PyObject_NextNotImplemented)
+  # endif
+***************
+*** 247,259 ****
+  # define PyObject_IsTrue dll_PyObject_IsTrue
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02020000
+  #  define PyType_IsSubtype dll_PyType_IsSubtype
+- # endif
+- # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+  #  ifdef Py_DEBUG
+  #   define _Py_NegativeRefcount dll__Py_NegativeRefcount
+  #   define _Py_RefTotal (*dll__Py_RefTotal)
+  #   define _Py_Dealloc dll__Py_Dealloc
+  #  endif
+  #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+  #   define _PyObject_DebugMalloc dll__PyObject_DebugMalloc
+  #   define _PyObject_DebugFree dll__PyObject_DebugFree
+--- 254,266 ----
+  # define PyObject_IsTrue dll_PyObject_IsTrue
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02020000
+  #  define PyType_IsSubtype dll_PyType_IsSubtype
+  #  ifdef Py_DEBUG
+  #   define _Py_NegativeRefcount dll__Py_NegativeRefcount
+  #   define _Py_RefTotal (*dll__Py_RefTotal)
+  #   define _Py_Dealloc dll__Py_Dealloc
+  #  endif
++ # endif
++ # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+  #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+  #   define _PyObject_DebugMalloc dll__PyObject_DebugMalloc
+  #   define _PyObject_DebugFree dll__PyObject_DebugFree
+***************
+*** 316,322 ****
+  static PyObject*(*dll_PyImport_ImportModule)(const char *);
+  static PyObject*(*dll_PyDict_New)(void);
+  static PyObject*(*dll_PyDict_GetItemString)(PyObject *, const char *);
+! static int (*dll_PyDict_Next)(PyObject *, Py_ssize_t *, PyObject **, PyObject **);
+  # ifndef PY_NO_MAPPING_ITEMS
+  static PyObject* (*dll_PyMapping_Items)(PyObject *);
+  # endif
+--- 323,330 ----
+  static PyObject*(*dll_PyImport_ImportModule)(const char *);
+  static PyObject*(*dll_PyDict_New)(void);
+  static PyObject*(*dll_PyDict_GetItemString)(PyObject *, const char *);
+! static int (*dll_PyDict_Next)(PyObject *, PyInt *, PyObject **, PyObject **);
+! static PyTypeObject* dll_PyDict_Type;
+  # ifndef PY_NO_MAPPING_ITEMS
+  static PyObject* (*dll_PyMapping_Items)(PyObject *);
+  # endif
+***************
+*** 354,361 ****
+--- 362,374 ----
+  static int(*dll_Py_IsInitialized)(void);
+  static PyObject*(*dll__PyObject_New)(PyTypeObject *, PyObject *);
+  static PyObject*(*dll__PyObject_GC_New)(PyTypeObject *);
++ # ifdef Py_underscore_GC
++ static void(*dll__PyObject_GC_Del)(void *);
++ static void(*dll__PyObject_GC_UnTrack)(void *);
++ # else
+  static void(*dll_PyObject_GC_Del)(void *);
+  static void(*dll_PyObject_GC_UnTrack)(void *);
++ # endif
+  static PyObject*(*dll__PyObject_Init)(PyObject *, PyTypeObject *);
+  static PyObject* (*dll_PyObject_GetIter)(PyObject *);
+  static int (*dll_PyObject_IsTrue)(PyObject *);
+***************
+*** 367,379 ****
+  static PyObject* dll__Py_TrueStruct;
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02020000
+  static int (*dll_PyType_IsSubtype)(PyTypeObject *, PyTypeObject *);
+- # endif
+- # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+  #  ifdef Py_DEBUG
+  static void (*dll__Py_NegativeRefcount)(const char *fname, int lineno, PyObject *op);
+! static Py_ssize_t* dll__Py_RefTotal;
+  static void (*dll__Py_Dealloc)(PyObject *obj);
+  #  endif
+  #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+  static void (*dll__PyObject_DebugFree)(void*);
+  static void* (*dll__PyObject_DebugMalloc)(size_t);
+--- 380,392 ----
+  static PyObject* dll__Py_TrueStruct;
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02020000
+  static int (*dll_PyType_IsSubtype)(PyTypeObject *, PyTypeObject *);
+  #  ifdef Py_DEBUG
+  static void (*dll__Py_NegativeRefcount)(const char *fname, int lineno, PyObject *op);
+! static PyInt* dll__Py_RefTotal;
+  static void (*dll__Py_Dealloc)(PyObject *obj);
+  #  endif
++ # endif
++ # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+  #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+  static void (*dll__PyObject_DebugFree)(void*);
+  static void* (*dll__PyObject_DebugMalloc)(size_t);
+***************
+*** 470,475 ****
+--- 483,489 ----
+      {"PyDict_GetItemString", (PYTHON_PROC*)&dll_PyDict_GetItemString},
+      {"PyDict_Next", (PYTHON_PROC*)&dll_PyDict_Next},
+      {"PyDict_New", (PYTHON_PROC*)&dll_PyDict_New},
++     {"PyDict_Type", (PYTHON_PROC*)&dll_PyDict_Type},
+  # ifndef PY_NO_MAPPING_ITEMS
+      {"PyMapping_Items", (PYTHON_PROC*)&dll_PyMapping_Items},
+  # endif
+***************
+*** 504,511 ****
+--- 518,530 ----
+      {"Py_IsInitialized", (PYTHON_PROC*)&dll_Py_IsInitialized},
+      {"_PyObject_New", (PYTHON_PROC*)&dll__PyObject_New},
+      {"_PyObject_GC_New", (PYTHON_PROC*)&dll__PyObject_GC_New},
++ # ifdef Py_underscore_GC
++     {"_PyObject_GC_Del", (PYTHON_PROC*)&dll__PyObject_GC_Del},
++     {"_PyObject_GC_UnTrack", (PYTHON_PROC*)&dll__PyObject_GC_UnTrack},
++ # else
+      {"PyObject_GC_Del", (PYTHON_PROC*)&dll_PyObject_GC_Del},
+      {"PyObject_GC_UnTrack", (PYTHON_PROC*)&dll_PyObject_GC_UnTrack},
++ # endif
+      {"PyObject_Init", (PYTHON_PROC*)&dll__PyObject_Init},
+      {"PyObject_GetIter", (PYTHON_PROC*)&dll_PyObject_GetIter},
+      {"PyObject_IsTrue", (PYTHON_PROC*)&dll_PyObject_IsTrue},
+***************
+*** 516,529 ****
+      {"_Py_ZeroStruct", (PYTHON_PROC*)&dll__Py_ZeroStruct},
+      {"_Py_TrueStruct", (PYTHON_PROC*)&dll__Py_TrueStruct},
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02020000
+-     {"PyType_IsSubtype", (PYTHON_PROC*)&dll_PyType_IsSubtype},
+- # endif
+- # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+  #  ifdef Py_DEBUG
+      {"_Py_NegativeRefcount", (PYTHON_PROC*)&dll__Py_NegativeRefcount},
+      {"_Py_RefTotal", (PYTHON_PROC*)&dll__Py_RefTotal},
+      {"_Py_Dealloc", (PYTHON_PROC*)&dll__Py_Dealloc},
+  #  endif
+  #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+      {"_PyObject_DebugFree", (PYTHON_PROC*)&dll__PyObject_DebugFree},
+      {"_PyObject_DebugMalloc", (PYTHON_PROC*)&dll__PyObject_DebugMalloc},
+--- 535,548 ----
+      {"_Py_ZeroStruct", (PYTHON_PROC*)&dll__Py_ZeroStruct},
+      {"_Py_TrueStruct", (PYTHON_PROC*)&dll__Py_TrueStruct},
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02020000
+  #  ifdef Py_DEBUG
+      {"_Py_NegativeRefcount", (PYTHON_PROC*)&dll__Py_NegativeRefcount},
+      {"_Py_RefTotal", (PYTHON_PROC*)&dll__Py_RefTotal},
+      {"_Py_Dealloc", (PYTHON_PROC*)&dll__Py_Dealloc},
+  #  endif
++     {"PyType_IsSubtype", (PYTHON_PROC*)&dll_PyType_IsSubtype},
++ # endif
++ # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+  #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+      {"_PyObject_DebugFree", (PYTHON_PROC*)&dll__PyObject_DebugFree},
+      {"_PyObject_DebugMalloc", (PYTHON_PROC*)&dll__PyObject_DebugMalloc},
+***************
+*** 696,703 ****
+  #endif
+  #ifndef Py_CLEAR
+  # define Py_CLEAR(obj) \
+!     Py_XDECREF(obj); \
+!     obj = NULL;
+  #endif
+  
+  /*
+--- 715,724 ----
+  #endif
+  #ifndef Py_CLEAR
+  # define Py_CLEAR(obj) \
+!     { \
+! 	Py_XDECREF(obj); \
+! 	obj = NULL; \
+!     }
+  #endif
+  
+  /*
+*** ../vim-7.3.1042/src/version.c	2013-05-29 22:02:18.000000000 +0200
+--- src/version.c	2013-05-29 22:04:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1043,
+  /**/
+
+-- 
+When a fly lands on the ceiling, does it do a half roll or
+a half loop?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

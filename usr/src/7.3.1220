@@ -1,0 +1,211 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1220
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1220
+Problem:    MS-Windows: When using wide font italic and bold are not included.
+Solution:   Support wide-bold, wide-italic and wide-bold-italic. (Ken Takata,
+	    Taro Muraoka)
+Files:	    src/gui.c, src/gui.h, src/gui_w48.c
+
+
+*** ../vim-7.3.1219/src/gui.c	2013-06-12 20:35:46.000000000 +0200
+--- src/gui.c	2013-06-17 22:22:49.000000000 +0200
+***************
+*** 410,415 ****
+--- 410,423 ----
+      gui.fontset = NOFONTSET;
+  # endif
+  #endif
++ #ifdef FEAT_MBYTE
++     gui.wide_font = NOFONT;
++ # ifndef FEAT_GUI_GTK
++     gui.wide_bold_font = NOFONT;
++     gui.wide_ital_font = NOFONT;
++     gui.wide_boldital_font = NOFONT;
++ # endif
++ #endif
+  
+  #ifdef FEAT_MENU
+  # ifndef FEAT_GUI_GTK
+***************
+*** 1012,1017 ****
+--- 1020,1030 ----
+  	gui.wide_font = font;
+  # ifdef FEAT_GUI_MSWIN
+      gui_mch_wide_font_changed();
++ # else
++     /*
++      * TODO: setup wide_bold_font, wide_ital_font and wide_boldital_font to
++      * support those fonts for 'guifontwide'.
++      */
+  # endif
+      return OK;
+  }
+***************
+*** 2180,2185 ****
+--- 2193,2201 ----
+      guicolor_T	sp_color;
+  #if !defined(MSWIN16_FASTTEXT) && !defined(FEAT_GUI_GTK)
+      GuiFont	font = NOFONT;
++ # ifdef FEAT_MBYTE
++     GuiFont	wide_font = NOFONT;
++ # endif
+  # ifdef FEAT_XFONTSET
+      GuiFontset	fontset = NOFONTSET;
+  # endif
+***************
+*** 2269,2274 ****
+--- 2285,2307 ----
+  	}
+  	else
+  	    font = gui.norm_font;
++ 
++ # ifdef FEAT_MBYTE
++ 	/*
++ 	 * Choose correct wide_font by font.  wide_font should be set with font
++ 	 * at same time in above block.  But it will make many "ifdef" nasty
++ 	 * blocks.  So we do it here.
++ 	 */
++ 	if (font == gui.boldital_font && gui.wide_boldital_font)
++ 	    wide_font = gui.wide_boldital_font;
++ 	else if (font == gui.bold_font && gui.wide_bold_font)
++ 	    wide_font = gui.wide_bold_font;
++ 	else if (font == gui.ital_font && gui.wide_ital_font)
++ 	    wide_font = gui.wide_ital_font;
++ 	else if (font == gui.norm_font && gui.wide_font)
++ 	    wide_font = gui.wide_font;
++ # endif
++ 
+      }
+  # ifdef FEAT_XFONTSET
+      if (fontset != NOFONTSET)
+***************
+*** 2407,2413 ****
+  #  ifdef FEAT_XFONTSET
+  		    && fontset == NOFONTSET
+  #  endif
+! 		    && gui.wide_font != NOFONT)
+  		curr_wide = TRUE;
+  	    else
+  		curr_wide = FALSE;
+--- 2440,2446 ----
+  #  ifdef FEAT_XFONTSET
+  		    && fontset == NOFONTSET
+  #  endif
+! 		    && wide_font != NOFONT)
+  		curr_wide = TRUE;
+  	    else
+  		curr_wide = FALSE;
+***************
+*** 2441,2447 ****
+  		if (thislen > 0)
+  		{
+  		    if (prev_wide)
+! 			gui_mch_set_font(gui.wide_font);
+  		    gui_mch_draw_string(gui.row, scol, s + start, thislen,
+  								  draw_flags);
+  		    if (prev_wide)
+--- 2474,2480 ----
+  		if (thislen > 0)
+  		{
+  		    if (prev_wide)
+! 			gui_mch_set_font(wide_font);
+  		    gui_mch_draw_string(gui.row, scol, s + start, thislen,
+  								  draw_flags);
+  		    if (prev_wide)
+*** ../vim-7.3.1219/src/gui.h	2013-01-23 13:40:54.000000000 +0100
+--- src/gui.h	2013-06-17 22:22:49.000000000 +0200
+***************
+*** 311,317 ****
+  # endif
+  #endif
+  #ifdef FEAT_MBYTE
+!     GuiFont	wide_font;	    /* 'guifontwide' font */
+  #endif
+  #ifdef FEAT_XFONTSET
+      GuiFontset	fontset;	    /* set of fonts for multi-byte chars */
+--- 311,322 ----
+  # endif
+  #endif
+  #ifdef FEAT_MBYTE
+!     GuiFont	wide_font;	    /* Normal 'guifontwide' font */
+! # ifndef FEAT_GUI_GTK
+!     GuiFont	wide_bold_font;	    /* Bold 'guifontwide' font */
+!     GuiFont	wide_ital_font;	    /* Italic 'guifontwide' font */
+!     GuiFont	wide_boldital_font; /* Bold-Italic 'guifontwide' font */
+! # endif
+  #endif
+  #ifdef FEAT_XFONTSET
+      GuiFontset	fontset;	    /* set of fonts for multi-byte chars */
+*** ../vim-7.3.1219/src/gui_w48.c	2013-05-06 04:21:35.000000000 +0200
+--- src/gui_w48.c	2013-06-17 22:22:49.000000000 +0200
+***************
+*** 3123,3131 ****
+--- 3123,3165 ----
+      void
+  gui_mch_wide_font_changed()
+  {
++ # ifndef MSWIN16_FASTTEXT
++     LOGFONT lf;
++ # endif
++ 
+  # ifdef FEAT_MBYTE_IME
+      update_im_font();
+  # endif
++ 
++ # ifndef MSWIN16_FASTTEXT
++     gui_mch_free_font(gui.wide_ital_font);
++     gui.wide_ital_font = NOFONT;
++     gui_mch_free_font(gui.wide_bold_font);
++     gui.wide_bold_font = NOFONT;
++     gui_mch_free_font(gui.wide_boldital_font);
++     gui.wide_boldital_font = NOFONT;
++ 
++     if (gui.wide_font
++ 	&& GetObject((HFONT)gui.wide_font, sizeof(lf), &lf))
++     {
++ 	if (!lf.lfItalic)
++ 	{
++ 	    lf.lfItalic = TRUE;
++ 	    gui.wide_ital_font = get_font_handle(&lf);
++ 	    lf.lfItalic = FALSE;
++ 	}
++ 	if (lf.lfWeight < FW_BOLD)
++ 	{
++ 	    lf.lfWeight = FW_BOLD;
++ 	    gui.wide_bold_font = get_font_handle(&lf);
++ 	    if (!lf.lfItalic)
++ 	    {
++ 		lf.lfItalic = TRUE;
++ 		gui.wide_boldital_font = get_font_handle(&lf);
++ 	    }
++ 	}
++     }
++ # endif
+  }
+  #endif
+  
+*** ../vim-7.3.1219/src/version.c	2013-06-17 22:04:34.000000000 +0200
+--- src/version.c	2013-06-17 22:24:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1220,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+243. You unsuccessfully try to download a pizza from www.dominos.com.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,1313 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1163
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1163
+Problem:    Not easy to load Python modules.
+Solution:   Search "python2", "python3" and "pythonx" directories in
+	    'runtimepath' for Python modules. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/configure.in, src/ex_cmds2.c,
+	    src/if_py_both.h, src/if_python.c, src/if_python3.c,
+	    src/testdir/test86.in, src/testdir/test87.in, src/auto/configure
+
+
+*** ../vim-7.3.1162/runtime/doc/if_pyth.txt	2013-06-02 18:20:12.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-06-10 20:51:21.000000000 +0200
+***************
+*** 180,185 ****
+--- 180,191 ----
+  	Like |strwidth()|: returns number of display cells str occupies, tab 
+  	is counted as one cell.
+  
++ vim.foreach_rtp(callable)				*python-foreach_rtp*
++ 	Call the given callable for each path in 'runtimepath' until either 
++ 	callable returns something but None, the exception is raised or there 
++ 	are no longer paths. If stopped in case callable returned non-None, 
++ 	vim.foreach_rtp function returns the value returned by callable.
++ 
+  vim.chdir(*args, **kwargs)				*python-chdir*
+  vim.fchdir(*args, **kwargs)				*python-fchdir*
+  	Run os.chdir or os.fchdir, then all appropriate vim stuff.
+***************
+*** 300,305 ****
+--- 306,418 ----
+  	supported, and may cause the program to crash.  This should probably be
+  	fixed.
+  
++ 		    *python2-directory* *python3-directory* *pythonx-directory*
++ Python 'runtimepath' handling				*python-special-path*
++ 
++ In python vim.VIM_SPECIAL_PATH special directory is used as a replacement for 
++ the list of paths found in 'runtimepath': with this directory in sys.path and 
++ vim.path_hooks in sys.path_hooks python will try to load module from 
++ {rtp}/python2 (or python3) and {rtp}/pythonx (for both python versions) for 
++ each {rtp} found in 'runtimepath'.
++ 
++ Implementation for python 2 is the following: usual importing code with empty 
++ lists in place of sys.path_hooks and sys.meta_path. Code is similar to the 
++ below, but written in C: >
++ 
++     # Assuming vim variable is already accessible and is set to the current 
++     # module
++     import sys
++ 
++     def find_module(fullname):
++         return vim
++ 
++     def load_module(fullname):
++         # see vim._get_paths below
++         new_path = _get_paths()
++ 
++         try:         old_path = sys.path
++         except: pass
++         try:         old_meta_path = sys.meta_path
++         except: pass
++         try:         old_path_hooks = sys.path_hooks
++         except: pass
++ 
++         sys.meta_path = []
++         sys.path_hooks = sys.meta_path
++         sys.path = new_path
++ 
++         try:
++             exec ('import ' + fullname + ' as m')  # No actual exec in C code
++             return m
++         finally:
++             e = None
++             try:                        sys.path = old_path
++             except Exception as e: pass
++             try:                        sys.meta_path = old_meta_path
++             except Exception as e: pass
++             try:                        sys.path_hooks = old_path_hooks
++             except Exception as e: pass
++             if e:
++                 raise e
++ 
++     def path_hook(d):
++         if d == VIM_SPECIAL_PATH:
++             return vim
++         raise ImportError
++ 
++     sys.path_hooks.append(path_hook)
++ 
++ Implementation for python 3 is cleaner: code is similar to the following, but, 
++ again, written in C: >
++ 
++     from importlib.machinery import PathFinder
++     import sys
++ 
++     class Finder(PathFinder):
++         @classmethod
++         def find_module(cls, fullname):
++             # see vim._get_paths below
++             new_path = _get_paths()
++ 
++             # super().find_module is also a class method
++             # super() is not used because this variant is easier to implement 
++             # in C
++             return PathFinder.find_module(fullname, new_path)
++ 
++     def path_hook(path):
++         if path == VIM_SPECIAL_PATH:
++             return Finder
++         raise ImportError
++ 
++     sys.path_hooks.append(path_hook)
++ 
++ vim.VIM_SPECIAL_PATH					*python-VIM_SPECIAL_PATH*
++ 	String constant used in conjunction with vim path hook. If path hook 
++ 	installed by vim is requested to handle anything but path equal to 
++ 	vim.VIM_SPECIAL_PATH constant it raises ImportError. In the only other 
++ 	case it uses special loader.
++ 
++ 	Note: you must not use value of this constant directly, always use 
++ 	      vim.VIM_SPECIAL_PATH object.
++ 
++ vim.load_module(name)					*python-load_module*
++ vim.find_module(...)					*python-find_module*
++ vim.path_hook(path)					*python-path_hook*
++ 	Methods or objects used to implement path loading as described above. 
++ 	You should not be using any of these directly except for vim.path_hook 
++ 	in case you need to do something with sys.meta_path. It is not 
++ 	guaranteed that any of the objects will exist in the future vim 
++ 	versions. In fact, load_module and find_module methods do not exists 
++ 	in python3.
++ 
++ vim._get_paths						*python-_get_paths*
++ 	Methods returning a list of paths which will be searched for by path 
++ 	hook. You should not rely on this method being present in future 
++ 	versions, but can use it for debugging.
++ 
++ 	It returns a list of {rtp}/python2 (or {rtp}/python3) and 
++ 	{rtp}/pythonx directories for each {rtp} in 'runtimepath'.
++ 
+  ==============================================================================
+  3. Buffer objects					*python-buffer*
+  
+***************
+*** 340,346 ****
+  			|BufFilePost| autocommands are launched.
+  	b.number	Buffer number. Can be used as |python-buffers| key.
+  			Read-only.
+! 	b.valid		True or False. Buffer object becames invalid when 
+  			corresponding buffer is wiped out.
+  
+  The buffer object methods are:
+--- 453,459 ----
+  			|BufFilePost| autocommands are launched.
+  	b.number	Buffer number. Can be used as |python-buffers| key.
+  			Read-only.
+! 	b.valid		True or False. Buffer object becomes invalid when 
+  			corresponding buffer is wiped out.
+  
+  The buffer object methods are:
+***************
+*** 446,452 ****
+  	row, col (read-only)	On-screen window position in display cells.
+  				First position is zero.
+  	tabpage (read-only)	Window tab page.
+! 	valid (read-write)	True or False. Window object becames invalid 
+  				when corresponding window is closed.
+  
+  The height attribute is writable only if the screen is split horizontally.
+--- 559,565 ----
+  	row, col (read-only)	On-screen window position in display cells.
+  				First position is zero.
+  	tabpage (read-only)	Window tab page.
+! 	valid (read-write)	True or False. Window object becomes invalid 
+  				when corresponding window is closed.
+  
+  The height attribute is writable only if the screen is split horizontally.
+***************
+*** 471,477 ****
+  	windows		Like |python-windows|, but for current tab page.
+  	vars		The tab page |t:| variables.
+  	window		Current tabpage window.
+! 	valid		True or False. Tab page object becames invalid when 
+  			corresponding tab page is closed.
+  
+  TabPage object type is available using "TabPage" attribute of vim module.
+--- 584,590 ----
+  	windows		Like |python-windows|, but for current tab page.
+  	vars		The tab page |t:| variables.
+  	window		Current tabpage window.
+! 	valid		True or False. Tab page object becomes invalid when 
+  			corresponding tab page is closed.
+  
+  TabPage object type is available using "TabPage" attribute of vim module.
+*** ../vim-7.3.1162/src/configure.in	2013-06-02 19:14:11.000000000 +0200
+--- src/configure.in	2013-06-10 20:51:21.000000000 +0200
+***************
+*** 863,872 ****
+  	    ${vi_cv_path_python} -c 'import sys; print sys.version[:3]'`
+      ]])
+  
+!     dnl -- it must be at least version 2.2
+!     AC_MSG_CHECKING(Python is 2.2 or better)
+      if ${vi_cv_path_python} -c \
+! 	"import sys; sys.exit(${vi_cv_var_python_version} < 2.2)"
+      then
+        AC_MSG_RESULT(yep)
+  
+--- 863,872 ----
+  	    ${vi_cv_path_python} -c 'import sys; print sys.version[:3]'`
+      ]])
+  
+!     dnl -- it must be at least version 2.3
+!     AC_MSG_CHECKING(Python is 2.3 or better)
+      if ${vi_cv_path_python} -c \
+! 	"import sys; sys.exit(${vi_cv_var_python_version} < 2.3)"
+      then
+        AC_MSG_RESULT(yep)
+  
+*** ../vim-7.3.1162/src/ex_cmds2.c	2013-06-10 20:10:40.000000000 +0200
+--- src/ex_cmds2.c	2013-06-10 20:51:21.000000000 +0200
+***************
+*** 2737,2742 ****
+--- 2737,2746 ----
+   * When "all" is TRUE repeat for all matches, otherwise only the first one is
+   * used.
+   * Returns OK when at least one match found, FAIL otherwise.
++  *
++  * If "name" is NULL calls callback for each entry in runtimepath. Cookie is 
++  * passed by reference in this case, setting it to NULL indicates that callback 
++  * has done its job.
+   */
+      int
+  do_in_runtimepath(name, all, callback, cookie)
+***************
+*** 2768,2774 ****
+      buf = alloc(MAXPATHL);
+      if (buf != NULL && rtp_copy != NULL)
+      {
+! 	if (p_verbose > 1)
+  	{
+  	    verbose_enter();
+  	    smsg((char_u *)_("Searching for \"%s\" in \"%s\""),
+--- 2772,2778 ----
+      buf = alloc(MAXPATHL);
+      if (buf != NULL && rtp_copy != NULL)
+      {
+! 	if (p_verbose > 1 && name != NULL)
+  	{
+  	    verbose_enter();
+  	    smsg((char_u *)_("Searching for \"%s\" in \"%s\""),
+***************
+*** 2782,2788 ****
+  	{
+  	    /* Copy the path from 'runtimepath' to buf[]. */
+  	    copy_option_part(&rtp, buf, MAXPATHL, ",");
+! 	    if (STRLEN(buf) + STRLEN(name) + 2 < MAXPATHL)
+  	    {
+  		add_pathsep(buf);
+  		tail = buf + STRLEN(buf);
+--- 2786,2798 ----
+  	{
+  	    /* Copy the path from 'runtimepath' to buf[]. */
+  	    copy_option_part(&rtp, buf, MAXPATHL, ",");
+! 	    if (name == NULL)
+! 	    {
+! 		(*callback)(buf, (void *) &cookie);
+! 		if (!did_one)
+! 		    did_one = (cookie == NULL);
+! 	    }
+! 	    else if (STRLEN(buf) + STRLEN(name) + 2 < MAXPATHL)
+  	    {
+  		add_pathsep(buf);
+  		tail = buf + STRLEN(buf);
+***************
+*** 2821,2827 ****
+      }
+      vim_free(buf);
+      vim_free(rtp_copy);
+!     if (p_verbose > 0 && !did_one)
+      {
+  	verbose_enter();
+  	smsg((char_u *)_("not found in 'runtimepath': \"%s\""), name);
+--- 2831,2837 ----
+      }
+      vim_free(buf);
+      vim_free(rtp_copy);
+!     if (p_verbose > 0 && !did_one && name != NULL)
+      {
+  	verbose_enter();
+  	smsg((char_u *)_("not found in 'runtimepath': \"%s\""), name);
+*** ../vim-7.3.1162/src/if_py_both.h	2013-06-10 20:47:33.000000000 +0200
+--- src/if_py_both.h	2013-06-10 20:55:17.000000000 +0200
+***************
+*** 24,29 ****
+--- 24,31 ----
+  #endif
+  #define DOPY_FUNC "_vim_pydo"
+  
++ static const char *vim_special_path = "_vim_path_";
++ 
+  #define PyErr_SetVim(str) PyErr_SetString(VimError, str)
+  
+  #define RAISE_NO_EMPTY_KEYS PyErr_SetString(PyExc_ValueError, \
+***************
+*** 55,60 ****
+--- 57,64 ----
+  static PyObject *py_chdir;
+  static PyObject *py_fchdir;
+  static PyObject *py_getcwd;
++ static PyObject *vim_module;
++ static PyObject *vim_special_path_object;
+  
+  /*
+   * obtain a lock on the Vim data structures
+***************
+*** 779,797 ****
+      return _VimChdir(py_fchdir, args, kwargs);
+  }
+  
+  /*
+   * Vim module - Definitions
+   */
+  
+  static struct PyMethodDef VimMethods[] = {
+!     /* name,	     function,			calling,			documentation */
+!     {"command",	     VimCommand,		METH_VARARGS,			"Execute a Vim ex-mode command" },
+!     {"eval",	     VimEval,			METH_VARARGS,			"Evaluate an expression using Vim evaluator" },
+!     {"bindeval",     VimEvalPy,			METH_VARARGS,			"Like eval(), but returns objects attached to vim ones"},
+!     {"strwidth",     VimStrwidth,		METH_VARARGS,			"Screen string width, counts <Tab> as having width 1"},
+!     {"chdir",	     (PyCFunction)VimChdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     {"fchdir",	     (PyCFunction)VimFchdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     { NULL,	     NULL,			0,				NULL }
+  };
+  
+  /*
+--- 783,950 ----
+      return _VimChdir(py_fchdir, args, kwargs);
+  }
+  
++ typedef struct {
++     PyObject	*callable;
++     PyObject	*result;
++ } map_rtp_data;
++ 
++     static void
++ map_rtp_callback(char_u *path, void *_data)
++ {
++     void	**data = (void **) _data;
++     PyObject	*pathObject;
++     map_rtp_data	*mr_data = *((map_rtp_data **) data);
++ 
++     if (!(pathObject = PyString_FromString((char *) path)))
++     {
++ 	*data = NULL;
++ 	return;
++     }
++ 
++     mr_data->result = PyObject_CallFunctionObjArgs(mr_data->callable,
++ 						   pathObject, NULL);
++ 
++     Py_DECREF(pathObject);
++ 
++     if (!mr_data->result || mr_data->result != Py_None)
++ 	*data = NULL;
++     else
++     {
++ 	Py_DECREF(mr_data->result);
++ 	mr_data->result = NULL;
++     }
++ }
++ 
++     static PyObject *
++ VimForeachRTP(PyObject *self UNUSED, PyObject *args)
++ {
++     map_rtp_data	data;
++ 
++     if (!PyArg_ParseTuple(args, "O", &data.callable))
++ 	return NULL;
++ 
++     data.result = NULL;
++ 
++     do_in_runtimepath(NULL, FALSE, &map_rtp_callback, &data);
++ 
++     if (data.result == NULL)
++     {
++ 	if (PyErr_Occurred())
++ 	    return NULL;
++ 	else
++ 	{
++ 	    Py_INCREF(Py_None);
++ 	    return Py_None;
++ 	}
++     }
++     return data.result;
++ }
++ 
++ /*
++  * _vim_runtimepath_ special path implementation.
++  */
++ 
++     static void
++ map_finder_callback(char_u *path, void *_data)
++ {
++     void	**data = (void **) _data;
++     PyObject	*list = *((PyObject **) data);
++     PyObject	*pathObject1, *pathObject2;
++     char	*pathbuf;
++     size_t	pathlen;
++ 
++     pathlen = STRLEN(path);
++ 
++ #if PY_MAJOR_VERSION < 3
++ # define PY_MAIN_DIR_STRING "python2"
++ #else
++ # define PY_MAIN_DIR_STRING "python3"
++ #endif
++ #define PY_ALTERNATE_DIR_STRING "pythonx"
++ 
++ #define PYTHONX_STRING_LENGTH 7 /* STRLEN("pythonx") */
++     if (!(pathbuf = PyMem_New(char,
++ 		    pathlen + STRLEN(PATHSEPSTR) + PYTHONX_STRING_LENGTH + 1)))
++     {
++ 	PyErr_NoMemory();
++ 	*data = NULL;
++ 	return;
++     }
++ 
++     mch_memmove(pathbuf, path, pathlen + 1);
++     add_pathsep((char_u *) pathbuf);
++ 
++     pathlen = STRLEN(pathbuf);
++     mch_memmove(pathbuf + pathlen, PY_MAIN_DIR_STRING,
++ 	    PYTHONX_STRING_LENGTH + 1);
++ 
++     if (!(pathObject1 = PyString_FromString(pathbuf)))
++     {
++ 	*data = NULL;
++ 	PyMem_Free(pathbuf);
++ 	return;
++     }
++ 
++     mch_memmove(pathbuf + pathlen, PY_ALTERNATE_DIR_STRING,
++ 	    PYTHONX_STRING_LENGTH + 1);
++ 
++     if (!(pathObject2 = PyString_FromString(pathbuf)))
++     {
++ 	Py_DECREF(pathObject1);
++ 	PyMem_Free(pathbuf);
++ 	*data = NULL;
++ 	return;
++     }
++ 
++     PyMem_Free(pathbuf);
++ 
++     if (PyList_Append(list, pathObject1)
++ 	    || PyList_Append(list, pathObject2))
++ 	*data = NULL;
++ 
++     Py_DECREF(pathObject1);
++     Py_DECREF(pathObject2);
++ }
++ 
++     static PyObject *
++ Vim_GetPaths(PyObject *self UNUSED)
++ {
++     PyObject	*r;
++ 
++     if (!(r = PyList_New(0)))
++ 	return NULL;
++ 
++     do_in_runtimepath(NULL, FALSE, &map_finder_callback, r);
++ 
++     if (PyErr_Occurred())
++     {
++ 	Py_DECREF(r);
++ 	return NULL;
++     }
++ 
++     return r;
++ }
++ 
+  /*
+   * Vim module - Definitions
+   */
+  
+  static struct PyMethodDef VimMethods[] = {
+!     /* name,	    function,			calling,			documentation */
+!     {"command",	    VimCommand,			METH_VARARGS,			"Execute a Vim ex-mode command" },
+!     {"eval",	    VimEval,			METH_VARARGS,			"Evaluate an expression using Vim evaluator" },
+!     {"bindeval",    VimEvalPy,			METH_VARARGS,			"Like eval(), but returns objects attached to vim ones"},
+!     {"strwidth",    VimStrwidth,		METH_VARARGS,			"Screen string width, counts <Tab> as having width 1"},
+!     {"chdir",	    (PyCFunction)VimChdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     {"fchdir",	    (PyCFunction)VimFchdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     {"foreach_rtp", VimForeachRTP,		METH_VARARGS,			"Call given callable for each path in &rtp"},
+! #if PY_MAJOR_VERSION < 3
+!     {"find_module", FinderFindModule,		METH_VARARGS,			"Internal use only, returns loader object for any input it receives"},
+!     {"load_module", LoaderLoadModule,		METH_VARARGS,			"Internal use only, tries importing the given module from &rtp by temporary mocking sys.path (to an rtp-based one) and unsetting sys.meta_path and sys.path_hooks"},
+! #endif
+!     {"path_hook",   VimPathHook,		METH_VARARGS,			"Hook function to install in sys.path_hooks"},
+!     {"_get_paths",  (PyCFunction)Vim_GetPaths,	METH_NOARGS,			"Get &rtp-based additions to sys.path"},
+!     { NULL,	    NULL,			0,				NULL}
+  };
+  
+  /*
+***************
+*** 5036,5041 ****
+--- 5189,5202 ----
+  } CurrentObject;
+  static PyTypeObject CurrentType;
+  
++ #if PY_MAJOR_VERSION >= 3
++ typedef struct
++ {
++     PyObject_HEAD
++ } FinderObject;
++ static PyTypeObject FinderType;
++ #endif
++ 
+      static void
+  init_structs(void)
+  {
+***************
+*** 5281,5286 ****
+--- 5442,5522 ----
+      PYTYPE_READY(FunctionType);
+      PYTYPE_READY(OptionsType);
+      PYTYPE_READY(OutputType);
++ #if PY_MAJOR_VERSION >= 3
++     PYTYPE_READY(FinderType);
++ #endif
++     return 0;
++ }
++ 
++     static int
++ init_sys_path()
++ {
++     PyObject	*path;
++     PyObject	*path_hook;
++     PyObject	*path_hooks;
++ 
++     if (!(path_hook = PyObject_GetAttrString(vim_module, "path_hook")))
++ 	return -1;
++ 
++     if (!(path_hooks = PySys_GetObject("path_hooks")))
++     {
++ 	PyErr_Clear();
++ 	path_hooks = PyList_New(1);
++ 	PyList_SET_ITEM(path_hooks, 0, path_hook);
++ 	if (PySys_SetObject("path_hooks", path_hooks))
++ 	{
++ 	    Py_DECREF(path_hooks);
++ 	    return -1;
++ 	}
++ 	Py_DECREF(path_hooks);
++     }
++     else if (PyList_Check(path_hooks))
++     {
++ 	if (PyList_Append(path_hooks, path_hook))
++ 	{
++ 	    Py_DECREF(path_hook);
++ 	    return -1;
++ 	}
++ 	Py_DECREF(path_hook);
++     }
++     else
++     {
++ 	VimTryStart();
++ 	EMSG(_("Failed to set path hook: sys.path_hooks is not a list\n"
++ 	       "You should now do the following:\n"
++ 	       "- append vim.path_hook to sys.path_hooks\n"
++ 	       "- append vim.VIM_SPECIAL_PATH to sys.path\n"));
++ 	VimTryEnd(); /* Discard the error */
++ 	Py_DECREF(path_hook);
++ 	return 0;
++     }
++ 
++     if (!(path = PySys_GetObject("path")))
++     {
++ 	PyErr_Clear();
++ 	path = PyList_New(1);
++ 	Py_INCREF(vim_special_path_object);
++ 	PyList_SET_ITEM(path, 0, vim_special_path_object);
++ 	if (PySys_SetObject("path", path))
++ 	{
++ 	    Py_DECREF(path);
++ 	    return -1;
++ 	}
++ 	Py_DECREF(path);
++     }
++     else if (PyList_Check(path))
++     {
++ 	if (PyList_Append(path, vim_special_path_object))
++ 	    return -1;
++     }
++     else
++     {
++ 	VimTryStart();
++ 	EMSG(_("Failed to set path: sys.path is not a list\n"
++ 	       "You should now append vim.VIM_SPECIAL_PATH to sys.path"));
++ 	VimTryEnd(); /* Discard the error */
++     }
++ 
+      return 0;
+  }
+  
+***************
+*** 5332,5337 ****
+--- 5568,5576 ----
+      {"List",       (PyObject *)&ListType},
+      {"Function",   (PyObject *)&FunctionType},
+      {"Options",    (PyObject *)&OptionsType},
++ #if PY_MAJOR_VERSION >= 3
++     {"Finder",     (PyObject *)&FinderType},
++ #endif
+  };
+  
+  typedef int (*object_adder)(PyObject *, const char *, PyObject *);
+***************
+*** 5417,5421 ****
+--- 5656,5672 ----
+      else
+  	PyErr_Clear();
+  
++     if (!(vim_special_path_object = PyString_FromString(vim_special_path)))
++ 	return -1;
++ 
++     ADD_OBJECT(m, "VIM_SPECIAL_PATH", vim_special_path_object);
++ 
++ #if PY_MAJOR_VERSION >= 3
++     ADD_OBJECT(m, "_PathFinder", path_finder);
++     ADD_CHECKED_OBJECT(m, "_find_module",
++ 	    (py_find_module = PyObject_GetAttrString(path_finder,
++ 						     "find_module")));
++ #endif
++ 
+      return 0;
+  }
+*** ../vim-7.3.1162/src/if_python.c	2013-06-10 20:47:33.000000000 +0200
+--- src/if_python.c	2013-06-10 20:55:04.000000000 +0200
+***************
+*** 24,32 ****
+  /* uncomment this if used with the debug version of python.
+   * Checked on 2.7.4. */
+  /* #define Py_DEBUG */
+! /* Note: most of time you can add -DPy_DEBUG to CFLAGS in place of uncommenting 
+   */
+! /* uncomment this if used with the debug version of python, but without its 
+   * allocator */
+  /* #define Py_DEBUG_NO_PYMALLOC */
+  
+--- 24,32 ----
+  /* uncomment this if used with the debug version of python.
+   * Checked on 2.7.4. */
+  /* #define Py_DEBUG */
+! /* Note: most of time you can add -DPy_DEBUG to CFLAGS in place of uncommenting
+   */
+! /* uncomment this if used with the debug version of python, but without its
+   * allocator */
+  /* #define Py_DEBUG_NO_PYMALLOC */
+  
+***************
+*** 168,173 ****
+--- 168,174 ----
+  # define PyErr_SetNone dll_PyErr_SetNone
+  # define PyErr_SetString dll_PyErr_SetString
+  # define PyErr_SetObject dll_PyErr_SetObject
++ # define PyErr_ExceptionMatches dll_PyErr_ExceptionMatches
+  # define PyEval_InitThreads dll_PyEval_InitThreads
+  # define PyEval_RestoreThread dll_PyEval_RestoreThread
+  # define PyEval_SaveThread dll_PyEval_SaveThread
+***************
+*** 184,189 ****
+--- 185,191 ----
+  # define PyLong_Type (*dll_PyLong_Type)
+  # define PyList_GetItem dll_PyList_GetItem
+  # define PyList_Append dll_PyList_Append
++ # define PyList_Insert dll_PyList_Insert
+  # define PyList_New dll_PyList_New
+  # define PyList_SetItem dll_PyList_SetItem
+  # define PyList_Size dll_PyList_Size
+***************
+*** 233,238 ****
+--- 235,241 ----
+  # define PyFloat_Type (*dll_PyFloat_Type)
+  # define PyImport_AddModule (*dll_PyImport_AddModule)
+  # define PySys_SetObject dll_PySys_SetObject
++ # define PySys_GetObject dll_PySys_GetObject
+  # define PySys_SetArgv dll_PySys_SetArgv
+  # define PyType_Type (*dll_PyType_Type)
+  # define PyType_Ready (*dll_PyType_Ready)
+***************
+*** 305,310 ****
+--- 308,314 ----
+  static void(*dll_PyErr_SetNone)(PyObject *);
+  static void(*dll_PyErr_SetString)(PyObject *, const char *);
+  static void(*dll_PyErr_SetObject)(PyObject *, PyObject *);
++ static int(*dll_PyErr_ExceptionMatches)(PyObject *);
+  static void(*dll_PyEval_InitThreads)(void);
+  static void(*dll_PyEval_RestoreThread)(PyThreadState *);
+  static PyThreadState*(*dll_PyEval_SaveThread)(void);
+***************
+*** 320,326 ****
+  static PyTypeObject* dll_PyInt_Type;
+  static PyTypeObject* dll_PyLong_Type;
+  static PyObject*(*dll_PyList_GetItem)(PyObject *, PyInt);
+! static PyObject*(*dll_PyList_Append)(PyObject *, PyObject *);
+  static PyObject*(*dll_PyList_New)(PyInt size);
+  static int(*dll_PyList_SetItem)(PyObject *, PyInt, PyObject *);
+  static PyInt(*dll_PyList_Size)(PyObject *);
+--- 324,331 ----
+  static PyTypeObject* dll_PyInt_Type;
+  static PyTypeObject* dll_PyLong_Type;
+  static PyObject*(*dll_PyList_GetItem)(PyObject *, PyInt);
+! static int(*dll_PyList_Append)(PyObject *, PyObject *);
+! static int(*dll_PyList_Insert)(PyObject *, int, PyObject *);
+  static PyObject*(*dll_PyList_New)(PyInt size);
+  static int(*dll_PyList_SetItem)(PyObject *, PyInt, PyObject *);
+  static PyInt(*dll_PyList_Size)(PyObject *);
+***************
+*** 366,371 ****
+--- 371,377 ----
+  static PyObject*(*dll_PyFloat_FromDouble)(double);
+  static PyTypeObject* dll_PyFloat_Type;
+  static int(*dll_PySys_SetObject)(char *, PyObject *);
++ static PyObject *(*dll_PySys_GetObject)(char *);
+  static int(*dll_PySys_SetArgv)(int, char **);
+  static PyTypeObject* dll_PyType_Type;
+  static int (*dll_PyType_Ready)(PyTypeObject *type);
+***************
+*** 431,436 ****
+--- 437,443 ----
+  static PyObject *imp_PyExc_TypeError;
+  static PyObject *imp_PyExc_ValueError;
+  static PyObject *imp_PyExc_RuntimeError;
++ static PyObject *imp_PyExc_ImportError;
+  
+  # define PyExc_AttributeError imp_PyExc_AttributeError
+  # define PyExc_IndexError imp_PyExc_IndexError
+***************
+*** 439,444 ****
+--- 446,452 ----
+  # define PyExc_TypeError imp_PyExc_TypeError
+  # define PyExc_ValueError imp_PyExc_ValueError
+  # define PyExc_RuntimeError imp_PyExc_RuntimeError
++ # define PyExc_ImportError imp_PyExc_ImportError
+  
+  /*
+   * Table of name to function pointer of python.
+***************
+*** 471,476 ****
+--- 479,485 ----
+      {"PyErr_SetNone", (PYTHON_PROC*)&dll_PyErr_SetNone},
+      {"PyErr_SetString", (PYTHON_PROC*)&dll_PyErr_SetString},
+      {"PyErr_SetObject", (PYTHON_PROC*)&dll_PyErr_SetObject},
++     {"PyErr_ExceptionMatches", (PYTHON_PROC*)&dll_PyErr_ExceptionMatches},
+      {"PyEval_InitThreads", (PYTHON_PROC*)&dll_PyEval_InitThreads},
+      {"PyEval_RestoreThread", (PYTHON_PROC*)&dll_PyEval_RestoreThread},
+      {"PyEval_SaveThread", (PYTHON_PROC*)&dll_PyEval_SaveThread},
+***************
+*** 487,492 ****
+--- 496,502 ----
+      {"PyLong_Type", (PYTHON_PROC*)&dll_PyLong_Type},
+      {"PyList_GetItem", (PYTHON_PROC*)&dll_PyList_GetItem},
+      {"PyList_Append", (PYTHON_PROC*)&dll_PyList_Append},
++     {"PyList_Insert", (PYTHON_PROC*)&dll_PyList_Insert},
+      {"PyList_New", (PYTHON_PROC*)&dll_PyList_New},
+      {"PyList_SetItem", (PYTHON_PROC*)&dll_PyList_SetItem},
+      {"PyList_Size", (PYTHON_PROC*)&dll_PyList_Size},
+***************
+*** 532,537 ****
+--- 542,548 ----
+      {"PyFloat_FromDouble", (PYTHON_PROC*)&dll_PyFloat_FromDouble},
+      {"PyImport_AddModule", (PYTHON_PROC*)&dll_PyImport_AddModule},
+      {"PySys_SetObject", (PYTHON_PROC*)&dll_PySys_SetObject},
++     {"PySys_GetObject", (PYTHON_PROC*)&dll_PySys_GetObject},
+      {"PySys_SetArgv", (PYTHON_PROC*)&dll_PySys_SetArgv},
+      {"PyType_Type", (PYTHON_PROC*)&dll_PyType_Type},
+      {"PyType_Ready", (PYTHON_PROC*)&dll_PyType_Ready},
+***************
+*** 706,711 ****
+--- 717,723 ----
+      imp_PyExc_TypeError = PyDict_GetItemString(exdict, "TypeError");
+      imp_PyExc_ValueError = PyDict_GetItemString(exdict, "ValueError");
+      imp_PyExc_RuntimeError = PyDict_GetItemString(exdict, "RuntimeError");
++     imp_PyExc_ImportError = PyDict_GetItemString(exdict, "ImportError");
+      Py_XINCREF(imp_PyExc_AttributeError);
+      Py_XINCREF(imp_PyExc_IndexError);
+      Py_XINCREF(imp_PyExc_KeyError);
+***************
+*** 713,718 ****
+--- 725,731 ----
+      Py_XINCREF(imp_PyExc_TypeError);
+      Py_XINCREF(imp_PyExc_ValueError);
+      Py_XINCREF(imp_PyExc_RuntimeError);
++     Py_XINCREF(imp_PyExc_ImportError);
+      Py_XDECREF(exmod);
+  }
+  #endif /* DYNAMIC_PYTHON */
+***************
+*** 735,740 ****
+--- 748,757 ----
+  static PyObject *ListGetattr(PyObject *, char *);
+  static PyObject *FunctionGetattr(PyObject *, char *);
+  
++ static PyObject *LoaderLoadModule(PyObject *, PyObject *);
++ static PyObject *FinderFindModule(PyObject *, PyObject *);
++ static PyObject *VimPathHook(PyObject *, PyObject *);
++ 
+  #ifndef Py_VISIT
+  # define Py_VISIT(obj) visit(obj, arg)
+  #endif
+***************
+*** 1359,1369 ****
+  }
+  #endif
+  
+      static int
+  PythonMod_Init(void)
+  {
+-     PyObject *mod;
+- 
+      /* The special value is removed from sys.path in Python_Init(). */
+      static char *(argv[2]) = {"/must>not&exist/foo", NULL};
+  
+--- 1376,1487 ----
+  }
+  #endif
+  
++     static PyObject *
++ LoaderLoadModule(PyObject *self, PyObject *args)
++ {
++     char	*fullname;
++     PyObject	*path;
++     PyObject	*meta_path;
++     PyObject	*path_hooks;
++     PyObject	*new_path;
++     PyObject	*r;
++     PyObject	*new_list;
++ 
++     if (!PyArg_ParseTuple(args, "s", &fullname))
++ 	return NULL;
++ 
++     if (!(new_path = Vim_GetPaths(self)))
++ 	return NULL;
++ 
++     if (!(new_list = PyList_New(0)))
++ 	return NULL;
++ 
++ #define GET_SYS_OBJECT(objstr, obj) \
++     obj = PySys_GetObject(objstr); \
++     PyErr_Clear(); \
++     Py_XINCREF(obj);
++ 
++     GET_SYS_OBJECT("meta_path", meta_path);
++     if (PySys_SetObject("meta_path", new_list))
++     {
++ 	Py_XDECREF(meta_path);
++ 	Py_DECREF(new_list);
++ 	return NULL;
++     }
++     Py_DECREF(new_list); /* Now it becomes a reference borrowed from
++ 			    sys.meta_path */
++ 
++ #define RESTORE_SYS_OBJECT(objstr, obj) \
++     if (obj) \
++     { \
++ 	PySys_SetObject(objstr, obj); \
++ 	Py_DECREF(obj); \
++     }
++ 
++     GET_SYS_OBJECT("path_hooks", path_hooks);
++     if (PySys_SetObject("path_hooks", new_list))
++     {
++ 	RESTORE_SYS_OBJECT("meta_path", meta_path);
++ 	Py_XDECREF(path_hooks);
++ 	return NULL;
++     }
++ 
++     GET_SYS_OBJECT("path", path);
++     if (PySys_SetObject("path", new_path))
++     {
++ 	RESTORE_SYS_OBJECT("meta_path", meta_path);
++ 	RESTORE_SYS_OBJECT("path_hooks", path_hooks);
++ 	Py_XDECREF(path);
++ 	return NULL;
++     }
++     Py_DECREF(new_path);
++ 
++     r = PyImport_ImportModule(fullname);
++ 
++     RESTORE_SYS_OBJECT("meta_path", meta_path);
++     RESTORE_SYS_OBJECT("path_hooks", path_hooks);
++     RESTORE_SYS_OBJECT("path", path);
++ 
++     if (PyErr_Occurred())
++     {
++ 	Py_XDECREF(r);
++ 	return NULL;
++     }
++ 
++     return r;
++ }
++ 
++     static PyObject *
++ FinderFindModule(PyObject *self UNUSED, PyObject *args UNUSED)
++ {
++     /*
++      * Don't bother actually finding the module, it is delegated to the "loader"
++      * object (which is basically the same object: vim module).
++      */
++     Py_INCREF(vim_module);
++     return vim_module;
++ }
++ 
++     static PyObject *
++ VimPathHook(PyObject *self UNUSED, PyObject *args)
++ {
++     char	*path;
++ 
++     if (PyArg_ParseTuple(args, "s", &path)
++ 	    && STRCMP(path, vim_special_path) == 0)
++     {
++ 	Py_INCREF(vim_module);
++ 	return vim_module;
++     }
++ 
++     PyErr_Clear();
++     PyErr_SetNone(PyExc_ImportError);
++     return NULL;
++ }
++ 
+      static int
+  PythonMod_Init(void)
+  {
+      /* The special value is removed from sys.path in Python_Init(). */
+      static char *(argv[2]) = {"/must>not&exist/foo", NULL};
+  
+***************
+*** 1373,1382 ****
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+  
+!     mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL,
+! 			    PYTHON_API_VERSION);
+  
+!     return populate_module(mod, PyModule_AddObject, PyObject_GetAttrString);
+  }
+  
+  /*************************************************************************
+--- 1491,1507 ----
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+  
+!     vim_module = Py_InitModule4("vim", VimMethods, (char *)NULL,
+! 				(PyObject *)NULL, PYTHON_API_VERSION);
+! 
+!     if (populate_module(vim_module, PyModule_AddObject,
+! 			   PyObject_GetAttrString))
+! 	return -1;
+! 
+!     if (init_sys_path())
+! 	return -1;
+  
+!     return 0;
+  }
+  
+  /*************************************************************************
+*** ../vim-7.3.1162/src/if_python3.c	2013-06-10 18:36:20.000000000 +0200
+--- src/if_python3.c	2013-06-10 20:55:44.000000000 +0200
+***************
+*** 134,139 ****
+--- 134,140 ----
+  # define PyErr_SetNone py3_PyErr_SetNone
+  # define PyErr_SetString py3_PyErr_SetString
+  # define PyErr_SetObject py3_PyErr_SetObject
++ # define PyErr_ExceptionMatches py3_PyErr_ExceptionMatches
+  # define PyEval_InitThreads py3_PyEval_InitThreads
+  # define PyEval_RestoreThread py3_PyEval_RestoreThread
+  # define PyEval_SaveThread py3_PyEval_SaveThread
+***************
+*** 143,148 ****
+--- 144,150 ----
+  # define PyLong_FromLong py3_PyLong_FromLong
+  # define PyList_GetItem py3_PyList_GetItem
+  # define PyList_Append py3_PyList_Append
++ # define PyList_Insert py3_PyList_Insert
+  # define PyList_New py3_PyList_New
+  # define PyList_SetItem py3_PyList_SetItem
+  # define PyList_Size py3_PyList_Size
+***************
+*** 177,182 ****
+--- 179,185 ----
+  # define PyEval_GetLocals py3_PyEval_GetLocals
+  # define PyEval_GetGlobals py3_PyEval_GetGlobals
+  # define PySys_SetObject py3_PySys_SetObject
++ # define PySys_GetObject py3_PySys_GetObject
+  # define PySys_SetArgv py3_PySys_SetArgv
+  # define PyType_Ready py3_PyType_Ready
+  #undef Py_BuildValue
+***************
+*** 268,274 ****
+  static PyGILState_STATE (*py3_PyGILState_Ensure)(void);
+  static void (*py3_PyGILState_Release)(PyGILState_STATE);
+  static int (*py3_PySys_SetObject)(char *, PyObject *);
+! static PyObject* (*py3_PyList_Append)(PyObject *, PyObject *);
+  static Py_ssize_t (*py3_PyList_Size)(PyObject *);
+  static int (*py3_PySequence_Check)(PyObject *);
+  static Py_ssize_t (*py3_PySequence_Size)(PyObject *);
+--- 271,279 ----
+  static PyGILState_STATE (*py3_PyGILState_Ensure)(void);
+  static void (*py3_PyGILState_Release)(PyGILState_STATE);
+  static int (*py3_PySys_SetObject)(char *, PyObject *);
+! static PyObject* (*py3_PySys_GetObject)(char *);
+! static int (*py3_PyList_Append)(PyObject *, PyObject *);
+! static int (*py3_PyList_Insert)(PyObject *, int, PyObject *);
+  static Py_ssize_t (*py3_PyList_Size)(PyObject *);
+  static int (*py3_PySequence_Check)(PyObject *);
+  static Py_ssize_t (*py3_PySequence_Size)(PyObject *);
+***************
+*** 284,289 ****
+--- 289,295 ----
+  static void (*py3_Py_Finalize)(void);
+  static void (*py3_PyErr_SetString)(PyObject *, const char *);
+  static void (*py3_PyErr_SetObject)(PyObject *, PyObject *);
++ static int (*py3_PyErr_ExceptionMatches)(PyObject *);
+  static int (*py3_PyRun_SimpleString)(char *);
+  static PyObject* (*py3_PyRun_String)(char *, int, PyObject *, PyObject *);
+  static PyObject* (*py3_PyObject_GetAttrString)(PyObject *, const char *);
+***************
+*** 393,398 ****
+--- 399,405 ----
+  static PyObject *p3imp_PyExc_TypeError;
+  static PyObject *p3imp_PyExc_ValueError;
+  static PyObject *p3imp_PyExc_RuntimeError;
++ static PyObject *p3imp_PyExc_ImportError;
+  
+  # define PyExc_AttributeError p3imp_PyExc_AttributeError
+  # define PyExc_IndexError p3imp_PyExc_IndexError
+***************
+*** 401,406 ****
+--- 408,414 ----
+  # define PyExc_TypeError p3imp_PyExc_TypeError
+  # define PyExc_ValueError p3imp_PyExc_ValueError
+  # define PyExc_RuntimeError p3imp_PyExc_RuntimeError
++ # define PyExc_ImportError p3imp_PyExc_ImportError
+  
+  /*
+   * Table of name to function pointer of python.
+***************
+*** 428,434 ****
+--- 436,444 ----
+      {"PyGILState_Ensure", (PYTHON_PROC*)&py3_PyGILState_Ensure},
+      {"PyGILState_Release", (PYTHON_PROC*)&py3_PyGILState_Release},
+      {"PySys_SetObject", (PYTHON_PROC*)&py3_PySys_SetObject},
++     {"PySys_GetObject", (PYTHON_PROC*)&py3_PySys_GetObject},
+      {"PyList_Append", (PYTHON_PROC*)&py3_PyList_Append},
++     {"PyList_Insert", (PYTHON_PROC*)&py3_PyList_Insert},
+      {"PyList_Size", (PYTHON_PROC*)&py3_PyList_Size},
+      {"PySequence_Check", (PYTHON_PROC*)&py3_PySequence_Check},
+      {"PySequence_Size", (PYTHON_PROC*)&py3_PySequence_Size},
+***************
+*** 441,446 ****
+--- 451,457 ----
+      {"Py_Finalize", (PYTHON_PROC*)&py3_Py_Finalize},
+      {"PyErr_SetString", (PYTHON_PROC*)&py3_PyErr_SetString},
+      {"PyErr_SetObject", (PYTHON_PROC*)&py3_PyErr_SetObject},
++     {"PyErr_ExceptionMatches", (PYTHON_PROC*)&py3_PyErr_ExceptionMatches},
+      {"PyRun_SimpleString", (PYTHON_PROC*)&py3_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&py3_PyRun_String},
+      {"PyObject_GetAttrString", (PYTHON_PROC*)&py3_PyObject_GetAttrString},
+***************
+*** 664,669 ****
+--- 675,681 ----
+      p3imp_PyExc_TypeError = PyDict_GetItemString(exdict, "TypeError");
+      p3imp_PyExc_ValueError = PyDict_GetItemString(exdict, "ValueError");
+      p3imp_PyExc_RuntimeError = PyDict_GetItemString(exdict, "RuntimeError");
++     p3imp_PyExc_ImportError = PyDict_GetItemString(exdict, "ImportError");
+      Py_XINCREF(p3imp_PyExc_AttributeError);
+      Py_XINCREF(p3imp_PyExc_IndexError);
+      Py_XINCREF(p3imp_PyExc_KeyError);
+***************
+*** 671,676 ****
+--- 683,689 ----
+      Py_XINCREF(p3imp_PyExc_TypeError);
+      Py_XINCREF(p3imp_PyExc_ValueError);
+      Py_XINCREF(p3imp_PyExc_RuntimeError);
++     Py_XINCREF(p3imp_PyExc_ImportError);
+      Py_XDECREF(exmod);
+  }
+  #endif /* DYNAMIC_PYTHON3 */
+***************
+*** 723,730 ****
+--- 736,748 ----
+  static int ListSetattro(PyObject *, PyObject *, PyObject *);
+  static PyObject *FunctionGetattro(PyObject *, PyObject *);
+  
++ static PyObject *VimPathHook(PyObject *, PyObject *);
++ 
+  static struct PyModuleDef vimmodule;
+  
++ static PyObject *path_finder;
++ static PyObject *py_find_module = NULL;
++ 
+  #define PY_CAN_RECURSE
+  
+  /*
+***************
+*** 1585,1596 ****
+  #endif
+  
+      static PyObject *
+! Py3Init_vim(void)
+  {
+!     PyObject *mod;
+  
+      /* The special value is removed from sys.path in Python3_Init(). */
+      static wchar_t *(argv[2]) = {L"/must>not&exist/foo", NULL};
+  
+      if (init_types())
+  	return NULL;
+--- 1603,1672 ----
+  #endif
+  
+      static PyObject *
+! VimPathHook(PyObject *self UNUSED, PyObject *args)
+  {
+!     char	*path;
+! 
+!     if (PyArg_ParseTuple(args, "s", &path)
+! 	    && STRCMP(path, vim_special_path) == 0)
+!     {
+! 	Py_INCREF(&FinderType);
+! 	return (PyObject *) &FinderType;
+!     }
+! 
+!     PyErr_Clear();
+!     PyErr_SetNone(PyExc_ImportError);
+!     return NULL;
+! }
+! 
+!     static PyObject *
+! FinderFindModule(PyObject *cls UNUSED, PyObject *fullname)
+! {
+!     PyObject	*new_path;
+!     PyObject	*r;
+! 
+!     if (!(new_path = Vim_GetPaths(NULL)))
+! 	return NULL;
+! 
+!     /* call find_module of the super() class */
+!     r = PyObject_CallFunctionObjArgs(py_find_module, fullname, new_path, NULL);
+! 
+!     Py_DECREF(new_path);
+! 
+!     return r;
+! }
+  
++ static struct PyMethodDef FinderMethods[] = {
++     {"find_module",	FinderFindModule,	METH_CLASS|METH_O,	""},
++     {NULL,		NULL,			0,			NULL}
++ };
++ 
++     static PyObject *
++ Py3Init_vim(void)
++ {
+      /* The special value is removed from sys.path in Python3_Init(). */
+      static wchar_t *(argv[2]) = {L"/must>not&exist/foo", NULL};
++     PyObject	*importlib_machinery;
++ 
++     if (!(importlib_machinery = PyImport_ImportModule("importlib.machinery")))
++ 	return NULL;
++ 
++     if (!(path_finder = PyObject_GetAttrString(importlib_machinery,
++ 					       "PathFinder")))
++     {
++ 	Py_DECREF(importlib_machinery);
++ 	return NULL;
++     }
++ 
++     Py_DECREF(importlib_machinery);
++ 
++     vim_memset(&FinderType, 0, sizeof(FinderObject));
++     FinderType.tp_name = "vim.Finder";
++     FinderType.tp_basicsize = sizeof(FinderObject);
++     FinderType.tp_base = (PyTypeObject *) path_finder;
++     FinderType.tp_flags = Py_TPFLAGS_DEFAULT;
++     FinderType.tp_doc = "Vim finder class, for use with path hook";
++     FinderType.tp_methods = FinderMethods;
+  
+      if (init_types())
+  	return NULL;
+***************
+*** 1598,1611 ****
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+  
+!     mod = PyModule_Create(&vimmodule);
+!     if (mod == NULL)
+  	return NULL;
+  
+!     if (populate_module(mod, PyModule_AddObject, PyObject_GetAttrString))
+  	return NULL;
+  
+!     return mod;
+  }
+  
+  /*************************************************************************
+--- 1674,1689 ----
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+  
+!     if ((vim_module = PyModule_Create(&vimmodule)) == NULL)
+! 	return NULL;
+! 
+!     if (populate_module(vim_module, PyModule_AddObject, PyObject_GetAttrString))
+  	return NULL;
+  
+!     if (init_sys_path())
+  	return NULL;
+  
+!     return vim_module;
+  }
+  
+  /*************************************************************************
+*** ../vim-7.3.1162/src/testdir/test86.in	2013-06-02 18:54:16.000000000 +0200
+--- src/testdir/test86.in	2013-06-10 21:05:44.000000000 +0200
+***************
+*** 1069,1074 ****
+--- 1069,1082 ----
+  ee('vim.current.xxx = True')
+  EOF
+  :"
++ :" Test import  TODO: BROKEN
++ :"py << EOF
++ :"vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
++ :"from module import dir as d
++ :"from modulex import ddir
++ :"cb.append(d + ',' + ddir)
++ :"EOF
++ :"
+  :" Test exceptions
+  :fun Exe(e)
+  :   execute a:e
+*** ../vim-7.3.1162/src/testdir/test87.in	2013-06-02 18:54:16.000000000 +0200
+--- src/testdir/test87.in	2013-06-10 21:06:37.000000000 +0200
+***************
+*** 1036,1041 ****
+--- 1036,1049 ----
+  ee('vim.current.xxx = True')
+  EOF
+  :"
++ :" Test import  TODO: BROKEN
++ :"py3 << EOF
++ :"vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
++ :"from module import dir as d
++ :"from modulex import ddir
++ :"cb.append(d + ',' + ddir)
++ :"EOF
++ :"
+  :" Test exceptions
+  :fun Exe(e)
+  :   execute a:e
+*** ../vim-7.3.1162/src/auto/configure	2013-06-02 19:14:11.000000000 +0200
+--- src/auto/configure	2013-06-10 21:22:52.000000000 +0200
+***************
+*** 5289,5298 ****
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_var_python_version" >&5
+  $as_echo "$vi_cv_var_python_version" >&6; }
+  
+!         { $as_echo "$as_me:${as_lineno-$LINENO}: checking Python is 2.2 or better" >&5
+! $as_echo_n "checking Python is 2.2 or better... " >&6; }
+      if ${vi_cv_path_python} -c \
+! 	"import sys; sys.exit(${vi_cv_var_python_version} < 2.2)"
+      then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yep" >&5
+  $as_echo "yep" >&6; }
+--- 5289,5298 ----
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_var_python_version" >&5
+  $as_echo "$vi_cv_var_python_version" >&6; }
+  
+!         { $as_echo "$as_me:${as_lineno-$LINENO}: checking Python is 2.3 or better" >&5
+! $as_echo_n "checking Python is 2.3 or better... " >&6; }
+      if ${vi_cv_path_python} -c \
+! 	"import sys; sys.exit(${vi_cv_var_python_version} < 2.3)"
+      then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yep" >&5
+  $as_echo "yep" >&6; }
+*** ../vim-7.3.1162/src/version.c	2013-06-10 20:47:33.000000000 +0200
+--- src/version.c	2013-06-10 20:53:23.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1163,
+  /**/
+
+-- 
+The coffee just wasn't strong enough to defend itself -- Tom Waits
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,80 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.918
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.918
+Problem:    Repeating an Ex command after using a Visual motion does not work.
+Solution:   Check for an Ex command being used. (David Bürgin)
+Files:	    src/normal.c
+
+
+*** ../vim-7.3.917/src/normal.c	2013-04-05 17:43:10.000000000 +0200
+--- src/normal.c	2013-04-24 18:12:43.000000000 +0200
+***************
+*** 1504,1514 ****
+  	}
+  #endif
+  
+! 	/* only redo yank when 'y' flag is in 'cpoptions' */
+! 	/* never redo "zf" (define fold) */
+  	if ((vim_strchr(p_cpo, CPO_YANK) != NULL || oap->op_type != OP_YANK)
+  #ifdef FEAT_VISUAL
+! 		&& (!VIsual_active || oap->motion_force)
+  #endif
+  		&& cap->cmdchar != 'D'
+  #ifdef FEAT_FOLDING
+--- 1504,1517 ----
+  	}
+  #endif
+  
+! 	/* Only redo yank when 'y' flag is in 'cpoptions'. */
+! 	/* Never redo "zf" (define fold). */
+  	if ((vim_strchr(p_cpo, CPO_YANK) != NULL || oap->op_type != OP_YANK)
+  #ifdef FEAT_VISUAL
+! 		&& ((!VIsual_active || oap->motion_force)
+! 		    /* Also redo Operator-pending Visual mode mappings */
+! 		    || (VIsual_active && cap->cmdchar == ':'
+! 						 && oap->op_type != OP_COLON))
+  #endif
+  		&& cap->cmdchar != 'D'
+  #ifdef FEAT_FOLDING
+***************
+*** 1797,1803 ****
+  		    prep_redo(oap->regname, 0L, NUL, cap->cmdchar, cap->nchar,
+  					get_op_char(oap->op_type),
+  					get_extra_op_char(oap->op_type));
+! 		else
+  		    prep_redo(oap->regname, 0L, NUL, 'v',
+  					get_op_char(oap->op_type),
+  					get_extra_op_char(oap->op_type),
+--- 1800,1806 ----
+  		    prep_redo(oap->regname, 0L, NUL, cap->cmdchar, cap->nchar,
+  					get_op_char(oap->op_type),
+  					get_extra_op_char(oap->op_type));
+! 		else if (cap->cmdchar != ':')
+  		    prep_redo(oap->regname, 0L, NUL, 'v',
+  					get_op_char(oap->op_type),
+  					get_extra_op_char(oap->op_type),
+*** ../vim-7.3.917/src/version.c	2013-04-24 17:34:15.000000000 +0200
+--- src/version.c	2013-04-24 18:34:03.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     918,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+230. You spend your Friday nights typing away at your keyboard
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

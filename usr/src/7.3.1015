@@ -1,0 +1,172 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1015
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1015
+Problem:    New regexp engine: Matching composing characters is wrong.
+Solution:   Fix matching composing characters.
+Files:	    src/regexp_nfa.c, src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.1014/src/regexp_nfa.c	2013-05-25 12:28:08.000000000 +0200
+--- src/regexp_nfa.c	2013-05-25 14:25:42.000000000 +0200
+***************
+*** 716,721 ****
+--- 716,722 ----
+  	     * the composing char is matched here. */
+  	    if (enc_utf8 && c == Magic('.') && utf_iscomposing(peekchr()))
+  	    {
++ 		old_regparse = regparse;
+  		c = getchr();
+  		goto nfa_do_multibyte;
+  	    }
+***************
+*** 1217,1225 ****
+  
+  nfa_do_multibyte:
+  		/* Length of current char with composing chars. */
+! 		if (enc_utf8 && clen != (plen = (*mb_ptr2len)(old_regparse)))
+  		{
+! 		    /* A base character plus composing characters.
+  		     * This requires creating a separate atom as if enclosing
+  		     * the characters in (), where NFA_COMPOSING is the ( and
+  		     * NFA_END_COMPOSING is the ). Note that right now we are
+--- 1218,1228 ----
+  
+  nfa_do_multibyte:
+  		/* Length of current char with composing chars. */
+! 		if (enc_utf8 && (clen != (plen = (*mb_ptr2len)(old_regparse))
+! 			    || utf_iscomposing(c)))
+  		{
+! 		    /* A base character plus composing characters, or just one
+! 		     * or more composing characters.
+  		     * This requires creating a separate atom as if enclosing
+  		     * the characters in (), where NFA_COMPOSING is the ( and
+  		     * NFA_END_COMPOSING is the ). Note that right now we are
+***************
+*** 1400,1406 ****
+  	    /* Save pos after the repeated atom and the \{} */
+  	    new_regparse = regparse;
+  
+- 	    new_regparse = regparse;
+  	    quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);
+  	    for (i = 0; i < maxval; i++)
+  	    {
+--- 1403,1408 ----
+***************
+*** 3218,3228 ****
+  		result = OK;
+  		sta = t->state->out;
+  		len = 0;
+  		if (ireg_icombine)
+  		{
+! 		    /* If \Z was present, then ignore composing characters. */
+  		    /* TODO: How about negated? */
+! 		    if (sta->c != c)
+  			result = FAIL;
+  		    len = n;
+  		    while (sta->c != NFA_END_COMPOSING)
+--- 3220,3238 ----
+  		result = OK;
+  		sta = t->state->out;
+  		len = 0;
++ 		if (utf_iscomposing(sta->c))
++ 		{
++ 		    /* Only match composing character(s), ignore base
++ 		     * character.  Used for ".{composing}" and "{composing}"
++ 		     * (no preceding character). */
++ 		    len += mb_char2len(c);
++ 		}
+  		if (ireg_icombine)
+  		{
+! 		    /* If \Z was present, then ignore composing characters.
+! 		     * When ignoring the base character this always matches. */
+  		    /* TODO: How about negated? */
+! 		    if (len == 0 && sta->c != c)
+  			result = FAIL;
+  		    len = n;
+  		    while (sta->c != NFA_END_COMPOSING)
+*** ../vim-7.3.1014/src/testdir/test95.in	2013-05-24 23:10:45.000000000 +0200
+--- src/testdir/test95.in	2013-05-25 14:36:50.000000000 +0200
+***************
+*** 38,43 ****
+--- 38,52 ----
+  :"""" Test composing character matching
+  :call add(tl, ['.ม', 'xม่x yมy', 'yม'])
+  :call add(tl, ['.ม่', 'xม่x yมy', 'xม่'])
++ :call add(tl, ["\u05b9", " x\u05b9 ", "x\u05b9"])
++ :call add(tl, [".\u05b9", " x\u05b9 ", "x\u05b9"])
++ :call add(tl, ["\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
++ :call add(tl, [".\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
++ :call add(tl, ["\u05bb\u05b9", " x\u05b9\u05bb "])
++ :call add(tl, [".\u05bb\u05b9", " x\u05b9\u05bb "])
++ :call add(tl, ["\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
++ :call add(tl, [".\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
++ 
+  
+  :"""" Test \Z
+  :call add(tl, ['ú\Z', 'x'])
+***************
+*** 50,55 ****
+--- 59,66 ----
+  :call add(tl, ["ק\u200d\u05b9x\\Z", "xק\u200dxy", "ק\u200dx"])
+  :call add(tl, ["ק\u200dx\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+  :call add(tl, ["ק\u200dx\\Z", "xק\u200dxy", "ק\u200dx"])
++ :call add(tl, ["\u05b9\\+\\Z", "xyz", "xyz"])
++ :call add(tl, ["\\Z\u05b9\\+", "xyz", "xyz"])
+  
+  :"""" Combining different tests and features
+  :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+*** ../vim-7.3.1014/src/testdir/test95.ok	2013-05-24 23:10:45.000000000 +0200
+--- src/testdir/test95.ok	2013-05-25 14:36:54.000000000 +0200
+***************
+*** 11,16 ****
+--- 11,24 ----
+  OK - \%#=1\f\+
+  OK - .ม
+  OK - .ม่
++ OK - ֹ
++ OK - .ֹ
++ OK - ֹֻ
++ OK - .ֹֻ
++ OK - ֹֻ
++ OK - .ֹֻ
++ OK - ֹ
++ OK - .ֹ
+  OK - ú\Z
+  OK - יהוה\Z
+  OK - יְהוָה\Z
+***************
+*** 21,24 ****
+--- 29,34 ----
+  OK - ק‍ֹx\Z
+  OK - ק‍x\Z
+  OK - ק‍x\Z
++ OK - ֹ\+\Z
++ OK - \Zֹ\+
+  OK - [^[=a=]]\+
+*** ../vim-7.3.1014/src/version.c	2013-05-25 12:28:08.000000000 +0200
+--- src/version.c	2013-05-25 14:41:05.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1015,
+  /**/
+
+-- 
+If your company is not involved in something called "ISO 9000" you probably
+have no idea what it is.  If your company _is_ involved in ISO 9000 then you
+definitely have no idea what it is.
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

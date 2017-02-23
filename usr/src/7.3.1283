@@ -1,0 +1,87 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1283
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1283
+Problem:    Test 71 fails on MS-Windows.
+Solution:   Put the binary data in a separate file. (Ken Takata)
+Files:      src/testdir/test71.in, src/testdir/test71a.in
+
+
+*** ../vim-7.3.1282/src/testdir/test71.in	2013-06-19 21:17:26.000000000 +0200
+--- src/testdir/test71.in	2013-07-01 20:47:58.000000000 +0200
+***************
+*** 1,7 ****
+--- 1,12 ----
+  Test for encryption.
++ The test data is in another file to avoid problems with 'encoding', especially
++ cp932.
+  
+  STARTTEST
+  :so small.vim
++ :set enc=latin1
++ :bwipe!
++ :r test71a.in
+  :/^start of text/+1
+  :let text_lines = getline('.', line('.') + 2)
+  :/^start of cm=zip bytes/+1
+***************
+*** 60,75 ****
+  :qa!
+  ENDTEST
+  
+- start of text
+- 01234567890123456789012345678901234567
+- line 2  foo bar blah
+- line 3 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+- end of text
+- 
+- start of cm=zip bytes
+- VimCrypt~01!lV'Þ}Mg ê£V©çE#3Ž2Ué—
+- end of cm=zip bytes
+- 
+- start of cm=blowfish bytes
+- VimCrypt~02!k)¾—#ÝSœõ=ºàÈ#¥M´†JÃAÍ¥M´†!€›õáÒ‚˜÷Ú
+- end of cm=blowfish bytes
+--- 65,67 ----
+*** ../vim-7.3.1282/src/testdir/test71a.in	2013-07-01 20:58:57.000000000 +0200
+--- src/testdir/test71a.in	2013-07-01 20:45:58.000000000 +0200
+***************
+*** 0 ****
+--- 1,14 ----
++ 
++ start of text
++ 01234567890123456789012345678901234567
++ line 2  foo bar blah
++ line 3 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
++ end of text
++ 
++ start of cm=zip bytes
++ VimCrypt~01!lV'Þ}Mg ê£V©çE#3Ž2Ué—
++ end of cm=zip bytes
++ 
++ start of cm=blowfish bytes
++ VimCrypt~02!k)¾—#ÝSœõ=ºàÈ#¥M´†JÃAÍ¥M´†!€›õáÒ‚˜÷Ú
++ end of cm=blowfish bytes
+*** ../vim-7.3.1282/src/version.c	2013-07-01 20:18:26.000000000 +0200
+--- src/version.c	2013-07-01 20:50:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1283,
+  /**/
+
+-- 
+    f y cn rd ths thn y cn hv grt jb n cmptr prgrmmng
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

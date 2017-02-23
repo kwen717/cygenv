@@ -1,0 +1,359 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1228
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1228
+Problem:    Python: various inconsistencies and problems.
+Solution:   StringToLine now supports both bytes() and unicode() objects.
+	    Make function names consistant.  Fix memory leak fixed in
+	    StringToLine. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c
+
+
+*** ../vim-7.3.1227/src/if_py_both.h	2013-06-23 13:00:40.000000000 +0200
+--- src/if_py_both.h	2013-06-23 13:08:18.000000000 +0200
+***************
+*** 18,24 ****
+  #endif
+  
+  #ifdef FEAT_MBYTE
+! # define ENC_OPT p_enc
+  #else
+  # define ENC_OPT "latin1"
+  #endif
+--- 18,24 ----
+  #endif
+  
+  #ifdef FEAT_MBYTE
+! # define ENC_OPT ((char *)p_enc)
+  #else
+  # define ENC_OPT "latin1"
+  #endif
+***************
+*** 92,119 ****
+  StringToChars(PyObject *object, PyObject **todecref)
+  {
+      char_u	*p;
+-     PyObject	*bytes = NULL;
+  
+      if (PyBytes_Check(object))
+      {
+  
+! 	if (PyString_AsStringAndSize(object, (char **) &p, NULL) == -1)
+! 	    return NULL;
+! 	if (p == NULL)
+  	    return NULL;
+  
+  	*todecref = NULL;
+      }
+      else if (PyUnicode_Check(object))
+      {
+! 	bytes = PyUnicode_AsEncodedString(object, (char *)ENC_OPT, NULL);
+! 	if (bytes == NULL)
+! 	    return NULL;
+  
+! 	if(PyString_AsStringAndSize(bytes, (char **) &p, NULL) == -1)
+  	    return NULL;
+! 	if (p == NULL)
+  	    return NULL;
+  
+  	*todecref = bytes;
+      }
+--- 92,120 ----
+  StringToChars(PyObject *object, PyObject **todecref)
+  {
+      char_u	*p;
+  
+      if (PyBytes_Check(object))
+      {
+  
+! 	if (PyBytes_AsStringAndSize(object, (char **) &p, NULL) == -1
+! 		|| p == NULL)
+  	    return NULL;
+  
+  	*todecref = NULL;
+      }
+      else if (PyUnicode_Check(object))
+      {
+! 	PyObject	*bytes;
+  
+! 	if (!(bytes = PyUnicode_AsEncodedString(object, ENC_OPT, NULL)))
+  	    return NULL;
+! 
+! 	if(PyBytes_AsStringAndSize(bytes, (char **) &p, NULL) == -1
+! 		|| p == NULL)
+! 	{
+! 	    Py_DECREF(bytes);
+  	    return NULL;
++ 	}
+  
+  	*todecref = bytes;
+      }
+***************
+*** 133,138 ****
+--- 134,140 ----
+  
+      if (!(string = PyString_FromString(s)))
+  	return -1;
++ 
+      if (PyList_Append(list, string))
+      {
+  	Py_DECREF(string);
+***************
+*** 534,543 ****
+      }
+  
+      if (our_tv->v_type == VAR_STRING)
+-     {
+  	result = PyString_FromString(our_tv->vval.v_string == NULL
+  					? "" : (char *)our_tv->vval.v_string);
+-     }
+      else if (our_tv->v_type == VAR_NUMBER)
+      {
+  	char buf[NUMBUFLEN];
+--- 536,543 ----
+***************
+*** 3385,3406 ****
+      static char *
+  StringToLine(PyObject *obj)
+  {
+!     const char *str;
+!     char *save;
+!     PyObject *bytes;
+!     PyInt len;
+!     PyInt i;
+!     char *p;
+  
+!     if (obj == NULL || !PyString_Check(obj))
+      {
+! 	PyErr_BadArgument();
+! 	return NULL;
+      }
+  
+!     bytes = PyString_AsBytes(obj);  /* for Python 2 this does nothing */
+!     str = PyString_AsString(bytes);
+!     len = PyString_Size(bytes);
+  
+      /*
+       * Error checking: String must not contain newlines, as we
+--- 3385,3415 ----
+      static char *
+  StringToLine(PyObject *obj)
+  {
+!     char	*str;
+!     char	*save;
+!     PyObject	*bytes = NULL;
+!     Py_ssize_t	len;
+!     PyInt	i;
+!     char	*p;
+  
+!     if (PyBytes_Check(obj))
+      {
+! 	if (PyBytes_AsStringAndSize(obj, &str, &len) == -1
+! 		|| str == NULL)
+! 	    return NULL;
+      }
++     else if (PyUnicode_Check(obj))
++     {
++ 	if (!(bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL)))
++ 	    return NULL;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, &str, &len) == -1
+! 		|| str == NULL)
+! 	{
+! 	    Py_DECREF(bytes);
+! 	    return NULL;
+! 	}
+!     }
+  
+      /*
+       * Error checking: String must not contain newlines, as we
+***************
+*** 3439,3445 ****
+      }
+  
+      save[i] = '\0';
+!     PyString_FreeBytes(bytes);  /* Python 2 does nothing here */
+  
+      return save;
+  }
+--- 3448,3454 ----
+      }
+  
+      save[i] = '\0';
+!     Py_XDECREF(bytes);  /* Python 2 does nothing here */
+  
+      return save;
+  }
+***************
+*** 3568,3577 ****
+  
+  	return OK;
+      }
+!     else if (PyString_Check(line))
+      {
+! 	char *save = StringToLine(line);
+! 	buf_T *savebuf;
+  
+  	if (save == NULL)
+  	    return FAIL;
+--- 3577,3586 ----
+  
+  	return OK;
+      }
+!     else if (PyBytes_Check(line) || PyUnicode_Check(line))
+      {
+! 	char	*save = StringToLine(line);
+! 	buf_T	*savebuf;
+  
+  	if (save == NULL)
+  	    return FAIL;
+***************
+*** 3821,3827 ****
+      /* First of all, we check the type of the supplied Python object.
+       * It must be a string or a list, or the call is in error.
+       */
+!     if (PyString_Check(lines))
+      {
+  	char	*str = StringToLine(lines);
+  	buf_T	*savebuf;
+--- 3830,3836 ----
+      /* First of all, we check the type of the supplied Python object.
+       * It must be a string or a list, or the call is in error.
+       */
+!     if (PyBytes_Check(lines) || PyUnicode_Check(lines))
+      {
+  	char	*str = StringToLine(lines);
+  	buf_T	*savebuf;
+***************
+*** 5254,5260 ****
+      {
+  	char_u	*result;
+  
+! 	if (PyString_AsStringAndSize(obj, (char **) &result, NULL) == -1)
+  	    return -1;
+  	if (result == NULL)
+  	    return -1;
+--- 5263,5269 ----
+      {
+  	char_u	*result;
+  
+! 	if (PyBytes_AsStringAndSize(obj, (char **) &result, NULL) == -1)
+  	    return -1;
+  	if (result == NULL)
+  	    return -1;
+***************
+*** 5269,5279 ****
+  	PyObject	*bytes;
+  	char_u	*result;
+  
+! 	bytes = PyUnicode_AsEncodedString(obj, (char *)ENC_OPT, NULL);
+  	if (bytes == NULL)
+  	    return -1;
+  
+! 	if(PyString_AsStringAndSize(bytes, (char **) &result, NULL) == -1)
+  	    return -1;
+  	if (result == NULL)
+  	    return -1;
+--- 5278,5288 ----
+  	PyObject	*bytes;
+  	char_u	*result;
+  
+! 	bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL);
+  	if (bytes == NULL)
+  	    return -1;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, (char **) &result, NULL) == -1)
+  	    return -1;
+  	if (result == NULL)
+  	    return -1;
+*** ../vim-7.3.1227/src/if_python3.c	2013-06-13 20:57:44.000000000 +0200
+--- src/if_python3.c	2013-06-23 13:08:18.000000000 +0200
+***************
+*** 84,96 ****
+  
+  #define PyInt Py_ssize_t
+  #define PyString_Check(obj) PyUnicode_Check(obj)
+- #define PyString_AsBytes(obj) PyUnicode_AsEncodedString(obj, (char *)ENC_OPT, CODEC_ERROR_HANDLER)
+- #define PyString_FreeBytes(obj) Py_XDECREF(bytes)
+- #define PyString_AsString(obj) PyBytes_AsString(obj)
+- #define PyString_Size(obj) PyBytes_GET_SIZE(bytes)
+  #define PyString_FromString(repr) PyUnicode_FromString(repr)
+  #define PyString_FromFormat PyUnicode_FromFormat
+- #define PyString_AsStringAndSize(obj, buffer, len) PyBytes_AsStringAndSize(obj, buffer, len)
+  #define PyInt_Check(obj) PyLong_Check(obj)
+  #define PyInt_FromLong(i) PyLong_FromLong(i)
+  #define PyInt_AsLong(obj) PyLong_AsLong(obj)
+--- 84,91 ----
+***************
+*** 357,363 ****
+  # endif
+  static PyObject* (*py3_PyUnicode_AsEncodedString)(PyObject *unicode, const char* encoding, const char* errors);
+  static char* (*py3_PyBytes_AsString)(PyObject *bytes);
+! static int (*py3_PyBytes_AsStringAndSize)(PyObject *bytes, char **buffer, int *length);
+  static PyObject* (*py3_PyBytes_FromString)(char *str);
+  static PyObject* (*py3_PyFloat_FromDouble)(double num);
+  static double (*py3_PyFloat_AsDouble)(PyObject *);
+--- 352,358 ----
+  # endif
+  static PyObject* (*py3_PyUnicode_AsEncodedString)(PyObject *unicode, const char* encoding, const char* errors);
+  static char* (*py3_PyBytes_AsString)(PyObject *bytes);
+! static int (*py3_PyBytes_AsStringAndSize)(PyObject *bytes, char **buffer, Py_ssize_t *length);
+  static PyObject* (*py3_PyBytes_FromString)(char *str);
+  static PyObject* (*py3_PyFloat_FromDouble)(double num);
+  static double (*py3_PyFloat_AsDouble)(PyObject *);
+*** ../vim-7.3.1227/src/if_python.c	2013-06-12 14:40:58.000000000 +0200
+--- src/if_python.c	2013-06-23 13:08:18.000000000 +0200
+***************
+*** 68,79 ****
+  #undef main /* Defined in python.h - aargh */
+  #undef HAVE_FCNTL_H /* Clash with os_win32.h */
+  
+! #define PyBytes_FromString PyString_FromString
+! #define PyBytes_Check PyString_Check
+! 
+! /* No-op conversion functions, use with care! */
+! #define PyString_AsBytes(obj) (obj)
+! #define PyString_FreeBytes(obj)
+  
+  #if !defined(FEAT_PYTHON) && defined(PROTO)
+  /* Use this to be able to generate prototypes without python being used. */
+--- 68,76 ----
+  #undef main /* Defined in python.h - aargh */
+  #undef HAVE_FCNTL_H /* Clash with os_win32.h */
+  
+! #define PyBytes_FromString      PyString_FromString
+! #define PyBytes_Check           PyString_Check
+! #define PyBytes_AsStringAndSize PyString_AsStringAndSize
+  
+  #if !defined(FEAT_PYTHON) && defined(PROTO)
+  /* Use this to be able to generate prototypes without python being used. */
+*** ../vim-7.3.1227/src/version.c	2013-06-23 13:00:40.000000000 +0200
+--- src/version.c	2013-06-23 13:07:40.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1228,
+  /**/
+
+-- 
+       In war we're tough and able.
+       Quite indefatigable
+       Between our quests
+       We sequin vests
+       And impersonate Clark Gable
+       It's a busy life in Camelot.
+       I have to push the pram a lot.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

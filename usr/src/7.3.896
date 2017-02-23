@@ -1,0 +1,206 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.896
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.896
+Problem:    Memory leaks in Lua interface.
+Solution:   Fix the leaks, add tests. (Yukihiro Nakadaira)
+Files:	    src/testdir/test85.in, src/testdir/test85.ok, src/if_lua.c
+
+
+*** ../vim-7.3.895/src/testdir/test85.in	2012-04-05 16:56:38.000000000 +0200
+--- src/testdir/test85.in	2013-04-15 13:12:43.000000000 +0200
+***************
+*** 33,38 ****
+--- 33,81 ----
+  :let res = "FAILED"
+  :endif
+  :call setline(search("^3"), "circular test " . res)
++ 
++ :let l = []
++ :lua l = vim.eval("l")
++ :lua l:add(123)
++ :lua l:add("abc")
++ :lua l:add(vim.eval("[1, 2, 3]"))
++ :lua l:add(vim.eval("{'a':1, 'b':2, 'c':3}"))
++ :lua l:insert(123)
++ :lua l:insert("abc")
++ :lua l:insert(vim.eval("[1, 2, 3]"))
++ :lua l:insert(vim.eval("{'a':1, 'b':2, 'c':3}"))
++ :lua l[0] = l[0]
++ :lua l[1] = l[1]
++ :lua l[2] = l[2]
++ :lua l[3] = l[3]
++ :lua l[0] = 123
++ :lua l[1] = "abc"
++ :lua l[2] = vim.eval("[1, 2, 3]")
++ :lua l[3] = vim.eval("{'a':1, 'b':2, 'c':3}")
++ :lua l[3] = nil
++ :lua l[2] = nil
++ :lua l[1] = nil
++ :lua l[0] = nil
++ :lua l = nil
++ :$put =string(l)
++ 
++ :let d = {}
++ :lua d = vim.eval("d")
++ :lua d[0] = 123
++ :lua d[1] = "abc"
++ :lua d[2] = vim.eval("[1, 2, 3]")
++ :lua d[3] = vim.eval("{'a':1, 'b':2, 'c':3}")
++ :lua d[4] = d[0]
++ :lua d[5] = d[1]
++ :lua d[6] = d[2]
++ :lua d[7] = d[3]
++ :lua d[3] = nil
++ :lua d[2] = nil
++ :lua d[1] = nil
++ :lua d[0] = nil
++ :lua d = nil
++ :$put =string(d)
++ 
+  :?^1?,$w! test.out
+  :qa!
+  ENDTEST
+*** ../vim-7.3.895/src/testdir/test85.ok	2012-04-05 16:56:38.000000000 +0200
+--- src/testdir/test85.ok	2013-04-15 13:12:47.000000000 +0200
+***************
+*** 3,5 ****
+--- 3,7 ----
+  2 line 2
+  dictionary with list OK
+  circular test OK
++ [123.0, 'abc', [1, 2, 3], {'a': 1, 'b': 2, 'c': 3}]
++ {'4': 123.0, '5': 'abc', '6': [1, 2, 3], '7': {'a': 1, 'b': 2, 'c': 3}}
+*** ../vim-7.3.895/src/if_lua.c	2013-04-12 12:18:43.000000000 +0200
+--- src/if_lua.c	2013-04-15 13:35:40.000000000 +0200
+***************
+*** 709,716 ****
+      {
+  	const char *s = lua_tostring(L, 2);
+  	if (strncmp(s, "add", 3) == 0
+! 		|| strncmp(s, "insert", 6) == 0
+! 		|| strncmp(s, "extend", 6) == 0)
+  	{
+  	    lua_getmetatable(L, 1);
+  	    lua_getfield(L, -1, s);
+--- 709,715 ----
+      {
+  	const char *s = lua_tostring(L, 2);
+  	if (strncmp(s, "add", 3) == 0
+! 		|| strncmp(s, "insert", 6) == 0)
+  	{
+  	    lua_getmetatable(L, 1);
+  	    lua_getfield(L, -1, s);
+***************
+*** 745,750 ****
+--- 744,750 ----
+  	luaV_totypval(L, 3, &v);
+  	clear_tv(&li->li_tv);
+  	copy_tv(&v, &li->li_tv);
++ 	clear_tv(&v);
+      }
+      return 0;
+  }
+***************
+*** 754,770 ****
+  {
+      luaV_List *lis = luaV_checkudata(L, 1, LUAVIM_LIST);
+      list_T *l = (list_T *) luaV_checkcache(L, (void *) *lis);
+!     listitem_T *li;
+      if (l->lv_lock)
+  	luaL_error(L, "list is locked");
+!     li = listitem_alloc();
+!     if (li != NULL)
+      {
+! 	typval_T v;
+! 	lua_settop(L, 2);
+! 	luaV_totypval(L, 2, &v);
+! 	list_append_tv(l, &v);
+      }
+      lua_settop(L, 1);
+      return 1;
+  }
+--- 754,770 ----
+  {
+      luaV_List *lis = luaV_checkudata(L, 1, LUAVIM_LIST);
+      list_T *l = (list_T *) luaV_checkcache(L, (void *) *lis);
+!     typval_T v;
+      if (l->lv_lock)
+  	luaL_error(L, "list is locked");
+!     lua_settop(L, 2);
+!     luaV_totypval(L, 2, &v);
+!     if (list_append_tv(l, &v) == FAIL)
+      {
+! 	clear_tv(&v);
+! 	luaL_error(L, "Failed to add item to list");
+      }
++     clear_tv(&v);
+      lua_settop(L, 1);
+      return 1;
+  }
+***************
+*** 787,793 ****
+      }
+      lua_settop(L, 2);
+      luaV_totypval(L, 2, &v);
+!     list_insert_tv(l, &v, li);
+      lua_settop(L, 1);
+      return 1;
+  }
+--- 787,798 ----
+      }
+      lua_settop(L, 2);
+      luaV_totypval(L, 2, &v);
+!     if (list_insert_tv(l, &v, li) == FAIL)
+!     {
+! 	clear_tv(&v);
+! 	luaL_error(L, "Failed to add item to list");
+!     }
+!     clear_tv(&v);
+      lua_settop(L, 1);
+      return 1;
+  }
+***************
+*** 908,913 ****
+--- 913,919 ----
+  	typval_T v;
+  	luaV_totypval(L, 3, &v);
+  	copy_tv(&v, &di->di_tv);
++ 	clear_tv(&v);
+      }
+      return 0;
+  }
+***************
+*** 1323,1328 ****
+--- 1329,1335 ----
+      typval_T *tv = eval_expr((char_u *) luaL_checkstring(L, 1), NULL);
+      if (tv == NULL) luaL_error(L, "invalid expression");
+      luaV_pushtypval(L, tv);
++     free_tv(tv);
+      return 1;
+  }
+  
+*** ../vim-7.3.895/src/version.c	2013-04-15 13:06:15.000000000 +0200
+--- src/version.c	2013-04-15 13:48:21.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     896,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+172. You join listservers just for the extra e-mail.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

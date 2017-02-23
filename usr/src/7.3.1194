@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1194
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1194
+Problem:    Yaml highlighting is slow.
+Solution:   Tune the estimation of pattern failure chance.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1193/src/regexp_nfa.c	2013-06-14 21:15:21.000000000 +0200
+--- src/regexp_nfa.c	2013-06-14 22:14:17.000000000 +0200
+***************
+*** 4686,4691 ****
+--- 4686,4703 ----
+  	    /* empty match works always */
+  	    return 0;
+  
++ 	case NFA_START_INVISIBLE:
++ 	case NFA_START_INVISIBLE_FIRST:
++ 	case NFA_START_INVISIBLE_NEG:
++ 	case NFA_START_INVISIBLE_NEG_FIRST:
++ 	case NFA_START_INVISIBLE_BEFORE:
++ 	case NFA_START_INVISIBLE_BEFORE_FIRST:
++ 	case NFA_START_INVISIBLE_BEFORE_NEG:
++ 	case NFA_START_INVISIBLE_BEFORE_NEG_FIRST:
++ 	case NFA_START_PATTERN:
++ 	    /* recursive regmatch is expensive, use low failure chance */
++ 	    return 5;
++ 
+  	case NFA_BOL:
+  	case NFA_EOL:
+  	case NFA_BOF:
+***************
+*** 5264,5270 ****
+  		    skip_lid = nextlist->id;
+  #endif
+  		}
+! 		else if(state_in_list(thislist,
+  					  t->state->out1->out->out, &t->subs))
+  		{
+  		    skip = t->state->out1->out->out;
+--- 5276,5282 ----
+  		    skip_lid = nextlist->id;
+  #endif
+  		}
+! 		else if (state_in_list(thislist,
+  					  t->state->out1->out->out, &t->subs))
+  		{
+  		    skip = t->state->out1->out->out;
+*** ../vim-7.3.1193/src/version.c	2013-06-14 21:22:33.000000000 +0200
+--- src/version.c	2013-06-14 22:26:49.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1194,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+206. You religiously respond immediately to e-mail, while ignoring
+     your growing pile of snail mail.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

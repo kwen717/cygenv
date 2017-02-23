@@ -1,0 +1,103 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1098
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1098
+Problem:    Python: Possible memory leaks
+Solution:   Add Py_XDECREF() calls. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1097/src/if_py_both.h	2013-06-02 17:41:50.000000000 +0200
+--- src/if_py_both.h	2013-06-02 18:01:56.000000000 +0200
+***************
+*** 1017,1022 ****
+--- 1017,1023 ----
+      if (*key == NUL)
+      {
+  	RAISE_NO_EMPTY_KEYS;
++ 	Py_XDECREF(todecref);
+  	return NULL;
+      }
+  
+***************
+*** 1160,1165 ****
+--- 1161,1167 ----
+  
+      if (!(key = StringToChars(keyObject, &todecref)))
+  	return -1;
++ 
+      if (*key == NUL)
+      {
+  	RAISE_NO_EMPTY_KEYS;
+***************
+*** 2216,2224 ****
+--- 2218,2228 ----
+  
+      if (!(key = StringToChars(keyObject, &todecref)))
+  	return NULL;
++ 
+      if (*key == NUL)
+      {
+  	RAISE_NO_EMPTY_KEYS;
++ 	Py_XDECREF(todecref);
+  	return NULL;
+      }
+  
+***************
+*** 2349,2357 ****
+--- 2353,2363 ----
+  
+      if (!(key = StringToChars(keyObject, &todecref)))
+  	return -1;
++ 
+      if (*key == NUL)
+      {
+  	RAISE_NO_EMPTY_KEYS;
++ 	Py_XDECREF(todecref);
+  	return -1;
+      }
+  
+***************
+*** 4568,4573 ****
+--- 4574,4580 ----
+  	    dict_unref(dict);
+  	    return -1;
+  	}
++ 
+  	if (*key == NUL)
+  	{
+  	    dict_unref(dict);
+***************
+*** 4651,4656 ****
+--- 4658,4664 ----
+  	    dict_unref(dict);
+  	    return -1;
+  	}
++ 
+  	if (*key == NUL)
+  	{
+  	    Py_DECREF(keyObject);
+*** ../vim-7.3.1097/src/version.c	2013-06-02 17:46:37.000000000 +0200
+--- src/version.c	2013-06-02 18:02:37.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1098,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+47. You are so familiar with the WWW that you find the search engines useless.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

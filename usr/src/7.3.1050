@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1050
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1050
+Problem:    Python: Typo in pyiter_to_tv.
+Solution:   Python patch 11. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1049/src/if_py_both.h	2013-05-29 22:43:32.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:45:42.000000000 +0200
+***************
+*** 4196,4202 ****
+      if (iterator == NULL)
+  	return -1;
+  
+!     while ((item = PyIter_Next(obj)))
+      {
+  	li = listitem_alloc();
+  	if (li == NULL)
+--- 4196,4202 ----
+      if (iterator == NULL)
+  	return -1;
+  
+!     while ((item = PyIter_Next(iterator)))
+      {
+  	li = listitem_alloc();
+  	if (li == NULL)
+*** ../vim-7.3.1049/src/version.c	2013-05-29 22:43:32.000000000 +0200
+--- src/version.c	2013-05-29 22:45:58.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1050,
+  /**/
+
+-- 
+Computers are useless. They can only give you answers.
+                -- Pablo Picasso
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

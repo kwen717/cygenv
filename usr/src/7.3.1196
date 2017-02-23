@@ -1,0 +1,267 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1196
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1196
+Problem:    Old regexp engine does not match pattern with backref correctly.
+	    (Dominique Pelle)
+Solution:   Fix setting status.  Test multi-line patterns better.
+Files:	    src/regexp.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1195/src/regexp.c	2013-06-14 22:48:50.000000000 +0200
+--- src/regexp.c	2013-06-15 14:09:21.000000000 +0200
+***************
+*** 5021,5032 ****
+  			{
+  			    /* Messy situation: Need to compare between two
+  			     * lines. */
+! 			    status = match_with_backref(
+  					    reg_startpos[no].lnum,
+  					    reg_startpos[no].col,
+  					    reg_endpos[no].lnum,
+  					    reg_endpos[no].col,
+  					    &len);
+  			}
+  		    }
+  		}
+--- 5021,5035 ----
+  			{
+  			    /* Messy situation: Need to compare between two
+  			     * lines. */
+! 			    int r = match_with_backref(
+  					    reg_startpos[no].lnum,
+  					    reg_startpos[no].col,
+  					    reg_endpos[no].lnum,
+  					    reg_endpos[no].col,
+  					    &len);
++ 
++ 			    if (r != RA_MATCH)
++ 				status = r;
+  			}
+  		    }
+  		}
+*** ../vim-7.3.1195/src/testdir/test64.in	2013-06-14 20:31:20.000000000 +0200
+--- src/testdir/test64.in	2013-06-15 15:05:03.000000000 +0200
+***************
+*** 377,382 ****
+--- 377,383 ----
+  :call add(tl, [2, '\(\i\+\) \1', 'xgoo goox', 'goo goo', 'goo'])
+  :call add(tl, [2, '\(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9', 'xabcddefghiabcddefghix', 'abcddefghiabcddefghi', 'a', 'b', 'c', 'dd', 'e', 'f', 'g', 'h', 'i'])
+  :call add(tl, [2, '\(\d*\)a \1b', ' a b ', 'a b', ''])
++ :call add(tl, [2, '^.\(.\).\_..\1.', "aaa\naaa\nb", "aaa\naaa", 'a'])
+  :"
+  :"""" Look-behind with limit
+  :call add(tl, [2, '<\@<=span.', 'xxspanxx<spanyyy', 'spany'])
+***************
+*** 453,469 ****
+  :endfor
+  :unlet t tl e l
+  :"
+  :" Check that \_[0-9] matching EOL does not break a following \>
+! :" This only works on a buffer line, not with expression evaluation
+! /^Find this
+! /\%#=0\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! y$Gop:"
+! /^Find this
+! /\%#=1\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! y$Gop:"
+! /^Find this
+! /\%#=2\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! y$Gop:"
+  :"
+  :" Check that using a pattern on two lines doesn't get messed up by using
+  :" matchstr() with \ze in between.
+--- 454,501 ----
+  :endfor
+  :unlet t tl e l
+  :"
++ :"""""" multi-line tests
++ :let tl = []
++ :"
++ :"""" back references
++ :call add(tl, [2, '^.\(.\).\_..\1.', ['aaa', 'aaa', 'b'], ['XX', 'b']])
++ :call add(tl, [2, '\v.*\/(.*)\n.*\/\1$', ['./Dir1/Dir2/zyxwvuts.txt', './Dir1/Dir2/abcdefgh.bat', '', './Dir1/Dir2/file1.txt', './OtherDir1/OtherDir2/file1.txt'], ['./Dir1/Dir2/zyxwvuts.txt', './Dir1/Dir2/abcdefgh.bat', '', 'XX']])
++ :"
++ :"""" line breaks
++ :call add(tl, [2, '\S.*\nx', ['abc', 'def', 'ghi', 'xjk', 'lmn'], ['abc', 'def', 'XXjk', 'lmn']])
++ :"
+  :" Check that \_[0-9] matching EOL does not break a following \>
+! :call add(tl, [2, '\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>', ['', 'localnet/192.168.0.1', ''], ['', 'localnet/XX', '']])
+! :"
+! :" Check a pattern with a line break and ^ and $
+! :call add(tl, [2, 'a\n^b$\n^c', ['a', 'b', 'c'], ['XX']])
+! :"
+! :"""" Run the multi-line tests
+! :"
+! :$put ='multi-line tests'
+! :for t in tl
+! :  let re = t[0]
+! :  let pat = t[1]
+! :  let before = t[2]
+! :  let after = t[3]
+! :  for engine in [0, 1, 2]
+! :    if engine == 2 && re == 0 || engine == 1 && re ==1
+! :      continue
+! :    endif
+! :    let &regexpengine = engine
+! :    new
+! :    call setline(1, before)
+! :    exe '%s/' . pat . '/XX/'
+! :    let result = getline(1, '$')
+! :    q!
+! :    if result != after
+! :      $put ='ERROR: pat: \"' . pat . '\", text: \"' . string(before) . '\", expected: \"' . string(after) . '\", got: \"' . string(result) . '\"'
+! :    else
+! :      $put ='OK ' . engine . ' - ' . pat
+! :    endif
+! :  endfor
+! :endfor
+! :unlet t tl
+  :"
+  :" Check that using a pattern on two lines doesn't get messed up by using
+  :" matchstr() with \ze in between.
+***************
+*** 474,497 ****
+  :.+1,.+2yank
+  Gop:"
+  :"
+- :" Check a pattern with a line break matches in the right position.
+- /^Multiline
+- /\S.*\nx
+- :.yank
+- y$Gop:"
+- :"
+- :" Check a pattern with a line break and ^ and $
+- /^Abc:
+- /a\n^b$\n^c/e
+- :.yank
+- Gop:"
+- :"
+- :" Check using a backref matching in a previous line
+- /^Backref:
+- /\v.*\/(.*)\n.*\/\1$
+- :.yank
+- Gop:"
+- :"
+  :" Check a pattern with a look beind crossing a line boundary
+  /^Behind:
+  /\(<\_[xy]\+\)\@3<=start
+--- 506,511 ----
+***************
+*** 553,584 ****
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+- Find this:
+- localnet/192.168.0.1
+- 
+  Substitute here:
+  <T="">Ta 5</Title>
+  <T="">Ac 7</Title>
+  
+- Multiline:
+- abc
+- def
+- ghi
+- xjk
+- lmn
+- 
+- Abc:
+- a
+- b
+- c
+- 
+- Backref:
+- ./Dir1/Dir2/zyxwvuts.txt
+- ./Dir1/Dir2/abcdefgh.bat
+- 
+- ./Dir1/Dir2/file1.txt
+- ./OtherDir1/OtherDir2/file1.txt
+- 
+  Behind:
+  asdfasd<yyy
+  xxstart1
+--- 567,576 ----
+*** ../vim-7.3.1195/src/testdir/test64.ok	2013-06-14 20:31:20.000000000 +0200
+--- src/testdir/test64.ok	2013-06-15 15:05:06.000000000 +0200
+***************
+*** 857,862 ****
+--- 857,865 ----
+  OK 0 - \(\d*\)a \1b
+  OK 1 - \(\d*\)a \1b
+  OK 2 - \(\d*\)a \1b
++ OK 0 - ^.\(.\).\_..\1.
++ OK 1 - ^.\(.\).\_..\1.
++ OK 2 - ^.\(.\).\_..\1.
+  OK 0 - <\@<=span.
+  OK 1 - <\@<=span.
+  OK 2 - <\@<=span.
+***************
+*** 910,926 ****
+  OK 0 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 1 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 2 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+! 192.168.0.1
+! 192.168.0.1
+! 192.168.0.1
+  
+  <T="5">Ta 5</Title>
+  <T="7">Ac 7</Title>
+- ghi
+- 
+- c
+- 
+- ./Dir1/Dir2/file1.txt
+  
+  xxstart3
+  
+--- 913,937 ----
+  OK 0 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 1 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 2 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+! multi-line tests
+! OK 0 - ^.\(.\).\_..\1.
+! OK 1 - ^.\(.\).\_..\1.
+! OK 2 - ^.\(.\).\_..\1.
+! OK 0 - \v.*\/(.*)\n.*\/\1$
+! OK 1 - \v.*\/(.*)\n.*\/\1$
+! OK 2 - \v.*\/(.*)\n.*\/\1$
+! OK 0 - \S.*\nx
+! OK 1 - \S.*\nx
+! OK 2 - \S.*\nx
+! OK 0 - \<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! OK 1 - \<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! OK 2 - \<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+! OK 0 - a\n^b$\n^c
+! OK 1 - a\n^b$\n^c
+! OK 2 - a\n^b$\n^c
+  
+  <T="5">Ta 5</Title>
+  <T="7">Ac 7</Title>
+  
+  xxstart3
+  
+*** ../vim-7.3.1195/src/version.c	2013-06-14 22:48:50.000000000 +0200
+--- src/version.c	2013-06-15 14:12:46.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1196,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+213. Your kids start referring to you as "that guy in front of the monitor."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1006
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1006
+Problem:    NFA engine not used for "\_[0-9]".
+Solution:   Enable this, fixed in patch 1005.
+Files:      src/regexp_nfa.c
+
+
+*** ../vim-7.3.1005/src/regexp_nfa.c	2013-05-22 23:00:34.000000000 +0200
+--- src/regexp_nfa.c	2013-05-23 22:19:29.000000000 +0200
+***************
+*** 679,687 ****
+  
+  	    /* "\_[" is collection plus newline */
+  	    if (c == '[')
+! 		/* TODO: make this work
+! 		 * goto collection; */
+! 		return FAIL;
+  
+  	/* "\_x" is character class plus newline */
+  	/*FALLTHROUGH*/
+--- 679,685 ----
+  
+  	    /* "\_[" is collection plus newline */
+  	    if (c == '[')
+! 		goto collection;
+  
+  	/* "\_x" is character class plus newline */
+  	/*FALLTHROUGH*/
+***************
+*** 891,898 ****
+  	    }
+  	    break;
+  
+- /* collection: */
+  	case Magic('['):
+  	    /*
+  	     * Glue is emitted between several atoms from the [].
+  	     * It is either NFA_OR, or NFA_CONCAT.
+--- 889,896 ----
+  	    }
+  	    break;
+  
+  	case Magic('['):
++ collection:
+  	    /*
+  	     * Glue is emitted between several atoms from the [].
+  	     * It is either NFA_OR, or NFA_CONCAT.
+*** ../vim-7.3.1005/src/version.c	2013-05-22 23:00:34.000000000 +0200
+--- src/version.c	2013-05-23 22:23:07.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1006,
+  /**/
+
+-- 
+BLACK KNIGHT: I'm invincible!
+ARTHUR:       You're a looney.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

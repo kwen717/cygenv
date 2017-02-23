@@ -1,0 +1,284 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1128
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1128
+Problem:    Now that the NFA engine handles everything every failure is a
+	    syntax error.
+Solution:   Remove the syntax_error flag.
+Files:	    src/regexp.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1127/src/regexp.c	2013-06-05 21:30:34.000000000 +0200
+--- src/regexp.c	2013-06-05 21:36:37.000000000 +0200
+***************
+*** 7924,7930 ****
+      regprog_T   *prog = NULL;
+      char_u	*expr = expr_arg;
+  
+-     syntax_error = FALSE;
+      regexp_engine = p_re;
+  
+      /* Check for prefix "\%#=", that sets the regexp engine */
+--- 7924,7929 ----
+***************
+*** 7971,7989 ****
+  	    f = fopen(BT_REGEXP_DEBUG_LOG_NAME, "a");
+  	    if (f)
+  	    {
+! 		if (!syntax_error)
+! 		    fprintf(f, "NFA engine could not handle \"%s\"\n", expr);
+! 		else
+! 		    fprintf(f, "Syntax error in \"%s\"\n", expr);
+  		fclose(f);
+  	    }
+  	    else
+  		EMSG2("(NFA) Could not open \"%s\" to write !!!",
+                          BT_REGEXP_DEBUG_LOG_NAME);
+- 	    /*
+- 	    if (syntax_error)
+- 		EMSG("NFA Regexp: Syntax Error !");
+- 	    */
+  	}
+  #endif
+  	/*
+--- 7970,7981 ----
+  	    f = fopen(BT_REGEXP_DEBUG_LOG_NAME, "a");
+  	    if (f)
+  	    {
+! 		fprintf(f, "Syntax error in \"%s\"\n", expr);
+  		fclose(f);
+  	    }
+  	    else
+  		EMSG2("(NFA) Could not open \"%s\" to write !!!",
+                          BT_REGEXP_DEBUG_LOG_NAME);
+  	}
+  #endif
+  	/*
+***************
+*** 7992,8002 ****
+  	 * NFA engine.
+  	 */
+  	if (regexp_engine == AUTOMATIC_ENGINE)
+! 	    if (!syntax_error)
+! 		prog = bt_regengine.regcomp(expr, re_flags);
+! 
+!     }	    /* endif prog==NULL */
+! 
+  
+      return prog;
+  }
+--- 7984,7991 ----
+  	 * NFA engine.
+  	 */
+  	if (regexp_engine == AUTOMATIC_ENGINE)
+! 	    prog = bt_regengine.regcomp(expr, re_flags);
+!     }
+  
+      return prog;
+  }
+*** ../vim-7.3.1127/src/regexp_nfa.c	2013-06-05 21:30:34.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 21:35:29.000000000 +0200
+***************
+*** 221,243 ****
+  
+  static char_u e_misplaced[] = N_("E866: (NFA regexp) Misplaced %c");
+  
+- /*
+-  * NFA errors can be of 3 types:
+-  * *** NFA runtime errors, when something unknown goes wrong. The NFA fails
+-  *     silently and revert the to backtracking engine.
+-  *     syntax_error = FALSE;
+-  * *** Regexp syntax errors, when the input regexp is not syntactically correct.
+-  *     The NFA engine displays an error message, and nothing else happens.
+-  *     syntax_error = TRUE
+-  * *** Unsupported features, when the input regexp uses an operator that is not
+-  *     implemented in the NFA. The NFA engine fails silently, and reverts to the
+-  *     old backtracking engine.
+-  *     syntax_error = FALSE
+-  * "The NFA fails" means that "compiling the regexp with the NFA fails":
+-  * nfa_regcomp() returns FAIL.
+-  */
+- static int syntax_error = FALSE;
+- 
+  /* NFA regexp \ze operator encountered. */
+  static int nfa_has_zend;
+  
+--- 221,226 ----
+***************
+*** 692,698 ****
+      switch (c)
+      {
+  	case NUL:
+- 	    syntax_error = TRUE;
+  	    EMSG_RET_FAIL(_("E865: (NFA) Regexp end encountered prematurely"));
+  
+  	case Magic('^'):
+--- 675,680 ----
+***************
+*** 814,820 ****
+  	case Magic('|'):
+  	case Magic('&'):
+  	case Magic(')'):
+- 	    syntax_error = TRUE;
+  	    EMSGN(_(e_misplaced), no_Magic(c));
+  	    return FAIL;
+  
+--- 796,801 ----
+***************
+*** 825,831 ****
+  	case Magic('*'):
+  	case Magic('{'):
+  	    /* these should follow an atom, not form an atom */
+- 	    syntax_error = TRUE;
+  	    EMSGN(_(e_misplaced), no_Magic(c));
+  	    return FAIL;
+  
+--- 806,811 ----
+***************
+*** 902,908 ****
+  		    break;
+  #endif
+  		default:
+- 		    syntax_error = TRUE;
+  		    EMSGN(_("E867: (NFA) Unknown operator '\\z%c'"),
+  								 no_Magic(c));
+  		    return FAIL;
+--- 882,887 ----
+***************
+*** 1023,1029 ****
+  			    break;
+  			}
+  		    }
+- 		    syntax_error = TRUE;
+  		    EMSGN(_("E867: (NFA) Unknown operator '\\%%%c'"),
+  								 no_Magic(c));
+  		    return FAIL;
+--- 1002,1007 ----
+***************
+*** 1359,1368 ****
+  	    } /* if exists closing ] */
+  
+  	    if (reg_strict)
+- 	    {
+- 		syntax_error = TRUE;
+  		EMSG_RET_FAIL(_(e_missingbracket));
+- 	    }
+  	    /* FALLTHROUGH */
+  
+  	default:
+--- 1337,1343 ----
+***************
+*** 1512,1518 ****
+  	    }
+  	    if (i == 0)
+  	    {
+- 		syntax_error = TRUE;
+  		EMSGN(_("E869: (NFA) Unknown operator '\\@%c'"), op);
+  		return FAIL;
+  	    }
+--- 1487,1492 ----
+***************
+*** 1543,1552 ****
+  		greedy = FALSE;
+  	    }
+  	    if (!read_limits(&minval, &maxval))
+- 	    {
+- 		syntax_error = TRUE;
+  		EMSG_RET_FAIL(_("E870: (NFA regexp) Error reading repetition limits"));
+! 	    }
+  	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to
+  	     *  <atom>*  */
+  	    if (minval == 0 && maxval == MAX_LIMIT)
+--- 1517,1524 ----
+  		greedy = FALSE;
+  	    }
+  	    if (!read_limits(&minval, &maxval))
+  		EMSG_RET_FAIL(_("E870: (NFA regexp) Error reading repetition limits"));
+! 
+  	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to
+  	     *  <atom>*  */
+  	    if (minval == 0 && maxval == MAX_LIMIT)
+***************
+*** 1614,1624 ****
+      }	/* end switch */
+  
+      if (re_multi_type(peekchr()) != NOT_MULTI)
+-     {
+  	/* Can't have a multi follow a multi. */
+- 	syntax_error = TRUE;
+  	EMSG_RET_FAIL(_("E871: (NFA regexp) Can't have a multi follow a multi !"));
+-     }
+  
+      return OK;
+  }
+--- 1586,1593 ----
+***************
+*** 1767,1776 ****
+      if (paren == REG_PAREN)
+      {
+  	if (regnpar >= NSUBEXP) /* Too many `(' */
+- 	{
+- 	    syntax_error = TRUE;
+  	    EMSG_RET_FAIL(_("E872: (NFA regexp) Too many '('"));
+- 	}
+  	parno = regnpar++;
+      }
+  #ifdef FEAT_SYN_HL
+--- 1736,1742 ----
+***************
+*** 1778,1787 ****
+      {
+  	/* Make a ZOPEN node. */
+  	if (regnzpar >= NSUBEXP)
+- 	{
+- 	    syntax_error = TRUE;
+  	    EMSG_RET_FAIL(_("E879: (NFA regexp) Too many \\z("));
+- 	}
+  	parno = regnzpar++;
+      }
+  #endif
+--- 1744,1750 ----
+***************
+*** 1800,1806 ****
+      /* Check for proper termination. */
+      if (paren != REG_NOPAREN && getchr() != Magic(')'))
+      {
+- 	syntax_error = TRUE;
+  	if (paren == REG_NPAREN)
+  	    EMSG2_RET_FAIL(_(e_unmatchedpp), reg_magic == MAGIC_ALL);
+  	else
+--- 1763,1768 ----
+***************
+*** 1808,1814 ****
+      }
+      else if (paren == REG_NOPAREN && peekchr() != NUL)
+      {
+- 	syntax_error = TRUE;
+  	if (peekchr() == Magic(')'))
+  	    EMSG2_RET_FAIL(_(e_unmatchedpar), reg_magic == MAGIC_ALL);
+  	else
+--- 1770,1775 ----
+*** ../vim-7.3.1127/src/version.c	2013-06-05 21:30:34.000000000 +0200
+--- src/version.c	2013-06-05 21:42:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1128,
+  /**/
+
+-- 
+From "know your smileys":
+ +<(:-) The Pope
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

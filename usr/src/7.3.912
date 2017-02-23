@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.912
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.912
+Problem:    Typing a ":" command at the hit-enter dialog does not work if the
+	    "file changed" dialog happens next.
+Solution:   Check for changed files before giving the hit-enter dialog.
+Files:	    src/message.c
+
+
+*** ../vim-7.3.911/src/message.c	2013-03-19 13:56:03.000000000 +0100
+--- src/message.c	2013-04-24 15:01:31.000000000 +0200
+***************
+*** 939,944 ****
+--- 939,950 ----
+  #ifdef USE_ON_FLY_SCROLL
+  	dont_scroll = TRUE;		/* disallow scrolling here */
+  #endif
++ 	/* Avoid the sequence that the user types ":" at the hit-return prompt
++ 	 * to start an Ex command, but the file-changed dialog gets in the
++ 	 * way. */
++ 	if (need_check_timestamps)
++ 	    check_timestamps(FALSE);
++ 
+  	hit_return_msg();
+  
+  	do
+*** ../vim-7.3.911/src/version.c	2013-04-24 14:06:42.000000000 +0200
+--- src/version.c	2013-04-24 15:04:30.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     912,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+224. You set up your own Web page. You set up a Web page for each
+     of your kids... and your pets.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

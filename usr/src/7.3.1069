@@ -1,0 +1,210 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1069
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1069
+Problem:    Python: memory leaks.
+Solution:   Python patch 28: Purge out DICTKEY_CHECK_EMPTY macros. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1068/src/if_py_both.h	2013-05-30 13:37:23.000000000 +0200
+--- src/if_py_both.h	2013-05-30 14:50:11.000000000 +0200
+***************
+*** 32,46 ****
+  
+  #define DICTKEY_DECL \
+      PyObject	*dictkey_todecref = NULL;
+- #define DICTKEY_CHECK_EMPTY(err) \
+-     if (*key == NUL) \
+-     { \
+- 	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+- 	return err; \
+-     }
+- #define DICTKEY_SET_KEY (key = StringToChars(keyObject, &dictkey_todecref))
+  #define DICTKEY_GET(err, decref) \
+!     if (!DICTKEY_SET_KEY) \
+      { \
+  	if (decref) \
+  	{ \
+--- 32,39 ----
+  
+  #define DICTKEY_DECL \
+      PyObject	*dictkey_todecref = NULL;
+  #define DICTKEY_GET(err, decref) \
+!     if (!(key = StringToChars(keyObject, &dictkey_todecref))) \
+      { \
+  	if (decref) \
+  	{ \
+***************
+*** 50,56 ****
+      } \
+      if (decref && !dictkey_todecref) \
+  	dictkey_todecref = keyObject; \
+!     DICTKEY_CHECK_EMPTY(err)
+  #define DICTKEY_UNREF \
+      Py_XDECREF(dictkey_todecref);
+  
+--- 43,53 ----
+      } \
+      if (decref && !dictkey_todecref) \
+  	dictkey_todecref = keyObject; \
+!     if (*key == NUL) \
+!     { \
+! 	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+! 	return err; \
+!     }
+  #define DICTKEY_UNREF \
+      Py_XDECREF(dictkey_todecref);
+  
+***************
+*** 4551,4557 ****
+  
+      while (PyDict_Next(obj, &iter, &keyObject, &valObject))
+      {
+! 	DICTKEY_DECL
+  
+  	if (keyObject == NULL || valObject == NULL)
+  	{
+--- 4548,4554 ----
+  
+      while (PyDict_Next(obj, &iter, &keyObject, &valObject))
+      {
+! 	PyObject	*todecref = NULL;
+  
+  	if (keyObject == NULL || valObject == NULL)
+  	{
+***************
+*** 4559,4574 ****
+  	    return -1;
+  	}
+  
+! 	if (!DICTKEY_SET_KEY)
+  	{
+  	    dict_unref(dict);
+  	    return -1;
+  	}
+- 	DICTKEY_CHECK_EMPTY(-1)
+  
+  	di = dictitem_alloc(key);
+  
+! 	DICTKEY_UNREF
+  
+  	if (di == NULL)
+  	{
+--- 4556,4576 ----
+  	    return -1;
+  	}
+  
+! 	if (!(key = StringToChars(keyObject, &todecref)))
+! 	{
+! 	    dict_unref(dict);
+! 	    return -1;
+! 	}
+! 	if (*key == NUL)
+  	{
+  	    dict_unref(dict);
++ 	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+  
+  	di = dictitem_alloc(key);
+  
+! 	Py_XDECREF(todecref);
+  
+  	if (di == NULL)
+  	{
+***************
+*** 4632,4662 ****
+  
+      while ((keyObject = PyIter_Next(iterator)))
+      {
+! 	DICTKEY_DECL
+  
+! 	if (!DICTKEY_SET_KEY)
+  	{
+  	    Py_DECREF(iterator);
+  	    dict_unref(dict);
+- 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+! 	DICTKEY_CHECK_EMPTY(-1)
+  
+  	if (!(valObject = PyObject_GetItem(obj, keyObject)))
+  	{
+  	    Py_DECREF(keyObject);
+  	    Py_DECREF(iterator);
+  	    dict_unref(dict);
+- 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  
+  	di = dictitem_alloc(key);
+  
+- 	DICTKEY_UNREF
+- 
+  	Py_DECREF(keyObject);
+  
+  	if (di == NULL)
+  	{
+--- 4634,4670 ----
+  
+      while ((keyObject = PyIter_Next(iterator)))
+      {
+! 	PyObject	*todecref;
+  
+! 	if (!(key = StringToChars(keyObject, &todecref)))
+  	{
++ 	    Py_DECREF(keyObject);
+  	    Py_DECREF(iterator);
+  	    dict_unref(dict);
+  	    return -1;
+  	}
+! 	if (*key == NUL)
+! 	{
+! 	    Py_DECREF(keyObject);
+! 	    Py_DECREF(iterator);
+! 	    Py_XDECREF(todecref);
+! 	    dict_unref(dict);
+! 	    return -1;
+! 	}
+  
+  	if (!(valObject = PyObject_GetItem(obj, keyObject)))
+  	{
+  	    Py_DECREF(keyObject);
+  	    Py_DECREF(iterator);
++ 	    Py_XDECREF(todecref);
+  	    dict_unref(dict);
+  	    return -1;
+  	}
+  
+  	di = dictitem_alloc(key);
+  
+  	Py_DECREF(keyObject);
++ 	Py_XDECREF(todecref);
+  
+  	if (di == NULL)
+  	{
+*** ../vim-7.3.1068/src/version.c	2013-05-30 13:37:23.000000000 +0200
+--- src/version.c	2013-05-30 13:38:46.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1069,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+11. Specify that your drive-through order is "to go".
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

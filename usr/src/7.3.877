@@ -1,0 +1,100 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.877
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.877 (after 7.3.871)
+Problem:    Forward searching with search() is broken.
+Solution:   Fix it and add tests. (Sung Pae)
+Files:	    src/search.c, src/testdir/test14.in, src/testdir/test14.ok
+
+
+*** ../vim-7.3.876/src/search.c	2013-03-19 15:27:43.000000000 +0100
+--- src/search.c	2013-04-03 21:07:11.000000000 +0200
+***************
+*** 727,733 ****
+  					++matchcol;
+  				}
+  			    }
+! 			    if (options & SEARCH_START)
+  				break;
+  			    if (ptr[matchcol] == NUL
+  				    || (nmatched = vim_regexec_multi(&regmatch,
+--- 727,733 ----
+  					++matchcol;
+  				}
+  			    }
+! 			    if (matchcol == 0 && (options & SEARCH_START))
+  				break;
+  			    if (ptr[matchcol] == NUL
+  				    || (nmatched = vim_regexec_multi(&regmatch,
+***************
+*** 869,875 ****
+  		    /* With the SEARCH_END option move to the last character
+  		     * of the match.  Don't do it for an empty match, end
+  		     * should be same as start then. */
+! 		    if (options & SEARCH_END && !(options & SEARCH_NOOF)
+  			    && !(matchpos.lnum == endpos.lnum
+  				&& matchpos.col == endpos.col))
+  		    {
+--- 869,875 ----
+  		    /* With the SEARCH_END option move to the last character
+  		     * of the match.  Don't do it for an empty match, end
+  		     * should be same as start then. */
+! 		    if ((options & SEARCH_END) && !(options & SEARCH_NOOF)
+  			    && !(matchpos.lnum == endpos.lnum
+  				&& matchpos.col == endpos.col))
+  		    {
+*** ../vim-7.3.876/src/testdir/test14.in	2013-03-19 15:27:43.000000000 +0100
+--- src/testdir/test14.in	2013-04-03 20:59:14.000000000 +0200
+***************
+*** 44,49 ****
+--- 44,52 ----
+  :call append(line('$'), line('.') - startline)
+  :call search('^$', 'bc')
+  :call append(line('$'), line('.') - startline)
++ /two
++ :call search('.', 'c')
++ :call append(line('$'), getline('.')[col('.') - 1:])
+  :/^search()/,$w >>test.out
+  :qa!
+  ENDTEST
+***************
+*** 79,82 ****
+--- 82,86 ----
+  foobar
+  
+  
++ one two
+  search()
+*** ../vim-7.3.876/src/testdir/test14.ok	2013-03-19 15:27:43.000000000 +0100
+--- src/testdir/test14.ok	2013-04-03 20:59:14.000000000 +0200
+***************
+*** 19,21 ****
+--- 19,22 ----
+  0
+  1
+  1
++ two
+*** ../vim-7.3.876/src/version.c	2013-04-03 21:11:33.000000000 +0200
+--- src/version.c	2013-04-03 21:12:50.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     877,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+113. You are asked about a bus schedule, you wonder if it is 16 or 32 bits.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

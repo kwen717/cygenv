@@ -1,0 +1,243 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1101
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1101
+Problem:    Configure doesn't find Python 3 on Ubuntu 13.04.
+Solution:   First try distutils.sysconfig. Also fix some indents.  (Ken
+	    Takata)
+Files:	    src/configure.in, src/auto/configure
+
+
+*** ../vim-7.3.1100/src/configure.in	2013-05-15 14:51:31.000000000 +0200
+--- src/configure.in	2013-06-02 19:02:31.000000000 +0200
+***************
+*** 899,912 ****
+        AC_CACHE_CHECK(Python's configuration directory,vi_cv_path_python_conf,
+        [
+  	vi_cv_path_python_conf=
+! 	for path in "${vi_cv_path_python_pfx}" "${vi_cv_path_python_epfx}"; do
+! 	  for subdir in lib64 lib share; do
+! 	    d="${path}/${subdir}/python${vi_cv_var_python_version}/config"
+! 	    if test -d "$d" && test -f "$d/config.c"; then
+! 	      vi_cv_path_python_conf="$d"
+! 	    fi
+  	  done
+! 	done
+        ])
+  
+        PYTHON_CONFDIR="${vi_cv_path_python_conf}"
+--- 899,917 ----
+        AC_CACHE_CHECK(Python's configuration directory,vi_cv_path_python_conf,
+        [
+  	vi_cv_path_python_conf=
+! 	d=`${vi_cv_path_python} -c "import distutils.sysconfig; print distutils.sysconfig.get_config_var('LIBPL')"`
+! 	if test -d "$d" && test -f "$d/config.c"; then
+! 	  vi_cv_path_python_conf="$d"
+! 	else
+! 	  for path in "${vi_cv_path_python_pfx}" "${vi_cv_path_python_epfx}"; do
+! 	    for subdir in lib64 lib share; do
+! 	      d="${path}/${subdir}/python${vi_cv_var_python_version}/config"
+! 	      if test -d "$d" && test -f "$d/config.c"; then
+! 		vi_cv_path_python_conf="$d"
+! 	      fi
+! 	    done
+  	  done
+! 	fi
+        ])
+  
+        PYTHON_CONFDIR="${vi_cv_path_python_conf}"
+***************
+*** 1097,1110 ****
+       if test "${vi_cv_var_python3_abiflags}" != ""; then
+         config_dir="${config_dir}-${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags}"
+       fi
+!      for path in "${vi_cv_path_python3_pfx}" "${vi_cv_path_python3_epfx}"; do
+!        for subdir in lib64 lib share; do
+!          d="${path}/${subdir}/python${vi_cv_var_python3_version}/${config_dir}"
+!          if test -d "$d" && test -f "$d/config.c"; then
+!            vi_cv_path_python3_conf="$d"
+!          fi
+         done
+!      done
+      ])
+  
+      PYTHON3_CONFDIR="${vi_cv_path_python3_conf}"
+--- 1102,1120 ----
+       if test "${vi_cv_var_python3_abiflags}" != ""; then
+         config_dir="${config_dir}-${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags}"
+       fi
+!      d=`${vi_cv_path_python3} -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LIBPL'))"`
+!      if test -d "$d" && test -f "$d/config.c"; then
+!        vi_cv_path_python3_conf="$d"
+!      else
+!        for path in "${vi_cv_path_python3_pfx}" "${vi_cv_path_python3_epfx}"; do
+! 	 for subdir in lib64 lib share; do
+! 	   d="${path}/${subdir}/python${vi_cv_var_python3_version}/${config_dir}"
+! 	   if test -d "$d" && test -f "$d/config.c"; then
+! 	     vi_cv_path_python3_conf="$d"
+! 	   fi
+! 	 done
+         done
+!      fi
+      ])
+  
+      PYTHON3_CONFDIR="${vi_cv_path_python3_conf}"
+***************
+*** 1498,1511 ****
+  	fi
+  	librubyarg=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG[['LIBRUBYARG']])"`
+  	librubya=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG[['LIBRUBY_A']])"`
+!   rubylibdir=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG[['libdir']])"`
+  	if test -f "$rubylibdir/$librubya"; then
+  	  librubyarg="$librubyarg"
+!     RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+!   elif test "$librubyarg" = "libruby.a"; then
+!     dnl required on Mac OS 10.3 where libruby.a doesn't exist
+!     librubyarg="-lruby"
+!     RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+  	fi
+  
+  	if test "X$librubyarg" != "X"; then
+--- 1508,1521 ----
+  	fi
+  	librubyarg=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG[['LIBRUBYARG']])"`
+  	librubya=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG[['LIBRUBY_A']])"`
+! 	rubylibdir=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG[['libdir']])"`
+  	if test -f "$rubylibdir/$librubya"; then
+  	  librubyarg="$librubyarg"
+! 	  RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+! 	elif test "$librubyarg" = "libruby.a"; then
+! 	  dnl required on Mac OS 10.3 where libruby.a doesn't exist
+! 	  librubyarg="-lruby"
+! 	  RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+  	fi
+  
+  	if test "X$librubyarg" != "X"; then
+*** ../vim-7.3.1100/src/auto/configure	2013-05-15 14:51:31.000000000 +0200
+--- src/auto/configure	2013-06-02 19:03:17.000000000 +0200
+***************
+*** 5347,5360 ****
+  else
+  
+  	vi_cv_path_python_conf=
+! 	for path in "${vi_cv_path_python_pfx}" "${vi_cv_path_python_epfx}"; do
+! 	  for subdir in lib64 lib share; do
+! 	    d="${path}/${subdir}/python${vi_cv_var_python_version}/config"
+! 	    if test -d "$d" && test -f "$d/config.c"; then
+! 	      vi_cv_path_python_conf="$d"
+! 	    fi
+  	  done
+! 	done
+  
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_path_python_conf" >&5
+--- 5347,5365 ----
+  else
+  
+  	vi_cv_path_python_conf=
+! 	d=`${vi_cv_path_python} -c "import distutils.sysconfig; print distutils.sysconfig.get_config_var('LIBPL')"`
+! 	if test -d "$d" && test -f "$d/config.c"; then
+! 	  vi_cv_path_python_conf="$d"
+! 	else
+! 	  for path in "${vi_cv_path_python_pfx}" "${vi_cv_path_python_epfx}"; do
+! 	    for subdir in lib64 lib share; do
+! 	      d="${path}/${subdir}/python${vi_cv_var_python_version}/config"
+! 	      if test -d "$d" && test -f "$d/config.c"; then
+! 		vi_cv_path_python_conf="$d"
+! 	      fi
+! 	    done
+  	  done
+! 	fi
+  
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_path_python_conf" >&5
+***************
+*** 5660,5673 ****
+       if test "${vi_cv_var_python3_abiflags}" != ""; then
+         config_dir="${config_dir}-${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags}"
+       fi
+!      for path in "${vi_cv_path_python3_pfx}" "${vi_cv_path_python3_epfx}"; do
+!        for subdir in lib64 lib share; do
+!          d="${path}/${subdir}/python${vi_cv_var_python3_version}/${config_dir}"
+!          if test -d "$d" && test -f "$d/config.c"; then
+!            vi_cv_path_python3_conf="$d"
+!          fi
+         done
+!      done
+  
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_path_python3_conf" >&5
+--- 5665,5683 ----
+       if test "${vi_cv_var_python3_abiflags}" != ""; then
+         config_dir="${config_dir}-${vi_cv_var_python3_version}${vi_cv_var_python3_abiflags}"
+       fi
+!      d=`${vi_cv_path_python3} -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LIBPL'))"`
+!      if test -d "$d" && test -f "$d/config.c"; then
+!        vi_cv_path_python3_conf="$d"
+!      else
+!        for path in "${vi_cv_path_python3_pfx}" "${vi_cv_path_python3_epfx}"; do
+! 	 for subdir in lib64 lib share; do
+! 	   d="${path}/${subdir}/python${vi_cv_var_python3_version}/${config_dir}"
+! 	   if test -d "$d" && test -f "$d/config.c"; then
+! 	     vi_cv_path_python3_conf="$d"
+! 	   fi
+! 	 done
+         done
+!      fi
+  
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vi_cv_path_python3_conf" >&5
+***************
+*** 6408,6420 ****
+  	fi
+  	librubyarg=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG['LIBRUBYARG'])"`
+  	librubya=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG['LIBRUBY_A'])"`
+!   rubylibdir=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG['libdir'])"`
+  	if test -f "$rubylibdir/$librubya"; then
+  	  librubyarg="$librubyarg"
+!     RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+!   elif test "$librubyarg" = "libruby.a"; then
+!         librubyarg="-lruby"
+!     RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+  	fi
+  
+  	if test "X$librubyarg" != "X"; then
+--- 6418,6430 ----
+  	fi
+  	librubyarg=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG['LIBRUBYARG'])"`
+  	librubya=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG['LIBRUBY_A'])"`
+! 	rubylibdir=`$vi_cv_path_ruby -r rbconfig -e "print $ruby_rbconfig.expand($ruby_rbconfig::CONFIG['libdir'])"`
+  	if test -f "$rubylibdir/$librubya"; then
+  	  librubyarg="$librubyarg"
+! 	  RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+! 	elif test "$librubyarg" = "libruby.a"; then
+! 	  	  librubyarg="-lruby"
+! 	  RUBY_LIBS="$RUBY_LIBS -L$rubylibdir"
+  	fi
+  
+  	if test "X$librubyarg" != "X"; then
+*** ../vim-7.3.1100/src/version.c	2013-06-02 18:54:16.000000000 +0200
+--- src/version.c	2013-06-02 19:01:39.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1101,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+49. You never have to deal with busy signals when calling your ISP...because
+    you never log off.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

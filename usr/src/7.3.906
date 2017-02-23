@@ -1,0 +1,56 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.906
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.906
+Problem:    The "sleep .2" for running tests does not work on Solaris.
+Solution:   Fall back to using "sleep 1". (Laurent Blume)
+Files:	    src/testdir/Makefile
+
+
+*** ../vim-7.3.905/src/testdir/Makefile	2013-04-12 13:44:49.000000000 +0200
+--- src/testdir/Makefile	2013-04-21 13:06:20.000000000 +0200
+***************
+*** 69,76 ****
+  .in.out:
+  	-rm -rf $*.failed test.ok $(RM_ON_RUN)
+  	cp $*.ok test.ok
+! 	# Sleep a moment to avoid that the xterm title is messed up
+! 	@-sleep .2
+  	-$(RUN_VIM) $*.in
+  
+  	# For flaky tests retry one time.
+--- 69,78 ----
+  .in.out:
+  	-rm -rf $*.failed test.ok $(RM_ON_RUN)
+  	cp $*.ok test.ok
+! 	# Sleep a moment to avoid that the xterm title is messed up.
+! 	# 200 msec is sufficient, but only modern sleep supports a fraction of
+! 	# a second, fall back to a second if it fails.
+! 	@-/bin/sh -c "sleep .2 > /dev/null 2>&1 || sleep 1"
+  	-$(RUN_VIM) $*.in
+  
+  	# For flaky tests retry one time.
+*** ../vim-7.3.905/src/version.c	2013-04-15 22:22:48.000000000 +0200
+--- src/version.c	2013-04-24 12:54:57.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     906,
+  /**/
+
+-- 
+Don't be humble ... you're not that great.
+                      -- Golda Meir
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

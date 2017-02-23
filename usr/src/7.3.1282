@@ -1,0 +1,93 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1282
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1282 (after 7.3.1277)
+Problem:    'cursorline' not drawn in any other window. (Charles Campbell)
+Solution:   Do draw the cursor line in other windows.
+Files:	    src/screen.c
+
+
+*** ../vim-7.3.1281/src/screen.c	2013-06-30 17:23:46.000000000 +0200
+--- src/screen.c	2013-07-01 20:12:46.000000000 +0200
+***************
+*** 3369,3376 ****
+      /* Cursor line highlighting for 'cursorline' in the current window.  Not
+       * when Visual mode is active, because it's not clear what is selected
+       * then. */
+!     if (wp->w_p_cul && wp == curwin && lnum == wp->w_cursor.lnum
+! 							    && !VIsual_active)
+      {
+  	line_attr = hl_attr(HLF_CUL);
+  	area_highlighting = TRUE;
+--- 3369,3376 ----
+      /* Cursor line highlighting for 'cursorline' in the current window.  Not
+       * when Visual mode is active, because it's not clear what is selected
+       * then. */
+!     if (wp->w_p_cul && lnum == wp->w_cursor.lnum
+! 					 && !(wp == curwin  && VIsual_active))
+      {
+  	line_attr = hl_attr(HLF_CUL);
+  	area_highlighting = TRUE;
+***************
+*** 3543,3549 ****
+  		     * the current line differently.
+  		     * TODO: Can we use CursorLine instead of CursorLineNr
+  		     * when CursorLineNr isn't set? */
+! 		    if (((wp->w_p_cul && wp == curwin) || wp->w_p_rnu)
+  						 && lnum == wp->w_cursor.lnum)
+  			char_attr = hl_attr(HLF_CLN);
+  #endif
+--- 3543,3549 ----
+  		     * the current line differently.
+  		     * TODO: Can we use CursorLine instead of CursorLineNr
+  		     * when CursorLineNr isn't set? */
+! 		    if ((wp->w_p_cul || wp->w_p_rnu)
+  						 && lnum == wp->w_cursor.lnum)
+  			char_attr = hl_attr(HLF_CLN);
+  #endif
+***************
+*** 3586,3593 ****
+  			tocol += n_extra;
+  #ifdef FEAT_SYN_HL
+  		    /* combine 'showbreak' with 'cursorline' */
+! 		    if (wp->w_p_cul && wp == curwin
+! 						 && lnum == wp->w_cursor.lnum)
+  			char_attr = hl_combine_attr(char_attr, HLF_CLN);
+  #endif
+  		}
+--- 3586,3592 ----
+  			tocol += n_extra;
+  #ifdef FEAT_SYN_HL
+  		    /* combine 'showbreak' with 'cursorline' */
+! 		    if (wp->w_p_cul && lnum == wp->w_cursor.lnum)
+  			char_attr = hl_combine_attr(char_attr, HLF_CLN);
+  #endif
+  		}
+*** ../vim-7.3.1281/src/version.c	2013-07-01 20:06:13.000000000 +0200
+--- src/version.c	2013-07-01 20:14:35.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1282,
+  /**/
+
+-- 
+ARTHUR:  Shut up!  Will you shut up!
+DENNIS:  Ah, now we see the violence inherent in the system.
+ARTHUR:  Shut up!
+DENNIS:  Oh!  Come and see the violence inherent in the system!
+         HELP! HELP!  I'm being repressed!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

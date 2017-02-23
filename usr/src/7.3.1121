@@ -1,0 +1,118 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1121
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1121
+Problem:    New regexp engine: adding states that are not used.
+Solution:   Don't add the states.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1120/src/regexp_nfa.c	2013-06-05 16:33:05.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 16:47:27.000000000 +0200
+***************
+*** 3169,3174 ****
+--- 3176,3182 ----
+  	case NFA_SPLIT:
+  	case NFA_NOT:
+  	case NFA_NOPEN:
++ 	case NFA_SKIP_CHAR:
+  	case NFA_NCLOSE:
+  	case NFA_MCLOSE:
+  	case NFA_MCLOSE1:
+***************
+*** 3192,3197 ****
+--- 3200,3206 ----
+  	case NFA_ZCLOSE8:
+  	case NFA_ZCLOSE9:
+  #endif
++ 	case NFA_ZEND:
+  	    /* These nodes are not added themselves but their "out" and/or
+  	     * "out1" may be added below.  */
+  	    break;
+***************
+*** 3218,3223 ****
+--- 3227,3233 ----
+  	case NFA_ZOPEN8:
+  	case NFA_ZOPEN9:
+  #endif
++ 	case NFA_ZSTART:
+  	    /* These nodes do not need to be added, but we need to bail out
+  	     * when it was tried to be added to this list before. */
+  	    if (state->lastlist[nfa_ll_index] == l->id)
+***************
+*** 4362,4371 ****
+  
+  	    case NFA_START_INVISIBLE:
+  	    case NFA_START_INVISIBLE_BEFORE:
+- 		/* If invisible match has a higher chance to fail, do it
+- 		 * right away.  Otherwise postpone it until what follows is
+- 		 * matching and causes addstate(nextlist, ..) to be called.
+- 		 * This is indicated by the "pim" field. */
+  		{
+  		    nfa_pim_T *pim;
+  		    int cout = t->state->out1->out->c;
+--- 4372,4377 ----
+***************
+*** 4863,4874 ****
+  			log_subsexpr(&nextlist->t[nextlist->n - 1].subs);
+  #endif
+  		    }
+- 
+  		}
+  		break;
+  	      }
+  	    case NFA_SKIP:
+! 	      /* charater of previous matching \1 .. \9 */
+  	      if (t->count - clen <= 0)
+  	      {
+  		  /* end of match, go to what follows */
+--- 4869,4879 ----
+  			log_subsexpr(&nextlist->t[nextlist->n - 1].subs);
+  #endif
+  		    }
+  		}
+  		break;
+  	      }
+  	    case NFA_SKIP:
+! 	      /* character of previous matching \1 .. \9  or \@> */
+  	      if (t->count - clen <= 0)
+  	      {
+  		  /* end of match, go to what follows */
+***************
+*** 4892,4903 ****
+  	      }
+  	      break;
+  
+- 	    case NFA_SKIP_CHAR:
+- 	    case NFA_ZSTART:
+- 	    case NFA_ZEND:
+- 		/* TODO: should not happen? */
+- 		break;
+- 
+  	    case NFA_LNUM:
+  	    case NFA_LNUM_GT:
+  	    case NFA_LNUM_LT:
+--- 4897,4902 ----
+*** ../vim-7.3.1120/src/version.c	2013-06-05 16:33:05.000000000 +0200
+--- src/version.c	2013-06-05 16:50:39.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1121,
+  /**/
+
+-- 
+Where do you want to crash today?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

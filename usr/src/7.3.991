@@ -1,0 +1,745 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.991
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.991
+Problem:    More can be shared by Python 2 and 3.
+Solution:   Move more stuff to if_py_both. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c,
+	    src/testdir/test87.ok
+
+
+*** ../vim-7.3.990/src/if_py_both.h	2013-05-17 21:20:13.000000000 +0200
+--- src/if_py_both.h	2013-05-21 18:07:46.000000000 +0200
+***************
+*** 30,35 ****
+--- 30,38 ----
+  #define INVALID_WINDOW_VALUE ((win_T *)(-1))
+  #define INVALID_TABPAGE_VALUE ((tabpage_T *)(-1))
+  
++ typedef void (*rangeinitializer)(void *);
++ typedef void (*runner)(const char *, void *, PyGILState_STATE *);
++ 
+  static int ConvertFromPyObject(PyObject *, typval_T *);
+  static int _ConvertFromPyObject(PyObject *, typval_T *, PyObject *);
+  static PyObject *WindowNew(win_T *, tabpage_T *);
+***************
+*** 39,44 ****
+--- 42,49 ----
+  static PyInt RangeStart;
+  static PyInt RangeEnd;
+  
++ static PyObject *globals;
++ 
+  /*
+   * obtain a lock on the Vim data structures
+   */
+***************
+*** 1296,1302 ****
+      FunctionObject	*this = (FunctionObject *) (self);
+  
+      func_unref(this->name);
+!     PyMem_Del(this->name);
+  
+      DESTRUCTOR_FINISH(self);
+  }
+--- 1301,1307 ----
+      FunctionObject	*this = (FunctionObject *) (self);
+  
+      func_unref(this->name);
+!     PyMem_Free(this->name);
+  
+      DESTRUCTOR_FINISH(self);
+  }
+***************
+*** 3432,3437 ****
+--- 3437,3562 ----
+  }
+  
+      static void
++ init_range_cmd(exarg_T *eap)
++ {
++     RangeStart = eap->line1;
++     RangeEnd = eap->line2;
++ }
++ 
++     static void
++ init_range_eval(typval_T *rettv UNUSED)
++ {
++     RangeStart = (PyInt) curwin->w_cursor.lnum;
++     RangeEnd = RangeStart;
++ }
++ 
++     static void
++ run_cmd(const char *cmd, void *arg UNUSED, PyGILState_STATE *pygilstate UNUSED)
++ {
++     PyRun_SimpleString((char *) cmd);
++ }
++ 
++ static const char	*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
++ static int		code_hdr_len = 30;
++ 
++     static void
++ run_do(const char *cmd, void *arg UNUSED, PyGILState_STATE *pygilstate)
++ {
++     PyInt	lnum;
++     size_t	len;
++     char	*code;
++     int		status;
++     PyObject	*pyfunc, *pymain;
++ 
++     if (u_save(RangeStart - 1, RangeEnd + 1) != OK)
++     {
++ 	EMSG(_("cannot save undo information"));
++ 	return;
++     }
++ 
++     len = code_hdr_len + STRLEN(cmd);
++     code = PyMem_New(char, len + 1);
++     memcpy(code, code_hdr, code_hdr_len);
++     STRCPY(code + code_hdr_len, cmd);
++     status = PyRun_SimpleString(code);
++     PyMem_Free(code);
++ 
++     if (status)
++     {
++ 	EMSG(_("failed to run the code"));
++ 	return;
++     }
++ 
++     status = 0;
++     pymain = PyImport_AddModule("__main__");
++     pyfunc = PyObject_GetAttrString(pymain, DOPY_FUNC);
++     PyGILState_Release(*pygilstate);
++ 
++     for (lnum = RangeStart; lnum <= RangeEnd; ++lnum)
++     {
++ 	PyObject	*line, *linenr, *ret;
++ 
++ 	*pygilstate = PyGILState_Ensure();
++ 	if (!(line = GetBufferLine(curbuf, lnum)))
++ 	    goto err;
++ 	if (!(linenr = PyInt_FromLong((long) lnum)))
++ 	{
++ 	    Py_DECREF(line);
++ 	    goto err;
++ 	}
++ 	ret = PyObject_CallFunctionObjArgs(pyfunc, line, linenr, NULL);
++ 	Py_DECREF(line);
++ 	Py_DECREF(linenr);
++ 	if (!ret)
++ 	    goto err;
++ 
++ 	if (ret != Py_None)
++ 	    if (SetBufferLine(curbuf, lnum, ret, NULL) == FAIL)
++ 		goto err;
++ 
++ 	Py_XDECREF(ret);
++ 	PythonIO_Flush();
++ 	PyGILState_Release(*pygilstate);
++     }
++     goto out;
++ err:
++     *pygilstate = PyGILState_Ensure();
++     PyErr_PrintEx(0);
++     PythonIO_Flush();
++     status = 1;
++ out:
++     if (!status)
++ 	*pygilstate = PyGILState_Ensure();
++     Py_DECREF(pyfunc);
++     PyObject_SetAttrString(pymain, DOPY_FUNC, NULL);
++     if (status)
++ 	return;
++     check_cursor();
++     update_curbuf(NOT_VALID);
++ }
++ 
++     static void
++ run_eval(const char *cmd, typval_T *rettv, PyGILState_STATE *pygilstate UNUSED)
++ {
++     PyObject	*r;
++ 
++     r = PyRun_String((char *) cmd, Py_eval_input, globals, globals);
++     if (r == NULL)
++     {
++ 	if (PyErr_Occurred() && !msg_silent)
++ 	    PyErr_PrintEx(0);
++ 	EMSG(_("E858: Eval did not return a valid python object"));
++     }
++     else
++     {
++ 	if (ConvertFromPyObject(r, rettv) == -1)
++ 	    EMSG(_("E859: Failed to convert returned python object to vim value"));
++ 	Py_DECREF(r);
++     }
++     PyErr_Clear();
++ }
++ 
++     static void
+  set_ref_in_py(const int copyID)
+  {
+      pylinkedlist_T	*cur;
+*** ../vim-7.3.990/src/if_python3.c	2013-05-17 16:39:59.000000000 +0200
+--- src/if_python3.c	2013-05-21 18:07:39.000000000 +0200
+***************
+*** 703,710 ****
+   * Internal function prototypes.
+   */
+  
+- static PyObject *globals;
+- 
+  static int PythonIO_Init(void);
+  static PyObject *Py3Init_vim(void);
+  
+--- 703,708 ----
+***************
+*** 827,833 ****
+   * External interface
+   */
+      static void
+! DoPy3Command(exarg_T *eap, const char *cmd, typval_T *rettv)
+  {
+  #if defined(MACOS) && !defined(MACOS_X_UNIX)
+      GrafPtr		oldPort;
+--- 825,831 ----
+   * External interface
+   */
+      static void
+! DoPyCommand(const char *cmd, rangeinitializer init_range, runner run, void *arg)
+  {
+  #if defined(MACOS) && !defined(MACOS_X_UNIX)
+      GrafPtr		oldPort;
+***************
+*** 848,863 ****
+      if (Python3_Init())
+  	goto theend;
+  
+!     if (rettv == NULL)
+!     {
+! 	RangeStart = eap->line1;
+! 	RangeEnd = eap->line2;
+!     }
+!     else
+!     {
+! 	RangeStart = (PyInt) curwin->w_cursor.lnum;
+! 	RangeEnd = RangeStart;
+!     }
+      Python_Release_Vim();	    /* leave vim */
+  
+  #if defined(HAVE_LOCALE_H) || defined(X_LOCALE)
+--- 846,853 ----
+      if (Python3_Init())
+  	goto theend;
+  
+!     init_range(arg);
+! 
+      Python_Release_Vim();	    /* leave vim */
+  
+  #if defined(HAVE_LOCALE_H) || defined(X_LOCALE)
+***************
+*** 881,908 ****
+  					(char *)ENC_OPT, CODEC_ERROR_HANDLER);
+      cmdbytes = PyUnicode_AsEncodedString(cmdstr, "utf-8", CODEC_ERROR_HANDLER);
+      Py_XDECREF(cmdstr);
+-     if (rettv == NULL)
+- 	PyRun_SimpleString(PyBytes_AsString(cmdbytes));
+-     else
+-     {
+- 	PyObject	*r;
+  
+! 	r = PyRun_String(PyBytes_AsString(cmdbytes), Py_eval_input,
+! 			 globals, globals);
+! 	if (r == NULL)
+! 	{
+! 	    if (PyErr_Occurred() && !msg_silent)
+! 		PyErr_PrintEx(0);
+! 	    EMSG(_("E860: Eval did not return a valid python 3 object"));
+! 	}
+! 	else
+! 	{
+! 	    if (ConvertFromPyObject(r, rettv) == -1)
+! 		EMSG(_("E861: Failed to convert returned python 3 object to vim value"));
+! 	    Py_DECREF(r);
+! 	}
+! 	PyErr_Clear();
+!     }
+      Py_XDECREF(cmdbytes);
+  
+      PyGILState_Release(pygilstate);
+--- 871,878 ----
+  					(char *)ENC_OPT, CODEC_ERROR_HANDLER);
+      cmdbytes = PyUnicode_AsEncodedString(cmdstr, "utf-8", CODEC_ERROR_HANDLER);
+      Py_XDECREF(cmdstr);
+  
+!     run(PyBytes_AsString(cmdbytes), arg, &pygilstate);
+      Py_XDECREF(cmdbytes);
+  
+      PyGILState_Release(pygilstate);
+***************
+*** 936,945 ****
+      script = script_get(eap, eap->arg);
+      if (!eap->skip)
+      {
+! 	if (script == NULL)
+! 	    DoPy3Command(eap, (char *)eap->arg, NULL);
+! 	else
+! 	    DoPy3Command(eap, (char *)script, NULL);
+      }
+      vim_free(script);
+  }
+--- 906,915 ----
+      script = script_get(eap, eap->arg);
+      if (!eap->skip)
+      {
+! 	DoPyCommand(script == NULL ? (char *) eap->arg : (char *) script,
+! 		(rangeinitializer) init_range_cmd,
+! 		(runner) run_cmd,
+! 		(void *) eap);
+      }
+      vim_free(script);
+  }
+***************
+*** 1000,1100 ****
+  
+  
+      /* Execute the file */
+!     DoPy3Command(eap, buffer, NULL);
+  }
+  
+      void
+  ex_py3do(exarg_T *eap)
+  {
+!     linenr_T		i;
+!     const char		*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
+!     const char		*s = (const char *) eap->arg;
+!     size_t		len;
+!     char		*code;
+!     int			status;
+!     PyObject		*pyfunc, *pymain;
+!     PyGILState_STATE	pygilstate;
+! 
+!     if (Python3_Init())
+! 	goto theend;
+! 
+!     if (u_save(eap->line1 - 1, eap->line2 + 1) != OK)
+!     {
+! 	EMSG(_("cannot save undo information"));
+! 	return;
+!     }
+!     len = strlen(code_hdr) + strlen(s);
+!     code = malloc(len + 1);
+!     STRCPY(code, code_hdr);
+!     STRNCAT(code, s, len + 1);
+!     pygilstate = PyGILState_Ensure();
+!     status = PyRun_SimpleString(code);
+!     vim_free(code);
+!     if (status)
+!     {
+! 	EMSG(_("failed to run the code"));
+! 	return;
+!     }
+!     status = 0; /* good */
+!     pymain = PyImport_AddModule("__main__");
+!     pyfunc = PyObject_GetAttrString(pymain, DOPY_FUNC);
+!     PyGILState_Release(pygilstate);
+! 
+!     for (i = eap->line1; i <= eap->line2; i++)
+!     {
+! 	const char *line;
+! 	PyObject *pyline, *pylinenr, *pyret, *pybytes;
+! 
+! 	line = (char *)ml_get(i);
+! 	pygilstate = PyGILState_Ensure();
+! 	pyline = PyUnicode_Decode(line, strlen(line),
+! 		(char *)ENC_OPT, CODEC_ERROR_HANDLER);
+! 	pylinenr = PyLong_FromLong(i);
+! 	pyret = PyObject_CallFunctionObjArgs(pyfunc, pyline, pylinenr, NULL);
+! 	Py_DECREF(pyline);
+! 	Py_DECREF(pylinenr);
+! 	if (!pyret)
+! 	{
+! 	    PyErr_PrintEx(0);
+! 	    PythonIO_Flush();
+! 	    status = 1;
+! 	    goto out;
+! 	}
+! 
+! 	if (pyret && pyret != Py_None)
+! 	{
+! 	    if (!PyUnicode_Check(pyret))
+! 	    {
+! 		EMSG(_("E863: return value must be an instance of str"));
+! 		Py_XDECREF(pyret);
+! 		status = 1;
+! 		goto out;
+! 	    }
+! 	    pybytes = PyUnicode_AsEncodedString(pyret,
+! 		    (char *)ENC_OPT, CODEC_ERROR_HANDLER);
+! 	    ml_replace(i, (char_u *) PyBytes_AsString(pybytes), 1);
+! 	    Py_DECREF(pybytes);
+! 	    changed();
+! #ifdef SYNTAX_HL
+! 	    syn_changed(i); /* recompute syntax hl. for this line */
+! #endif
+! 	}
+! 	Py_XDECREF(pyret);
+! 	PythonIO_Flush();
+! 	PyGILState_Release(pygilstate);
+!     }
+!     pygilstate = PyGILState_Ensure();
+! out:
+!     Py_DECREF(pyfunc);
+!     PyObject_SetAttrString(pymain, DOPY_FUNC, NULL);
+!     PyGILState_Release(pygilstate);
+!     if (status)
+! 	return;
+!     check_cursor();
+!     update_curbuf(NOT_VALID);
+! 
+! theend:
+!     return;
+  }
+  
+  /******************************************************
+--- 970,988 ----
+  
+  
+      /* Execute the file */
+!     DoPyCommand(buffer,
+! 	    (rangeinitializer) init_range_cmd,
+! 	    (runner) run_cmd,
+! 	    (void *) eap);
+  }
+  
+      void
+  ex_py3do(exarg_T *eap)
+  {
+!     DoPyCommand((char *)eap->arg,
+! 	    (rangeinitializer)init_range_cmd,
+! 	    (runner)run_do,
+! 	    (void *)eap);
+  }
+  
+  /******************************************************
+***************
+*** 1790,1796 ****
+      void
+  do_py3eval (char_u *str, typval_T *rettv)
+  {
+!     DoPy3Command(NULL, (char *) str, rettv);
+      switch(rettv->v_type)
+      {
+  	case VAR_DICT: ++rettv->vval.v_dict->dv_refcount; break;
+--- 1678,1687 ----
+      void
+  do_py3eval (char_u *str, typval_T *rettv)
+  {
+!     DoPyCommand((char *) str,
+! 	    (rangeinitializer) init_range_eval,
+! 	    (runner) run_eval,
+! 	    (void *) rettv);
+      switch(rettv->v_type)
+      {
+  	case VAR_DICT: ++rettv->vval.v_dict->dv_refcount; break;
+*** ../vim-7.3.990/src/if_python.c	2013-05-17 16:39:59.000000000 +0200
+--- src/if_python.c	2013-05-21 18:07:11.000000000 +0200
+***************
+*** 659,666 ****
+   * Internal function prototypes.
+   */
+  
+- static PyObject *globals;
+- 
+  static void PythonIO_Flush(void);
+  static int PythonIO_Init(void);
+  static int PythonMod_Init(void);
+--- 659,664 ----
+***************
+*** 828,834 ****
+   * External interface
+   */
+      static void
+! DoPythonCommand(exarg_T *eap, const char *cmd, typval_T *rettv)
+  {
+  #ifndef PY_CAN_RECURSE
+      static int		recursive = 0;
+--- 826,832 ----
+   * External interface
+   */
+      static void
+! DoPyCommand(const char *cmd, rangeinitializer init_range, runner run, void *arg)
+  {
+  #ifndef PY_CAN_RECURSE
+      static int		recursive = 0;
+***************
+*** 861,876 ****
+      if (Python_Init())
+  	goto theend;
+  
+!     if (rettv == NULL)
+!     {
+! 	RangeStart = eap->line1;
+! 	RangeEnd = eap->line2;
+!     }
+!     else
+!     {
+! 	RangeStart = (PyInt) curwin->w_cursor.lnum;
+! 	RangeEnd = RangeStart;
+!     }
+      Python_Release_Vim();	    /* leave vim */
+  
+  #if defined(HAVE_LOCALE_H) || defined(X_LOCALE)
+--- 859,866 ----
+      if (Python_Init())
+  	goto theend;
+  
+!     init_range(arg);
+! 
+      Python_Release_Vim();	    /* leave vim */
+  
+  #if defined(HAVE_LOCALE_H) || defined(X_LOCALE)
+***************
+*** 892,918 ****
+      Python_RestoreThread();	    /* enter python */
+  #endif
+  
+!     if (rettv == NULL)
+! 	PyRun_SimpleString((char *)(cmd));
+!     else
+!     {
+! 	PyObject	*r;
+! 
+! 	r = PyRun_String((char *)(cmd), Py_eval_input, globals, globals);
+! 	if (r == NULL)
+! 	{
+! 	    if (PyErr_Occurred() && !msg_silent)
+! 		PyErr_PrintEx(0);
+! 	    EMSG(_("E858: Eval did not return a valid python object"));
+! 	}
+! 	else
+! 	{
+! 	    if (ConvertFromPyObject(r, rettv) == -1)
+! 		EMSG(_("E859: Failed to convert returned python object to vim value"));
+! 	    Py_DECREF(r);
+! 	}
+! 	PyErr_Clear();
+!     }
+  
+  #ifdef PY_CAN_RECURSE
+      PyGILState_Release(pygilstate);
+--- 882,888 ----
+      Python_RestoreThread();	    /* enter python */
+  #endif
+  
+!     run((char *) cmd, arg, &pygilstate);
+  
+  #ifdef PY_CAN_RECURSE
+      PyGILState_Release(pygilstate);
+***************
+*** 952,961 ****
+      script = script_get(eap, eap->arg);
+      if (!eap->skip)
+      {
+! 	if (script == NULL)
+! 	    DoPythonCommand(eap, (char *)eap->arg, NULL);
+! 	else
+! 	    DoPythonCommand(eap, (char *)script, NULL);
+      }
+      vim_free(script);
+  }
+--- 922,931 ----
+      script = script_get(eap, eap->arg);
+      if (!eap->skip)
+      {
+! 	DoPyCommand(script == NULL ? (char *) eap->arg : (char *) script,
+! 		(rangeinitializer) init_range_cmd,
+! 		(runner) run_cmd,
+! 		(void *) eap);
+      }
+      vim_free(script);
+  }
+***************
+*** 1001,1094 ****
+      *p++ = '\0';
+  
+      /* Execute the file */
+!     DoPythonCommand(eap, buffer, NULL);
+  }
+  
+      void
+  ex_pydo(exarg_T *eap)
+  {
+!     linenr_T		i;
+!     const char		*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
+!     const char		*s = (const char *) eap->arg;
+!     size_t		len;
+!     char		*code;
+!     int			status;
+!     PyObject		*pyfunc, *pymain;
+!     PyGILState_STATE	pygilstate;
+! 
+!     if (Python_Init())
+!         return;
+! 
+!     if (u_save(eap->line1 - 1, eap->line2 + 1) != OK)
+!     {
+! 	EMSG(_("cannot save undo information"));
+! 	return;
+!     }
+!     len = strlen(code_hdr) + strlen(s);
+!     code = malloc(len + 1);
+!     STRCPY(code, code_hdr);
+!     STRNCAT(code, s, len + 1);
+!     pygilstate = PyGILState_Ensure();
+!     status = PyRun_SimpleString(code);
+!     vim_free(code);
+!     if (status)
+!     {
+! 	EMSG(_("failed to run the code"));
+! 	return;
+!     }
+!     status = 0; /* good */
+!     pymain = PyImport_AddModule("__main__");
+!     pyfunc = PyObject_GetAttrString(pymain, DOPY_FUNC);
+!     PyGILState_Release(pygilstate);
+! 
+!     for (i = eap->line1; i <= eap->line2; i++)
+!     {
+! 	const char *line;
+! 	PyObject *pyline, *pylinenr, *pyret;
+! 
+! 	line = (char *)ml_get(i);
+! 	pygilstate = PyGILState_Ensure();
+! 	pyline = PyString_FromStringAndSize(line, strlen(line));
+! 	pylinenr = PyLong_FromLong(i);
+! 	pyret = PyObject_CallFunctionObjArgs(pyfunc, pyline, pylinenr, NULL);
+! 	Py_DECREF(pyline);
+! 	Py_DECREF(pylinenr);
+! 	if (!pyret)
+! 	{
+! 	    PyErr_PrintEx(0);
+! 	    PythonIO_Flush();
+! 	    status = 1;
+! 	    goto out;
+! 	}
+! 
+! 	if (pyret && pyret != Py_None)
+! 	{
+! 	    if (!PyString_Check(pyret))
+! 	    {
+! 		EMSG(_("E863: return value must be an instance of str"));
+! 		Py_XDECREF(pyret);
+! 		status = 1;
+! 		goto out;
+! 	    }
+! 	    ml_replace(i, (char_u *) PyString_AsString(pyret), 1);
+! 	    changed();
+! #ifdef SYNTAX_HL
+! 	    syn_changed(i); /* recompute syntax hl. for this line */
+! #endif
+! 	}
+! 	Py_XDECREF(pyret);
+! 	PythonIO_Flush();
+! 	PyGILState_Release(pygilstate);
+!     }
+!     pygilstate = PyGILState_Ensure();
+! out:
+!     Py_DECREF(pyfunc);
+!     PyObject_SetAttrString(pymain, DOPY_FUNC, NULL);
+!     PyGILState_Release(pygilstate);
+!     if (status)
+! 	return;
+!     check_cursor();
+!     update_curbuf(NOT_VALID);
+  }
+  
+  /******************************************************
+--- 971,989 ----
+      *p++ = '\0';
+  
+      /* Execute the file */
+!     DoPyCommand(buffer,
+! 	    (rangeinitializer) init_range_cmd,
+! 	    (runner) run_cmd,
+! 	    (void *) eap);
+  }
+  
+      void
+  ex_pydo(exarg_T *eap)
+  {
+!     DoPyCommand((char *)eap->arg,
+! 	    (rangeinitializer) init_range_cmd,
+! 	    (runner)run_do,
+! 	    (void *)eap);
+  }
+  
+  /******************************************************
+***************
+*** 1525,1531 ****
+      void
+  do_pyeval (char_u *str, typval_T *rettv)
+  {
+!     DoPythonCommand(NULL, (char *) str, rettv);
+      switch(rettv->v_type)
+      {
+  	case VAR_DICT: ++rettv->vval.v_dict->dv_refcount; break;
+--- 1420,1429 ----
+      void
+  do_pyeval (char_u *str, typval_T *rettv)
+  {
+!     DoPyCommand((char *) str,
+! 	    (rangeinitializer) init_range_eval,
+! 	    (runner) run_eval,
+! 	    (void *) rettv);
+      switch(rettv->v_type)
+      {
+  	case VAR_DICT: ++rettv->vval.v_dict->dv_refcount; break;
+*** ../vim-7.3.990/src/testdir/test87.ok	2013-05-17 16:18:27.000000000 +0200
+--- src/testdir/test87.ok	2013-05-21 17:59:56.000000000 +0200
+***************
+*** 59,68 ****
+  ['c', 1]
+  ['d', ['e']]
+  0.0
+! "\0":	Vim(let):E861:
+! {"\0": 1}:	Vim(let):E861:
+  undefined_name:	Vim(let):Trace
+! vim:	Vim(let):E861:
+  [1]
+  [1, 10, 11, 10, 11, 10, 11, 10, 11, 10, 11, 10, 1]
+  Abc
+--- 59,68 ----
+  ['c', 1]
+  ['d', ['e']]
+  0.0
+! "\0":	Vim(let):E859:
+! {"\0": 1}:	Vim(let):E859:
+  undefined_name:	Vim(let):Trace
+! vim:	Vim(let):E859:
+  [1]
+  [1, 10, 11, 10, 11, 10, 11, 10, 11, 10, 11, 10, 1]
+  Abc
+*** ../vim-7.3.990/src/version.c	2013-05-21 16:28:05.000000000 +0200
+--- src/version.c	2013-05-21 18:19:20.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     991,
+  /**/
+
+-- 
+Mynd you, m00se bites Kan be pretty nasti ...
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1286
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1286
+Problem:    Check for screen size missing for Athena and Motif.
+Solution:   Add call to limit_screen_size().
+Files:	    src/gui_x11.c
+
+
+*** ../vim-7.3.1285/src/gui_x11.c	2013-06-13 21:57:16.000000000 +0200
+--- src/gui_x11.c	2013-06-30 17:39:30.000000000 +0200
+***************
+*** 1431,1436 ****
+--- 1431,1437 ----
+  		p_window = h - 1;
+  	    Rows = h;
+  	}
++ 	limit_screen_size();
+  	/*
+  	 * Set the (x,y) position of the main window only if specified in the
+  	 * users geometry, so we get good defaults when they don't. This needs
+*** ../vim-7.3.1285/src/version.c	2013-07-01 21:24:40.000000000 +0200
+--- src/version.c	2013-07-01 21:26:47.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1286,
+  /**/
+
+-- 
+MARTHA'S WAY: Don't throw out all that leftover wine. Freeze into ice cubes
+              for future use in casseroles and sauces.
+MY WAY:       What leftover wine?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,57 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1007
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1007
+Problem:    Can't build on Minix 3.2.1.
+Solution:   Add a condition to an #ifdef. (Gautam Tirumala)
+Files:      src/memfile.c
+
+
+*** ../vim-7.3.1006/src/memfile.c	2013-05-06 04:21:35.000000000 +0200
+--- src/memfile.c	2013-05-23 22:22:22.000000000 +0200
+***************
+*** 127,133 ****
+  {
+      memfile_T		*mfp;
+      off_t		size;
+! #if defined(STATFS) && defined(UNIX) && !defined(__QNX__)
+  # define USE_FSTATFS
+      struct STATFS	stf;
+  #endif
+--- 127,133 ----
+  {
+      memfile_T		*mfp;
+      off_t		size;
+! #if defined(STATFS) && defined(UNIX) && !defined(__QNX__) && !defined(__minix)
+  # define USE_FSTATFS
+      struct STATFS	stf;
+  #endif
+*** ../vim-7.3.1006/src/version.c	2013-05-23 22:25:10.000000000 +0200
+--- src/version.c	2013-05-23 22:26:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1007,
+  /**/
+
+-- 
+Mrs Abbott: I'm a paediatrician.
+     Basil: Feet?
+Mrs Abbott: Children.
+     Sybil: Oh, Basil!
+     Basil: Well, children have feet, don't they? That's how they move
+            around, my dear. You must take a look next time, it's most
+            interesting.                               (Fawlty Towers)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

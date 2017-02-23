@@ -1,0 +1,72 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1311
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1311
+Problem:    Compiler warnings on Cygwin.
+Solution:   Add type casts. Add windows include files. (Ken Takata)
+Files:	    src/mbyte.c, src/ui.c
+
+
+*** ../vim-7.3.1310/src/mbyte.c	2013-06-28 20:16:50.000000000 +0200
+--- src/mbyte.c	2013-07-05 20:07:21.000000000 +0200
+***************
+*** 4108,4114 ****
+  	p += 6;
+  
+      if (p[0] == 'c' && p[1] == 'p')
+! 	cp = atoi(p + 2);
+      else if ((idx = enc_canon_search(p)) >= 0)
+  	cp = enc_canon_table[idx].codepage;
+      else
+--- 4108,4114 ----
+  	p += 6;
+  
+      if (p[0] == 'c' && p[1] == 'p')
+! 	cp = atoi((char *)p + 2);
+      else if ((idx = enc_canon_search(p)) >= 0)
+  	cp = enc_canon_table[idx].codepage;
+      else
+*** ../vim-7.3.1310/src/ui.c	2013-07-03 16:58:40.000000000 +0200
+--- src/ui.c	2013-07-05 20:07:21.000000000 +0200
+***************
+*** 18,23 ****
+--- 18,29 ----
+  
+  #include "vim.h"
+  
++ #ifdef FEAT_CYGWIN_WIN32_CLIPBOARD
++ # define WIN32_LEAN_AND_MEAN
++ # include <windows.h>
++ # include "winclip.pro"
++ #endif
++ 
+      void
+  ui_write(s, len)
+      char_u  *s;
+*** ../vim-7.3.1310/src/version.c	2013-07-05 20:01:26.000000000 +0200
+--- src/version.c	2013-07-05 20:05:39.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1311,
+  /**/
+
+-- 
+ARTHUR:          But if he was dying, he wouldn't bother to carve
+                 "Aaaaarrrrrrggghhh".  He'd just say it.
+BROTHER MAYNARD: It's down there carved in stone.
+GALAHAD:         Perhaps he was dictating.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

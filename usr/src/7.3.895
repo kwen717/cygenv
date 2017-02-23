@@ -1,0 +1,189 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.895
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.895
+Problem:    Valgrind error in test 91. (Issue 128)
+Solution:   Pass scope name to find_var_in_ht().
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.894/src/eval.c	2013-04-15 12:27:30.000000000 +0200
+--- src/eval.c	2013-04-15 13:00:44.000000000 +0200
+***************
+*** 788,794 ****
+  static char_u *get_tv_string_buf __ARGS((typval_T *varp, char_u *buf));
+  static char_u *get_tv_string_buf_chk __ARGS((typval_T *varp, char_u *buf));
+  static dictitem_T *find_var __ARGS((char_u *name, hashtab_T **htp));
+! static dictitem_T *find_var_in_ht __ARGS((hashtab_T *ht, char_u *varname, int writing));
+  static hashtab_T *find_var_ht __ARGS((char_u *name, char_u **varname));
+  static void vars_clear_ext __ARGS((hashtab_T *ht, int free_val));
+  static void delete_var __ARGS((hashtab_T *ht, hashitem_T *hi));
+--- 788,794 ----
+  static char_u *get_tv_string_buf __ARGS((typval_T *varp, char_u *buf));
+  static char_u *get_tv_string_buf_chk __ARGS((typval_T *varp, char_u *buf));
+  static dictitem_T *find_var __ARGS((char_u *name, hashtab_T **htp));
+! static dictitem_T *find_var_in_ht __ARGS((hashtab_T *ht, int htname, char_u *varname, int writing));
+  static hashtab_T *find_var_ht __ARGS((char_u *name, char_u **varname));
+  static void vars_clear_ext __ARGS((hashtab_T *ht, int free_val));
+  static void delete_var __ARGS((hashtab_T *ht, hashitem_T *hi));
+***************
+*** 11150,11162 ****
+  	}
+  	else
+  	{
+! 	    if (*varname == NUL)
+! 		/* let getbufvar({nr}, "") return the "b:" dictionary.  The
+! 		 * scope prefix before the NUL byte is required by
+! 		 * find_var_in_ht(). */
+! 		varname = (char_u *)"b:" + 2;
+! 	    /* look up the variable */
+! 	    v = find_var_in_ht(&curbuf->b_vars->dv_hashtab, varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+--- 11150,11159 ----
+  	}
+  	else
+  	{
+! 	    /* Look up the variable. */
+! 	    /* Let getbufvar({nr}, "") return the "b:" dictionary. */
+! 	    v = find_var_in_ht(&curbuf->b_vars->dv_hashtab,
+! 							 'b', varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+***************
+*** 11779,11785 ****
+      if (tp != NULL && varname != NULL)
+      {
+  	/* look up the variable */
+! 	v = find_var_in_ht(&tp->tp_vars->dv_hashtab, varname, FALSE);
+  	if (v != NULL)
+  	    copy_tv(&v->di_tv, rettv);
+  	else if (argvars[2].v_type != VAR_UNKNOWN)
+--- 11776,11782 ----
+      if (tp != NULL && varname != NULL)
+      {
+  	/* look up the variable */
+! 	v = find_var_in_ht(&tp->tp_vars->dv_hashtab, 0, varname, FALSE);
+  	if (v != NULL)
+  	    copy_tv(&v->di_tv, rettv);
+  	else if (argvars[2].v_type != VAR_UNKNOWN)
+***************
+*** 11929,11941 ****
+  	    get_option_tv(&varname, rettv, 1);
+  	else
+  	{
+! 	    if (*varname == NUL)
+! 		/* let getwinvar({nr}, "") return the "w:" dictionary.  The
+! 		 * scope prefix before the NUL byte is required by
+! 		 * find_var_in_ht(). */
+! 		varname = (char_u *)"w:" + 2;
+! 	    /* look up the variable */
+! 	    v = find_var_in_ht(&win->w_vars->dv_hashtab, varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+--- 11926,11934 ----
+  	    get_option_tv(&varname, rettv, 1);
+  	else
+  	{
+! 	    /* Look up the variable. */
+! 	    /* Let getwinvar({nr}, "") return the "w:" dictionary. */
+! 	    v = find_var_in_ht(&win->w_vars->dv_hashtab, 'w', varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+***************
+*** 20041,20056 ****
+  	*htp = ht;
+      if (ht == NULL)
+  	return NULL;
+!     return find_var_in_ht(ht, varname, htp != NULL);
+  }
+  
+  /*
+!  * Find variable "varname" in hashtab "ht".
+   * Returns NULL if not found.
+   */
+      static dictitem_T *
+! find_var_in_ht(ht, varname, writing)
+      hashtab_T	*ht;
+      char_u	*varname;
+      int		writing;
+  {
+--- 20034,20050 ----
+  	*htp = ht;
+      if (ht == NULL)
+  	return NULL;
+!     return find_var_in_ht(ht, *name, varname, htp != NULL);
+  }
+  
+  /*
+!  * Find variable "varname" in hashtab "ht" with name "htname".
+   * Returns NULL if not found.
+   */
+      static dictitem_T *
+! find_var_in_ht(ht, htname, varname, writing)
+      hashtab_T	*ht;
++     int		htname;
+      char_u	*varname;
+      int		writing;
+  {
+***************
+*** 20059,20065 ****
+      if (*varname == NUL)
+      {
+  	/* Must be something like "s:", otherwise "ht" would be NULL. */
+! 	switch (varname[-2])
+  	{
+  	    case 's': return &SCRIPT_SV(current_SID)->sv_var;
+  	    case 'g': return &globvars_var;
+--- 20053,20059 ----
+      if (*varname == NUL)
+      {
+  	/* Must be something like "s:", otherwise "ht" would be NULL. */
+! 	switch (htname)
+  	{
+  	    case 's': return &SCRIPT_SV(current_SID)->sv_var;
+  	    case 'g': return &globvars_var;
+***************
+*** 20389,20395 ****
+  	EMSG2(_(e_illvar), name);
+  	return;
+      }
+!     v = find_var_in_ht(ht, varname, TRUE);
+  
+      if (tv->v_type == VAR_FUNC && var_check_func_name(name, v == NULL))
+  	return;
+--- 20383,20389 ----
+  	EMSG2(_(e_illvar), name);
+  	return;
+      }
+!     v = find_var_in_ht(ht, 0, varname, TRUE);
+  
+      if (tv->v_type == VAR_FUNC && var_check_func_name(name, v == NULL))
+  	return;
+*** ../vim-7.3.894/src/version.c	2013-04-15 12:36:14.000000000 +0200
+--- src/version.c	2013-04-15 13:04:54.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     895,
+  /**/
+
+-- 
+        Very funny, Scotty.  Now beam down my clothes.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

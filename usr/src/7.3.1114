@@ -1,0 +1,59 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1114
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1114 (after 7.3.1110)
+Problem:    Can't build without the syntax feature.
+Solution:   Add #ifdefs. (Erik Falor)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1113/src/regexp_nfa.c	2013-06-04 21:27:33.000000000 +0200
+--- src/regexp_nfa.c	2013-06-04 21:39:30.000000000 +0200
+***************
+*** 3907,3913 ****
+--- 3907,3915 ----
+      if (c > 0)
+  	return 99;
+      if ((c >= NFA_MOPEN && c <= NFA_MOPEN9)
++ #ifdef FEAT_SYN_HL
+  	    || (c >= NFA_ZOPEN && c <= NFA_ZOPEN9)
++ #endif
+  	    || c == NFA_NOPEN)
+  	return failure_chance(state->out, depth + 1);
+      /* something else */
+***************
+*** 4201,4207 ****
+--- 4203,4211 ----
+  		     * Otherwise first do the one that has the highest chance
+  		     * of failing. */
+  		    if ((cout >= NFA_MCLOSE && cout <= NFA_MCLOSE9)
++ #ifdef FEAT_SYN_HL
+  			    || (cout >= NFA_ZCLOSE && cout <= NFA_ZCLOSE9)
++ #endif
+  			    || cout == NFA_NCLOSE
+  			    || t->pim != NULL
+  			    || (t->state->c != NFA_START_INVISIBLE_BEFORE
+*** ../vim-7.3.1113/src/version.c	2013-06-04 21:27:33.000000000 +0200
+--- src/version.c	2013-06-04 21:41:41.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1114,
+  /**/
+
+-- 
+From "know your smileys":
+ y:-)	Bad toupee
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

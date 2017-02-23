@@ -1,0 +1,720 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.963
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.963
+Problem:    Setting curbuf without curwin causes trouble.
+Solution:   Add switch_buffer() and restore_buffer().  Block autocommands to
+	    avoid trouble.
+Files:	    src/eval.c, src/proto/eval.pro, src/proto/window.pro,
+	    src/if_py_both.h, src/window.c, src/testdir/test86.ok
+
+
+*** ../vim-7.3.962/src/eval.c	2013-05-15 14:39:47.000000000 +0200
+--- src/eval.c	2013-05-17 14:50:35.000000000 +0200
+***************
+*** 11894,11900 ****
+      win_T	*win, *oldcurwin;
+      char_u	*varname;
+      dictitem_T	*v;
+!     tabpage_T	*tp;
+      int		done = FALSE;
+  
+  #ifdef FEAT_WINDOWS
+--- 11894,11900 ----
+      win_T	*win, *oldcurwin;
+      char_u	*varname;
+      dictitem_T	*v;
+!     tabpage_T	*tp, *oldtabpage;
+      int		done = FALSE;
+  
+  #ifdef FEAT_WINDOWS
+***************
+*** 11912,11922 ****
+  
+      if (win != NULL && varname != NULL)
+      {
+! 	/* Set curwin to be our win, temporarily.  Also set curbuf, so
+! 	 * that we can get buffer-local options. */
+! 	oldcurwin = curwin;
+! 	curwin = win;
+! 	curbuf = win->w_buffer;
+  
+  	if (*varname == '&')	/* window-local-option */
+  	{
+--- 11912,11920 ----
+  
+      if (win != NULL && varname != NULL)
+      {
+! 	/* Set curwin to be our win, temporarily.  Also set the tabpage,
+! 	 * otherwise the window is not valid. */
+! 	switch_win(&oldcurwin, &oldtabpage, win, tp);
+  
+  	if (*varname == '&')	/* window-local-option */
+  	{
+***************
+*** 11936,11943 ****
+  	}
+  
+  	/* restore previous notion of curwin */
+! 	curwin = oldcurwin;
+! 	curbuf = curwin->w_buffer;
+      }
+  
+      if (!done && argvars[off + 2].v_type != VAR_UNKNOWN)
+--- 11934,11940 ----
+  	}
+  
+  	/* restore previous notion of curwin */
+! 	restore_win(oldcurwin, oldtabpage);
+      }
+  
+      if (!done && argvars[off + 2].v_type != VAR_UNKNOWN)
+***************
+*** 16641,16684 ****
+      setwinvar(argvars, rettv, 0);
+  }
+  
+-     int
+- switch_win(save_curwin, save_curtab, win, tp)
+-     win_T	**save_curwin;
+-     tabpage_T	**save_curtab;
+-     win_T	*win;
+-     tabpage_T	*tp;
+- {
+- #ifdef FEAT_WINDOWS
+-     /* set curwin to be our win, temporarily */
+-     *save_curwin = curwin;
+-     *save_curtab = curtab;
+-     goto_tabpage_tp(tp, FALSE, FALSE);
+-     if (!win_valid(win))
+- 	return FAIL;
+-     curwin = win;
+-     curbuf = curwin->w_buffer;
+- #endif
+-     return OK;
+- }
+- 
+-     void
+- restore_win(save_curwin, save_curtab)
+-     win_T	*save_curwin;
+-     tabpage_T	*save_curtab;
+- {
+- #ifdef FEAT_WINDOWS
+-     /* Restore current tabpage and window, if still valid (autocommands can
+-      * make them invalid). */
+-     if (valid_tabpage(save_curtab))
+- 	goto_tabpage_tp(save_curtab, FALSE, FALSE);
+-     if (win_valid(save_curwin))
+-     {
+- 	curwin = save_curwin;
+- 	curbuf = curwin->w_buffer;
+-     }
+- #endif
+- }
+- 
+  /*
+   * "setwinvar()" and "settabwinvar()" functions
+   */
+--- 16638,16643 ----
+*** ../vim-7.3.962/src/proto/eval.pro	2013-05-15 14:39:47.000000000 +0200
+--- src/proto/eval.pro	2013-05-17 16:01:40.000000000 +0200
+***************
+*** 33,38 ****
+--- 33,40 ----
+  void prof_child_exit __ARGS((proftime_T *tm));
+  int eval_foldexpr __ARGS((char_u *arg, int *cp));
+  void ex_let __ARGS((exarg_T *eap));
++ void list_add_watch __ARGS((list_T *l, listwatch_T *lw));
++ void list_rem_watch __ARGS((list_T *l, listwatch_T *lwrem));
+  void *eval_for_line __ARGS((char_u *arg, int *errp, char_u **nextcmdp, int skip));
+  int next_for_item __ARGS((void *fi_void, char_u *arg));
+  void free_for_info __ARGS((void *fi_void));
+***************
+*** 125,132 ****
+  void ex_oldfiles __ARGS((exarg_T *eap));
+  int modify_fname __ARGS((char_u *src, int *usedlen, char_u **fnamep, char_u **bufp, int *fnamelen));
+  char_u *do_string_sub __ARGS((char_u *str, char_u *pat, char_u *sub, char_u *flags));
+- int switch_win __ARGS((win_T **, tabpage_T **, win_T *, tabpage_T *));
+- void restore_win __ARGS((win_T *, tabpage_T *));
+- void list_add_watch __ARGS((list_T *l, listwatch_T *lw));
+- void list_rem_watch __ARGS((list_T *l, listwatch_T *lwrem));
+  /* vim: set ft=c : */
+--- 127,130 ----
+*** ../vim-7.3.962/src/proto/window.pro	2013-05-15 15:12:25.000000000 +0200
+--- src/proto/window.pro	2013-05-17 15:04:14.000000000 +0200
+***************
+*** 32,37 ****
+--- 32,38 ----
+  void tabpage_move __ARGS((int nr));
+  void win_goto __ARGS((win_T *wp));
+  win_T *win_find_nr __ARGS((int winnr));
++ tabpage_T *win_find_tabpage __ARGS((win_T *win));
+  void win_enter __ARGS((win_T *wp, int undo_sync));
+  win_T *buf_jump_open_win __ARGS((buf_T *buf));
+  win_T *buf_jump_open_tab __ARGS((buf_T *buf));
+***************
+*** 69,74 ****
+--- 70,79 ----
+  void check_lnums __ARGS((int do_curwin));
+  void make_snapshot __ARGS((int idx));
+  void restore_snapshot __ARGS((int idx, int close_curwin));
++ int switch_win __ARGS((win_T **save_curwin, tabpage_T **save_curtab, win_T *win, tabpage_T *tp));
++ void restore_win __ARGS((win_T *save_curwin, tabpage_T *save_curtab));
++ void switch_buffer __ARGS((buf_T **save_curbuf, buf_T *buf));
++ void restore_buffer __ARGS((buf_T *save_curbuf));
+  int win_hasvertsplit __ARGS((void));
+  int match_add __ARGS((win_T *wp, char_u *grp, char_u *pat, int prio, int id));
+  int match_delete __ARGS((win_T *wp, int id, int perr));
+*** ../vim-7.3.962/src/if_py_both.h	2013-05-15 19:07:03.000000000 +0200
+--- src/if_py_both.h	2013-05-17 15:57:08.000000000 +0200
+***************
+*** 1413,1426 ****
+  {
+      win_T	*save_curwin;
+      tabpage_T	*save_curtab;
+!     aco_save_T	aco;
+      int		r = 0;
+  
+      switch (opt_type)
+      {
+  	case SREQ_WIN:
+! 	    if (switch_win(&save_curwin, &save_curtab, (win_T *) from, curtab)
+! 								      == FAIL)
+  	    {
+  		PyErr_SetVim("Problem while switching windows.");
+  		return -1;
+--- 1413,1426 ----
+  {
+      win_T	*save_curwin;
+      tabpage_T	*save_curtab;
+!     buf_T	*save_curbuf;
+      int		r = 0;
+  
+      switch (opt_type)
+      {
+  	case SREQ_WIN:
+! 	    if (switch_win(&save_curwin, &save_curtab, (win_T *)from,
+! 				     win_find_tabpage((win_T *)from)) == FAIL)
+  	    {
+  		PyErr_SetVim("Problem while switching windows.");
+  		return -1;
+***************
+*** 1429,1437 ****
+  	    restore_win(save_curwin, save_curtab);
+  	    break;
+  	case SREQ_BUF:
+! 	    aucmd_prepbuf(&aco, (buf_T *) from);
+  	    set_option_value(key, numval, stringval, opt_flags);
+! 	    aucmd_restbuf(&aco);
+  	    break;
+  	case SREQ_GLOBAL:
+  	    set_option_value(key, numval, stringval, opt_flags);
+--- 1429,1437 ----
+  	    restore_win(save_curwin, save_curtab);
+  	    break;
+  	case SREQ_BUF:
+! 	    switch_buffer(&save_curbuf, (buf_T *)from);
+  	    set_option_value(key, numval, stringval, opt_flags);
+! 	    restore_buffer(save_curbuf);
+  	    break;
+  	case SREQ_GLOBAL:
+  	    set_option_value(key, numval, stringval, opt_flags);
+***************
+*** 2240,2249 ****
+       */
+      if (line == Py_None || line == NULL)
+      {
+! 	buf_T *savebuf = curbuf;
+  
+  	PyErr_Clear();
+! 	curbuf = buf;
+  
+  	if (u_savedel((linenr_T)n, 1L) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+--- 2240,2249 ----
+       */
+      if (line == Py_None || line == NULL)
+      {
+! 	buf_T *savebuf;
+  
+  	PyErr_Clear();
+! 	switch_buffer(&savebuf, buf);
+  
+  	if (u_savedel((linenr_T)n, 1L) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+***************
+*** 2251,2262 ****
+  	    PyErr_SetVim(_("cannot delete line"));
+  	else
+  	{
+! 	    if (buf == curwin->w_buffer)
+  		py_fix_cursor((linenr_T)n, (linenr_T)n + 1, (linenr_T)-1);
+  	    deleted_lines_mark((linenr_T)n, 1L);
+  	}
+  
+! 	curbuf = savebuf;
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+--- 2251,2262 ----
+  	    PyErr_SetVim(_("cannot delete line"));
+  	else
+  	{
+! 	    if (buf == savebuf)
+  		py_fix_cursor((linenr_T)n, (linenr_T)n + 1, (linenr_T)-1);
+  	    deleted_lines_mark((linenr_T)n, 1L);
+  	}
+  
+! 	restore_buffer(savebuf);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+***************
+*** 2269,2282 ****
+      else if (PyString_Check(line))
+      {
+  	char *save = StringToLine(line);
+! 	buf_T *savebuf = curbuf;
+  
+  	if (save == NULL)
+  	    return FAIL;
+  
+  	/* We do not need to free "save" if ml_replace() consumes it. */
+  	PyErr_Clear();
+! 	curbuf = buf;
+  
+  	if (u_savesub((linenr_T)n) == FAIL)
+  	{
+--- 2269,2282 ----
+      else if (PyString_Check(line))
+      {
+  	char *save = StringToLine(line);
+! 	buf_T *savebuf;
+  
+  	if (save == NULL)
+  	    return FAIL;
+  
+  	/* We do not need to free "save" if ml_replace() consumes it. */
+  	PyErr_Clear();
+! 	switch_buffer(&savebuf, buf);
+  
+  	if (u_savesub((linenr_T)n) == FAIL)
+  	{
+***************
+*** 2291,2300 ****
+  	else
+  	    changed_bytes((linenr_T)n, 0);
+  
+! 	curbuf = savebuf;
+  
+  	/* Check that the cursor is not beyond the end of the line now. */
+! 	if (buf == curwin->w_buffer)
+  	    check_cursor_col();
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+--- 2291,2300 ----
+  	else
+  	    changed_bytes((linenr_T)n, 0);
+  
+! 	restore_buffer(savebuf);
+  
+  	/* Check that the cursor is not beyond the end of the line now. */
+! 	if (buf == savebuf)
+  	    check_cursor_col();
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+***************
+*** 2333,2342 ****
+      {
+  	PyInt	i;
+  	PyInt	n = (int)(hi - lo);
+! 	buf_T	*savebuf = curbuf;
+  
+  	PyErr_Clear();
+! 	curbuf = buf;
+  
+  	if (u_savedel((linenr_T)lo, (long)n) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+--- 2333,2342 ----
+      {
+  	PyInt	i;
+  	PyInt	n = (int)(hi - lo);
+! 	buf_T	*savebuf;
+  
+  	PyErr_Clear();
+! 	switch_buffer(&savebuf, buf);
+  
+  	if (u_savedel((linenr_T)lo, (long)n) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+***************
+*** 2350,2361 ****
+  		    break;
+  		}
+  	    }
+! 	    if (buf == curwin->w_buffer)
+  		py_fix_cursor((linenr_T)lo, (linenr_T)hi, (linenr_T)-n);
+  	    deleted_lines_mark((linenr_T)lo, (long)i);
+  	}
+  
+! 	curbuf = savebuf;
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+--- 2350,2361 ----
+  		    break;
+  		}
+  	    }
+! 	    if (buf == savebuf)
+  		py_fix_cursor((linenr_T)lo, (linenr_T)hi, (linenr_T)-n);
+  	    deleted_lines_mark((linenr_T)lo, (long)i);
+  	}
+  
+! 	restore_buffer(savebuf);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+***************
+*** 2400,2409 ****
+  	    }
+  	}
+  
+- 	savebuf = curbuf;
+- 
+  	PyErr_Clear();
+! 	curbuf = buf;
+  
+  	if (u_save((linenr_T)(lo-1), (linenr_T)hi) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+--- 2400,2409 ----
+  	    }
+  	}
+  
+  	PyErr_Clear();
+! 
+! 	// START of region without "return".  Must call restore_buffer()!
+! 	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)(lo-1), (linenr_T)hi) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+***************
+*** 2480,2489 ****
+  						  (long)MAXLNUM, (long)extra);
+  	changed_lines((linenr_T)lo, 0, (linenr_T)hi, (long)extra);
+  
+! 	if (buf == curwin->w_buffer)
+  	    py_fix_cursor((linenr_T)lo, (linenr_T)hi, (linenr_T)extra);
+  
+! 	curbuf = savebuf;
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+--- 2480,2490 ----
+  						  (long)MAXLNUM, (long)extra);
+  	changed_lines((linenr_T)lo, 0, (linenr_T)hi, (long)extra);
+  
+! 	if (buf == savebuf)
+  	    py_fix_cursor((linenr_T)lo, (linenr_T)hi, (linenr_T)extra);
+  
+! 	// END of region without "return".
+! 	restore_buffer(savebuf);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+***************
+*** 2522,2531 ****
+  	if (str == NULL)
+  	    return FAIL;
+  
+- 	savebuf = curbuf;
+- 
+  	PyErr_Clear();
+! 	curbuf = buf;
+  
+  	if (u_save((linenr_T)n, (linenr_T)(n+1)) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+--- 2523,2530 ----
+  	if (str == NULL)
+  	    return FAIL;
+  
+  	PyErr_Clear();
+! 	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)n, (linenr_T)(n+1)) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+***************
+*** 2535,2541 ****
+  	    appended_lines_mark((linenr_T)n, 1L);
+  
+  	vim_free(str);
+! 	curbuf = savebuf;
+  	update_screen(VALID);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+--- 2534,2540 ----
+  	    appended_lines_mark((linenr_T)n, 1L);
+  
+  	vim_free(str);
+! 	restore_buffer(savebuf);
+  	update_screen(VALID);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+***************
+*** 2574,2583 ****
+  	    }
+  	}
+  
+- 	savebuf = curbuf;
+- 
+  	PyErr_Clear();
+! 	curbuf = buf;
+  
+  	if (u_save((linenr_T)n, (linenr_T)(n + 1)) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+--- 2573,2580 ----
+  	    }
+  	}
+  
+  	PyErr_Clear();
+! 	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)n, (linenr_T)(n + 1)) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+***************
+*** 2607,2613 ****
+  	 */
+  	vim_free(array);
+  
+! 	curbuf = savebuf;
+  	update_screen(VALID);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+--- 2604,2610 ----
+  	 */
+  	vim_free(array);
+  
+! 	restore_buffer(savebuf);
+  	update_screen(VALID);
+  
+  	if (PyErr_Occurred() || VimErrorCheck())
+***************
+*** 3023,3029 ****
+      pos_T	*posp;
+      char	*pmark;
+      char	mark;
+!     buf_T	*curbuf_save;
+  
+      if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+--- 3020,3026 ----
+      pos_T	*posp;
+      char	*pmark;
+      char	mark;
+!     buf_T	*savebuf;
+  
+      if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+***************
+*** 3032,3041 ****
+  	return NULL;
+      mark = *pmark;
+  
+!     curbuf_save = curbuf;
+!     curbuf = ((BufferObject *)(self))->buf;
+      posp = getmark(mark, FALSE);
+!     curbuf = curbuf_save;
+  
+      if (posp == NULL)
+      {
+--- 3029,3037 ----
+  	return NULL;
+      mark = *pmark;
+  
+!     switch_buffer(&savebuf, ((BufferObject *)(self))->buf);
+      posp = getmark(mark, FALSE);
+!     restore_buffer(savebuf);
+  
+      if (posp == NULL)
+      {
+*** ../vim-7.3.962/src/window.c	2013-05-15 23:13:06.000000000 +0200
+--- src/window.c	2013-05-17 15:57:17.000000000 +0200
+***************
+*** 4058,4063 ****
+--- 4058,4082 ----
+  }
+  #endif
+  
++ #if (defined(FEAT_WINDOWS) && defined(FEAT_PYTHON)) || defined(PROTO)
++ /*
++  * Find the tabpage for window "win".
++  */
++     tabpage_T *
++ win_find_tabpage(win)
++     win_T	*win;
++ {
++     win_T	*wp;
++     tabpage_T	*tp;
++ 
++     for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
++ 	for (wp = tp->tp_firstwin; wp != NULL; wp = wp->w_next)
++ 	    if (wp == win)
++ 		return tp;
++     return NULL;
++ }
++ #endif
++ 
+  #ifdef FEAT_VERTSPLIT
+  /*
+   * Move to window above or below "count" times.
+***************
+*** 6550,6555 ****
+--- 6569,6673 ----
+  
+  #endif
+  
++ #if defined(FEAT_EVAL) || defined(PROTO)
++ /*
++  * Set "win" to be the curwin and "tp" to be the current tab page.
++  * restore_win() MUST be called to undo.
++  * No autocommands will be executed.
++  * Returns FAIL if switching to "win" failed.
++  */
++     int
++ switch_win(save_curwin, save_curtab, win, tp)
++     win_T	**save_curwin;
++     tabpage_T	**save_curtab;
++     win_T	*win;
++     tabpage_T	*tp;
++ {
++ # ifdef FEAT_AUTOCMD
++     block_autocmds();
++ # endif
++ # ifdef FEAT_WINDOWS
++     *save_curwin = curwin;
++     if (tp != NULL)
++     {
++ 	*save_curtab = curtab;
++ 	goto_tabpage_tp(tp, FALSE, FALSE);
++     }
++     if (!win_valid(win))
++     {
++ # ifdef FEAT_AUTOCMD
++ 	unblock_autocmds();
++ # endif
++ 	return FAIL;
++     }
++     curwin = win;
++     curbuf = curwin->w_buffer;
++ # endif
++     return OK;
++ }
++ 
++ /*
++  * Restore current tabpage and window saved by switch_win(), if still valid.
++  */
++     void
++ restore_win(save_curwin, save_curtab)
++     win_T	*save_curwin;
++     tabpage_T	*save_curtab;
++ {
++ # ifdef FEAT_WINDOWS
++     if (save_curtab != NULL && valid_tabpage(save_curtab))
++ 	goto_tabpage_tp(save_curtab, FALSE, FALSE);
++     if (win_valid(save_curwin))
++     {
++ 	curwin = save_curwin;
++ 	curbuf = curwin->w_buffer;
++     }
++ # endif
++ # ifdef FEAT_AUTOCMD
++     unblock_autocmds();
++ # endif
++ }
++ 
++ /*
++  * Make "buf" the current buffer.  restore_buffer() MUST be called to undo.
++  * No autocommands will be executed.  Use aucmd_prepbuf() if there are any.
++  */
++     void
++ switch_buffer(save_curbuf, buf)
++     buf_T *buf;
++     buf_T **save_curbuf;
++ {
++ # ifdef FEAT_AUTOCMD
++     block_autocmds();
++ # endif
++     *save_curbuf = curbuf;
++     --curbuf->b_nwindows;
++     curbuf = buf;
++     curwin->w_buffer = buf;
++     ++curbuf->b_nwindows;
++ }
++ 
++ /*
++  * Restore the current buffer after using switch_buffer().
++  */
++     void
++ restore_buffer(save_curbuf)
++     buf_T *save_curbuf;
++ {
++ # ifdef FEAT_AUTOCMD
++     unblock_autocmds();
++ # endif
++     /* Check for valid buffer, just in case. */
++     if (buf_valid(save_curbuf))
++     {
++ 	--curbuf->b_nwindows;
++ 	curwin->w_buffer = save_curbuf;
++ 	curbuf = save_curbuf;
++ 	++curbuf->b_nwindows;
++     }
++ }
++ #endif
++ 
+  #if (defined(FEAT_GUI) && defined(FEAT_VERTSPLIT)) || defined(PROTO)
+  /*
+   * Return TRUE if there is any vertically split window.
+*** ../vim-7.3.962/src/testdir/test86.ok	2013-05-17 13:37:57.000000000 +0200
+--- src/testdir/test86.ok	2013-05-17 14:48:57.000000000 +0200
+***************
+*** 333,339 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer test86.in>; cursor is at (955, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 333,339 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer test86.in>; cursor is at (954, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
+*** ../vim-7.3.962/src/version.c	2013-05-17 13:37:57.000000000 +0200
+--- src/version.c	2013-05-17 15:59:48.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     963,
+  /**/
+
+-- 
+TIM:   That is not an ordinary rabbit ... 'tis the most foul cruel and
+       bad-tempered thing you ever set eyes on.
+ROBIN: You tit.  I soiled my armour I was so scared!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

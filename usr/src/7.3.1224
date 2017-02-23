@@ -1,0 +1,105 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1224
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1224
+Problem:    Clang gives warnings on xxd.
+Solution:   Change how to use part of a string. (Dominique Pelle) Also avoid
+	    warning for return not reached.
+Files:	    src/xxd/xxd.c, src/regexp_nfa.c
+
+*** ../vim-7.3.1223/src/xxd/xxd.c	2013-02-26 14:14:01.000000000 +0100
+--- src/xxd/xxd.c	2013-06-21 18:23:53.000000000 +0200
+***************
+*** 722,728 ****
+        while ((length < 0 || p < length) && (c = getc(fp)) != EOF)
+  	{
+  	  if (fprintf(fpo, (hexx == hexxa) ? "%s0x%02x" : "%s0X%02X",
+! 		(p % cols) ? ", " : ",\n  "+2*!p,  c) < 0)
+  	    die(3);
+  	  p++;
+  	}
+--- 722,728 ----
+        while ((length < 0 || p < length) && (c = getc(fp)) != EOF)
+  	{
+  	  if (fprintf(fpo, (hexx == hexxa) ? "%s0x%02x" : "%s0X%02X",
+! 		(p % cols) ? ", " : &",\n  "[2*!p],  c) < 0)
+  	    die(3);
+  	  p++;
+  	}
+***************
+*** 731,737 ****
+  
+        if (p && fputs("\n", fpo) == EOF)
+  	die(3);
+!       if (fputs("};\n" + 3 * (fp == stdin), fpo) == EOF)
+  	die(3);
+  
+        if (fp != stdin)
+--- 731,737 ----
+  
+        if (p && fputs("\n", fpo) == EOF)
+  	die(3);
+!       if (fputs(&"};\n"[3 * (fp == stdin)], fpo) == EOF)
+  	die(3);
+  
+        if (fp != stdin)
+*** ../vim-7.3.1223/src/regexp_nfa.c	2013-06-17 21:33:36.000000000 +0200
+--- src/regexp_nfa.c	2013-06-21 18:29:43.000000000 +0200
+***************
+*** 2611,2617 ****
+      if (depth > 4)
+  	return -1;
+  
+!     for (;;)
+      {
+  	switch (state->c)
+  	{
+--- 2611,2617 ----
+      if (depth > 4)
+  	return -1;
+  
+!     while (state != NULL)
+      {
+  	switch (state->c)
+  	{
+***************
+*** 2810,2816 ****
+  	state = state->out;
+      }
+  
+!     /* unrecognized */
+      return -1;
+  }
+  
+--- 2810,2816 ----
+  	state = state->out;
+      }
+  
+!     /* unrecognized, "cannot happen" */
+      return -1;
+  }
+  
+*** ../vim-7.3.1223/src/version.c	2013-06-19 21:17:26.000000000 +0200
+--- src/version.c	2013-06-21 18:25:09.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1224,
+  /**/
+
+-- 
+Two fish in a tank. One says to the other:
+"Do you know how to drive this thing?"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

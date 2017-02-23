@@ -1,0 +1,59 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1202
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1202 (after 7.3.660)
+Problem:    Tags are not found in case-folded tags file. (Darren cole, Issue
+	    90)
+Solution:   Take into account that when case folding was used for the tags
+	    file "!rm" sorts before the "!_TAG" header lines.
+Files:	    src/tag.c
+
+
+*** ../vim-7.3.1201/src/tag.c	2013-06-08 18:19:40.000000000 +0200
+--- src/tag.c	2013-06-15 22:26:26.000000000 +0200
+***************
+*** 1797,1803 ****
+  	     */
+  	    if (state == TS_START)
+  	    {
+! 		if (STRNCMP(lbuf, "!_TAG_", 6) == 0)
+  		{
+  		    /*
+  		     * Read header line.
+--- 1797,1808 ----
+  	     */
+  	    if (state == TS_START)
+  	    {
+! 		/* The header ends when the line sorts below "!_TAG_".
+! 		 * There may be non-header items before the header though,
+! 		 * e.g. "!" itself. When case is folded lower case letters
+! 		 * sort before "_". */
+! 		if (STRNCMP(lbuf, "!_TAG_", 6) <= 0
+! 				|| (lbuf[0] == '!' && ASCII_ISLOWER(lbuf[1])))
+  		{
+  		    /*
+  		     * Read header line.
+*** ../vim-7.3.1201/src/version.c	2013-06-15 21:54:11.000000000 +0200
+--- src/version.c	2013-06-15 22:24:58.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1202,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+220. Your wife asks for sex and you tell her where to find you on IRC.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

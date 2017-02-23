@@ -1,0 +1,176 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1148
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1148
+Problem:    No command line completion for ":syntime".
+Solution:   Implement the completion. (Dominique Pelle)
+Files:	    runtime/doc/map.txt, src/ex_cmds.h, src/ex_docmd.c,
+	    src/ex_getln.c, src/proto/syntax.pro, src/syntax.c, src/vim.h
+
+
+*** ../vim-7.3.1147/runtime/doc/map.txt	2012-08-15 14:04:50.000000000 +0200
+--- runtime/doc/map.txt	2013-06-08 15:08:20.000000000 +0200
+***************
+*** 1225,1230 ****
+--- 1242,1248 ----
+  	-complete=shellcmd	Shell command
+  	-complete=sign		|:sign| suboptions
+  	-complete=syntax	syntax file names |'syntax'|
++ 	-complete=syntime	|:syntime| suboptions
+  	-complete=tag		tags
+  	-complete=tag_listfiles	tags, file names are shown when CTRL-D is hit
+  	-complete=user		user names
+*** ../vim-7.3.1147/src/ex_cmds.h	2013-06-06 14:01:35.000000000 +0200
+--- src/ex_cmds.h	2013-06-08 15:08:20.000000000 +0200
+***************
+*** 926,932 ****
+  EX(CMD_syntax,		"syntax",	ex_syntax,
+  			EXTRA|NOTRLCOM|CMDWIN),
+  EX(CMD_syntime,		"syntime",	ex_syntime,
+! 			WORD1|TRLBAR|CMDWIN),
+  EX(CMD_syncbind,	"syncbind",	ex_syncbind,
+  			TRLBAR),
+  EX(CMD_t,		"t",		ex_copymove,
+--- 926,932 ----
+  EX(CMD_syntax,		"syntax",	ex_syntax,
+  			EXTRA|NOTRLCOM|CMDWIN),
+  EX(CMD_syntime,		"syntime",	ex_syntime,
+! 			NEEDARG|WORD1|TRLBAR|CMDWIN),
+  EX(CMD_syncbind,	"syncbind",	ex_syncbind,
+  			TRLBAR),
+  EX(CMD_t,		"t",		ex_copymove,
+*** ../vim-7.3.1147/src/ex_docmd.c	2013-06-06 14:55:16.000000000 +0200
+--- src/ex_docmd.c	2013-06-08 15:08:20.000000000 +0200
+***************
+*** 3994,3999 ****
+--- 3994,4005 ----
+  	    xp->xp_pattern = arg;
+  	    break;
+  #endif
++ #if defined(FEAT_PROFILE)
++ 	case CMD_syntime:
++ 	    xp->xp_context = EXPAND_SYNTIME;
++ 	    xp->xp_pattern = arg;
++ 	    break;
++ #endif
+  
+  #endif /* FEAT_CMDL_COMPL */
+  
+***************
+*** 5436,5441 ****
+--- 5442,5450 ----
+      {EXPAND_MAPPINGS, "mapping"},
+      {EXPAND_MENUS, "menu"},
+      {EXPAND_OWNSYNTAX, "syntax"},
++ #if defined(FEAT_PROFILE)
++     {EXPAND_SYNTIME, "syntime"},
++ #endif
+      {EXPAND_SETTINGS, "option"},
+      {EXPAND_SHELLCMD, "shellcmd"},
+  #if defined(FEAT_SIGNS)
+*** ../vim-7.3.1147/src/ex_getln.c	2013-04-24 15:39:06.000000000 +0200
+--- src/ex_getln.c	2013-06-08 15:08:20.000000000 +0200
+***************
+*** 4674,4679 ****
+--- 4674,4682 ----
+  #ifdef FEAT_SYN_HL
+  	    {EXPAND_SYNTAX, get_syntax_name, TRUE, TRUE},
+  #endif
++ #ifdef FEAT_PROFILE
++ 	    {EXPAND_SYNTIME, get_syntime_arg, TRUE, TRUE},
++ #endif
+  	    {EXPAND_HIGHLIGHT, get_highlight_name, TRUE, TRUE},
+  #ifdef FEAT_AUTOCMD
+  	    {EXPAND_EVENTS, get_event_name, TRUE, TRUE},
+*** ../vim-7.3.1147/src/proto/syntax.pro	2013-06-06 14:01:35.000000000 +0200
+--- src/proto/syntax.pro	2013-06-08 15:08:20.000000000 +0200
+***************
+*** 20,25 ****
+--- 20,26 ----
+  int syn_get_stack_item __ARGS((int i));
+  int syn_get_foldlevel __ARGS((win_T *wp, long lnum));
+  void ex_syntime __ARGS((exarg_T *eap));
++ char_u *get_syntime_arg __ARGS((expand_T *xp, int idx));
+  void init_highlight __ARGS((int both, int reset));
+  int load_colors __ARGS((char_u *name));
+  void do_highlight __ARGS((char_u *line, int forceit, int init));
+*** ../vim-7.3.1147/src/syntax.c	2013-06-07 19:48:29.000000000 +0200
+--- src/syntax.c	2013-06-08 15:12:43.000000000 +0200
+***************
+*** 6577,6582 ****
+--- 6577,6603 ----
+      }
+  }
+  
++ #if defined(FEAT_CMDL_COMPL) || defined(PROTO)
++ /*
++  * Function given to ExpandGeneric() to obtain the possible arguments of the
++  * ":syntime {on,off,clear,report}" command.
++  */
++     char_u *
++ get_syntime_arg(xp, idx)
++     expand_T	*xp UNUSED;
++     int		idx;
++ {
++     switch (idx)
++     {
++ 	case 0: return (char_u *)"on";
++ 	case 1: return (char_u *)"off";
++ 	case 2: return (char_u *)"clear";
++ 	case 3: return (char_u *)"report";
++     }
++     return NULL;
++ }
++ #endif
++ 
+  typedef struct
+  {
+      proftime_T	total;
+***************
+*** 6610,6616 ****
+--- 6631,6639 ----
+  {
+      int		idx;
+      synpat_T	*spp;
++ # ifdef FEAT_FLOAT
+      proftime_T	tm;
++ # endif
+      int		len;
+      proftime_T	total_total;
+      int		total_count = 0;
+*** ../vim-7.3.1147/src/vim.h	2013-05-30 13:37:23.000000000 +0200
+--- src/vim.h	2013-06-08 15:08:20.000000000 +0200
+***************
+*** 783,788 ****
+--- 783,789 ----
+  #define EXPAND_LOCALES		40
+  #define EXPAND_HISTORY		41
+  #define EXPAND_USER		42
++ #define EXPAND_SYNTIME		43
+  
+  /* Values for exmode_active (0 is no exmode) */
+  #define EXMODE_NORMAL		1
+*** ../vim-7.3.1147/src/version.c	2013-06-08 14:38:23.000000000 +0200
+--- src/version.c	2013-06-08 15:23:00.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1148,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+113. You are asked about a bus schedule, you wonder if it is 16 or 32 bits.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

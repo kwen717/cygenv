@@ -1,0 +1,83 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1127
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1127
+Problem:    No error for using empty \%[].
+Solution:   Give error message.
+Files:	    src/regexp.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1126/src/regexp.c	2013-06-05 16:33:05.000000000 +0200
+--- src/regexp.c	2013-06-05 21:26:46.000000000 +0200
+***************
+*** 366,372 ****
+  static char_u e_z1_not_allowed[] = N_("E67: \\z1 et al. not allowed here");
+  #endif
+  static char_u e_missing_sb[] = N_("E69: Missing ] after %s%%[");
+! 
+  #define NOT_MULTI	0
+  #define MULTI_ONE	1
+  #define MULTI_MULT	2
+--- 366,372 ----
+  static char_u e_z1_not_allowed[] = N_("E67: \\z1 et al. not allowed here");
+  #endif
+  static char_u e_missing_sb[] = N_("E69: Missing ] after %s%%[");
+! static char_u e_empty_sb[]  = N_("E70: Empty %s%%[]");
+  #define NOT_MULTI	0
+  #define MULTI_ONE	1
+  #define MULTI_MULT	2
+***************
+*** 2227,2233 ****
+  				      return NULL;
+  			      }
+  			      if (ret == NULL)
+! 				  EMSG2_RET_NULL(_("E70: Empty %s%%[]"),
+  						      reg_magic == MAGIC_ALL);
+  			      lastbranch = regnode(BRANCH);
+  			      br = regnode(NOTHING);
+--- 2227,2233 ----
+  				      return NULL;
+  			      }
+  			      if (ret == NULL)
+! 				  EMSG2_RET_NULL(_(e_empty_sb),
+  						      reg_magic == MAGIC_ALL);
+  			      lastbranch = regnode(BRANCH);
+  			      br = regnode(NOTHING);
+*** ../vim-7.3.1126/src/regexp_nfa.c	2013-06-05 21:23:33.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 21:29:07.000000000 +0200
+***************
+*** 977,982 ****
+--- 977,985 ----
+  						      reg_magic == MAGIC_ALL);
+  			    EMIT(c);
+  			}
++ 			if (n == 0)
++ 			    EMSG2_RET_FAIL(_(e_empty_sb),
++ 						      reg_magic == MAGIC_ALL);
+  			EMIT(NFA_OPT_CHARS);
+  			EMIT(n);
+  			break;
+*** ../vim-7.3.1126/src/version.c	2013-06-05 21:23:33.000000000 +0200
+--- src/version.c	2013-06-05 21:29:48.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1127,
+  /**/
+
+-- 
+From "know your smileys":
+ 8-O 	"Omigod!!" (done "rm -rf *" ?)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

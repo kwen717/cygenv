@@ -1,0 +1,91 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1116
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1116
+Problem:    Can't build without Visual mode.
+Solution:   Add #ifdefs.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1115/src/regexp_nfa.c	2013-06-04 21:42:19.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 11:01:40.000000000 +0200
+***************
+*** 181,187 ****
+--- 181,189 ----
+      NFA_MARK,		/*	Match mark */
+      NFA_MARK_GT,	/*	Match > mark */
+      NFA_MARK_LT,	/*	Match < mark */
++ #ifdef FEAT_VISUAL
+      NFA_VISUAL,		/*	Match Visual area */
++ #endif
+  
+      NFA_FIRST_NL = NFA_ANY + ADD_NL,
+      NFA_LAST_NL = NFA_NUPPER + ADD_NL,
+***************
+*** 963,971 ****
+--- 965,975 ----
+  		    EMIT(NFA_CURSOR);
+  		    break;
+  
++ #ifdef FEAT_VISUAL
+  		case 'V':
+  		    EMIT(NFA_VISUAL);
+  		    break;
++ #endif
+  
+  		case '[':
+  		    /* TODO: \%[abc] not supported yet */
+***************
+*** 1955,1961 ****
+--- 1959,1967 ----
+  	case NFA_MARK_GT:	STRCPY(code, "NFA_MARK_GT "); break;
+  	case NFA_MARK_LT:	STRCPY(code, "NFA_MARK_LT "); break;
+  	case NFA_CURSOR:	STRCPY(code, "NFA_CURSOR "); break;
++ #ifdef FEAT_VISUAL
+  	case NFA_VISUAL:	STRCPY(code, "NFA_VISUAL "); break;
++ #endif
+  
+  	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
+  	case NFA_STAR_NONGREEDY: STRCPY(code, "NFA_STAR_NONGREEDY "); break;
+***************
+*** 4790,4801 ****
+--- 4796,4809 ----
+  							    t->pim, &listidx);
+  		break;
+  
++ #ifdef FEAT_VISUAL
+  	    case NFA_VISUAL:
+  		result = reg_match_visual();
+  		if (result)
+  		    addstate_here(thislist, t->state->out, &t->subs,
+  							    t->pim, &listidx);
+  		break;
++ #endif
+  
+  	    default:	/* regular character */
+  	      {
+*** ../vim-7.3.1115/src/version.c	2013-06-04 22:13:45.000000000 +0200
+--- src/version.c	2013-06-04 23:42:50.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1116,
+  /**/
+
+-- 
+From "know your smileys":
+ ;-0	Can't find shift key
+ ,-9	Kann Umschalttaste nicht finden
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

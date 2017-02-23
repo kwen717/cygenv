@@ -1,0 +1,364 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1004
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1004
+Problem:    No error when option could not be set.
+Solution:   Report an error. (ZyX)
+Files:	    src/if_py_both.h, src/option.c, src/proto/option.pro,
+	    src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1003/src/if_py_both.h	2013-05-21 22:23:50.000000000 +0200
+--- src/if_py_both.h	2013-05-21 22:34:04.000000000 +0200
+***************
+*** 1521,1526 ****
+--- 1521,1545 ----
+  }
+  
+      static int
++ set_option_value_err(key, numval, stringval, opt_flags)
++     char_u	*key;
++     int		numval;
++     char_u	*stringval;
++     int		opt_flags;
++ {
++     char_u	*errmsg;
++ 
++     if ((errmsg = set_option_value(key, numval, stringval, opt_flags)))
++     {
++ 	if (VimTryEnd())
++ 	    return FAIL;
++ 	PyErr_SetVim((char *)errmsg);
++ 	return FAIL;
++     }
++     return OK;
++ }
++ 
++     static int
+  set_option_value_for(key, numval, stringval, opt_flags, opt_type, from)
+      char_u	*key;
+      int		numval;
+***************
+*** 1532,1537 ****
+--- 1551,1557 ----
+      win_T	*save_curwin = NULL;
+      tabpage_T	*save_curtab = NULL;
+      buf_T	*save_curbuf = NULL;
++     int		r = 0;
+  
+      VimTryStart();
+      switch (opt_type)
+***************
+*** 1545,1560 ****
+  		PyErr_SetVim("Problem while switching windows.");
+  		return -1;
+  	    }
+! 	    set_option_value(key, numval, stringval, opt_flags);
+  	    restore_win(save_curwin, save_curtab);
+  	    break;
+  	case SREQ_BUF:
+  	    switch_buffer(&save_curbuf, (buf_T *)from);
+! 	    set_option_value(key, numval, stringval, opt_flags);
+  	    restore_buffer(save_curbuf);
+  	    break;
+  	case SREQ_GLOBAL:
+! 	    set_option_value(key, numval, stringval, opt_flags);
+  	    break;
+      }
+      return VimTryEnd();
+--- 1565,1586 ----
+  		PyErr_SetVim("Problem while switching windows.");
+  		return -1;
+  	    }
+! 	    r = set_option_value_err(key, numval, stringval, opt_flags);
+  	    restore_win(save_curwin, save_curtab);
++ 	    if (r == FAIL)
++ 		return -1;
+  	    break;
+  	case SREQ_BUF:
+  	    switch_buffer(&save_curbuf, (buf_T *)from);
+! 	    r = set_option_value_err(key, numval, stringval, opt_flags);
+  	    restore_buffer(save_curbuf);
++ 	    if (r == FAIL)
++ 		return -1;
+  	    break;
+  	case SREQ_GLOBAL:
+! 	    r = set_option_value_err(key, numval, stringval, opt_flags);
+! 	    if (r == FAIL)
+! 		return -1;
+  	    break;
+      }
+      return VimTryEnd();
+***************
+*** 1611,1616 ****
+--- 1637,1643 ----
+      if (flags & SOPT_BOOL)
+      {
+  	int	istrue = PyObject_IsTrue(valObject);
++ 
+  	if (istrue == -1)
+  	    return -1;
+  	r = set_option_value_for(key, istrue, NULL,
+*** ../vim-7.3.1003/src/option.c	2013-05-19 19:16:25.000000000 +0200
+--- src/option.c	2013-05-21 22:34:41.000000000 +0200
+***************
+*** 3018,3024 ****
+  # define insecure_flag(opt_idx, opt_flags) (&options[opt_idx].flags)
+  #endif
+  static void set_string_option_global __ARGS((int opt_idx, char_u **varp));
+! static void set_string_option __ARGS((int opt_idx, char_u *value, int opt_flags));
+  static char_u *did_set_string_option __ARGS((int opt_idx, char_u **varp, int new_value_alloced, char_u *oldval, char_u *errbuf, int opt_flags));
+  static char_u *set_chars_option __ARGS((char_u **varp));
+  #ifdef FEAT_SYN_HL
+--- 3018,3024 ----
+  # define insecure_flag(opt_idx, opt_flags) (&options[opt_idx].flags)
+  #endif
+  static void set_string_option_global __ARGS((int opt_idx, char_u **varp));
+! static char_u *set_string_option __ARGS((int opt_idx, char_u *value, int opt_flags));
+  static char_u *did_set_string_option __ARGS((int opt_idx, char_u **varp, int new_value_alloced, char_u *oldval, char_u *errbuf, int opt_flags));
+  static char_u *set_chars_option __ARGS((char_u **varp));
+  #ifdef FEAT_SYN_HL
+***************
+*** 5600,5607 ****
+  
+  /*
+   * Set a string option to a new value, and handle the effects.
+   */
+!     static void
+  set_string_option(opt_idx, value, opt_flags)
+      int		opt_idx;
+      char_u	*value;
+--- 5600,5609 ----
+  
+  /*
+   * Set a string option to a new value, and handle the effects.
++  *
++  * Returns NULL on success or error message on error.
+   */
+!     static char_u *
+  set_string_option(opt_idx, value, opt_flags)
+      int		opt_idx;
+      char_u	*value;
+***************
+*** 5610,5618 ****
+      char_u	*s;
+      char_u	**varp;
+      char_u	*oldval;
+  
+      if (options[opt_idx].var == NULL)	/* don't set hidden option */
+! 	return;
+  
+      s = vim_strsave(value);
+      if (s != NULL)
+--- 5612,5621 ----
+      char_u	*s;
+      char_u	**varp;
+      char_u	*oldval;
++     char_u	*r = NULL;
+  
+      if (options[opt_idx].var == NULL)	/* don't set hidden option */
+! 	return NULL;
+  
+      s = vim_strsave(value);
+      if (s != NULL)
+***************
+*** 5624,5633 ****
+  		    : opt_flags);
+  	oldval = *varp;
+  	*varp = s;
+! 	if (did_set_string_option(opt_idx, varp, TRUE, oldval, NULL,
+! 							   opt_flags) == NULL)
+  	    did_set_option(opt_idx, opt_flags, TRUE);
+      }
+  }
+  
+  /*
+--- 5627,5637 ----
+  		    : opt_flags);
+  	oldval = *varp;
+  	*varp = s;
+! 	if ((r = did_set_string_option(opt_idx, varp, TRUE, oldval, NULL,
+! 							   opt_flags)) == NULL)
+  	    did_set_option(opt_idx, opt_flags, TRUE);
+      }
++     return r;
+  }
+  
+  /*
+***************
+*** 8969,8976 ****
+  /*
+   * Set the value of option "name".
+   * Use "string" for string options, use "number" for other options.
+   */
+!     void
+  set_option_value(name, number, string, opt_flags)
+      char_u	*name;
+      long	number;
+--- 8973,8982 ----
+  /*
+   * Set the value of option "name".
+   * Use "string" for string options, use "number" for other options.
++  *
++  * Returns NULL on success or error message on error.
+   */
+!     char_u *
+  set_option_value(name, number, string, opt_flags)
+      char_u	*name;
+      long	number;
+***************
+*** 8992,9002 ****
+  	if (sandbox > 0 && (flags & P_SECURE))
+  	{
+  	    EMSG(_(e_sandbox));
+! 	    return;
+  	}
+  #endif
+  	if (flags & P_STRING)
+! 	    set_string_option(opt_idx, string, opt_flags);
+  	else
+  	{
+  	    varp = get_varp_scope(&(options[opt_idx]), opt_flags);
+--- 8998,9008 ----
+  	if (sandbox > 0 && (flags & P_SECURE))
+  	{
+  	    EMSG(_(e_sandbox));
+! 	    return NULL;
+  	}
+  #endif
+  	if (flags & P_STRING)
+! 	    return set_string_option(opt_idx, string, opt_flags);
+  	else
+  	{
+  	    varp = get_varp_scope(&(options[opt_idx]), opt_flags);
+***************
+*** 9017,9035 ****
+  			 * num option using a string. */
+  			EMSG3(_("E521: Number required: &%s = '%s'"),
+  								name, string);
+! 			return;     /* do nothing as we hit an error */
+  
+  		    }
+  		}
+  		if (flags & P_NUM)
+! 		    (void)set_num_option(opt_idx, varp, number,
+  							  NULL, 0, opt_flags);
+  		else
+! 		    (void)set_bool_option(opt_idx, varp, (int)number,
+  								   opt_flags);
+  	    }
+  	}
+      }
+  }
+  
+  /*
+--- 9023,9042 ----
+  			 * num option using a string. */
+  			EMSG3(_("E521: Number required: &%s = '%s'"),
+  								name, string);
+! 			return NULL;     /* do nothing as we hit an error */
+  
+  		    }
+  		}
+  		if (flags & P_NUM)
+! 		    return set_num_option(opt_idx, varp, number,
+  							  NULL, 0, opt_flags);
+  		else
+! 		    return set_bool_option(opt_idx, varp, (int)number,
+  								   opt_flags);
+  	    }
+  	}
+      }
++     return NULL;
+  }
+  
+  /*
+*** ../vim-7.3.1003/src/proto/option.pro	2013-05-06 03:52:44.000000000 +0200
+--- src/proto/option.pro	2013-05-21 22:27:50.000000000 +0200
+***************
+*** 23,29 ****
+  char_u *check_stl_option __ARGS((char_u *s));
+  int get_option_value __ARGS((char_u *name, long *numval, char_u **stringval, int opt_flags));
+  int get_option_value_strict __ARGS((char_u *name, long *numval, char_u **stringval, int opt_type, void *from));
+! void set_option_value __ARGS((char_u *name, long number, char_u *string, int opt_flags));
+  char_u *get_term_code __ARGS((char_u *tname));
+  char_u *get_highlight_default __ARGS((void));
+  char_u *get_encoding_default __ARGS((void));
+--- 23,29 ----
+  char_u *check_stl_option __ARGS((char_u *s));
+  int get_option_value __ARGS((char_u *name, long *numval, char_u **stringval, int opt_flags));
+  int get_option_value_strict __ARGS((char_u *name, long *numval, char_u **stringval, int opt_type, void *from));
+! char_u *set_option_value __ARGS((char_u *name, long number, char_u *string, int opt_flags));
+  char_u *get_term_code __ARGS((char_u *tname));
+  char_u *get_highlight_default __ARGS((void));
+  char_u *get_encoding_default __ARGS((void));
+*** ../vim-7.3.1003/src/testdir/test86.ok	2013-05-21 22:23:51.000000000 +0200
+--- src/testdir/test86.ok	2013-05-21 22:27:50.000000000 +0200
+***************
+*** 166,171 ****
+--- 166,172 ----
+    inv: -100! KeyError
+    gopts1! KeyError
+    p/wopts1: 8
++   inv: -100! error
+    p/bopts1! KeyError
+    inv: -100! KeyError
+    bopts1! KeyError
+***************
+*** 184,189 ****
+--- 185,191 ----
+    inv: 'abc'! KeyError
+    gopts1! KeyError
+    p/wopts1: ''
++   inv: 'abc'! error
+    p/bopts1! KeyError
+    inv: 'abc'! KeyError
+    bopts1! KeyError
+*** ../vim-7.3.1003/src/testdir/test87.ok	2013-05-21 22:23:51.000000000 +0200
+--- src/testdir/test87.ok	2013-05-21 22:27:50.000000000 +0200
+***************
+*** 155,160 ****
+--- 155,161 ----
+    inv: -100! KeyError
+    gopts1! KeyError
+    p/wopts1: 8
++   inv: -100! error
+    p/bopts1! KeyError
+    inv: -100! KeyError
+    bopts1! KeyError
+***************
+*** 173,178 ****
+--- 174,180 ----
+    inv: 'abc'! KeyError
+    gopts1! KeyError
+    p/wopts1: b''
++   inv: 'abc'! error
+    p/bopts1! KeyError
+    inv: 'abc'! KeyError
+    bopts1! KeyError
+*** ../vim-7.3.1003/src/version.c	2013-05-21 22:23:51.000000000 +0200
+--- src/version.c	2013-05-21 22:37:33.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1004,
+  /**/
+
+-- 
+FIRST SOLDIER:  So they wouldn't be able to bring a coconut back anyway.
+SECOND SOLDIER: Wait a minute! Suppose two swallows carried it together?
+FIRST SOLDIER:  No, they'd have to have it on a line.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

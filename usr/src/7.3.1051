@@ -1,0 +1,332 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1051
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1051
+Problem:    Python: possible memory leaks.
+Solution:   Python patch 12: fix the leaks (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1050/src/if_py_both.h	2013-05-29 22:46:22.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:48:45.000000000 +0200
+***************
+*** 32,40 ****
+  
+  #define DICTKEY_DECL \
+      PyObject	*dictkey_todecref;
+! #define DICTKEY_GET(err) \
+      if (!(key = StringToChars(keyObject, &dictkey_todecref))) \
+  	return err; \
+      if (*key == NUL) \
+      { \
+  	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+--- 32,48 ----
+  
+  #define DICTKEY_DECL \
+      PyObject	*dictkey_todecref;
+! #define DICTKEY_GET(err, decref) \
+      if (!(key = StringToChars(keyObject, &dictkey_todecref))) \
++     { \
++ 	if (decref) \
++ 	{ \
++ 	    Py_DECREF(keyObject); \
++ 	} \
+  	return err; \
++     } \
++     if (decref && !dictkey_todecref) \
++ 	dictkey_todecref = keyObject; \
+      if (*key == NUL) \
+      { \
+  	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+***************
+*** 602,608 ****
+  		    Py_DECREF(newObj);
+  		    return NULL;
+  		}
+- 		Py_DECREF(newObj);
+  	    }
+  	}
+      }
+--- 610,615 ----
+***************
+*** 947,953 ****
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+!     DICTKEY_GET(NULL)
+  
+      di = dict_find(self->dict, key, -1);
+  
+--- 954,960 ----
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+!     DICTKEY_GET(NULL, 0)
+  
+      di = dict_find(self->dict, key, -1);
+  
+***************
+*** 977,983 ****
+  	return -1;
+      }
+  
+!     DICTKEY_GET(-1)
+  
+      di = dict_find(dict, key, -1);
+  
+--- 984,990 ----
+  	return -1;
+      }
+  
+!     DICTKEY_GET(-1, 0)
+  
+      di = dict_find(dict, key, -1);
+  
+***************
+*** 1650,1656 ****
+      if (self->Check(self->from))
+  	return NULL;
+  
+!     DICTKEY_GET(NULL)
+  
+      flags = get_option_value_strict(key, &numval, &stringval,
+  				    self->opt_type, self->from);
+--- 1657,1663 ----
+      if (self->Check(self->from))
+  	return NULL;
+  
+!     DICTKEY_GET(NULL, 0)
+  
+      flags = get_option_value_strict(key, &numval, &stringval,
+  				    self->opt_type, self->from);
+***************
+*** 1789,1795 ****
+      if (self->Check(self->from))
+  	return -1;
+  
+!     DICTKEY_GET(-1)
+  
+      flags = get_option_value_strict(key, NULL, NULL,
+  				    self->opt_type, self->from);
+--- 1796,1802 ----
+      if (self->Check(self->from))
+  	return -1;
+  
+!     DICTKEY_GET(-1, 0)
+  
+      flags = get_option_value_strict(key, NULL, NULL,
+  				    self->opt_type, self->from);
+***************
+*** 4029,4040 ****
+      {
+  	DICTKEY_DECL
+  
+! 	if (keyObject == NULL)
+! 	    return -1;
+! 	if (valObject == NULL)
+  	    return -1;
+  
+! 	DICTKEY_GET(-1)
+  
+  	di = dictitem_alloc(key);
+  
+--- 4036,4045 ----
+      {
+  	DICTKEY_DECL
+  
+! 	if (keyObject == NULL || valObject == NULL)
+  	    return -1;
+  
+! 	DICTKEY_GET(-1, 0)
+  
+  	di = dictitem_alloc(key);
+  
+***************
+*** 4055,4060 ****
+--- 4060,4066 ----
+  
+  	if (dict_add(dict, di) == FAIL)
+  	{
++ 	    clear_tv(&di->di_tv);
+  	    vim_free(di);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+***************
+*** 4100,4123 ****
+  	    return -1;
+  	}
+  
+! 	keyObject = PyTuple_GetItem(litem, 0);
+! 	if (keyObject == NULL)
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    return -1;
+  	}
+  
+! 	DICTKEY_GET(-1)
+  
+! 	valObject = PyTuple_GetItem(litem, 1);
+! 	if (valObject == NULL)
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    return -1;
+  	}
+  
+  	di = dictitem_alloc(key);
+  
+  	DICTKEY_UNREF
+--- 4106,4130 ----
+  	    return -1;
+  	}
+  
+! 	if (!(keyObject = PyTuple_GetItem(litem, 0)))
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    return -1;
+  	}
+  
+! 	DICTKEY_GET(-1, 1)
+  
+! 	if (!(valObject = PyTuple_GetItem(litem, 1)))
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
++ 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  
++ 	Py_DECREF(litem);
++ 
+  	di = dictitem_alloc(key);
+  
+  	DICTKEY_UNREF
+***************
+*** 4125,4131 ****
+  	if (di == NULL)
+  	{
+  	    Py_DECREF(list);
+! 	    Py_DECREF(litem);
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+--- 4132,4138 ----
+  	if (di == NULL)
+  	{
+  	    Py_DECREF(list);
+! 	    Py_DECREF(valObject);
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+***************
+*** 4135,4152 ****
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+! 	    Py_DECREF(litem);
+  	    return -1;
+  	}
+  	if (dict_add(dict, di) == FAIL)
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+- 	    Py_DECREF(litem);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+- 	Py_DECREF(litem);
+      }
+      Py_DECREF(list);
+      return 0;
+--- 4142,4161 ----
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+! 	    Py_DECREF(valObject);
+  	    return -1;
+  	}
++ 
++ 	Py_DECREF(valObject);
++ 
+  	if (dict_add(dict, di) == FAIL)
+  	{
++ 	    clear_tv(&di->di_tv);
+  	    vim_free(di);
+  	    Py_DECREF(list);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+      }
+      Py_DECREF(list);
+      return 0;
+***************
+*** 4201,4213 ****
+--- 4210,4227 ----
+  	li = listitem_alloc();
+  	if (li == NULL)
+  	{
++ 	    Py_DECREF(iterator);
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+  	li->li_tv.v_lock = 0;
+  
+  	if (_ConvertFromPyObject(item, &li->li_tv, lookup_dict) == -1)
++ 	{
++ 	    Py_DECREF(item);
++ 	    Py_DECREF(iterator);
+  	    return -1;
++ 	}
+  
+  	list_append(l, li);
+  
+***************
+*** 4241,4248 ****
+  # else
+  	capsule = PyCObject_FromVoidPtr(tv, NULL);
+  # endif
+! 	PyDict_SetItemString(lookup_dict, hexBuf, capsule);
+! 	Py_DECREF(capsule);
+  	if (py_to_tv(obj, tv, lookup_dict) == -1)
+  	{
+  	    tv->v_type = VAR_UNKNOWN;
+--- 4255,4266 ----
+  # else
+  	capsule = PyCObject_FromVoidPtr(tv, NULL);
+  # endif
+! 	if (PyDict_SetItemString(lookup_dict, hexBuf, capsule))
+! 	{
+! 	    Py_DECREF(capsule);
+! 	    tv->v_type = VAR_UNKNOWN;
+! 	    return -1;
+! 	}
+  	if (py_to_tv(obj, tv, lookup_dict) == -1)
+  	{
+  	    tv->v_type = VAR_UNKNOWN;
+*** ../vim-7.3.1050/src/version.c	2013-05-29 22:46:22.000000000 +0200
+--- src/version.c	2013-05-29 22:48:31.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1051,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+25. You believe nothing looks sexier than a man in boxer shorts illuminated
+    only by a 17" inch svga monitor.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

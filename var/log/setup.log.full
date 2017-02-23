@@ -1,0 +1,174 @@
+2013/12/18 13:26:19 Starting cygwin install, version 2.831
+2013/12/18 13:26:19 User has backup/restore rights
+2013/12/18 13:26:19 Current Directory: C:
+2013/12/18 13:26:19 Could not open service McShield for query, start and stop. McAfee may not be installed, or we don't have access.
+2013/12/18 13:26:30 source: from cwd
+2013/12/18 13:26:33 root: C:\cygwin binary system
+2013/12/18 13:26:45 Selected local directory: C:
+2013/12/18 13:31:19 source: network install
+2013/12/18 13:31:28 root: C:\cygwin binary system
+2013/12/18 13:31:29 Selected local directory: C:
+2013/12/18 13:31:31 net: Direct
+Loaded cached mirror list
+get_url_to_membuf http://cygwin.com/mirrors.lst
+getUrlToStream http://cygwin.com/mirrors.lst
+2013/12/18 13:31:32 site: http://cygwin.mirror.constant.com/
+get_url_to_membuf http://cygwin.mirror.constant.com/x86/setup.bz2
+getUrlToStream http://cygwin.mirror.constant.com/x86/setup.bz2
+get_url_to_membuf http://cygwin.mirror.constant.com/x86/setup.bz2.sig
+getUrlToStream http://cygwin.mirror.constant.com/x86/setup.bz2.sig
+2013/12/18 13:33:23 Adding required dependency csih: Selecting version 0.9.7-1 for installation.
+2013/12/18 13:33:23 Adding required dependency cygrunsrv: Selecting version 1.50-1 for installation.
+2013/12/18 13:33:23 Adding required dependency libedit0: Selecting version 20130712-1 for installation.
+2013/12/18 13:33:23 Adding required dependency libkafs0: Selecting version 1.5.2-4 for installation.
+2013/12/18 13:33:23 Adding required dependency libwrap0: Selecting version 7.6-22 for installation.
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/csih/csih-0.9.7-1.tar.bz2 C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2.tmp
+2013/12/18 13:33:25 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz.tmp
+2013/12/18 13:33:26 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz.tmp
+2013/12/18 13:33:27 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2 C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2.tmp
+2013/12/18 13:33:28 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz.tmp
+2013/12/18 13:33:28 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/openssh/openssh-6.4p1-1.tar.xz C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz.tmp
+2013/12/18 13:33:29 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz
+get_url_to_file http://cygwin.mirror.constant.com//x86/release/openssh/openssh-6.4p1-1-src.tar.xz C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1-src.tar.xz.tmp
+2013/12/18 13:33:35 Downloaded C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1-src.tar.xz
+Checking MD5 for file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2
+MD5 verified OK: file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2 0dab5714a91684aa9916ea367d53a
+Checking MD5 for file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz
+MD5 verified OK: file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz 1964a14fb28a534581f18fc82dd65d44
+Checking MD5 for file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz
+MD5 verified OK: file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz 8c09f6adcc09fb07d73cbe327329b3
+Checking MD5 for file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2
+MD5 verified OK: file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2 0992c4668154a0cc9fe8666ae3b430
+Checking MD5 for file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz
+MD5 verified OK: file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz 8079e4b5b4997e931d6d3547f3e43b
+Checking MD5 for file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz
+MD5 verified OK: file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz c85f48794da47163611cfef7391c9bdd
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/csih/csih-0.9.7-1.tar.bz2
+Installing file cygfile:///usr/
+Installing file cygfile:///usr/lib/
+Installing file cygfile:///usr/lib/csih/
+Installing file cygfile:///usr/lib/csih/getAccountName.exe
+Installing file cygfile:///usr/lib/csih/getVolInfo.exe
+Installing file cygfile:///usr/lib/csih/winProductName.exe
+Installing file cygfile:///usr/share/
+Installing file cygfile:///usr/share/csih/
+Installing file cygfile:///usr/share/csih/cygwin-service-installation-helper.sh
+Installing file cygfile:///usr/share/doc/
+Installing file cygfile:///usr/share/doc/csih/
+Installing file cygfile:///usr/share/doc/csih/AUTHORS
+Installing file cygfile:///usr/share/doc/csih/ChangeLog
+Installing file cygfile:///usr/share/doc/csih/COPYING
+Installing file cygfile:///usr/share/doc/csih/NEWS
+Installing file cygfile:///usr/share/doc/csih/TODO
+Installing file cygfile:///usr/share/doc/Cygwin/
+Installing file cygfile:///usr/share/doc/Cygwin/csih.README
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/cygrunsrv/cygrunsrv-1.50-1.tar.xz
+Installing file cygfile:///bin/
+Installing file cygfile:///bin/cygrunsrv.exe
+Installing file cygfile:///usr/
+Installing file cygfile:///usr/lib/
+Installing file cygfile:///usr/share/
+Installing file cygfile:///usr/share/doc/
+Installing file cygfile:///usr/share/doc/cygrunsrv/
+Installing file cygfile:///usr/share/doc/cygrunsrv/COPYING
+Installing file cygfile:///usr/share/doc/cygrunsrv/ChangeLog
+Installing file cygfile:///usr/share/doc/cygrunsrv/TODO
+Installing file cygfile:///usr/share/doc/Cygwin/
+Installing file cygfile:///usr/share/doc/Cygwin/cygrunsrv.README
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/libedit/libedit0/libedit0-20130712-1.tar.xz
+Installing file cygfile:///usr/bin/
+Installing file cygfile:///usr/bin/cygedit-0.dll
+Installing file cygfile:///usr/share/doc/
+Installing file cygfile:///usr/share/doc/libedit/
+Installing file cygfile:///usr/share/doc/libedit/THANKS
+Installing file cygfile:///usr/share/doc/libedit/COPYING
+Installing file cygfile:///usr/share/doc/libedit/ChangeLog
+Installing file cygfile:///usr/share/man/man5/
+Installing file cygfile:///usr/share/man/man5/editrc.5.gz
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/heimdal/libkafs0/libkafs0-1.5.2-4.tar.bz2
+Installing file cygfile:///usr/bin/cygkafs-0.dll
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/tcp_wrappers/libwrap0/libwrap0-7.6-22.tar.xz
+Installing file cygfile:///usr/bin/cygwrap-0.dll
+2013/12/18 13:33:36 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1.tar.xz
+Installing file cygfile:///etc/
+Installing file cygfile:///etc/moduli
+Installing file cygfile:///etc/defaults/
+Installing file cygfile:///etc/defaults/etc/
+Installing file cygfile:///etc/defaults/etc/inetd.d/
+Installing file cygfile:///etc/defaults/etc/inetd.d/sshd-inetd
+Installing file cygfile:///etc/defaults/etc/sshd_config
+Installing file cygfile:///etc/defaults/etc/ssh_config
+Installing file cygfile:///usr/
+Installing file cygfile:///usr/lib/
+Installing file cygfile:///usr/bin/
+Installing file cygfile:///usr/bin/slogin
+io_stream::mklink (cygfile:///usr/bin/slogin->cygfile://./ssh.exe)
+Installing file cygfile:///usr/bin/ssh-host-config
+Installing file cygfile:///usr/bin/scp.exe
+Installing file cygfile:///usr/bin/ssh-keygen.exe
+Installing file cygfile:///usr/bin/sftp.exe
+Installing file cygfile:///usr/bin/ssh-copy-id
+Installing file cygfile:///usr/bin/ssh-user-config
+Installing file cygfile:///usr/bin/ssh-keyscan.exe
+Installing file cygfile:///usr/bin/ssh-add.exe
+Installing file cygfile:///usr/bin/ssh-agent.exe
+Installing file cygfile:///usr/bin/ssh.exe
+Installing file cygfile:///usr/share/
+Installing file cygfile:///usr/share/man/
+Installing file cygfile:///usr/share/man/man1/
+Installing file cygfile:///usr/share/man/man1/ssh-keygen.1.gz
+Installing file cygfile:///usr/share/man/man1/ssh-agent.1.gz
+Installing file cygfile:///usr/share/man/man1/ssh-keyscan.1.gz
+Installing file cygfile:///usr/share/man/man1/ssh-copy-id.1.gz
+Installing file cygfile:///usr/share/man/man1/scp.1.gz
+Installing file cygfile:///usr/share/man/man1/sftp.1.gz
+Installing file cygfile:///usr/share/man/man1/ssh-add.1.gz
+Installing file cygfile:///usr/share/man/man1/slogin.1.gz
+Installing file cygfile:///usr/share/man/man1/ssh.1.gz
+Installing file cygfile:///usr/share/man/man8/
+Installing file cygfile:///usr/share/man/man8/sshd.8.gz
+Installing file cygfile:///usr/share/man/man8/ssh-keysign.8.gz
+Installing file cygfile:///usr/share/man/man8/sftp-server.8.gz
+Installing file cygfile:///usr/share/man/man8/ssh-pkcs11-helper.8.gz
+Installing file cygfile:///usr/share/man/man5/
+Installing file cygfile:///usr/share/man/man5/sshd_config.5.gz
+Installing file cygfile:///usr/share/man/man5/moduli.5.gz
+Installing file cygfile:///usr/share/man/man5/ssh_config.5.gz
+Installing file cygfile:///usr/share/doc/
+Installing file cygfile:///usr/share/doc/openssh/
+Installing file cygfile:///usr/share/doc/openssh/PROTOCOL
+Installing file cygfile:///usr/share/doc/openssh/PROTOCOL.mux
+Installing file cygfile:///usr/share/doc/openssh/CREDITS
+Installing file cygfile:///usr/share/doc/openssh/PROTOCOL.certkeys
+Installing file cygfile:///usr/share/doc/openssh/README.tun
+Installing file cygfile:///usr/share/doc/openssh/README
+Installing file cygfile:///usr/share/doc/openssh/README.privsep
+Installing file cygfile:///usr/share/doc/openssh/README.platform
+Installing file cygfile:///usr/share/doc/openssh/ChangeLog
+Installing file cygfile:///usr/share/doc/openssh/OVERVIEW
+Installing file cygfile:///usr/share/doc/openssh/TODO
+Installing file cygfile:///usr/share/doc/openssh/PROTOCOL.agent
+Installing file cygfile:///usr/share/doc/openssh/LICENCE
+Installing file cygfile:///usr/share/doc/openssh/README.dns
+Installing file cygfile:///usr/share/doc/Cygwin/
+Installing file cygfile:///usr/share/doc/Cygwin/openssh.README
+Installing file cygfile:///usr/sbin/
+Installing file cygfile:///usr/sbin/ssh-keysign.exe
+Installing file cygfile:///usr/sbin/sshd.exe
+Installing file cygfile:///usr/sbin/ssh-pkcs11-helper.exe
+Installing file cygfile:///usr/sbin/sftp-server.exe
+2013/12/18 13:33:37 Extracting from file://C:/http%3a%2f%2fcygwin.mirror.constant.com%2f/x86/release/openssh/openssh-6.4p1-1-src.tar.xz
+Installing file cygfile:///usr/src/openssh-6.4p1.tar.gz
+Installing file cygfile:///usr/src/openssh-6.4p1.tar.gz.asc
+Installing file cygfile:///usr/src/openssh.cygport
+2013/12/18 13:33:37 Changing gid back to original
+Visited: 105 nodes out of 3064 while creating dependency order.
+Dependency order of packages: _autorebase _update-info-dir libgcc1 cygwin libiconv2 libintl8 alternatives base-cygwin libstdc++6 libattr1 libgmp3 libgmp10 libmpfr4 libreadline7 gawk tzcode coreutils terminfo libncursesw10 bash findutils sed base-files libbz2_1 bzip2 libp11-kit0 libtasn1_6 p11-kit p11-kit-trust ca-certificates gzip liblzma5 diffutils grep libncurses10 less xz tar cpio crypt cscope editrights csih ctags cvs zlib0 cvsps cygrunsrv libpopt0 cygutils dash dos2unix file libcurl4 libexpat1 libopenssl098 libssp0 libgdbm4 libdb4.5 libopenssl100 libxml2 perl_vendor perl perl-Error git groff ipc-utils libcom_err2 libroken18 libasn1_8 libdb4.8 libedit0 libgpg-error0 libgcrypt11 liblzo2_2 libtasn1_3 libgnutls26 libheimbase1 libwind0 libhx509_5 libsqlite3_0 libkrb5_26 libheimntlm0 libgssapi3 libidn11 libkafs0 libsasl2_3 libopenldap2_4_2 libpcre0 libpcre1 libssh2_1 libwrap0 login man mintty openssh rebase run texinfo xxd vim-common vim vim-minimal wget which 
+2013/12/18 13:33:37 Changing gid to Administrators
+2013/12/18 13:35:33 note: Installation Complete
+2013/12/18 13:35:33 Ending cygwin install

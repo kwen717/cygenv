@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1072
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1072
+Problem:    Compiler warning for unitialized variable.
+Solution:   Initialize it.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1071/src/regexp_nfa.c	2013-05-30 17:05:34.000000000 +0200
+--- src/regexp_nfa.c	2013-05-30 17:37:48.000000000 +0200
+***************
+*** 2873,2878 ****
+--- 2873,2879 ----
+  
+  	    /* Set the position (with "off") in the subexpression.  Save and
+  	     * restore it when it was in use.  Otherwise fill any gap. */
++ 	    save_ptr = NULL;
+  	    if (REG_MULTI)
+  	    {
+  		if (subidx < sub->in_use)
+*** ../vim-7.3.1071/src/version.c	2013-05-30 17:05:34.000000000 +0200
+--- src/version.c	2013-05-30 17:48:42.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1072,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+16. Have your coworkers address you by your wrestling name, Rock Hard Kim.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

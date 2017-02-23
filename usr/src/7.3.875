@@ -1,0 +1,69 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.875
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.875 (after 7.3.866)
+Problem:    Build problem with some combination of features.
+Solution:   Use FEAT_XCLIPBOARD instead of FEAT_CLIPBOARD.
+Files:	    src/os_unix.c
+
+
+*** ../vim-7.3.874/src/os_unix.c	2013-03-19 12:35:33.000000000 +0100
+--- src/os_unix.c	2013-03-21 21:43:37.000000000 +0100
+***************
+*** 4787,4793 ****
+  		    else
+  			wait_pid = 0;
+  
+! # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+  		    /* Handle any X events, e.g. serving the clipboard. */
+  		    clip_update();
+  # endif
+--- 4787,4793 ----
+  		    else
+  			wait_pid = 0;
+  
+! # if defined(FEAT_XCLIPBOARD) && defined(FEAT_X11)
+  		    /* Handle any X events, e.g. serving the clipboard. */
+  		    clip_update();
+  # endif
+***************
+*** 4817,4823 ****
+  		    close(toshell_fd);
+  		close(fromshell_fd);
+  	    }
+! # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+  	    else
+  	    {
+  		/*
+--- 4817,4823 ----
+  		    close(toshell_fd);
+  		close(fromshell_fd);
+  	    }
+! # if defined(FEAT_XCLIPBOARD) && defined(FEAT_X11)
+  	    else
+  	    {
+  		/*
+*** ../vim-7.3.874/src/version.c	2013-03-19 18:31:45.000000000 +0100
+--- src/version.c	2013-03-21 22:05:59.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     875,
+  /**/
+
+-- 
+From "know your smileys":
+ O:-)	Saint
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

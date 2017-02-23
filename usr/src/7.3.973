@@ -1,0 +1,137 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.973
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.973
+Problem:    Compiler warnings. Crash on startup. (Tony Mechelynck)
+Solution:   Change EMSG2 to EMSGN. Make array one character longer.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.972/src/regexp_nfa.c	2013-05-19 19:16:25.000000000 +0200
+--- src/regexp_nfa.c	2013-05-19 21:56:31.000000000 +0200
+***************
+*** 273,279 ****
+  	NFA_HEAD, NFA_NHEAD, NFA_ALPHA, NFA_NALPHA,
+  	NFA_LOWER, NFA_NLOWER, NFA_UPPER, NFA_NUPPER
+      };
+!     char_u	myconfig[9];
+      char_u	config[NCONFIGS][9] = {
+  	"000000100",	/* digit */
+  	"100000100",	/* non digit */
+--- 273,279 ----
+  	NFA_HEAD, NFA_NHEAD, NFA_ALPHA, NFA_NALPHA,
+  	NFA_LOWER, NFA_NLOWER, NFA_UPPER, NFA_NUPPER
+      };
+!     char_u	myconfig[10];
+      char_u	config[NCONFIGS][9] = {
+  	"000000100",	/* digit */
+  	"100000100",	/* non digit */
+***************
+*** 400,406 ****
+      }
+      /* try to recognize character classes */
+      for (i = 0; i < NCONFIGS; i++)
+! 	if (STRNCMP(myconfig, config[i],8) == 0)
+  	    return classid[i] + extra_newl;
+  
+      /* fallthrough => no success so far */
+--- 400,406 ----
+      }
+      /* try to recognize character classes */
+      for (i = 0; i < NCONFIGS; i++)
+! 	if (STRNCMP(myconfig, config[i], 8) == 0)
+  	    return classid[i] + extra_newl;
+  
+      /* fallthrough => no success so far */
+***************
+*** 759,765 ****
+  	case Magic('&'):
+  	case Magic(')'):
+  	    syntax_error = TRUE;
+! 	    EMSG2(_(e_misplaced), no_Magic(c));
+  	    return FAIL;
+  
+  	case Magic('='):
+--- 759,765 ----
+  	case Magic('&'):
+  	case Magic(')'):
+  	    syntax_error = TRUE;
+! 	    EMSGN(_(e_misplaced), no_Magic(c));
+  	    return FAIL;
+  
+  	case Magic('='):
+***************
+*** 770,776 ****
+  	case Magic('{'):
+  	    /* these should follow an atom, not form an atom */
+  	    syntax_error = TRUE;
+! 	    EMSG2(_(e_misplaced), no_Magic(c));
+  	    return FAIL;
+  
+  	case Magic('~'):		/* previous substitute pattern */
+--- 770,776 ----
+  	case Magic('{'):
+  	    /* these should follow an atom, not form an atom */
+  	    syntax_error = TRUE;
+! 	    EMSGN(_(e_misplaced), no_Magic(c));
+  	    return FAIL;
+  
+  	case Magic('~'):		/* previous substitute pattern */
+***************
+*** 816,822 ****
+  		    return FAIL;
+  		default:
+  		    syntax_error = TRUE;
+! 		    EMSG2(_("E867: (NFA) Unknown operator '\\z%c'"),
+  								 no_Magic(c));
+  		    return FAIL;
+  	    }
+--- 816,822 ----
+  		    return FAIL;
+  		default:
+  		    syntax_error = TRUE;
+! 		    EMSGN(_("E867: (NFA) Unknown operator '\\z%c'"),
+  								 no_Magic(c));
+  		    return FAIL;
+  	    }
+***************
+*** 1363,1369 ****
+  		    return FAIL;
+  		default:
+  		    syntax_error = TRUE;
+! 		    EMSG2(_("E869: (NFA) Unknown operator '\\@%c'"), op);
+  		    return FAIL;
+  	    }
+  	    break;
+--- 1363,1369 ----
+  		    return FAIL;
+  		default:
+  		    syntax_error = TRUE;
+! 		    EMSGN(_("E869: (NFA) Unknown operator '\\@%c'"), op);
+  		    return FAIL;
+  	    }
+  	    break;
+*** ../vim-7.3.972/src/version.c	2013-05-19 21:15:08.000000000 +0200
+--- src/version.c	2013-05-19 22:29:03.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     973,
+  /**/
+
+-- 
+Sometimes I think the surest sign that intelligent life exists elsewhere
+in the universe is that none of it has tried to contact us.     (Calvin)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

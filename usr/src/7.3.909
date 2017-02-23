@@ -1,0 +1,2129 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.909
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.909
+Problem:    Duplicate Python code.
+Solution:   Move more items to if_py_both.h. (ZyX)  Also avoid compiler
+	    warnings for missing initializers.
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c
+
+
+*** ../vim-7.3.908/src/if_py_both.h	2013-04-24 13:10:35.000000000 +0200
+--- src/if_py_both.h	2013-04-24 13:26:54.000000000 +0200
+***************
+*** 542,547 ****
+--- 542,555 ----
+   * Buffer list object - Implementation
+   */
+  
++ typedef struct
++ {
++     PyObject_HEAD
++ } BufListObject;
++ 
++ static PyTypeObject BufListType;
++ static PySequenceMethods WinListAsSeq;
++ 
+      static PyInt
+  BufListLength(PyObject *self UNUSED)
+  {
+***************
+*** 578,583 ****
+--- 586,596 ----
+      win_T	*win;
+  } WindowObject;
+  
++ static struct PyMethodDef WindowMethods[] = {
++     /* name,	    function,		calling,    documentation */
++     { NULL,	    NULL,		0,	    NULL }
++ };
++ 
+  static int ConvertFromPyObject(PyObject *, typval_T *);
+  static int _ConvertFromPyObject(PyObject *, typval_T *, PyObject *);
+  
+***************
+*** 642,647 ****
+--- 655,670 ----
+      pylinkedlist_T	ref;
+  } DictionaryObject;
+  
++ static PyInt DictionaryAssItem(PyObject *, PyObject *, PyObject *);
++ static PyInt DictionaryLength(PyObject *);
++ static PyObject *DictionaryItem(PyObject *, PyObject *);
++ 
++ static PyMappingMethods DictionaryAsMapping = {
++     (lenfunc)       DictionaryLength,
++     (binaryfunc)    DictionaryItem,
++     (objobjargproc) DictionaryAssItem,
++ };
++ 
+      static PyObject *
+  DictionaryNew(dict_T *dict)
+  {
+***************
+*** 658,663 ****
+--- 681,697 ----
+      return (PyObject *)(self);
+  }
+  
++     static void
++ DictionaryDestructor(PyObject *self)
++ {
++     DictionaryObject	*this = ((DictionaryObject *) (self));
++ 
++     pyll_remove(&this->ref, &lastdict);
++     dict_unref(this->dict);
++ 
++     DESTRUCTOR_FINISH(self);
++ }
++ 
+      static int
+  pydict_to_tv(PyObject *obj, typval_T *tv, PyObject *lookupDict)
+  {
+***************
+*** 804,812 ****
+      return 0;
+  }
+  
+!     static PyInt
+! DictionarySetattr(DictionaryObject *self, char *name, PyObject *val)
+  {
+      if (val == NULL)
+      {
+  	PyErr_SetString(PyExc_AttributeError, _("Cannot delete DictionaryObject attributes"));
+--- 838,848 ----
+      return 0;
+  }
+  
+!     static int
+! DictionarySetattr(PyObject *self, char *name, PyObject *val)
+  {
++     DictionaryObject *this = (DictionaryObject *)(self);
++ 
+      if (val == NULL)
+      {
+  	PyErr_SetString(PyExc_AttributeError, _("Cannot delete DictionaryObject attributes"));
+***************
+*** 815,821 ****
+  
+      if (strcmp(name, "locked") == 0)
+      {
+! 	if (self->dict->dv_lock == VAR_FIXED)
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("Cannot modify fixed dictionary"));
+  	    return -1;
+--- 851,857 ----
+  
+      if (strcmp(name, "locked") == 0)
+      {
+! 	if (this->dict->dv_lock == VAR_FIXED)
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("Cannot modify fixed dictionary"));
+  	    return -1;
+***************
+*** 829,837 ****
+  	    }
+  
+  	    if (val == Py_True)
+! 		self->dict->dv_lock = VAR_LOCKED;
+  	    else
+! 		self->dict->dv_lock = 0;
+  	}
+  	return 0;
+      }
+--- 865,873 ----
+  	    }
+  
+  	    if (val == Py_True)
+! 		this->dict->dv_lock = VAR_LOCKED;
+  	    else
+! 		this->dict->dv_lock = 0;
+  	}
+  	return 0;
+      }
+***************
+*** 963,968 ****
+--- 999,1006 ----
+  };
+  
+  static PyTypeObject ListType;
++ static PySequenceMethods ListAsSeq;
++ static PyMappingMethods ListAsMapping;
+  
+  typedef struct
+  {
+***************
+*** 987,992 ****
+--- 1025,1041 ----
+      return (PyObject *)(self);
+  }
+  
++     static void
++ ListDestructor(PyObject *self)
++ {
++     ListObject *this = (ListObject *)(self);
++ 
++     pyll_remove(&this->ref, &lastlist);
++     list_unref(this->list);
++ 
++     DESTRUCTOR_FINISH(self);
++ }
++ 
+      static int
+  list_py_concat(list_T *l, PyObject *obj, PyObject *lookupDict)
+  {
+***************
+*** 1307,1314 ****
+  }
+  
+      static int
+! ListSetattr(ListObject *self, char *name, PyObject *val)
+  {
+      if (val == NULL)
+      {
+  	PyErr_SetString(PyExc_AttributeError, _("Cannot delete DictionaryObject attributes"));
+--- 1356,1365 ----
+  }
+  
+      static int
+! ListSetattr(PyObject *self, char *name, PyObject *val)
+  {
++     ListObject *this = (ListObject *)(self);
++ 
+      if (val == NULL)
+      {
+  	PyErr_SetString(PyExc_AttributeError, _("Cannot delete DictionaryObject attributes"));
+***************
+*** 1317,1323 ****
+  
+      if (strcmp(name, "locked") == 0)
+      {
+! 	if (self->list->lv_lock == VAR_FIXED)
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("Cannot modify fixed list"));
+  	    return -1;
+--- 1368,1374 ----
+  
+      if (strcmp(name, "locked") == 0)
+      {
+! 	if (this->list->lv_lock == VAR_FIXED)
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("Cannot modify fixed list"));
+  	    return -1;
+***************
+*** 1331,1339 ****
+  	    }
+  
+  	    if (val == Py_True)
+! 		self->list->lv_lock = VAR_LOCKED;
+  	    else
+! 		self->list->lv_lock = 0;
+  	}
+  	return 0;
+      }
+--- 1382,1390 ----
+  	    }
+  
+  	    if (val == Py_True)
+! 		this->list->lv_lock = VAR_LOCKED;
+  	    else
+! 		this->list->lv_lock = 0;
+  	}
+  	return 0;
+      }
+***************
+*** 1376,1381 ****
+--- 1427,1443 ----
+      return (PyObject *)(self);
+  }
+  
++     static void
++ FunctionDestructor(PyObject *self)
++ {
++     FunctionObject	*this = (FunctionObject *) (self);
++ 
++     func_unref(this->name);
++     PyMem_Del(this->name);
++ 
++     DESTRUCTOR_FINISH(self);
++ }
++ 
+      static PyObject *
+  FunctionCall(PyObject *self, PyObject *argsObject, PyObject *kwargs)
+  {
+***************
+*** 1451,1456 ****
+--- 1513,1557 ----
+  
+  static int WindowSetattr(PyObject *, char *, PyObject *);
+  static PyObject *WindowRepr(PyObject *);
++ static PyTypeObject WindowType;
++ 
++     static PyObject *
++ WindowAttr(WindowObject *this, char *name)
++ {
++     if (strcmp(name, "buffer") == 0)
++ 	return (PyObject *)BufferNew(this->win->w_buffer);
++     else if (strcmp(name, "cursor") == 0)
++     {
++ 	pos_T *pos = &this->win->w_cursor;
++ 
++ 	return Py_BuildValue("(ll)", (long)(pos->lnum), (long)(pos->col));
++     }
++     else if (strcmp(name, "height") == 0)
++ 	return Py_BuildValue("l", (long)(this->win->w_height));
++ #ifdef FEAT_VERTSPLIT
++     else if (strcmp(name, "width") == 0)
++ 	return Py_BuildValue("l", (long)(W_WIDTH(this->win)));
++ #endif
++     else if (strcmp(name,"__members__") == 0)
++ 	return Py_BuildValue("[sss]", "buffer", "cursor", "height");
++     else
++ 	return NULL;
++ }
++ 
++     static void
++ WindowDestructor(PyObject *self)
++ {
++     WindowObject *this = (WindowObject *)(self);
++ 
++     if (this->win && this->win != INVALID_WINDOW_VALUE)
++ #if PY_MAJOR_VERSION >= 3
++ 	this->win->w_python3_ref = NULL;
++ #else
++ 	this->win->w_python_ref = NULL;
++ #endif
++ 
++     DESTRUCTOR_FINISH(self);
++ }
+  
+      static int
+  WindowSetattr(PyObject *self, char *name, PyObject *val)
+***************
+*** 1579,1584 ****
+--- 1680,1694 ----
+  /*
+   * Window list object - Implementation
+   */
++ 
++ typedef struct
++ {
++     PyObject_HEAD
++ } WinListObject;
++ 
++ static PyTypeObject WinListType;
++ static PySequenceMethods BufListAsSeq;
++ 
+      static PyInt
+  WinListLength(PyObject *self UNUSED)
+  {
+***************
+*** 2310,2319 ****
+      return Py_None;
+  }
+  
+! 
+! /* Buffer object - Definitions
+   */
+  
+  typedef struct
+  {
+      PyObject_HEAD
+--- 2420,2430 ----
+      return Py_None;
+  }
+  
+! /* Range object - Definitions
+   */
+  
++ static PyTypeObject RangeType;
++ 
+  typedef struct
+  {
+      PyObject_HEAD
+***************
+*** 2322,2327 ****
+--- 2433,2442 ----
+      PyInt end;
+  } RangeObject;
+  
++ static void RangeDestructor(PyObject *);
++ static PySequenceMethods RangeAsSeq;
++ static PyMappingMethods RangeAsMapping;
++ 
+      static PyObject *
+  RangeNew(buf_T *buf, PyInt start, PyInt end)
+  {
+***************
+*** 2346,2351 ****
+--- 2461,2506 ----
+      return (PyObject *)(self);
+  }
+  
++     static void
++ RangeDestructor(PyObject *self)
++ {
++     Py_DECREF(((RangeObject *)(self))->buf);
++     DESTRUCTOR_FINISH(self);
++ }
++ 
++ static PyTypeObject BufferType;
++ static PyObject *BufferRepr(PyObject *);
++ static PySequenceMethods BufferAsSeq;
++ static PyMappingMethods BufferAsMapping;
++ 
++     static void
++ BufferDestructor(PyObject *self)
++ {
++     BufferObject *this = (BufferObject *)(self);
++ 
++     if (this->buf && this->buf != INVALID_BUFFER_VALUE)
++ #if PY_MAJOR_VERSION >= 3
++ 	this->buf->b_python3_ref = NULL;
++ #else
++ 	this->buf->b_python_ref = NULL;
++ #endif
++ 
++     DESTRUCTOR_FINISH(self);
++ }
++ 
++     static PyObject *
++ BufferAttr(BufferObject *this, char *name)
++ {
++     if (strcmp(name, "name") == 0)
++ 	return Py_BuildValue("s", this->buf->b_ffname);
++     else if (strcmp(name, "number") == 0)
++ 	return Py_BuildValue(Py_ssize_t_fmt, this->buf->b_fnum);
++     else if (strcmp(name,"__members__") == 0)
++ 	return Py_BuildValue("[ss]", "name", "number");
++     else
++ 	return NULL;
++ }
++ 
+      static PyObject *
+  BufferAppend(PyObject *self, PyObject *args)
+  {
+***************
+*** 2409,2414 ****
+--- 2564,2598 ----
+      return RangeNew(((BufferObject *)(self))->buf, start, end);
+  }
+  
++     static PyObject *
++ BufferRepr(PyObject *self)
++ {
++     static char repr[100];
++     BufferObject *this = (BufferObject *)(self);
++ 
++     if (this->buf == INVALID_BUFFER_VALUE)
++     {
++ 	vim_snprintf(repr, 100, _("<buffer object (deleted) at %p>"), (self));
++ 	return PyString_FromString(repr);
++     }
++     else
++     {
++ 	char *name = (char *)this->buf->b_fname;
++ 	PyInt len;
++ 
++ 	if (name == NULL)
++ 	    name = "";
++ 	len = strlen(name);
++ 
++ 	if (len > 35)
++ 	    name = name + (35 - len);
++ 
++ 	vim_snprintf(repr, 100, "<buffer %s%s>", len > 35 ? "..." : "", name);
++ 
++ 	return PyString_FromString(repr);
++     }
++ }
++ 
+  static struct PyMethodDef BufferMethods[] = {
+      /* name,	    function,		calling,    documentation */
+      {"append",	    BufferAppend,	1,	    "Append data to Vim buffer" },
+***************
+*** 2497,2502 ****
+--- 2681,2729 ----
+      { NULL,	    NULL,		0,	    NULL }
+  };
+  
++ /* Current items object - Implementation
++  */
++ 
++ static PyInt RangeStart;
++ static PyInt RangeEnd;
++ 
++     static PyObject *
++ CurrentGetattr(PyObject *self UNUSED, char *name)
++ {
++     if (strcmp(name, "buffer") == 0)
++ 	return (PyObject *)BufferNew(curbuf);
++     else if (strcmp(name, "window") == 0)
++ 	return (PyObject *)WindowNew(curwin);
++     else if (strcmp(name, "line") == 0)
++ 	return GetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum);
++     else if (strcmp(name, "range") == 0)
++ 	return RangeNew(curbuf, RangeStart, RangeEnd);
++     else if (strcmp(name,"__members__") == 0)
++ 	return Py_BuildValue("[ssss]", "buffer", "window", "line", "range");
++     else
++     {
++ 	PyErr_SetString(PyExc_AttributeError, name);
++ 	return NULL;
++     }
++ }
++ 
++     static int
++ CurrentSetattr(PyObject *self UNUSED, char *name, PyObject *value)
++ {
++     if (strcmp(name, "line") == 0)
++     {
++ 	if (SetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum, value, NULL) == FAIL)
++ 	    return -1;
++ 
++ 	return 0;
++     }
++     else
++     {
++ 	PyErr_SetString(PyExc_AttributeError, name);
++ 	return -1;
++     }
++ }
++ 
+      static void
+  set_ref_in_py(const int copyID)
+  {
+***************
+*** 2770,2772 ****
+--- 2997,3165 ----
+  	    return NULL;
+      }
+  }
++ 
++ typedef struct
++ {
++     PyObject_HEAD
++ } CurrentObject;
++ static PyTypeObject CurrentType;
++ 
++     static void
++ init_structs(void)
++ {
++     vim_memset(&OutputType, 0, sizeof(OutputType));
++     OutputType.tp_name = "vim.message";
++     OutputType.tp_basicsize = sizeof(OutputObject);
++     OutputType.tp_flags = Py_TPFLAGS_DEFAULT;
++     OutputType.tp_doc = "vim message object";
++     OutputType.tp_methods = OutputMethods;
++ #if PY_MAJOR_VERSION >= 3
++     OutputType.tp_getattro = OutputGetattro;
++     OutputType.tp_setattro = OutputSetattro;
++     OutputType.tp_alloc = call_PyType_GenericAlloc;
++     OutputType.tp_new = call_PyType_GenericNew;
++     OutputType.tp_free = call_PyObject_Free;
++ #else
++     OutputType.tp_getattr = OutputGetattr;
++     OutputType.tp_setattr = OutputSetattr;
++ #endif
++ 
++     vim_memset(&BufferType, 0, sizeof(BufferType));
++     BufferType.tp_name = "vim.buffer";
++     BufferType.tp_basicsize = sizeof(BufferType);
++     BufferType.tp_dealloc = BufferDestructor;
++     BufferType.tp_repr = BufferRepr;
++     BufferType.tp_as_sequence = &BufferAsSeq;
++     BufferType.tp_as_mapping = &BufferAsMapping;
++     BufferType.tp_flags = Py_TPFLAGS_DEFAULT;
++     BufferType.tp_doc = "vim buffer object";
++     BufferType.tp_methods = BufferMethods;
++ #if PY_MAJOR_VERSION >= 3
++     BufferType.tp_getattro = BufferGetattro;
++     BufferType.tp_alloc = call_PyType_GenericAlloc;
++     BufferType.tp_new = call_PyType_GenericNew;
++     BufferType.tp_free = call_PyObject_Free;
++ #else
++     BufferType.tp_getattr = BufferGetattr;
++ #endif
++ 
++     vim_memset(&WindowType, 0, sizeof(WindowType));
++     WindowType.tp_name = "vim.window";
++     WindowType.tp_basicsize = sizeof(WindowObject);
++     WindowType.tp_dealloc = WindowDestructor;
++     WindowType.tp_repr = WindowRepr;
++     WindowType.tp_flags = Py_TPFLAGS_DEFAULT;
++     WindowType.tp_doc = "vim Window object";
++     WindowType.tp_methods = WindowMethods;
++ #if PY_MAJOR_VERSION >= 3
++     WindowType.tp_getattro = WindowGetattro;
++     WindowType.tp_setattro = WindowSetattro;
++     WindowType.tp_alloc = call_PyType_GenericAlloc;
++     WindowType.tp_new = call_PyType_GenericNew;
++     WindowType.tp_free = call_PyObject_Free;
++ #else
++     WindowType.tp_getattr = WindowGetattr;
++     WindowType.tp_setattr = WindowSetattr;
++ #endif
++ 
++     vim_memset(&BufListType, 0, sizeof(BufListType));
++     BufListType.tp_name = "vim.bufferlist";
++     BufListType.tp_basicsize = sizeof(BufListObject);
++     BufListType.tp_as_sequence = &BufListAsSeq;
++     BufListType.tp_flags = Py_TPFLAGS_DEFAULT;
++     BufferType.tp_doc = "vim buffer list";
++ 
++     vim_memset(&WinListType, 0, sizeof(WinListType));
++     WinListType.tp_name = "vim.windowlist";
++     WinListType.tp_basicsize = sizeof(WinListType);
++     WinListType.tp_as_sequence = &WinListAsSeq;
++     WinListType.tp_flags = Py_TPFLAGS_DEFAULT;
++     WinListType.tp_doc = "vim window list";
++ 
++     vim_memset(&RangeType, 0, sizeof(RangeType));
++     RangeType.tp_name = "vim.range";
++     RangeType.tp_basicsize = sizeof(RangeObject);
++     RangeType.tp_dealloc = RangeDestructor;
++     RangeType.tp_repr = RangeRepr;
++     RangeType.tp_as_sequence = &RangeAsSeq;
++     RangeType.tp_as_mapping = &RangeAsMapping;
++     RangeType.tp_flags = Py_TPFLAGS_DEFAULT;
++     RangeType.tp_doc = "vim Range object";
++     RangeType.tp_methods = RangeMethods;
++ #if PY_MAJOR_VERSION >= 3
++     RangeType.tp_getattro = RangeGetattro;
++     RangeType.tp_alloc = call_PyType_GenericAlloc;
++     RangeType.tp_new = call_PyType_GenericNew;
++     RangeType.tp_free = call_PyObject_Free;
++ #else
++     RangeType.tp_getattr = RangeGetattr;
++ #endif
++ 
++     vim_memset(&CurrentType, 0, sizeof(CurrentType));
++     CurrentType.tp_name = "vim.currentdata";
++     CurrentType.tp_basicsize = sizeof(CurrentObject);
++     CurrentType.tp_flags = Py_TPFLAGS_DEFAULT;
++     CurrentType.tp_doc = "vim current object";
++ #if PY_MAJOR_VERSION >= 3
++     CurrentType.tp_getattro = CurrentGetattro;
++     CurrentType.tp_setattro = CurrentSetattro;
++ #else
++     CurrentType.tp_getattr = CurrentGetattr;
++     CurrentType.tp_setattr = CurrentSetattr;
++ #endif
++ 
++     vim_memset(&DictionaryType, 0, sizeof(DictionaryType));
++     DictionaryType.tp_name = "vim.dictionary";
++     DictionaryType.tp_basicsize = sizeof(DictionaryObject);
++     DictionaryType.tp_dealloc = DictionaryDestructor;
++     DictionaryType.tp_as_mapping = &DictionaryAsMapping;
++     DictionaryType.tp_flags = Py_TPFLAGS_DEFAULT;
++     DictionaryType.tp_doc = "dictionary pushing modifications to vim structure";
++     DictionaryType.tp_methods = DictionaryMethods;
++ #if PY_MAJOR_VERSION >= 3
++     DictionaryType.tp_getattro = DictionaryGetattro;
++     DictionaryType.tp_setattro = DictionarySetattro;
++ #else
++     DictionaryType.tp_getattr = DictionaryGetattr;
++     DictionaryType.tp_setattr = DictionarySetattr;
++ #endif
++ 
++     vim_memset(&ListType, 0, sizeof(ListType));
++     ListType.tp_name = "vim.list";
++     ListType.tp_dealloc = ListDestructor;
++     ListType.tp_basicsize = sizeof(ListObject);
++     ListType.tp_as_sequence = &ListAsSeq;
++     ListType.tp_as_mapping = &ListAsMapping;
++     ListType.tp_flags = Py_TPFLAGS_DEFAULT;
++     ListType.tp_doc = "list pushing modifications to vim structure";
++     ListType.tp_methods = ListMethods;
++ #if PY_MAJOR_VERSION >= 3
++     ListType.tp_getattro = ListGetattro;
++     ListType.tp_setattro = ListSetattro;
++ #else
++     ListType.tp_getattr = ListGetattr;
++     ListType.tp_setattr = ListSetattr;
++ #endif
++ 
++     vim_memset(&FunctionType, 0, sizeof(FunctionType));
++     FunctionType.tp_name = "vim.list";
++     FunctionType.tp_basicsize = sizeof(FunctionObject);
++     FunctionType.tp_dealloc = FunctionDestructor;
++     FunctionType.tp_call = FunctionCall;
++     FunctionType.tp_flags = Py_TPFLAGS_DEFAULT;
++     FunctionType.tp_doc = "object that calls vim function";
++     FunctionType.tp_methods = FunctionMethods;
++ #if PY_MAJOR_VERSION >= 3
++     FunctionType.tp_getattro = FunctionGetattro;
++ #else
++     FunctionType.tp_getattr = FunctionGetattr;
++ #endif
++ 
++ #if PY_MAJOR_VERSION >= 3
++     vim_memset(&vimmodule, 0, sizeof(vimmodule));
++     vimmodule.m_name = "vim";
++     vimmodule.m_doc = "Vim Python interface\n";
++     vimmodule.m_size = -1;
++     vimmodule.m_methods = VimMethods;
++ #endif
++ }
+*** ../vim-7.3.908/src/if_python3.c	2013-04-24 13:04:21.000000000 +0200
+--- src/if_python3.c	2013-04-24 13:26:54.000000000 +0200
+***************
+*** 91,96 ****
+--- 91,97 ----
+  #define PyInt_Check(obj) PyLong_Check(obj)
+  #define PyInt_FromLong(i) PyLong_FromLong(i)
+  #define PyInt_AsLong(obj) PyLong_AsLong(obj)
++ #define Py_ssize_t_fmt "n"
+  
+  #if defined(DYNAMIC_PYTHON3) || defined(PROTO)
+  
+***************
+*** 588,595 ****
+  static PyObject *LineToString(const char *);
+  static PyObject *BufferDir(PyObject *, PyObject *);
+  
+- static PyTypeObject RangeType;
+- 
+  static int py3initialised = 0;
+  
+  #define PYINITIALISED py3initialised
+--- 589,594 ----
+***************
+*** 620,636 ****
+      if (bytes != NULL) \
+  	Py_XDECREF(bytes);
+  
+! /*
+!  * Include the code shared with if_python.c
+!  */
+! #include "if_py_both.h"
+! 
+! #define GET_ATTR_STRING(name, nameobj) \
+!     char	*name = ""; \
+!     if (PyUnicode_Check(nameobj)) \
+! 	name = _PyUnicode_AsString(nameobj)
+! 
+! #define PY3OBJ_DELETED(obj) (obj->ob_base.ob_refcnt<=0)
+  
+      static void
+  call_PyObject_Free(void *p)
+--- 619,625 ----
+      if (bytes != NULL) \
+  	Py_XDECREF(bytes);
+  
+! #define DESTRUCTOR_FINISH(self) Py_TYPE(self)->tp_free((PyObject*)self);
+  
+      static void
+  call_PyObject_Free(void *p)
+***************
+*** 654,666 ****
+      return PyType_GenericAlloc(type,nitems);
+  }
+  
+  /******************************************************
+   * Internal function prototypes.
+   */
+  
+- static Py_ssize_t RangeStart;
+- static Py_ssize_t RangeEnd;
+- 
+  static PyObject *globals;
+  
+  static int PythonIO_Init(void);
+--- 643,680 ----
+      return PyType_GenericAlloc(type,nitems);
+  }
+  
++ static PyObject *OutputGetattro(PyObject *, PyObject *);
++ static int OutputSetattro(PyObject *, PyObject *, PyObject *);
++ static PyObject *BufferGetattro(PyObject *, PyObject *);
++ static PyObject *WindowGetattro(PyObject *, PyObject *);
++ static int WindowSetattro(PyObject *, PyObject *, PyObject *);
++ static PyObject *RangeGetattro(PyObject *, PyObject *);
++ static PyObject *CurrentGetattro(PyObject *, PyObject *);
++ static int CurrentSetattro(PyObject *, PyObject *, PyObject *);
++ static PyObject *DictionaryGetattro(PyObject *, PyObject *);
++ static int DictionarySetattro(PyObject *, PyObject *, PyObject *);
++ static PyObject *ListGetattro(PyObject *, PyObject *);
++ static int ListSetattro(PyObject *, PyObject *, PyObject *);
++ static PyObject *FunctionGetattro(PyObject *, PyObject *);
++ 
++ static struct PyModuleDef vimmodule;
++ 
++ /*
++  * Include the code shared with if_python.c
++  */
++ #include "if_py_both.h"
++ 
++ #define GET_ATTR_STRING(name, nameobj) \
++     char	*name = ""; \
++     if (PyUnicode_Check(nameobj)) \
++ 	name = _PyUnicode_AsString(nameobj)
++ 
++ #define PY3OBJ_DELETED(obj) (obj->ob_base.ob_refcnt<=0)
++ 
+  /******************************************************
+   * Internal function prototypes.
+   */
+  
+  static PyObject *globals;
+  
+  static int PythonIO_Init(void);
+***************
+*** 1046,1052 ****
+      0,					    /* sq_inplace_repeat */
+  };
+  
+! PyMappingMethods BufferAsMapping = {
+      /* mp_length	*/ (lenfunc)BufferLength,
+      /* mp_subscript     */ (binaryfunc)BufferSubscript,
+      /* mp_ass_subscript */ (objobjargproc)BufferAsSubscript,
+--- 1060,1066 ----
+      0,					    /* sq_inplace_repeat */
+  };
+  
+! static PyMappingMethods BufferAsMapping = {
+      /* mp_length	*/ (lenfunc)BufferLength,
+      /* mp_subscript     */ (binaryfunc)BufferSubscript,
+      /* mp_ass_subscript */ (objobjargproc)BufferAsSubscript,
+***************
+*** 1056,1063 ****
+  /* Buffer object - Definitions
+   */
+  
+- static PyTypeObject BufferType;
+- 
+      static PyObject *
+  BufferNew(buf_T *buf)
+  {
+--- 1070,1075 ----
+***************
+*** 1094,1124 ****
+      return (PyObject *)(self);
+  }
+  
+-     static void
+- BufferDestructor(PyObject *self)
+- {
+-     BufferObject *this = (BufferObject *)(self);
+- 
+-     if (this->buf && this->buf != INVALID_BUFFER_VALUE)
+- 	this->buf->b_python3_ref = NULL;
+- 
+-     Py_TYPE(self)->tp_free((PyObject*)self);
+- }
+- 
+      static PyObject *
+  BufferGetattro(PyObject *self, PyObject*nameobj)
+  {
+!     BufferObject *this = (BufferObject *)(self);
+  
+      GET_ATTR_STRING(name, nameobj);
+  
+!     if (CheckBuffer(this))
+  	return NULL;
+  
+!     if (strcmp(name, "name") == 0)
+! 	return Py_BuildValue("s", this->buf->b_ffname);
+!     else if (strcmp(name, "number") == 0)
+! 	return Py_BuildValue("n", this->buf->b_fnum);
+      else
+  	return PyObject_GenericGetAttr(self, nameobj);
+  }
+--- 1106,1124 ----
+      return (PyObject *)(self);
+  }
+  
+      static PyObject *
+  BufferGetattro(PyObject *self, PyObject*nameobj)
+  {
+!     PyObject *r;
+  
+      GET_ATTR_STRING(name, nameobj);
+  
+!     if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+  
+!     r = BufferAttr((BufferObject *)(self), name);
+!     if (r || PyErr_Occurred())
+! 	return r;
+      else
+  	return PyObject_GenericGetAttr(self, nameobj);
+  }
+***************
+*** 1130,1164 ****
+  						   "append", "mark", "range");
+  }
+  
+-     static PyObject *
+- BufferRepr(PyObject *self)
+- {
+-     static char repr[100];
+-     BufferObject *this = (BufferObject *)(self);
+- 
+-     if (this->buf == INVALID_BUFFER_VALUE)
+-     {
+- 	vim_snprintf(repr, 100, _("<buffer object (deleted) at %p>"), (self));
+- 	return PyUnicode_FromString(repr);
+-     }
+-     else
+-     {
+- 	char *name = (char *)this->buf->b_fname;
+- 	Py_ssize_t len;
+- 
+- 	if (name == NULL)
+- 	    name = "";
+- 	len = strlen(name);
+- 
+- 	if (len > 35)
+- 	    name = name + (35 - len);
+- 
+- 	vim_snprintf(repr, 100, "<buffer %s%s>", len > 35 ? "..." : "", name);
+- 
+- 	return PyUnicode_FromString(repr);
+-     }
+- }
+- 
+  /******************/
+  
+      static Py_ssize_t
+--- 1130,1135 ----
+***************
+*** 1255,1261 ****
+      0,					 /* sq_inplace_repeat */
+  };
+  
+! PyMappingMethods RangeAsMapping = {
+      /* mp_length	*/ (lenfunc)RangeLength,
+      /* mp_subscript     */ (binaryfunc)RangeSubscript,
+      /* mp_ass_subscript */ (objobjargproc)RangeAsSubscript,
+--- 1226,1232 ----
+      0,					 /* sq_inplace_repeat */
+  };
+  
+! static PyMappingMethods RangeAsMapping = {
+      /* mp_length	*/ (lenfunc)RangeLength,
+      /* mp_subscript     */ (binaryfunc)RangeSubscript,
+      /* mp_ass_subscript */ (objobjargproc)RangeAsSubscript,
+***************
+*** 1264,1276 ****
+  /* Line range object - Implementation
+   */
+  
+-     static void
+- RangeDestructor(PyObject *self)
+- {
+-     Py_DECREF(((RangeObject *)(self))->buf);
+-     Py_TYPE(self)->tp_free((PyObject*)self);
+- }
+- 
+      static PyObject *
+  RangeGetattro(PyObject *self, PyObject *nameobj)
+  {
+--- 1235,1240 ----
+***************
+*** 1358,1372 ****
+      }
+  }
+  
+- 
+  /* Buffer list object - Definitions
+   */
+  
+- typedef struct
+- {
+-     PyObject_HEAD
+- } BufListObject;
+- 
+  static PySequenceMethods BufListAsSeq = {
+      (lenfunc)		BufListLength,	    /* sq_length,    len(x)   */
+      (binaryfunc)	0,		    /* sq_concat,    x+y      */
+--- 1322,1330 ----
+***************
+*** 1380,1397 ****
+      0,					    /* sq_inplace_repeat */
+  };
+  
+- static PyTypeObject BufListType;
+- 
+- /* Window object - Definitions
+-  */
+- 
+- static struct PyMethodDef WindowMethods[] = {
+-     /* name,	    function,		calling,    documentation */
+-     { NULL,	    NULL,		0,	    NULL }
+- };
+- 
+- static PyTypeObject WindowType;
+- 
+  /* Window object - Implementation
+   */
+  
+--- 1338,1343 ----
+***************
+*** 1429,1471 ****
+      return (PyObject *)(self);
+  }
+  
+-     static void
+- WindowDestructor(PyObject *self)
+- {
+-     WindowObject *this = (WindowObject *)(self);
+- 
+-     if (this->win && this->win != INVALID_WINDOW_VALUE)
+- 	this->win->w_python3_ref = NULL;
+- 
+-     Py_TYPE(self)->tp_free((PyObject*)self);
+- }
+- 
+      static PyObject *
+  WindowGetattro(PyObject *self, PyObject *nameobj)
+  {
+!     WindowObject *this = (WindowObject *)(self);
+  
+      GET_ATTR_STRING(name, nameobj);
+  
+!     if (CheckWindow(this))
+  	return NULL;
+  
+!     if (strcmp(name, "buffer") == 0)
+! 	return (PyObject *)BufferNew(this->win->w_buffer);
+!     else if (strcmp(name, "cursor") == 0)
+!     {
+! 	pos_T *pos = &this->win->w_cursor;
+! 
+! 	return Py_BuildValue("(ll)", (long)(pos->lnum), (long)(pos->col));
+!     }
+!     else if (strcmp(name, "height") == 0)
+! 	return Py_BuildValue("l", (long)(this->win->w_height));
+! #ifdef FEAT_VERTSPLIT
+!     else if (strcmp(name, "width") == 0)
+! 	return Py_BuildValue("l", (long)(W_WIDTH(this->win)));
+! #endif
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sss]", "buffer", "cursor", "height");
+      else
+  	return PyObject_GenericGetAttr(self, nameobj);
+  }
+--- 1375,1393 ----
+      return (PyObject *)(self);
+  }
+  
+      static PyObject *
+  WindowGetattro(PyObject *self, PyObject *nameobj)
+  {
+!     PyObject *r;
+  
+      GET_ATTR_STRING(name, nameobj);
+  
+!     if (CheckWindow((WindowObject *)(self)))
+  	return NULL;
+  
+!     r = WindowAttr((WindowObject *)(self), name);
+!     if (r || PyErr_Occurred())
+! 	return r;
+      else
+  	return PyObject_GenericGetAttr(self, nameobj);
+  }
+***************
+*** 1481,1492 ****
+  /* Window list object - Definitions
+   */
+  
+- typedef struct
+- {
+-     PyObject_HEAD
+- }
+- WinListObject;
+- 
+  static PySequenceMethods WinListAsSeq = {
+      (lenfunc)	     WinListLength,	    /* sq_length,    len(x)   */
+      (binaryfunc)     0,			    /* sq_concat,    x+y      */
+--- 1403,1408 ----
+***************
+*** 1500,1560 ****
+      0,					    /* sq_inplace_repeat */
+  };
+  
+- static PyTypeObject WinListType;
+- 
+- /* Current items object - Definitions
+-  */
+- 
+- typedef struct
+- {
+-     PyObject_HEAD
+- } CurrentObject;
+- 
+- static PyTypeObject CurrentType;
+- 
+  /* Current items object - Implementation
+   */
+      static PyObject *
+! CurrentGetattro(PyObject *self UNUSED, PyObject *nameobj)
+  {
+      GET_ATTR_STRING(name, nameobj);
+! 
+!     if (strcmp(name, "buffer") == 0)
+! 	return (PyObject *)BufferNew(curbuf);
+!     else if (strcmp(name, "window") == 0)
+! 	return (PyObject *)WindowNew(curwin);
+!     else if (strcmp(name, "line") == 0)
+! 	return GetBufferLine(curbuf, (Py_ssize_t)curwin->w_cursor.lnum);
+!     else if (strcmp(name, "range") == 0)
+! 	return RangeNew(curbuf, RangeStart, RangeEnd);
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssss]", "buffer", "window", "line", "range");
+!     else
+!     {
+! 	PyErr_SetString(PyExc_AttributeError, name);
+! 	return NULL;
+!     }
+  }
+  
+      static int
+! CurrentSetattro(PyObject *self UNUSED, PyObject *nameobj, PyObject *value)
+  {
+!     char *name = "";
+!     if (PyUnicode_Check(nameobj))
+! 	name = _PyUnicode_AsString(nameobj);
+! 
+!     if (strcmp(name, "line") == 0)
+!     {
+! 	if (SetBufferLine(curbuf, (Py_ssize_t)curwin->w_cursor.lnum, value, NULL) == FAIL)
+! 	    return -1;
+! 
+! 	return 0;
+!     }
+!     else
+!     {
+! 	PyErr_SetString(PyExc_AttributeError, name);
+! 	return -1;
+!     }
+  }
+  
+  /* Dictionary object - Definitions
+--- 1416,1435 ----
+      0,					    /* sq_inplace_repeat */
+  };
+  
+  /* Current items object - Implementation
+   */
+      static PyObject *
+! CurrentGetattro(PyObject *self, PyObject *nameobj)
+  {
+      GET_ATTR_STRING(name, nameobj);
+!     return CurrentGetattr(self, name);
+  }
+  
+      static int
+! CurrentSetattro(PyObject *self, PyObject *nameobj, PyObject *value)
+  {
+!     GET_ATTR_STRING(name, nameobj);
+!     return CurrentSetattr(self, name, value);
+  }
+  
+  /* Dictionary object - Definitions
+***************
+*** 1562,1573 ****
+  
+  static PyInt DictionaryLength(PyObject *);
+  
+- static PyMappingMethods DictionaryAsMapping = {
+-     /* mp_length	*/ (lenfunc) DictionaryLength,
+-     /* mp_subscript     */ (binaryfunc) DictionaryItem,
+-     /* mp_ass_subscript */ (objobjargproc) DictionaryAssItem,
+- };
+- 
+      static PyObject *
+  DictionaryGetattro(PyObject *self, PyObject *nameobj)
+  {
+--- 1437,1442 ----
+***************
+*** 1587,1606 ****
+  DictionarySetattro(PyObject *self, PyObject *nameobj, PyObject *val)
+  {
+      GET_ATTR_STRING(name, nameobj);
+!     return DictionarySetattr((DictionaryObject *) self, name, val);
+! }
+! 
+! static PyTypeObject DictionaryType;
+! 
+!     static void
+! DictionaryDestructor(PyObject *self)
+! {
+!     DictionaryObject *this = (DictionaryObject *)(self);
+! 
+!     pyll_remove(&this->ref, &lastdict);
+!     dict_unref(this->dict);
+! 
+!     Py_TYPE(self)->tp_free((PyObject*)self);
+  }
+  
+  /* List object - Definitions
+--- 1456,1462 ----
+  DictionarySetattro(PyObject *self, PyObject *nameobj, PyObject *val)
+  {
+      GET_ATTR_STRING(name, nameobj);
+!     return DictionarySetattr(self, name, val);
+  }
+  
+  /* List object - Definitions
+***************
+*** 1631,1638 ****
+      /* mp_ass_subscript */ (objobjargproc) ListAsSubscript,
+  };
+  
+- static PyTypeObject ListType;
+- 
+      static PyObject *
+  ListSubscript(PyObject *self, PyObject* idxObject)
+  {
+--- 1487,1492 ----
+***************
+*** 1696,1729 ****
+  ListSetattro(PyObject *self, PyObject *nameobj, PyObject *val)
+  {
+      GET_ATTR_STRING(name, nameobj);
+!     return ListSetattr((ListObject *) self, name, val);
+! }
+! 
+!     static void
+! ListDestructor(PyObject *self)
+! {
+!     ListObject *this = (ListObject *)(self);
+! 
+!     pyll_remove(&this->ref, &lastlist);
+!     list_unref(this->list);
+! 
+!     Py_TYPE(self)->tp_free((PyObject*)self);
+  }
+  
+  /* Function object - Definitions
+   */
+  
+-     static void
+- FunctionDestructor(PyObject *self)
+- {
+-     FunctionObject	*this = (FunctionObject *) (self);
+- 
+-     func_unref(this->name);
+-     PyMem_Del(this->name);
+- 
+-     Py_TYPE(self)->tp_free((PyObject*)self);
+- }
+- 
+      static PyObject *
+  FunctionGetattro(PyObject *self, PyObject *nameobj)
+  {
+--- 1550,1561 ----
+  ListSetattro(PyObject *self, PyObject *nameobj, PyObject *val)
+  {
+      GET_ATTR_STRING(name, nameobj);
+!     return ListSetattr(self, name, val);
+  }
+  
+  /* Function object - Definitions
+   */
+  
+      static PyObject *
+  FunctionGetattro(PyObject *self, PyObject *nameobj)
+  {
+***************
+*** 1779,1788 ****
+      PyObject_HEAD_INIT(&CurrentType)
+  };
+  
+- PyDoc_STRVAR(vim_module_doc,"vim python interface\n");
+- 
+- static struct PyModuleDef vimmodule;
+- 
+      static PyObject *
+  Py3Init_vim(void)
+  {
+--- 1611,1616 ----
+***************
+*** 1898,2021 ****
+  {
+      set_ref_in_py(copyID);
+  }
+- 
+-     static void
+- init_structs(void)
+- {
+-     vim_memset(&OutputType, 0, sizeof(OutputType));
+-     OutputType.tp_name = "vim.message";
+-     OutputType.tp_basicsize = sizeof(OutputObject);
+-     OutputType.tp_getattro = OutputGetattro;
+-     OutputType.tp_setattro = OutputSetattro;
+-     OutputType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     OutputType.tp_doc = "vim message object";
+-     OutputType.tp_methods = OutputMethods;
+-     OutputType.tp_alloc = call_PyType_GenericAlloc;
+-     OutputType.tp_new = call_PyType_GenericNew;
+-     OutputType.tp_free = call_PyObject_Free;
+- 
+-     vim_memset(&BufferType, 0, sizeof(BufferType));
+-     BufferType.tp_name = "vim.buffer";
+-     BufferType.tp_basicsize = sizeof(BufferType);
+-     BufferType.tp_dealloc = BufferDestructor;
+-     BufferType.tp_repr = BufferRepr;
+-     BufferType.tp_as_sequence = &BufferAsSeq;
+-     BufferType.tp_as_mapping = &BufferAsMapping;
+-     BufferType.tp_getattro = BufferGetattro;
+-     BufferType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     BufferType.tp_doc = "vim buffer object";
+-     BufferType.tp_methods = BufferMethods;
+-     BufferType.tp_alloc = call_PyType_GenericAlloc;
+-     BufferType.tp_new = call_PyType_GenericNew;
+-     BufferType.tp_free = call_PyObject_Free;
+- 
+-     vim_memset(&WindowType, 0, sizeof(WindowType));
+-     WindowType.tp_name = "vim.window";
+-     WindowType.tp_basicsize = sizeof(WindowObject);
+-     WindowType.tp_dealloc = WindowDestructor;
+-     WindowType.tp_repr = WindowRepr;
+-     WindowType.tp_getattro = WindowGetattro;
+-     WindowType.tp_setattro = WindowSetattro;
+-     WindowType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     WindowType.tp_doc = "vim Window object";
+-     WindowType.tp_methods = WindowMethods;
+-     WindowType.tp_alloc = call_PyType_GenericAlloc;
+-     WindowType.tp_new = call_PyType_GenericNew;
+-     WindowType.tp_free = call_PyObject_Free;
+- 
+-     vim_memset(&BufListType, 0, sizeof(BufListType));
+-     BufListType.tp_name = "vim.bufferlist";
+-     BufListType.tp_basicsize = sizeof(BufListObject);
+-     BufListType.tp_as_sequence = &BufListAsSeq;
+-     BufListType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     BufferType.tp_doc = "vim buffer list";
+- 
+-     vim_memset(&WinListType, 0, sizeof(WinListType));
+-     WinListType.tp_name = "vim.windowlist";
+-     WinListType.tp_basicsize = sizeof(WinListType);
+-     WinListType.tp_as_sequence = &WinListAsSeq;
+-     WinListType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     WinListType.tp_doc = "vim window list";
+- 
+-     vim_memset(&RangeType, 0, sizeof(RangeType));
+-     RangeType.tp_name = "vim.range";
+-     RangeType.tp_basicsize = sizeof(RangeObject);
+-     RangeType.tp_dealloc = RangeDestructor;
+-     RangeType.tp_repr = RangeRepr;
+-     RangeType.tp_as_sequence = &RangeAsSeq;
+-     RangeType.tp_as_mapping = &RangeAsMapping;
+-     RangeType.tp_getattro = RangeGetattro;
+-     RangeType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     RangeType.tp_doc = "vim Range object";
+-     RangeType.tp_methods = RangeMethods;
+-     RangeType.tp_alloc = call_PyType_GenericAlloc;
+-     RangeType.tp_new = call_PyType_GenericNew;
+-     RangeType.tp_free = call_PyObject_Free;
+- 
+-     vim_memset(&CurrentType, 0, sizeof(CurrentType));
+-     CurrentType.tp_name = "vim.currentdata";
+-     CurrentType.tp_basicsize = sizeof(CurrentObject);
+-     CurrentType.tp_getattro = CurrentGetattro;
+-     CurrentType.tp_setattro = CurrentSetattro;
+-     CurrentType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     CurrentType.tp_doc = "vim current object";
+- 
+-     vim_memset(&DictionaryType, 0, sizeof(DictionaryType));
+-     DictionaryType.tp_name = "vim.dictionary";
+-     DictionaryType.tp_basicsize = sizeof(DictionaryObject);
+-     DictionaryType.tp_getattro = DictionaryGetattro;
+-     DictionaryType.tp_setattro = DictionarySetattro;
+-     DictionaryType.tp_dealloc = DictionaryDestructor;
+-     DictionaryType.tp_as_mapping = &DictionaryAsMapping;
+-     DictionaryType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     DictionaryType.tp_doc = "dictionary pushing modifications to vim structure";
+-     DictionaryType.tp_methods = DictionaryMethods;
+- 
+-     vim_memset(&ListType, 0, sizeof(ListType));
+-     ListType.tp_name = "vim.list";
+-     ListType.tp_dealloc = ListDestructor;
+-     ListType.tp_basicsize = sizeof(ListObject);
+-     ListType.tp_getattro = ListGetattro;
+-     ListType.tp_setattro = ListSetattro;
+-     ListType.tp_as_sequence = &ListAsSeq;
+-     ListType.tp_as_mapping = &ListAsMapping;
+-     ListType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     ListType.tp_doc = "list pushing modifications to vim structure";
+-     ListType.tp_methods = ListMethods;
+- 
+-     vim_memset(&FunctionType, 0, sizeof(FunctionType));
+-     FunctionType.tp_name = "vim.list";
+-     FunctionType.tp_basicsize = sizeof(FunctionObject);
+-     FunctionType.tp_getattro = FunctionGetattro;
+-     FunctionType.tp_dealloc = FunctionDestructor;
+-     FunctionType.tp_call = FunctionCall;
+-     FunctionType.tp_flags = Py_TPFLAGS_DEFAULT;
+-     FunctionType.tp_doc = "object that calls vim function";
+-     FunctionType.tp_methods = FunctionMethods;
+- 
+-     vim_memset(&vimmodule, 0, sizeof(vimmodule));
+-     vimmodule.m_name = "vim";
+-     vimmodule.m_doc = vim_module_doc;
+-     vimmodule.m_size = -1;
+-     vimmodule.m_methods = VimMethods;
+- }
+--- 1726,1728 ----
+*** ../vim-7.3.908/src/if_python.c	2013-04-24 13:04:21.000000000 +0200
+--- src/if_python.c	2013-04-24 13:35:06.000000000 +0200
+***************
+*** 87,92 ****
+--- 87,93 ----
+  # define Py_ssize_t_fmt "n"
+  #else
+  # define PyInt int
++ # define lenfunc inquiry
+  # define PyInquiry inquiry
+  # define PyIntArgFunc intargfunc
+  # define PyIntIntArgFunc intintargfunc
+***************
+*** 600,607 ****
+  static PyObject *DictionaryNew(dict_T *);
+  static PyObject *LineToString(const char *);
+  
+- static PyTypeObject RangeType;
+- 
+  static int initialised = 0;
+  #define PYINITIALISED initialised
+  
+--- 601,606 ----
+***************
+*** 617,622 ****
+--- 616,631 ----
+  #define DICTKEY_UNREF
+  #define DICTKEY_DECL
+  
++ #define DESTRUCTOR_FINISH(self) Py_DECREF(self);
++ 
++ static PyObject *OutputGetattr(PyObject *, char *);
++ static PyObject *BufferGetattr(PyObject *, char *);
++ static PyObject *WindowGetattr(PyObject *, char *);
++ static PyObject *RangeGetattr(PyObject *, char *);
++ static PyObject *DictionaryGetattr(PyObject *, char*);
++ static PyObject *ListGetattr(PyObject *, char *);
++ static PyObject *FunctionGetattr(PyObject *, char *);
++ 
+  /*
+   * Include the code shared with if_python3.c
+   */
+***************
+*** 627,635 ****
+   * Internal function prototypes.
+   */
+  
+- static PyInt RangeStart;
+- static PyInt RangeEnd;
+- 
+  static PyObject *globals;
+  
+  static void PythonIO_Flush(void);
+--- 636,641 ----
+***************
+*** 1003,1021 ****
+  
+  #define WindowType_Check(obj) ((obj)->ob_type == &WindowType)
+  
+- static void WindowDestructor(PyObject *);
+- static PyObject *WindowGetattr(PyObject *, char *);
+- 
+  /* Buffer type - Implementation functions
+   * --------------------------------------
+   */
+  
+  #define BufferType_Check(obj) ((obj)->ob_type == &BufferType)
+  
+- static void BufferDestructor(PyObject *);
+- static PyObject *BufferGetattr(PyObject *, char *);
+- static PyObject *BufferRepr(PyObject *);
+- 
+  static PyInt BufferLength(PyObject *);
+  static PyObject *BufferItem(PyObject *, PyInt);
+  static PyObject *BufferSlice(PyObject *, PyInt, PyInt);
+--- 1009,1020 ----
+***************
+*** 1035,1043 ****
+   * -----------------------------------------------
+   */
+  
+- static PyObject *CurrentGetattr(PyObject *, char *);
+- static int CurrentSetattr(PyObject *, char *, PyObject *);
+- 
+  static PySequenceMethods BufferAsSeq = {
+      (PyInquiry)		BufferLength,	    /* sq_length,    len(x)   */
+      (binaryfunc)	0,		    /* BufferConcat, sq_concat, x+y */
+--- 1034,1039 ----
+***************
+*** 1045,1074 ****
+      (PyIntArgFunc)	BufferItem,	    /* sq_item,      x[i]     */
+      (PyIntIntArgFunc)	BufferSlice,	    /* sq_slice,     x[i:j]   */
+      (PyIntObjArgProc)	BufferAssItem,	    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc)	BufferAssSlice,     /* sq_ass_slice, x[i:j]=v */
+! };
+! 
+! static PyTypeObject BufferType = {
+!     PyObject_HEAD_INIT(0)
+!     0,
+!     "buffer",
+!     sizeof(BufferObject),
+      0,
+! 
+!     (destructor)    BufferDestructor,	/* tp_dealloc,	refcount==0  */
+!     (printfunc)     0,			/* tp_print,	print x      */
+!     (getattrfunc)   BufferGetattr,	/* tp_getattr,	x.attr	     */
+!     (setattrfunc)   0,			/* tp_setattr,	x.attr=v     */
+!     (cmpfunc)	    0,			/* tp_compare,	x>y	     */
+!     (reprfunc)	    BufferRepr,		/* tp_repr,	`x`, print x */
+! 
+!     0,		    /* as number */
+!     &BufferAsSeq,   /* as sequence */
+!     0,		    /* as mapping */
+! 
+!     (hashfunc) 0,			/* tp_hash, dict(x) */
+!     (ternaryfunc) 0,			/* tp_call, x()     */
+!     (reprfunc) 0,			/* tp_str,  str(x)  */
+  };
+  
+  /* Buffer object - Implementation
+--- 1041,1052 ----
+      (PyIntArgFunc)	BufferItem,	    /* sq_item,      x[i]     */
+      (PyIntIntArgFunc)	BufferSlice,	    /* sq_slice,     x[i:j]   */
+      (PyIntObjArgProc)	BufferAssItem,	    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc) BufferAssSlice,    /* sq_ass_slice, x[i:j]=v */
+!     (objobjproc)	0,
+! #if PY_MAJOR_VERSION >= 2
+!     (binaryfunc)	0,
+      0,
+! #endif
+  };
+  
+  /* Buffer object - Implementation
+***************
+*** 1110,1173 ****
+      return (PyObject *)(self);
+  }
+  
+-     static void
+- BufferDestructor(PyObject *self)
+- {
+-     BufferObject *this = (BufferObject *)(self);
+- 
+-     if (this->buf && this->buf != INVALID_BUFFER_VALUE)
+- 	this->buf->b_python_ref = NULL;
+- 
+-     Py_DECREF(self);
+- }
+- 
+      static PyObject *
+  BufferGetattr(PyObject *self, char *name)
+  {
+!     BufferObject *this = (BufferObject *)(self);
+  
+!     if (CheckBuffer(this))
+  	return NULL;
+  
+!     if (strcmp(name, "name") == 0)
+! 	return Py_BuildValue("s", this->buf->b_ffname);
+!     else if (strcmp(name, "number") == 0)
+! 	return Py_BuildValue(Py_ssize_t_fmt, this->buf->b_fnum);
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ss]", "name", "number");
+      else
+  	return Py_FindMethod(BufferMethods, self, name);
+  }
+  
+-     static PyObject *
+- BufferRepr(PyObject *self)
+- {
+-     static char repr[100];
+-     BufferObject *this = (BufferObject *)(self);
+- 
+-     if (this->buf == INVALID_BUFFER_VALUE)
+-     {
+- 	vim_snprintf(repr, 100, _("<buffer object (deleted) at %p>"), (self));
+- 	return PyString_FromString(repr);
+-     }
+-     else
+-     {
+- 	char *name = (char *)this->buf->b_fname;
+- 	PyInt len;
+- 
+- 	if (name == NULL)
+- 	    name = "";
+- 	len = strlen(name);
+- 
+- 	if (len > 35)
+- 	    name = name + (35 - len);
+- 
+- 	vim_snprintf(repr, 100, "<buffer %s%s>", len > 35 ? "..." : "", name);
+- 
+- 	return PyString_FromString(repr);
+-     }
+- }
+- 
+  /******************/
+  
+      static PyInt
+--- 1088,1108 ----
+      return (PyObject *)(self);
+  }
+  
+      static PyObject *
+  BufferGetattr(PyObject *self, char *name)
+  {
+!     PyObject *r;
+  
+!     if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+  
+!     r = BufferAttr((BufferObject *)(self), name);
+!     if (r || PyErr_Occurred())
+! 	return r;
+      else
+  	return Py_FindMethod(BufferMethods, self, name);
+  }
+  
+  /******************/
+  
+      static PyInt
+***************
+*** 1211,1235 ****
+  }
+  
+  static PySequenceMethods RangeAsSeq = {
+!     (PyInquiry)		RangeLength,	    /* sq_length,    len(x)   */
+!     (binaryfunc)	0, /* RangeConcat, */	     /* sq_concat,    x+y      */
+!     (PyIntArgFunc)	0, /* RangeRepeat, */	     /* sq_repeat,    x*n      */
+!     (PyIntArgFunc)	RangeItem,	    /* sq_item,      x[i]     */
+!     (PyIntIntArgFunc)	RangeSlice,	    /* sq_slice,     x[i:j]   */
+!     (PyIntObjArgProc)	RangeAssItem,	    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc)	RangeAssSlice,	    /* sq_ass_slice, x[i:j]=v */
+  };
+  
+  /* Line range object - Implementation
+   */
+  
+-     static void
+- RangeDestructor(PyObject *self)
+- {
+-     Py_DECREF(((RangeObject *)(self))->buf);
+-     Py_DECREF(self);
+- }
+- 
+      static PyObject *
+  RangeGetattr(PyObject *self, char *name)
+  {
+--- 1146,1168 ----
+  }
+  
+  static PySequenceMethods RangeAsSeq = {
+!     (PyInquiry)		RangeLength,	      /* sq_length,    len(x)   */
+!     (binaryfunc)	0, /* RangeConcat, */ /* sq_concat,    x+y      */
+!     (PyIntArgFunc)	0, /* RangeRepeat, */ /* sq_repeat,    x*n      */
+!     (PyIntArgFunc)	RangeItem,	      /* sq_item,      x[i]     */
+!     (PyIntIntArgFunc)	RangeSlice,	      /* sq_slice,     x[i:j]   */
+!     (PyIntObjArgProc)	RangeAssItem,	      /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc) RangeAssSlice,	      /* sq_ass_slice, x[i:j]=v */
+!     (objobjproc)	0,
+! #if PY_MAJOR_VERSION >= 2
+!     (binaryfunc)	0,
+!     0,
+! #endif
+  };
+  
+  /* Line range object - Implementation
+   */
+  
+      static PyObject *
+  RangeGetattr(PyObject *self, char *name)
+  {
+***************
+*** 1264,1274 ****
+  /* Buffer list object - Definitions
+   */
+  
+- typedef struct
+- {
+-     PyObject_HEAD
+- } BufListObject;
+- 
+  static PySequenceMethods BufListAsSeq = {
+      (PyInquiry)		BufListLength,	    /* sq_length,    len(x)   */
+      (binaryfunc)	0,		    /* sq_concat,    x+y      */
+--- 1197,1202 ----
+***************
+*** 1276,1336 ****
+      (PyIntArgFunc)	BufListItem,	    /* sq_item,      x[i]     */
+      (PyIntIntArgFunc)	0,		    /* sq_slice,     x[i:j]   */
+      (PyIntObjArgProc)	0,		    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc)	0,		    /* sq_ass_slice, x[i:j]=v */
+! };
+! 
+! static PyTypeObject BufListType = {
+!     PyObject_HEAD_INIT(0)
+!     0,
+!     "buffer list",
+!     sizeof(BufListObject),
+!     0,
+! 
+!     (destructor)    0,			/* tp_dealloc,	refcount==0  */
+!     (printfunc)     0,			/* tp_print,	print x      */
+!     (getattrfunc)   0,			/* tp_getattr,	x.attr	     */
+!     (setattrfunc)   0,			/* tp_setattr,	x.attr=v     */
+!     (cmpfunc)	    0,			/* tp_compare,	x>y	     */
+!     (reprfunc)	    0,			/* tp_repr,	`x`, print x */
+! 
+!     0,		    /* as number */
+!     &BufListAsSeq,  /* as sequence */
+!     0,		    /* as mapping */
+! 
+!     (hashfunc) 0,			/* tp_hash, dict(x) */
+!     (ternaryfunc) 0,			/* tp_call, x()     */
+!     (reprfunc) 0,			/* tp_str,  str(x)  */
+! };
+! 
+! /* Window object - Definitions
+!  */
+! 
+! static struct PyMethodDef WindowMethods[] = {
+!     /* name,	    function,		calling,    documentation */
+!     { NULL,	    NULL,		0,	    NULL }
+! };
+! 
+! static PyTypeObject WindowType = {
+!     PyObject_HEAD_INIT(0)
+!     0,
+!     "window",
+!     sizeof(WindowObject),
+      0,
+! 
+!     (destructor)    WindowDestructor,	/* tp_dealloc,	refcount==0  */
+!     (printfunc)     0,			/* tp_print,	print x      */
+!     (getattrfunc)   WindowGetattr,	/* tp_getattr,	x.attr	     */
+!     (setattrfunc)   WindowSetattr,	/* tp_setattr,	x.attr=v     */
+!     (cmpfunc)	    0,			/* tp_compare,	x>y	     */
+!     (reprfunc)	    WindowRepr,		/* tp_repr,	`x`, print x */
+! 
+!     0,		    /* as number */
+!     0,		    /* as sequence */
+!     0,		    /* as mapping */
+! 
+!     (hashfunc) 0,			/* tp_hash, dict(x) */
+!     (ternaryfunc) 0,			/* tp_call, x()     */
+!     (reprfunc) 0,			/* tp_str,  str(x)  */
+  };
+  
+  /* Window object - Implementation
+--- 1204,1215 ----
+      (PyIntArgFunc)	BufListItem,	    /* sq_item,      x[i]     */
+      (PyIntIntArgFunc)	0,		    /* sq_slice,     x[i:j]   */
+      (PyIntObjArgProc)	0,		    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc) 0,		    /* sq_ass_slice, x[i:j]=v */
+!     (objobjproc)	0,
+! #if PY_MAJOR_VERSION >= 2
+!     (binaryfunc)	0,
+      0,
+! #endif
+  };
+  
+  /* Window object - Implementation
+***************
+*** 1370,1410 ****
+      return (PyObject *)(self);
+  }
+  
+-     static void
+- WindowDestructor(PyObject *self)
+- {
+-     WindowObject *this = (WindowObject *)(self);
+- 
+-     if (this->win && this->win != INVALID_WINDOW_VALUE)
+- 	this->win->w_python_ref = NULL;
+- 
+-     Py_DECREF(self);
+- }
+- 
+      static PyObject *
+  WindowGetattr(PyObject *self, char *name)
+  {
+!     WindowObject *this = (WindowObject *)(self);
+  
+!     if (CheckWindow(this))
+  	return NULL;
+  
+!     if (strcmp(name, "buffer") == 0)
+! 	return (PyObject *)BufferNew(this->win->w_buffer);
+!     else if (strcmp(name, "cursor") == 0)
+!     {
+! 	pos_T *pos = &this->win->w_cursor;
+! 
+! 	return Py_BuildValue("(ll)", (long)(pos->lnum), (long)(pos->col));
+!     }
+!     else if (strcmp(name, "height") == 0)
+! 	return Py_BuildValue("l", (long)(this->win->w_height));
+! #ifdef FEAT_VERTSPLIT
+!     else if (strcmp(name, "width") == 0)
+! 	return Py_BuildValue("l", (long)(W_WIDTH(this->win)));
+! #endif
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sss]", "buffer", "cursor", "height");
+      else
+  	return Py_FindMethod(WindowMethods, self, name);
+  }
+--- 1249,1265 ----
+      return (PyObject *)(self);
+  }
+  
+      static PyObject *
+  WindowGetattr(PyObject *self, char *name)
+  {
+!     PyObject *r;
+  
+!     if (CheckWindow((WindowObject *)(self)))
+  	return NULL;
+  
+!     r = WindowAttr((WindowObject *)(self), name);
+!     if (r || PyErr_Occurred())
+! 	return r;
+      else
+  	return Py_FindMethod(WindowMethods, self, name);
+  }
+***************
+*** 1412,1423 ****
+  /* Window list object - Definitions
+   */
+  
+- typedef struct
+- {
+-     PyObject_HEAD
+- }
+- WinListObject;
+- 
+  static PySequenceMethods WinListAsSeq = {
+      (PyInquiry)		WinListLength,	    /* sq_length,    len(x)   */
+      (binaryfunc)	0,		    /* sq_concat,    x+y      */
+--- 1267,1272 ----
+***************
+*** 1425,1526 ****
+      (PyIntArgFunc)	WinListItem,	    /* sq_item,      x[i]     */
+      (PyIntIntArgFunc)	0,		    /* sq_slice,     x[i:j]   */
+      (PyIntObjArgProc)	0,		    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc)	0,		    /* sq_ass_slice, x[i:j]=v */
+! };
+! 
+! static PyTypeObject WinListType = {
+!     PyObject_HEAD_INIT(0)
+!     0,
+!     "window list",
+!     sizeof(WinListObject),
+!     0,
+! 
+!     (destructor)    0,			/* tp_dealloc,	refcount==0  */
+!     (printfunc)     0,			/* tp_print,	print x      */
+!     (getattrfunc)   0,			/* tp_getattr,	x.attr	     */
+!     (setattrfunc)   0,			/* tp_setattr,	x.attr=v     */
+!     (cmpfunc)	    0,			/* tp_compare,	x>y	     */
+!     (reprfunc)	    0,			/* tp_repr,	`x`, print x */
+! 
+!     0,		    /* as number */
+!     &WinListAsSeq,  /* as sequence */
+!     0,		    /* as mapping */
+! 
+!     (hashfunc) 0,			/* tp_hash, dict(x) */
+!     (ternaryfunc) 0,			/* tp_call, x()     */
+!     (reprfunc) 0,			/* tp_str,  str(x)  */
+! };
+! 
+! /* Current items object - Definitions
+!  */
+! 
+! typedef struct
+! {
+!     PyObject_HEAD
+! } CurrentObject;
+! 
+! static PyTypeObject CurrentType = {
+!     PyObject_HEAD_INIT(0)
+!     0,
+!     "current data",
+!     sizeof(CurrentObject),
+      0,
+! 
+!     (destructor)    0,			/* tp_dealloc,	refcount==0  */
+!     (printfunc)     0,			/* tp_print,	print x      */
+!     (getattrfunc)   CurrentGetattr,	/* tp_getattr,	x.attr	     */
+!     (setattrfunc)   CurrentSetattr,	/* tp_setattr,	x.attr=v     */
+!     (cmpfunc)	    0,			/* tp_compare,	x>y	     */
+!     (reprfunc)	    0,			/* tp_repr,	`x`, print x */
+! 
+!     0,		    /* as number */
+!     0,		    /* as sequence */
+!     0,		    /* as mapping */
+! 
+!     (hashfunc) 0,			/* tp_hash, dict(x) */
+!     (ternaryfunc) 0,			/* tp_call, x()     */
+!     (reprfunc) 0,			/* tp_str,  str(x)  */
+  };
+  
+- /* Current items object - Implementation
+-  */
+-     static PyObject *
+- CurrentGetattr(PyObject *self UNUSED, char *name)
+- {
+-     if (strcmp(name, "buffer") == 0)
+- 	return (PyObject *)BufferNew(curbuf);
+-     else if (strcmp(name, "window") == 0)
+- 	return (PyObject *)WindowNew(curwin);
+-     else if (strcmp(name, "line") == 0)
+- 	return GetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum);
+-     else if (strcmp(name, "range") == 0)
+- 	return RangeNew(curbuf, RangeStart, RangeEnd);
+-     else if (strcmp(name,"__members__") == 0)
+- 	return Py_BuildValue("[ssss]", "buffer", "window", "line", "range");
+-     else
+-     {
+- 	PyErr_SetString(PyExc_AttributeError, name);
+- 	return NULL;
+-     }
+- }
+- 
+-     static int
+- CurrentSetattr(PyObject *self UNUSED, char *name, PyObject *value)
+- {
+-     if (strcmp(name, "line") == 0)
+-     {
+- 	if (SetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum, value, NULL) == FAIL)
+- 	    return -1;
+- 
+- 	return 0;
+-     }
+-     else
+-     {
+- 	PyErr_SetString(PyExc_AttributeError, name);
+- 	return -1;
+-     }
+- }
+- 
+  /* External interface
+   */
+  
+--- 1274,1287 ----
+      (PyIntArgFunc)	WinListItem,	    /* sq_item,      x[i]     */
+      (PyIntIntArgFunc)	0,		    /* sq_slice,     x[i:j]   */
+      (PyIntObjArgProc)	0,		    /* sq_ass_item,  x[i]=v   */
+!     (PyIntIntObjArgProc) 0,		    /* sq_ass_slice, x[i:j]=v */
+!     (objobjproc)	0,
+! #if PY_MAJOR_VERSION >= 2
+!     (binaryfunc)	0,
+      0,
+! #endif
+  };
+  
+  /* External interface
+   */
+  
+***************
+*** 1642,1690 ****
+      return result;
+  }
+  
+- static void DictionaryDestructor(PyObject *);
+- static PyObject *DictionaryGetattr(PyObject *, char*);
+- 
+- static PyMappingMethods DictionaryAsMapping = {
+-     (PyInquiry)		DictionaryLength,
+-     (binaryfunc)	DictionaryItem,
+-     (objobjargproc)	DictionaryAssItem,
+- };
+- 
+- static PyTypeObject DictionaryType = {
+-     PyObject_HEAD_INIT(0)
+-     0,
+-     "vimdictionary",
+-     sizeof(DictionaryObject),
+-     0,
+- 
+-     (destructor)  DictionaryDestructor,
+-     (printfunc)   0,
+-     (getattrfunc) DictionaryGetattr,
+-     (setattrfunc) DictionarySetattr,
+-     (cmpfunc)     0,
+-     (reprfunc)    0,
+- 
+-     0,			    /* as number */
+-     0,			    /* as sequence */
+-     &DictionaryAsMapping,   /* as mapping */
+- 
+-     (hashfunc)    0,
+-     (ternaryfunc) 0,
+-     (reprfunc)    0,
+- };
+- 
+-     static void
+- DictionaryDestructor(PyObject *self)
+- {
+-     DictionaryObject	*this = ((DictionaryObject *) (self));
+- 
+-     pyll_remove(&this->ref, &lastdict);
+-     dict_unref(this->dict);
+- 
+-     Py_DECREF(self);
+- }
+- 
+      static PyObject *
+  DictionaryGetattr(PyObject *self, char *name)
+  {
+--- 1403,1408 ----
+***************
+*** 1698,1706 ****
+      return Py_FindMethod(DictionaryMethods, self, name);
+  }
+  
+- static void ListDestructor(PyObject *);
+- static PyObject *ListGetattr(PyObject *, char *);
+- 
+  static PySequenceMethods ListAsSeq = {
+      (PyInquiry)			ListLength,
+      (binaryfunc)		0,
+--- 1416,1421 ----
+***************
+*** 1716,1755 ****
+  #endif
+  };
+  
+- static PyTypeObject ListType = {
+-     PyObject_HEAD_INIT(0)
+-     0,
+-     "vimlist",
+-     sizeof(ListObject),
+-     0,
+- 
+-     (destructor)  ListDestructor,
+-     (printfunc)   0,
+-     (getattrfunc) ListGetattr,
+-     (setattrfunc) ListSetattr,
+-     (cmpfunc)     0,
+-     (reprfunc)    0,
+- 
+-     0,			    /* as number */
+-     &ListAsSeq,		    /* as sequence */
+-     0,			    /* as mapping */
+- 
+-     (hashfunc)    0,
+-     (ternaryfunc) 0,
+-     (reprfunc)    0,
+- };
+- 
+-     static void
+- ListDestructor(PyObject *self)
+- {
+-     ListObject	*this = ((ListObject *) (self));
+- 
+-     pyll_remove(&this->ref, &lastlist);
+-     list_unref(this->list);
+- 
+-     Py_DECREF(self);
+- }
+- 
+      static PyObject *
+  ListGetattr(PyObject *self, char *name)
+  {
+--- 1431,1436 ----
+***************
+*** 1759,1801 ****
+      return Py_FindMethod(ListMethods, self, name);
+  }
+  
+- static void FunctionDestructor(PyObject *);
+- static PyObject *FunctionGetattr(PyObject *, char *);
+- 
+- static PyTypeObject FunctionType = {
+-     PyObject_HEAD_INIT(0)
+-     0,
+-     "vimfunction",
+-     sizeof(FunctionObject),
+-     0,
+- 
+-     (destructor)  FunctionDestructor,
+-     (printfunc)   0,
+-     (getattrfunc) FunctionGetattr,
+-     (setattrfunc) 0,
+-     (cmpfunc)     0,
+-     (reprfunc)    0,
+- 
+-     0,			    /* as number */
+-     0,			    /* as sequence */
+-     0,			    /* as mapping */
+- 
+-     (hashfunc)    0,
+-     (ternaryfunc) FunctionCall,
+-     (reprfunc)    0,
+- };
+- 
+-     static void
+- FunctionDestructor(PyObject *self)
+- {
+-     FunctionObject	*this = (FunctionObject *) (self);
+- 
+-     func_unref(this->name);
+-     PyMem_Del(this->name);
+- 
+-     Py_DECREF(self);
+- }
+- 
+      static PyObject *
+  FunctionGetattr(PyObject *self, char *name)
+  {
+--- 1440,1445 ----
+***************
+*** 1839,1859 ****
+  {
+      set_ref_in_py(copyID);
+  }
+- 
+-     static void
+- init_structs(void)
+- {
+-     vim_memset(&OutputType, 0, sizeof(OutputType));
+-     OutputType.tp_name = "message";
+-     OutputType.tp_basicsize = sizeof(OutputObject);
+-     OutputType.tp_getattr = OutputGetattr;
+-     OutputType.tp_setattr = OutputSetattr;
+- 
+-     vim_memset(&RangeType, 0, sizeof(RangeType));
+-     RangeType.tp_name = "range";
+-     RangeType.tp_basicsize = sizeof(RangeObject);
+-     RangeType.tp_dealloc = RangeDestructor;
+-     RangeType.tp_getattr = RangeGetattr;
+-     RangeType.tp_repr = RangeRepr;
+-     RangeType.tp_as_sequence = &RangeAsSeq;
+- }
+--- 1483,1485 ----
+*** ../vim-7.3.908/src/version.c	2013-04-24 13:10:35.000000000 +0200
+--- src/version.c	2013-04-24 13:27:49.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     909,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+221. Your wife melts your keyboard in the oven.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

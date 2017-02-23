@@ -1,0 +1,138 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1206
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1206
+Problem:    Inconsistent function argument declarations.
+Solution:   Use ANSI style.
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1205/src/if_py_both.h	2013-06-16 14:18:20.000000000 +0200
+--- src/if_py_both.h	2013-06-16 14:24:51.000000000 +0200
+***************
+*** 1278,1284 ****
+  }
+  
+      static dict_T *
+! py_dict_alloc()
+  {
+      dict_T	*r;
+  
+--- 1278,1284 ----
+  }
+  
+      static dict_T *
+! py_dict_alloc(void)
+  {
+      dict_T	*r;
+  
+***************
+*** 1545,1551 ****
+  }
+  
+      static PyInt
+! DictionaryAssItem(DictionaryObject *self, PyObject *keyObject, PyObject *valObject)
+  {
+      char_u	*key;
+      typval_T	tv;
+--- 1545,1552 ----
+  }
+  
+      static PyInt
+! DictionaryAssItem(
+! 	DictionaryObject *self, PyObject *keyObject, PyObject *valObject)
+  {
+      char_u	*key;
+      typval_T	tv;
+***************
+*** 2669,2679 ****
+  }
+  
+      static int
+! set_option_value_err(key, numval, stringval, opt_flags)
+!     char_u	*key;
+!     int		numval;
+!     char_u	*stringval;
+!     int		opt_flags;
+  {
+      char_u	*errmsg;
+  
+--- 2670,2676 ----
+  }
+  
+      static int
+! set_option_value_err(char_u *key, int numval, char_u *stringval, int opt_flags)
+  {
+      char_u	*errmsg;
+  
+***************
+*** 2688,2700 ****
+  }
+  
+      static int
+! set_option_value_for(key, numval, stringval, opt_flags, opt_type, from)
+!     char_u	*key;
+!     int		numval;
+!     char_u	*stringval;
+!     int		opt_flags;
+!     int		opt_type;
+!     void	*from;
+  {
+      win_T	*save_curwin = NULL;
+      tabpage_T	*save_curtab = NULL;
+--- 2685,2697 ----
+  }
+  
+      static int
+! set_option_value_for(
+! 	char_u *key,
+! 	int numval,
+! 	char_u *stringval,
+! 	int opt_flags,
+! 	int opt_type,
+! 	void *from)
+  {
+      win_T	*save_curwin = NULL;
+      tabpage_T	*save_curtab = NULL;
+***************
+*** 5619,5625 ****
+  }
+  
+      static int
+! init_sys_path()
+  {
+      PyObject	*path;
+      PyObject	*path_hook;
+--- 5616,5622 ----
+  }
+  
+      static int
+! init_sys_path(void)
+  {
+      PyObject	*path;
+      PyObject	*path_hook;
+*** ../vim-7.3.1205/src/version.c	2013-06-16 14:20:10.000000000 +0200
+--- src/version.c	2013-06-16 14:25:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1206,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+226. You sit down at the computer right after dinner and your spouse
+     says "See you in the morning."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

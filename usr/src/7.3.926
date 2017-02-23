@@ -1,0 +1,905 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.926
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.926
+Problem:    Autocommands are triggered by setwinvar() et al. Missing BufEnter
+	    on :tabclose. Duplicate WinEnter on :tabclose. Wrong order of
+	    events for :tablose and :tabnew.
+Solution:   Fix these autocommand events. (Zyx)
+Files:	    runtime/doc/eval.txt, src/buffer.c, src/eval.c, src/ex_cmds2.c,
+	    src/fileio.c, src/proto/window.pro, src/testdir/test62.in,
+	    src/testdir/test62.ok, src/window.c
+
+
+*** ../vim-7.3.925/runtime/doc/eval.txt	2013-02-20 21:11:14.000000000 +0100
+--- runtime/doc/eval.txt	2013-05-06 04:33:13.000000000 +0200
+***************
+*** 5294,5301 ****
+  		|t:var|
+  		Note that the variable name without "t:" must be used.
+  		Tabs are numbered starting with one.
+- 		Vim briefly goes to the tab page {tabnr}, this may trigger
+- 		TabLeave and TabEnter autocommands.
+  		This function is not available in the |sandbox|.
+  
+  settabwinvar({tabnr}, {winnr}, {varname}, {val})	*settabwinvar()*
+--- 5320,5325 ----
+***************
+*** 5308,5315 ****
+  		doesn't work for a global or local buffer variable.
+  		For a local buffer option the global value is unchanged.
+  		Note that the variable name without "w:" must be used.
+- 		Vim briefly goes to the tab page {tabnr}, this may trigger
+- 		TabLeave and TabEnter autocommands.
+  		Examples: >
+  			:call settabwinvar(1, 1, "&list", 0)
+  			:call settabwinvar(3, 2, "myvar", "foobar")
+--- 5332,5337 ----
+*** ../vim-7.3.925/src/buffer.c	2013-05-06 04:21:35.000000000 +0200
+--- src/buffer.c	2013-05-06 04:33:13.000000000 +0200
+***************
+*** 4551,4557 ****
+       * When the ":tab" modifier was used do this for all tab pages.
+       */
+      if (had_tab > 0)
+! 	goto_tabpage_tp(first_tabpage, TRUE);
+      for (;;)
+      {
+  	tpnext = curtab->tp_next;
+--- 4551,4557 ----
+       * When the ":tab" modifier was used do this for all tab pages.
+       */
+      if (had_tab > 0)
+! 	goto_tabpage_tp(first_tabpage, TRUE, TRUE);
+      for (;;)
+      {
+  	tpnext = curtab->tp_next;
+***************
+*** 4663,4669 ****
+  	if (!valid_tabpage(tpnext))
+  	    tpnext = first_tabpage;	/* start all over...*/
+  # endif
+! 	goto_tabpage_tp(tpnext, TRUE);
+      }
+  
+      /*
+--- 4663,4669 ----
+  	if (!valid_tabpage(tpnext))
+  	    tpnext = first_tabpage;	/* start all over...*/
+  # endif
+! 	goto_tabpage_tp(tpnext, TRUE, TRUE);
+      }
+  
+      /*
+***************
+*** 4767,4779 ****
+      if (last_curtab != new_curtab)
+      {
+  	if (valid_tabpage(last_curtab))
+! 	    goto_tabpage_tp(last_curtab, TRUE);
+  	if (win_valid(last_curwin))
+  	    win_enter(last_curwin, FALSE);
+      }
+      /* to window with first arg */
+      if (valid_tabpage(new_curtab))
+! 	goto_tabpage_tp(new_curtab, TRUE);
+      if (win_valid(new_curwin))
+  	win_enter(new_curwin, FALSE);
+  
+--- 4767,4779 ----
+      if (last_curtab != new_curtab)
+      {
+  	if (valid_tabpage(last_curtab))
+! 	    goto_tabpage_tp(last_curtab, TRUE, TRUE);
+  	if (win_valid(last_curwin))
+  	    win_enter(last_curwin, FALSE);
+      }
+      /* to window with first arg */
+      if (valid_tabpage(new_curtab))
+! 	goto_tabpage_tp(new_curtab, TRUE, TRUE);
+      if (win_valid(new_curwin))
+  	win_enter(new_curwin, FALSE);
+  
+***************
+*** 4825,4831 ****
+       */
+  #ifdef FEAT_WINDOWS
+      if (had_tab > 0)
+! 	goto_tabpage_tp(first_tabpage, TRUE);
+      for (;;)
+      {
+  #endif
+--- 4825,4831 ----
+       */
+  #ifdef FEAT_WINDOWS
+      if (had_tab > 0)
+! 	goto_tabpage_tp(first_tabpage, TRUE, TRUE);
+      for (;;)
+      {
+  #endif
+***************
+*** 4865,4871 ****
+  	/* Without the ":tab" modifier only do the current tab page. */
+  	if (had_tab == 0 || tpnext == NULL)
+  	    break;
+! 	goto_tabpage_tp(tpnext, TRUE);
+      }
+  #endif
+  
+--- 4865,4871 ----
+  	/* Without the ":tab" modifier only do the current tab page. */
+  	if (had_tab == 0 || tpnext == NULL)
+  	    break;
+! 	goto_tabpage_tp(tpnext, TRUE, TRUE);
+      }
+  #endif
+  
+*** ../vim-7.3.925/src/eval.c	2013-05-06 04:21:35.000000000 +0200
+--- src/eval.c	2013-05-06 04:33:13.000000000 +0200
+***************
+*** 16604,16610 ****
+      if (tp != NULL && varname != NULL && varp != NULL)
+      {
+  	save_curtab = curtab;
+! 	goto_tabpage_tp(tp, TRUE);
+  
+  	tabvarname = alloc((unsigned)STRLEN(varname) + 3);
+  	if (tabvarname != NULL)
+--- 16604,16610 ----
+      if (tp != NULL && varname != NULL && varp != NULL)
+      {
+  	save_curtab = curtab;
+! 	goto_tabpage_tp(tp, FALSE, FALSE);
+  
+  	tabvarname = alloc((unsigned)STRLEN(varname) + 3);
+  	if (tabvarname != NULL)
+***************
+*** 16617,16623 ****
+  
+  	/* Restore current tabpage */
+  	if (valid_tabpage(save_curtab))
+! 	    goto_tabpage_tp(save_curtab, TRUE);
+      }
+  }
+  
+--- 16617,16623 ----
+  
+  	/* Restore current tabpage */
+  	if (valid_tabpage(save_curtab))
+! 	    goto_tabpage_tp(save_curtab, FALSE, FALSE);
+      }
+  }
+  
+***************
+*** 16654,16660 ****
+      /* set curwin to be our win, temporarily */
+      *save_curwin = curwin;
+      *save_curtab = curtab;
+!     goto_tabpage_tp(tp, TRUE);
+      if (!win_valid(win))
+  	return FAIL;
+      curwin = win;
+--- 16654,16660 ----
+      /* set curwin to be our win, temporarily */
+      *save_curwin = curwin;
+      *save_curtab = curtab;
+!     goto_tabpage_tp(tp, FALSE, FALSE);
+      if (!win_valid(win))
+  	return FAIL;
+      curwin = win;
+***************
+*** 16672,16678 ****
+      /* Restore current tabpage and window, if still valid (autocommands can
+       * make them invalid). */
+      if (valid_tabpage(save_curtab))
+! 	goto_tabpage_tp(save_curtab, TRUE);
+      if (win_valid(save_curwin))
+      {
+  	curwin = save_curwin;
+--- 16672,16678 ----
+      /* Restore current tabpage and window, if still valid (autocommands can
+       * make them invalid). */
+      if (valid_tabpage(save_curtab))
+! 	goto_tabpage_tp(save_curtab, FALSE, FALSE);
+      if (win_valid(save_curwin))
+      {
+  	curwin = save_curwin;
+*** ../vim-7.3.925/src/ex_cmds2.c	2013-05-06 04:21:35.000000000 +0200
+--- src/ex_cmds2.c	2013-05-06 04:33:13.000000000 +0200
+***************
+*** 2482,2488 ****
+  		/* go to window "tp" */
+  		if (!valid_tabpage(tp))
+  		    break;
+! 		goto_tabpage_tp(tp, TRUE);
+  		tp = tp->tp_next;
+  	    }
+  #endif
+--- 2482,2488 ----
+  		/* go to window "tp" */
+  		if (!valid_tabpage(tp))
+  		    break;
+! 		goto_tabpage_tp(tp, TRUE, TRUE);
+  		tp = tp->tp_next;
+  	    }
+  #endif
+*** ../vim-7.3.925/src/fileio.c	2013-05-06 04:21:35.000000000 +0200
+--- src/fileio.c	2013-05-06 04:33:13.000000000 +0200
+***************
+*** 8934,8940 ****
+  		if (wp == aucmd_win)
+  		{
+  		    if (tp != curtab)
+! 			goto_tabpage_tp(tp, TRUE);
+  		    win_goto(aucmd_win);
+  		    goto win_found;
+  		}
+--- 8934,8940 ----
+  		if (wp == aucmd_win)
+  		{
+  		    if (tp != curtab)
+! 			goto_tabpage_tp(tp, TRUE, TRUE);
+  		    win_goto(aucmd_win);
+  		    goto win_found;
+  		}
+*** ../vim-7.3.925/src/proto/window.pro	2012-07-19 18:05:40.000000000 +0200
+--- src/proto/window.pro	2013-05-06 04:33:13.000000000 +0200
+***************
+*** 27,33 ****
+  tabpage_T *find_tabpage __ARGS((int n));
+  int tabpage_index __ARGS((tabpage_T *ftp));
+  void goto_tabpage __ARGS((int n));
+! void goto_tabpage_tp __ARGS((tabpage_T *tp, int trigger_autocmds));
+  void goto_tabpage_win __ARGS((tabpage_T *tp, win_T *wp));
+  void tabpage_move __ARGS((int nr));
+  void win_goto __ARGS((win_T *wp));
+--- 27,33 ----
+  tabpage_T *find_tabpage __ARGS((int n));
+  int tabpage_index __ARGS((tabpage_T *ftp));
+  void goto_tabpage __ARGS((int n));
+! void goto_tabpage_tp __ARGS((tabpage_T *tp, int trigger_enter_autocmds, int trigger_leave_autocmds));
+  void goto_tabpage_win __ARGS((tabpage_T *tp, win_T *wp));
+  void tabpage_move __ARGS((int nr));
+  void win_goto __ARGS((win_T *wp));
+*** ../vim-7.3.925/src/testdir/test62.in	2012-07-06 18:27:34.000000000 +0200
+--- src/testdir/test62.in	2013-05-06 04:35:08.000000000 +0200
+***************
+*** 120,125 ****
+--- 120,187 ----
+  :endtry
+  i=a
+  :"
++ :" Test autocommands
++ :tabonly!
++ :let g:r=[]
++ :command -nargs=1 -bar C :call add(g:r, '=== ' . <q-args> . ' ===')|<args>
++ :function Test()
++     let hasau=has('autocmd')
++     if hasau
++         autocmd TabEnter * :call add(g:r, 'TabEnter')
++         autocmd WinEnter * :call add(g:r, 'WinEnter')
++         autocmd BufEnter * :call add(g:r, 'BufEnter')
++         autocmd TabLeave * :call add(g:r, 'TabLeave')
++         autocmd WinLeave * :call add(g:r, 'WinLeave')
++         autocmd BufLeave * :call add(g:r, 'BufLeave')
++     endif
++     let t:a='a'
++     C tab split
++     if !hasau
++         let g:r+=['WinLeave', 'TabLeave', 'WinEnter', 'TabEnter']
++     endif
++     let t:a='b'
++     C tabnew
++     if !hasau
++         let g:r+=['WinLeave', 'TabLeave', 'WinEnter', 'TabEnter', 'BufLeave', 'BufEnter']
++     endif
++     let t:a='c'
++     call add(g:r, join(map(range(1, tabpagenr('$')), 'gettabvar(v:val, "a")')))
++     C call map(range(1, tabpagenr('$')), 'settabvar(v:val, "a", v:val*2)')
++     call add(g:r, join(map(range(1, tabpagenr('$')), 'gettabvar(v:val, "a")')))
++     let w:a='a'
++     C vsplit
++     if !hasau
++         let g:r+=['WinLeave', 'WinEnter']
++     endif
++     let w:a='a'
++     let tabn=tabpagenr()
++     let winr=range(1, winnr('$'))
++     C tabnext 1
++     if !hasau
++         let g:r+=['BufLeave', 'WinLeave', 'TabLeave', 'WinEnter', 'TabEnter', 'BufEnter']
++     endif
++     call add(g:r, join(map(copy(winr), 'gettabwinvar('.tabn.', v:val, "a")')))
++     C call map(copy(winr), 'settabwinvar('.tabn.', v:val, "a", v:val*2)')
++     call add(g:r, join(map(copy(winr), 'gettabwinvar('.tabn.', v:val, "a")')))
++     if hasau
++         augroup TabDestructive
++             autocmd TabEnter * :C tabnext 2 | C tabclose 3
++         augroup END
++         C tabnext 3
++         let g:r+=[tabpagenr().'/'.tabpagenr('$')]
++         autocmd! TabDestructive TabEnter
++         C tabnew
++         C tabnext 1
++         autocmd TabDestructive TabEnter * nested :C tabnext 2 | C tabclose 3
++         C tabnext 3
++         let g:r+=[tabpagenr().'/'.tabpagenr('$')]
++     else
++         let g:r+=["=== tabnext 3 ===","BufLeave","WinLeave","TabLeave","WinEnter","TabEnter","=== tabnext 2 ===","=== tabclose 3 ===","2/2","=== tabnew ===","WinLeave","TabLeave","WinEnter","TabEnter","BufLeave","BufEnter","=== tabnext 1 ===","BufLeave","WinLeave","TabLeave","WinEnter","TabEnter","BufEnter","=== tabnext 3 ===","BufLeave","WinLeave","TabLeave","WinEnter","TabEnter","=== tabnext 2 ===","BufLeave","WinLeave","TabLeave","WinEnter","TabEnter","=== tabnext 2 ===","=== tabclose 3 ===","BufEnter","=== tabclose 3 ===","2/2",]
++     endif
++ endfunction
++ :call Test()
++ :$ put =g:r
++ :"
+  :"
+  :/^Results/,$w! test.out
+  :qa!
+*** ../vim-7.3.925/src/testdir/test62.ok	2012-07-06 18:27:34.000000000 +0200
+--- src/testdir/test62.ok	2013-05-06 04:35:08.000000000 +0200
+***************
+*** 18,20 ****
+--- 18,88 ----
+  4
+  6
+  E474 caught.
++ === tab split ===
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ === tabnew ===
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ BufLeave
++ BufEnter
++ a b c
++ === call map(range(1, tabpagenr('$')), 'settabvar(v:val, ===
++ a b c
++ === vsplit ===
++ WinLeave
++ WinEnter
++ === tabnext 1 ===
++ BufLeave
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ BufEnter
++ a a
++ === call map(copy(winr), 'settabwinvar('.tabn.', v:val, ===
++ a a
++ === tabnext 3 ===
++ BufLeave
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ === tabnext 2 ===
++ === tabclose 3 ===
++ 2/2
++ === tabnew ===
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ BufLeave
++ BufEnter
++ === tabnext 1 ===
++ BufLeave
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ BufEnter
++ === tabnext 3 ===
++ BufLeave
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ === tabnext 2 ===
++ BufLeave
++ WinLeave
++ TabLeave
++ WinEnter
++ TabEnter
++ === tabnext 2 ===
++ === tabclose 3 ===
++ BufEnter
++ === tabclose 3 ===
++ 2/2
+*** ../vim-7.3.925/src/window.c	2013-05-06 04:21:35.000000000 +0200
+--- src/window.c	2013-05-06 04:47:06.000000000 +0200
+***************
+*** 44,54 ****
+  static void new_frame __ARGS((win_T *wp));
+  #if defined(FEAT_WINDOWS) || defined(PROTO)
+  static tabpage_T *alloc_tabpage __ARGS((void));
+! static int leave_tabpage __ARGS((buf_T *new_curbuf));
+! static void enter_tabpage __ARGS((tabpage_T *tp, buf_T *old_curbuf, int trigger_autocmds));
+  static void frame_fix_height __ARGS((win_T *wp));
+  static int frame_minheight __ARGS((frame_T *topfrp, win_T *next_curwin));
+! static void win_enter_ext __ARGS((win_T *wp, int undo_sync, int no_curwin));
+  static void win_free __ARGS((win_T *wp, tabpage_T *tp));
+  static void frame_append __ARGS((frame_T *after, frame_T *frp));
+  static void frame_insert __ARGS((frame_T *before, frame_T *frp));
+--- 44,54 ----
+  static void new_frame __ARGS((win_T *wp));
+  #if defined(FEAT_WINDOWS) || defined(PROTO)
+  static tabpage_T *alloc_tabpage __ARGS((void));
+! static int leave_tabpage __ARGS((buf_T *new_curbuf, int trigger_leave_autocmds));
+! static void enter_tabpage __ARGS((tabpage_T *tp, buf_T *old_curbuf, int trigger_enter_autocmds, int trigger_leave_autocmds));
+  static void frame_fix_height __ARGS((win_T *wp));
+  static int frame_minheight __ARGS((frame_T *topfrp, win_T *next_curwin));
+! static void win_enter_ext __ARGS((win_T *wp, int undo_sync, int no_curwin, int trigger_enter_autocmds, int trigger_leave_autocmds));
+  static void win_free __ARGS((win_T *wp, tabpage_T *tp));
+  static void frame_append __ARGS((frame_T *after, frame_T *frp));
+  static void frame_insert __ARGS((frame_T *before, frame_T *frp));
+***************
+*** 353,363 ****
+  						     && valid_tabpage(oldtab))
+  		    {
+  			newtab = curtab;
+! 			goto_tabpage_tp(oldtab, TRUE);
+  			if (curwin == wp)
+  			    win_close(curwin, FALSE);
+  			if (valid_tabpage(newtab))
+! 			    goto_tabpage_tp(newtab, TRUE);
+  		    }
+  		}
+  		break;
+--- 353,363 ----
+  						     && valid_tabpage(oldtab))
+  		    {
+  			newtab = curtab;
+! 			goto_tabpage_tp(oldtab, TRUE, TRUE);
+  			if (curwin == wp)
+  			    win_close(curwin, FALSE);
+  			if (valid_tabpage(newtab))
+! 			    goto_tabpage_tp(newtab, TRUE, TRUE);
+  		    }
+  		}
+  		break;
+***************
+*** 2124,2129 ****
+--- 2124,2131 ----
+  {
+      if (firstwin == lastwin)
+      {
++ 	buf_T	*old_curbuf = curbuf;
++ 
+  	/*
+  	 * Closing the last window in a tab page.  First go to another tab
+  	 * page and then close the window and the tab page.  This avoids that
+***************
+*** 2132,2138 ****
+  	 * Don't trigger autocommands yet, they may use wrong values, so do
+  	 * that below.
+  	 */
+! 	goto_tabpage_tp(alt_tabpage(), FALSE);
+  	redraw_tabline = TRUE;
+  
+  	/* Safety check: Autocommands may have closed the window when jumping
+--- 2134,2140 ----
+  	 * Don't trigger autocommands yet, they may use wrong values, so do
+  	 * that below.
+  	 */
+! 	goto_tabpage_tp(alt_tabpage(), FALSE, TRUE);
+  	redraw_tabline = TRUE;
+  
+  	/* Safety check: Autocommands may have closed the window when jumping
+***************
+*** 2148,2155 ****
+  	/* Since goto_tabpage_tp above did not trigger *Enter autocommands, do
+  	 * that now. */
+  #ifdef FEAT_AUTOCMD
+- 	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+  	apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
+  #endif
+  	return TRUE;
+      }
+--- 2150,2159 ----
+  	/* Since goto_tabpage_tp above did not trigger *Enter autocommands, do
+  	 * that now. */
+  #ifdef FEAT_AUTOCMD
+  	apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
++ 	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
++ 	if (old_curbuf != curbuf)
++ 	    apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
+  #endif
+  	return TRUE;
+      }
+***************
+*** 2341,2347 ****
+  	win_comp_pos();
+      if (close_curwin)
+      {
+! 	win_enter_ext(wp, FALSE, TRUE);
+  #ifdef FEAT_AUTOCMD
+  	if (other_buffer)
+  	    /* careful: after this wp and win may be invalid! */
+--- 2345,2351 ----
+  	win_comp_pos();
+      if (close_curwin)
+      {
+! 	win_enter_ext(wp, FALSE, TRUE, TRUE, TRUE);
+  #ifdef FEAT_AUTOCMD
+  	if (other_buffer)
+  	    /* careful: after this wp and win may be invalid! */
+***************
+*** 3529,3535 ****
+  	return FAIL;
+  
+      /* Remember the current windows in this Tab page. */
+!     if (leave_tabpage(curbuf) == FAIL)
+      {
+  	vim_free(newtp);
+  	return FAIL;
+--- 3533,3539 ----
+  	return FAIL;
+  
+      /* Remember the current windows in this Tab page. */
+!     if (leave_tabpage(curbuf, TRUE) == FAIL)
+      {
+  	vim_free(newtp);
+  	return FAIL;
+***************
+*** 3574,3587 ****
+  
+  	redraw_all_later(CLEAR);
+  #ifdef FEAT_AUTOCMD
+- 	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+  	apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
+  #endif
+  	return OK;
+      }
+  
+      /* Failed, get back the previous Tab page */
+!     enter_tabpage(curtab, curbuf, TRUE);
+      return FAIL;
+  }
+  
+--- 3578,3591 ----
+  
+  	redraw_all_later(CLEAR);
+  #ifdef FEAT_AUTOCMD
+  	apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
++ 	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+  #endif
+  	return OK;
+      }
+  
+      /* Failed, get back the previous Tab page */
+!     enter_tabpage(curtab, curbuf, TRUE, TRUE);
+      return FAIL;
+  }
+  
+***************
+*** 3692,3700 ****
+   * Careful: When OK is returned need to get a new tab page very very soon!
+   */
+      static int
+! leave_tabpage(new_curbuf)
+      buf_T	*new_curbuf UNUSED;    /* what is going to be the new curbuf,
+  				       NULL if unknown */
+  {
+      tabpage_T	*tp = curtab;
+  
+--- 3696,3705 ----
+   * Careful: When OK is returned need to get a new tab page very very soon!
+   */
+      static int
+! leave_tabpage(new_curbuf, trigger_leave_autocmds)
+      buf_T	*new_curbuf UNUSED;    /* what is going to be the new curbuf,
+  				       NULL if unknown */
++     int		trigger_leave_autocmds UNUSED;
+  {
+      tabpage_T	*tp = curtab;
+  
+***************
+*** 3702,3719 ****
+      reset_VIsual_and_resel();	/* stop Visual mode */
+  #endif
+  #ifdef FEAT_AUTOCMD
+!     if (new_curbuf != curbuf)
+      {
+! 	apply_autocmds(EVENT_BUFLEAVE, NULL, NULL, FALSE, curbuf);
+  	if (curtab != tp)
+  	    return FAIL;
+      }
+-     apply_autocmds(EVENT_WINLEAVE, NULL, NULL, FALSE, curbuf);
+-     if (curtab != tp)
+- 	return FAIL;
+-     apply_autocmds(EVENT_TABLEAVE, NULL, NULL, FALSE, curbuf);
+-     if (curtab != tp)
+- 	return FAIL;
+  #endif
+  #if defined(FEAT_GUI)
+      /* Remove the scrollbars.  They may be added back later. */
+--- 3707,3727 ----
+      reset_VIsual_and_resel();	/* stop Visual mode */
+  #endif
+  #ifdef FEAT_AUTOCMD
+!     if (trigger_leave_autocmds)
+      {
+! 	if (new_curbuf != curbuf)
+! 	{
+! 	    apply_autocmds(EVENT_BUFLEAVE, NULL, NULL, FALSE, curbuf);
+! 	    if (curtab != tp)
+! 		return FAIL;
+! 	}
+! 	apply_autocmds(EVENT_WINLEAVE, NULL, NULL, FALSE, curbuf);
+! 	if (curtab != tp)
+! 	    return FAIL;
+! 	apply_autocmds(EVENT_TABLEAVE, NULL, NULL, FALSE, curbuf);
+  	if (curtab != tp)
+  	    return FAIL;
+      }
+  #endif
+  #if defined(FEAT_GUI)
+      /* Remove the scrollbars.  They may be added back later. */
+***************
+*** 3734,3746 ****
+  /*
+   * Start using tab page "tp".
+   * Only to be used after leave_tabpage() or freeing the current tab page.
+!  * Only trigger *Enter autocommands when trigger_autocmds is TRUE.
+   */
+      static void
+! enter_tabpage(tp, old_curbuf, trigger_autocmds)
+      tabpage_T	*tp;
+      buf_T	*old_curbuf UNUSED;
+!     int		trigger_autocmds UNUSED;
+  {
+      int		old_off = tp->tp_firstwin->w_winrow;
+      win_T	*next_prevwin = tp->tp_prevwin;
+--- 3742,3756 ----
+  /*
+   * Start using tab page "tp".
+   * Only to be used after leave_tabpage() or freeing the current tab page.
+!  * Only trigger *Enter autocommands when trigger_enter_autocmds is TRUE.
+!  * Only trigger *Leave autocommands when trigger_leave_autocmds is TRUE.
+   */
+      static void
+! enter_tabpage(tp, old_curbuf, trigger_enter_autocmds, trigger_leave_autocmds)
+      tabpage_T	*tp;
+      buf_T	*old_curbuf UNUSED;
+!     int		trigger_enter_autocmds UNUSED;
+!     int		trigger_leave_autocmds UNUSED;
+  {
+      int		old_off = tp->tp_firstwin->w_winrow;
+      win_T	*next_prevwin = tp->tp_prevwin;
+***************
+*** 3753,3759 ****
+      /* We would like doing the TabEnter event first, but we don't have a
+       * valid current window yet, which may break some commands.
+       * This triggers autocommands, thus may make "tp" invalid. */
+!     win_enter_ext(tp->tp_curwin, FALSE, TRUE);
+      prevwin = next_prevwin;
+  
+      last_status(FALSE);		/* status line may appear or disappear */
+--- 3763,3769 ----
+      /* We would like doing the TabEnter event first, but we don't have a
+       * valid current window yet, which may break some commands.
+       * This triggers autocommands, thus may make "tp" invalid. */
+!     win_enter_ext(tp->tp_curwin, FALSE, TRUE, trigger_enter_autocmds, trigger_leave_autocmds);
+      prevwin = next_prevwin;
+  
+      last_status(FALSE);		/* status line may appear or disappear */
+***************
+*** 3788,3794 ****
+  #ifdef FEAT_AUTOCMD
+      /* Apply autocommands after updating the display, when 'rows' and
+       * 'columns' have been set correctly. */
+!     if (trigger_autocmds)
+      {
+  	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+  	if (old_curbuf != curbuf)
+--- 3798,3804 ----
+  #ifdef FEAT_AUTOCMD
+      /* Apply autocommands after updating the display, when 'rows' and
+       * 'columns' have been set correctly. */
+!     if (trigger_enter_autocmds)
+      {
+  	apply_autocmds(EVENT_TABENTER, NULL, NULL, FALSE, curbuf);
+  	if (old_curbuf != curbuf)
+***************
+*** 3869,3875 ****
+  	}
+      }
+  
+!     goto_tabpage_tp(tp, TRUE);
+  
+  #ifdef FEAT_GUI_TABLINE
+      if (gui_use_tabline())
+--- 3879,3885 ----
+  	}
+      }
+  
+!     goto_tabpage_tp(tp, TRUE, TRUE);
+  
+  #ifdef FEAT_GUI_TABLINE
+      if (gui_use_tabline())
+***************
+*** 3879,3901 ****
+  
+  /*
+   * Go to tabpage "tp".
+!  * Only trigger *Enter autocommands when trigger_autocmds is TRUE.
+   * Note: doesn't update the GUI tab.
+   */
+      void
+! goto_tabpage_tp(tp, trigger_autocmds)
+      tabpage_T	*tp;
+!     int		trigger_autocmds;
+  {
+      /* Don't repeat a message in another tab page. */
+      set_keep_msg(NULL, 0);
+  
+!     if (tp != curtab && leave_tabpage(tp->tp_curwin->w_buffer) == OK)
+      {
+  	if (valid_tabpage(tp))
+! 	    enter_tabpage(tp, curbuf, trigger_autocmds);
+  	else
+! 	    enter_tabpage(curtab, curbuf, trigger_autocmds);
+      }
+  }
+  
+--- 3889,3916 ----
+  
+  /*
+   * Go to tabpage "tp".
+!  * Only trigger *Enter autocommands when trigger_enter_autocmds is TRUE.
+!  * Only trigger *Leave autocommands when trigger_leave_autocmds is TRUE.
+   * Note: doesn't update the GUI tab.
+   */
+      void
+! goto_tabpage_tp(tp, trigger_enter_autocmds, trigger_leave_autocmds)
+      tabpage_T	*tp;
+!     int		trigger_enter_autocmds;
+!     int		trigger_leave_autocmds;
+  {
+      /* Don't repeat a message in another tab page. */
+      set_keep_msg(NULL, 0);
+  
+!     if (tp != curtab && leave_tabpage(tp->tp_curwin->w_buffer,
+! 					trigger_leave_autocmds) == OK)
+      {
+  	if (valid_tabpage(tp))
+! 	    enter_tabpage(tp, curbuf, trigger_enter_autocmds,
+! 		    trigger_leave_autocmds);
+  	else
+! 	    enter_tabpage(curtab, curbuf, trigger_enter_autocmds,
+! 		    trigger_leave_autocmds);
+      }
+  }
+  
+***************
+*** 3908,3914 ****
+      tabpage_T	*tp;
+      win_T	*wp;
+  {
+!     goto_tabpage_tp(tp, TRUE);
+      if (curtab == tp && win_valid(wp))
+      {
+  	win_enter(wp, TRUE);
+--- 3923,3929 ----
+      tabpage_T	*tp;
+      win_T	*wp;
+  {
+!     goto_tabpage_tp(tp, TRUE, TRUE);
+      if (curtab == tp && win_valid(wp))
+      {
+  	win_enter(wp, TRUE);
+***************
+*** 4168,4174 ****
+      win_T	*wp;
+      int		undo_sync;
+  {
+!     win_enter_ext(wp, undo_sync, FALSE);
+  }
+  
+  /*
+--- 4183,4189 ----
+      win_T	*wp;
+      int		undo_sync;
+  {
+!     win_enter_ext(wp, undo_sync, FALSE, TRUE, TRUE);
+  }
+  
+  /*
+***************
+*** 4177,4186 ****
+   * been closed and isn't valid.
+   */
+      static void
+! win_enter_ext(wp, undo_sync, curwin_invalid)
+      win_T	*wp;
+      int		undo_sync;
+      int		curwin_invalid;
+  {
+  #ifdef FEAT_AUTOCMD
+      int		other_buffer = FALSE;
+--- 4192,4203 ----
+   * been closed and isn't valid.
+   */
+      static void
+! win_enter_ext(wp, undo_sync, curwin_invalid, trigger_enter_autocmds, trigger_leave_autocmds)
+      win_T	*wp;
+      int		undo_sync;
+      int		curwin_invalid;
++     int		trigger_enter_autocmds UNUSED;
++     int		trigger_leave_autocmds UNUSED;
+  {
+  #ifdef FEAT_AUTOCMD
+      int		other_buffer = FALSE;
+***************
+*** 4190,4196 ****
+  	return;
+  
+  #ifdef FEAT_AUTOCMD
+!     if (!curwin_invalid)
+      {
+  	/*
+  	 * Be careful: If autocommands delete the window, return now.
+--- 4207,4213 ----
+  	return;
+  
+  #ifdef FEAT_AUTOCMD
+!     if (!curwin_invalid && trigger_leave_autocmds)
+      {
+  	/*
+  	 * Be careful: If autocommands delete the window, return now.
+***************
+*** 4259,4267 ****
+      }
+  
+  #ifdef FEAT_AUTOCMD
+!     apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
+!     if (other_buffer)
+! 	apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
+  #endif
+  
+  #ifdef FEAT_TITLE
+--- 4276,4287 ----
+      }
+  
+  #ifdef FEAT_AUTOCMD
+!     if (trigger_enter_autocmds)
+!     {
+! 	apply_autocmds(EVENT_WINENTER, NULL, NULL, FALSE, curbuf);
+! 	if (other_buffer)
+! 	    apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
+!     }
+  #endif
+  
+  #ifdef FEAT_TITLE
+*** ../vim-7.3.925/src/version.c	2013-05-06 04:21:35.000000000 +0200
+--- src/version.c	2013-05-06 04:40:52.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     926,
+  /**/
+
+-- 
+       Bravely bold Sir Robin, rode forth from Camelot,
+       He was not afraid to die, Oh Brave Sir Robin,
+       He was not at all afraid to be killed in nasty ways
+       Brave, brave, brave, brave Sir Robin.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

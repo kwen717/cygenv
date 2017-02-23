@@ -1,0 +1,333 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1096
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1096
+Problem:    Python: popitem() was not defined in a standard way.
+Solution:   Remove the argument from popitem(). (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/if_py_both.h, src/testdir/test86.in,
+	    src/testdir/test86.ok, src/testdir/test87.in,
+	    src/testdir/test87.ok
+
+
+*** ../vim-7.3.1095/runtime/doc/if_pyth.txt	2013-05-30 13:32:26.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-06-02 17:39:35.000000000 +0200
+***************
+*** 174,180 ****
+  vim.bindeval(str)					*python-bindeval*
+  	Like |python-eval|, but returns special objects described in 
+  	|python-bindeval-objects|. These python objects let you modify (|List| 
+! 	or |Dictionary|) or call (|Funcref|) vim objecs.
+  
+  Error object of the "vim" module
+  
+--- 174,180 ----
+  vim.bindeval(str)					*python-bindeval*
+  	Like |python-eval|, but returns special objects described in 
+  	|python-bindeval-objects|. These python objects let you modify (|List| 
+! 	or |Dictionary|) or call (|Funcref|) vim objects.
+  
+  Error object of the "vim" module
+  
+***************
+*** 208,214 ****
+  	    :py w in vim.windows	# Membership test
+  	    :py n = len(vim.windows)	# Number of elements
+  	    :py for w in vim.windows:	# Sequential access
+! <	Note: vim.windows object always accesses current tab page,. 
+  	|python-tabpage|.windows objects are bound to parent |python-tabpage| 
+  	object and always use windows from that tab page (or throw vim.error 
+  	in case tab page was deleted). You can keep a reference to both 
+--- 208,214 ----
+  	    :py w in vim.windows	# Membership test
+  	    :py n = len(vim.windows)	# Number of elements
+  	    :py for w in vim.windows:	# Sequential access
+! <	Note: vim.windows object always accesses current tab page. 
+  	|python-tabpage|.windows objects are bound to parent |python-tabpage| 
+  	object and always use windows from that tab page (or throw vim.error 
+  	in case tab page was deleted). You can keep a reference to both 
+***************
+*** 494,503 ****
+                      Remove specified key from dictionary and return 
+                      corresponding value. If key is not found and default is 
+                      given returns the default, otherwise raises KeyError.
+!         popitem(key)
+!                     Remove specified key from dictionary and return a pair 
+!                     with it and the corresponding value. Returned key is a new 
+!                     object.
+          has_key(key)
+                      Check whether dictionary contains specified key, similar 
+                      to `key in dict`.
+--- 494,502 ----
+                      Remove specified key from dictionary and return 
+                      corresponding value. If key is not found and default is 
+                      given returns the default, otherwise raises KeyError.
+!         popitem()
+!                     Remove random key from dictionary and return (key, value) 
+!                     pair.
+          has_key(key)
+                      Check whether dictionary contains specified key, similar 
+                      to `key in dict`.
+*** ../vim-7.3.1095/src/if_py_both.h	2013-05-31 20:49:27.000000000 +0200
+--- src/if_py_both.h	2013-06-02 17:39:35.000000000 +0200
+***************
+*** 1061,1077 ****
+  	dictitem_free(di);
+      }
+  
+-     if (flags & DICT_FLAG_RETURN_PAIR)
+-     {
+- 	PyObject	*tmp = r;
+- 
+- 	if (!(r = Py_BuildValue("(" Py_bytes_fmt "O)", hi->hi_key, tmp)))
+- 	{
+- 	    Py_DECREF(tmp);
+- 	    return NULL;
+- 	}
+-     }
+- 
+      return r;
+  }
+  
+--- 1061,1066 ----
+***************
+*** 1457,1471 ****
+  }
+  
+      static PyObject *
+! DictionaryPopItem(DictionaryObject *self, PyObject *args)
+  {
+!     PyObject	*keyObject;
+  
+!     if (!PyArg_ParseTuple(args, "O", &keyObject))
+  	return NULL;
+  
+!     return _DictionaryItem(self, keyObject,
+! 			    DICT_FLAG_POP|DICT_FLAG_RETURN_PAIR);
+  }
+  
+      static PyObject *
+--- 1446,1483 ----
+  }
+  
+      static PyObject *
+! DictionaryPopItem(DictionaryObject *self)
+  {
+!     hashitem_T	*hi;
+!     PyObject	*r;
+!     PyObject	*valObject;
+!     dictitem_T	*di;
+  
+!     if (self->dict->dv_hashtab.ht_used == 0)
+!     {
+! 	PyErr_SetNone(PyExc_KeyError);
+! 	return NULL;
+!     }
+! 
+!     hi = self->dict->dv_hashtab.ht_array;
+!     while (HASHITEM_EMPTY(hi))
+! 	++hi;
+! 
+!     di = dict_lookup(hi);
+! 
+!     if (!(valObject = ConvertToPyObject(&di->di_tv)))
+  	return NULL;
+  
+!     if (!(r = Py_BuildValue("(" Py_bytes_fmt "O)", hi->hi_key, valObject)))
+!     {
+! 	Py_DECREF(valObject);
+! 	return NULL;
+!     }
+! 
+!     hash_remove(&self->dict->dv_hashtab, hi);
+!     dictitem_free(di);
+! 
+!     return r;
+  }
+  
+      static PyObject *
+***************
+*** 1505,1511 ****
+      {"update",	(PyCFunction)DictionaryUpdate,		METH_VARARGS|METH_KEYWORDS, ""},
+      {"get",	(PyCFunction)DictionaryGet,		METH_VARARGS,	""},
+      {"pop",	(PyCFunction)DictionaryPop,		METH_VARARGS,	""},
+!     {"popitem",	(PyCFunction)DictionaryPopItem,		METH_VARARGS,	""},
+      {"has_key",	(PyCFunction)DictionaryHasKey,		METH_VARARGS,	""},
+      {"__dir__",	(PyCFunction)DictionaryDir,		METH_NOARGS,	""},
+      { NULL,	NULL,					0,		NULL}
+--- 1517,1523 ----
+      {"update",	(PyCFunction)DictionaryUpdate,		METH_VARARGS|METH_KEYWORDS, ""},
+      {"get",	(PyCFunction)DictionaryGet,		METH_VARARGS,	""},
+      {"pop",	(PyCFunction)DictionaryPop,		METH_VARARGS,	""},
+!     {"popitem",	(PyCFunction)DictionaryPopItem,		METH_NOARGS,	""},
+      {"has_key",	(PyCFunction)DictionaryHasKey,		METH_VARARGS,	""},
+      {"__dir__",	(PyCFunction)DictionaryDir,		METH_NOARGS,	""},
+      { NULL,	NULL,					0,		NULL}
+*** ../vim-7.3.1095/src/testdir/test86.in	2013-06-01 20:32:09.000000000 +0200
+--- src/testdir/test86.in	2013-06-02 17:39:35.000000000 +0200
+***************
+*** 83,89 ****
+  :$put =pyeval('repr(''1'' in d)')
+  :$put =pyeval('repr(list(iter(d)))')
+  :$put =string(d)
+! :$put =pyeval('repr(d.popitem(''0''))')
+  :$put =pyeval('repr(d.get(''0''))')
+  :$put =pyeval('repr(list(iter(d)))')
+  :"
+--- 83,89 ----
+  :$put =pyeval('repr(''1'' in d)')
+  :$put =pyeval('repr(list(iter(d)))')
+  :$put =string(d)
+! :$put =pyeval('repr(d.popitem())')
+  :$put =pyeval('repr(d.get(''0''))')
+  :$put =pyeval('repr(list(iter(d)))')
+  :"
+***************
+*** 226,232 ****
+  em('d[u"a\\0b"]=1')
+  
+  em('d.pop("abc")')
+! em('d.popitem("abc")')
+  EOF
+  :$put =messages
+  :unlet messages
+--- 226,232 ----
+  em('d[u"a\\0b"]=1')
+  
+  em('d.pop("abc")')
+! em('d.popitem()')
+  EOF
+  :$put =messages
+  :unlet messages
+*** ../vim-7.3.1095/src/testdir/test86.ok	2013-06-01 20:32:09.000000000 +0200
+--- src/testdir/test86.ok	2013-06-02 17:39:35.000000000 +0200
+***************
+*** 26,32 ****
+  False
+  ['0']
+  {'0': -1}
+! ('', -1L)
+  None
+  []
+  [0, 1, 2, 3]
+--- 26,32 ----
+  False
+  ['0']
+  {'0': -1}
+! ('0', -1L)
+  None
+  []
+  [0, 1, 2, 3]
+***************
+*** 666,672 ****
+  d.update((("a", FailingMappingKey()),)):(<type 'exceptions.NotImplementedError'>, NotImplementedError())
+  <<< Finished
+  >> DictionaryPopItem
+! d.popitem(1, 2):(<type 'exceptions.TypeError'>, TypeError('function takes exactly 1 argument (2 given)',))
+  >> DictionaryHasKey
+  d.has_key():(<type 'exceptions.TypeError'>, TypeError('function takes exactly 1 argument (0 given)',))
+  > List
+--- 666,672 ----
+  d.update((("a", FailingMappingKey()),)):(<type 'exceptions.NotImplementedError'>, NotImplementedError())
+  <<< Finished
+  >> DictionaryPopItem
+! d.popitem(1, 2):(<type 'exceptions.TypeError'>, TypeError('popitem() takes no arguments (2 given)',))
+  >> DictionaryHasKey
+  d.has_key():(<type 'exceptions.TypeError'>, TypeError('function takes exactly 1 argument (0 given)',))
+  > List
+*** ../vim-7.3.1095/src/testdir/test87.in	2013-06-01 20:32:09.000000000 +0200
+--- src/testdir/test87.in	2013-06-02 17:39:35.000000000 +0200
+***************
+*** 77,83 ****
+  :$put =py3eval('repr(''1'' in d)')
+  :$put =py3eval('repr(list(iter(d)))')
+  :$put =string(d)
+! :$put =py3eval('repr(d.popitem(''0''))')
+  :$put =py3eval('repr(d.get(''0''))')
+  :$put =py3eval('repr(list(iter(d)))')
+  :"
+--- 77,83 ----
+  :$put =py3eval('repr(''1'' in d)')
+  :$put =py3eval('repr(list(iter(d)))')
+  :$put =string(d)
+! :$put =py3eval('repr(d.popitem())')
+  :$put =py3eval('repr(d.get(''0''))')
+  :$put =py3eval('repr(list(iter(d)))')
+  :"
+***************
+*** 220,226 ****
+  em('d[b"a\\0b"]=1')
+  
+  em('d.pop("abc")')
+! em('d.popitem("abc")')
+  EOF
+  :$put =messages
+  :unlet messages
+--- 220,226 ----
+  em('d[b"a\\0b"]=1')
+  
+  em('d.pop("abc")')
+! em('d.popitem()')
+  EOF
+  :$put =messages
+  :unlet messages
+*** ../vim-7.3.1095/src/testdir/test87.ok	2013-06-01 20:32:09.000000000 +0200
+--- src/testdir/test87.ok	2013-06-02 17:39:35.000000000 +0200
+***************
+*** 26,32 ****
+  False
+  [b'0']
+  {'0': -1}
+! (b'', -1)
+  None
+  []
+  [0, 1, 2, 3]
+--- 26,32 ----
+  False
+  [b'0']
+  {'0': -1}
+! (b'0', -1)
+  None
+  []
+  [0, 1, 2, 3]
+***************
+*** 663,669 ****
+  d.update((("a", FailingMappingKey()),)):(<class 'NotImplementedError'>, NotImplementedError())
+  <<< Finished
+  >> DictionaryPopItem
+! d.popitem(1, 2):(<class 'TypeError'>, TypeError('function takes exactly 1 argument (2 given)',))
+  >> DictionaryHasKey
+  d.has_key():(<class 'TypeError'>, TypeError('function takes exactly 1 argument (0 given)',))
+  > List
+--- 663,669 ----
+  d.update((("a", FailingMappingKey()),)):(<class 'NotImplementedError'>, NotImplementedError())
+  <<< Finished
+  >> DictionaryPopItem
+! d.popitem(1, 2):(<class 'TypeError'>, TypeError('popitem() takes no arguments (2 given)',))
+  >> DictionaryHasKey
+  d.has_key():(<class 'TypeError'>, TypeError('function takes exactly 1 argument (0 given)',))
+  > List
+*** ../vim-7.3.1095/src/version.c	2013-06-02 16:40:44.000000000 +0200
+--- src/version.c	2013-06-02 17:40:20.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1096,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+44. Your friends no longer send you e-mail...they just log on to your IRC
+    channel.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

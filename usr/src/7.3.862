@@ -1,0 +1,215 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.862
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.862
+Problem:    Dragging the status line can be slow.
+Solution:   Look ahead and drop the drag event if there is a next one.
+Files:	    src/eval.c, src/misc1.c, src/proto/misc1.pro, src/normal.c
+
+
+*** ../vim-7.3.861/src/eval.c	2013-02-26 21:43:28.000000000 +0100
+--- src/eval.c	2013-03-16 14:02:36.000000000 +0100
+***************
+*** 11238,11264 ****
+  	rettv->vval.v_string = vim_strsave(temp);
+  
+  #ifdef FEAT_MOUSE
+! 	if (n == K_LEFTMOUSE
+! 		|| n == K_LEFTMOUSE_NM
+! 		|| n == K_LEFTDRAG
+! 		|| n == K_LEFTRELEASE
+! 		|| n == K_LEFTRELEASE_NM
+! 		|| n == K_MIDDLEMOUSE
+! 		|| n == K_MIDDLEDRAG
+! 		|| n == K_MIDDLERELEASE
+! 		|| n == K_RIGHTMOUSE
+! 		|| n == K_RIGHTDRAG
+! 		|| n == K_RIGHTRELEASE
+! 		|| n == K_X1MOUSE
+! 		|| n == K_X1DRAG
+! 		|| n == K_X1RELEASE
+! 		|| n == K_X2MOUSE
+! 		|| n == K_X2DRAG
+! 		|| n == K_X2RELEASE
+! 		|| n == K_MOUSELEFT
+! 		|| n == K_MOUSERIGHT
+! 		|| n == K_MOUSEDOWN
+! 		|| n == K_MOUSEUP)
+  	{
+  	    int		row = mouse_row;
+  	    int		col = mouse_col;
+--- 11238,11244 ----
+  	rettv->vval.v_string = vim_strsave(temp);
+  
+  #ifdef FEAT_MOUSE
+! 	if (is_mouse_key(n))
+  	{
+  	    int		row = mouse_row;
+  	    int		col = mouse_col;
+*** ../vim-7.3.861/src/misc1.c	2013-03-13 17:01:47.000000000 +0100
+--- src/misc1.c	2013-03-16 14:08:05.000000000 +0100
+***************
+*** 3288,3293 ****
+--- 3288,3325 ----
+      return r;
+  }
+  
++ #if defined(FEAT_MOUSE) || defined(PROTO)
++ /*
++  * Return TRUE if "c" is a mouse key.
++  */
++     int
++ is_mouse_key(c)
++     int c;
++ {
++     return c == K_LEFTMOUSE
++ 	|| c == K_LEFTMOUSE_NM
++ 	|| c == K_LEFTDRAG
++ 	|| c == K_LEFTRELEASE
++ 	|| c == K_LEFTRELEASE_NM
++ 	|| c == K_MIDDLEMOUSE
++ 	|| c == K_MIDDLEDRAG
++ 	|| c == K_MIDDLERELEASE
++ 	|| c == K_RIGHTMOUSE
++ 	|| c == K_RIGHTDRAG
++ 	|| c == K_RIGHTRELEASE
++ 	|| c == K_MOUSEDOWN
++ 	|| c == K_MOUSEUP
++ 	|| c == K_MOUSELEFT
++ 	|| c == K_MOUSERIGHT
++ 	|| c == K_X1MOUSE
++ 	|| c == K_X1DRAG
++ 	|| c == K_X1RELEASE
++ 	|| c == K_X2MOUSE
++ 	|| c == K_X2DRAG
++ 	|| c == K_X2RELEASE;
++ }
++ #endif
++ 
+  /*
+   * Get a key stroke directly from the user.
+   * Ignores mouse clicks and scrollbar events, except a click for the left
+***************
+*** 3373,3403 ****
+  	    n = TO_SPECIAL(buf[1], buf[2]);
+  	    if (buf[1] == KS_MODIFIER
+  		    || n == K_IGNORE
+! #ifdef FEAT_MOUSE
+! 		    || n == K_LEFTMOUSE_NM
+! 		    || n == K_LEFTDRAG
+! 		    || n == K_LEFTRELEASE
+! 		    || n == K_LEFTRELEASE_NM
+! 		    || n == K_MIDDLEMOUSE
+! 		    || n == K_MIDDLEDRAG
+! 		    || n == K_MIDDLERELEASE
+! 		    || n == K_RIGHTMOUSE
+! 		    || n == K_RIGHTDRAG
+! 		    || n == K_RIGHTRELEASE
+! 		    || n == K_MOUSEDOWN
+! 		    || n == K_MOUSEUP
+! 		    || n == K_MOUSELEFT
+! 		    || n == K_MOUSERIGHT
+! 		    || n == K_X1MOUSE
+! 		    || n == K_X1DRAG
+! 		    || n == K_X1RELEASE
+! 		    || n == K_X2MOUSE
+! 		    || n == K_X2DRAG
+! 		    || n == K_X2RELEASE
+! # ifdef FEAT_GUI
+  		    || n == K_VER_SCROLLBAR
+  		    || n == K_HOR_SCROLLBAR
+- # endif
+  #endif
+  	       )
+  	    {
+--- 3405,3414 ----
+  	    n = TO_SPECIAL(buf[1], buf[2]);
+  	    if (buf[1] == KS_MODIFIER
+  		    || n == K_IGNORE
+! 		    || (is_mouse_key(n) && n != K_LEFTMOUSE)
+! #ifdef FEAT_GUI
+  		    || n == K_VER_SCROLLBAR
+  		    || n == K_HOR_SCROLLBAR
+  #endif
+  	       )
+  	    {
+*** ../vim-7.3.861/src/proto/misc1.pro	2012-11-20 16:56:49.000000000 +0100
+--- src/proto/misc1.pro	2013-03-16 14:02:33.000000000 +0100
+***************
+*** 42,47 ****
+--- 42,48 ----
+  void check_status __ARGS((buf_T *buf));
+  void change_warning __ARGS((int col));
+  int ask_yesno __ARGS((char_u *str, int direct));
++ int is_mouse_key __ARGS((int c));
+  int get_keystroke __ARGS((void));
+  int get_number __ARGS((int colon, int *mouse_used));
+  int prompt_for_number __ARGS((int *mouse_used));
+*** ../vim-7.3.861/src/normal.c	2013-03-13 19:02:37.000000000 +0100
+--- src/normal.c	2013-03-16 14:09:34.000000000 +0100
+***************
+*** 2443,2449 ****
+  		return FALSE;
+  	}
+  
+!     which_button = get_mouse_button(KEY2TERMCAP1(c), &is_click, &is_drag);
+  
+  #ifdef FEAT_MOUSESHAPE
+      /* May have stopped dragging the status or separator line.  The pointer is
+--- 2443,2473 ----
+  		return FALSE;
+  	}
+  
+!     for (;;)
+!     {
+! 	which_button = get_mouse_button(KEY2TERMCAP1(c), &is_click, &is_drag);
+! 	if (is_drag)
+! 	{
+! 	    /* If the next character is the same mouse event then use that
+! 	     * one. Speeds up dragging the status line. */
+! 	    if (vpeekc() != NUL)
+! 	    {
+! 		int nc;
+! 		int save_mouse_row = mouse_row;
+! 		int save_mouse_col = mouse_col;
+! 
+! 		/* Need to get the character, peeking doesn't get the actual
+! 		 * one. */
+! 		nc = safe_vgetc();
+! 		if (c == nc)
+! 		    continue;
+! 		vungetc(nc);
+! 		mouse_row = save_mouse_row;
+! 		mouse_col = save_mouse_col;
+! 	    }
+! 	}
+! 	break;
+!     }
+  
+  #ifdef FEAT_MOUSESHAPE
+      /* May have stopped dragging the status or separator line.  The pointer is
+*** ../vim-7.3.861/src/version.c	2013-03-13 20:42:28.000000000 +0100
+--- src/version.c	2013-03-16 14:18:36.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     862,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+53. To find out what time it is, you send yourself an e-mail and check the
+    "Date:" field.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

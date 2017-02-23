@@ -1,0 +1,112 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1055
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1055
+Problem:    Negated collection does not match newline.
+Solution:   Handle newline differently. (Hiroshi Shirosaki)
+Files:	    src/regexp_nfa.c, src/testdir/test64.ok, src/testdir/test64.in
+
+
+*** ../vim-7.3.1054/src/regexp_nfa.c	2013-05-29 21:14:37.000000000 +0200
+--- src/regexp_nfa.c	2013-05-30 11:47:40.000000000 +0200
+***************
+*** 1203,1215 ****
+  		}
+  		mb_ptr_adv(regparse);
+  
+- 		if (extra == ADD_NL)	    /* \_[] also matches \n */
+- 		{
+- 		    EMIT(reg_string ? NL : NFA_NEWL);
+- 		    TRY_NEG();
+- 		    EMIT_GLUE();
+- 		}
+- 
+  		/* skip the trailing ] */
+  		regparse = endp;
+  		mb_ptr_adv(regparse);
+--- 1203,1208 ----
+***************
+*** 1219,1224 ****
+--- 1212,1225 ----
+  		    EMIT(NFA_END_NEG_RANGE);
+  		    EMIT(NFA_CONCAT);
+  		}
++ 
++ 		/* \_[] also matches \n but it's not negated */
++ 		if (extra == ADD_NL)
++ 		{
++ 		    EMIT(reg_string ? NL : NFA_NEWL);
++ 		    EMIT(NFA_OR);
++ 		}
++ 
+  		return OK;
+  	    } /* if exists closing ] */
+  
+*** ../vim-7.3.1054/src/testdir/test64.ok	2013-05-29 21:14:37.000000000 +0200
+--- src/testdir/test64.ok	2013-05-30 11:48:31.000000000 +0200
+***************
+*** 731,736 ****
+--- 731,742 ----
+  OK 1 - \(<<\)\@1<=span.
+  OK 0 - \(<<\)\@2<=span.
+  OK 1 - \(<<\)\@2<=span.
++ OK 0 - \_[^8-9]\+
++ OK 1 - \_[^8-9]\+
++ OK 2 - \_[^8-9]\+
++ OK 0 - \_[^a]\+
++ OK 1 - \_[^a]\+
++ OK 2 - \_[^a]\+
+  192.168.0.1
+  192.168.0.1
+  192.168.0.1
+*** ../vim-7.3.1054/src/testdir/test64.in	2013-05-29 21:14:37.000000000 +0200
+--- src/testdir/test64.in	2013-05-30 11:45:59.000000000 +0200
+***************
+*** 344,351 ****
+  :call add(tl, [0, '\(<<\)\@1<=span.', 'xxspanxxxx<spanxx<<spanyyy'])
+  :call add(tl, [0, '\(<<\)\@2<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+  :"
+! :"""" Run the tests
+  :"
+  :"
+  :for t in tl
+  :  let re = t[0]
+--- 344,355 ----
+  :call add(tl, [0, '\(<<\)\@1<=span.', 'xxspanxxxx<spanxx<<spanyyy'])
+  :call add(tl, [0, '\(<<\)\@2<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+  :"
+! :"""" "\_" prepended negated collection matches EOL
+! :call add(tl, [2, '\_[^8-9]\+', "asfi\n9888", "asfi\n"])
+! :call add(tl, [2, '\_[^a]\+', "asfi\n9888", "sfi\n9888"])
+! :"
+  :"
++ :"""" Run the tests
+  :"
+  :for t in tl
+  :  let re = t[0]
+*** ../vim-7.3.1054/src/version.c	2013-05-30 11:43:11.000000000 +0200
+--- src/version.c	2013-05-30 11:49:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1055,
+  /**/
+
+-- 
+"Making it up?  Why should I want to make anything up?  Life's bad enough
+as it is without wanting to invent any more of it."
+		-- Marvin, the Paranoid Android in Douglas Adams'
+		   "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

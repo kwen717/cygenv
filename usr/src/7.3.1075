@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1075
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1075
+Problem:    Compiler warning for storing a long_u in an int.
+Solution:   Declare the number as an int. (Mike Williams)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1074/src/regexp_nfa.c	2013-05-30 18:45:20.000000000 +0200
+--- src/regexp_nfa.c	2013-05-30 19:15:50.000000000 +0200
+***************
+*** 890,896 ****
+  
+  		default:
+  		    {
+! 			long_u	n = 0;
+  			int	cmp = c;
+  
+  			if (c == '<' || c == '>')
+--- 890,896 ----
+  
+  		default:
+  		    {
+! 			int	n = 0;
+  			int	cmp = c;
+  
+  			if (c == '<' || c == '>')
+*** ../vim-7.3.1074/src/version.c	2013-05-30 19:01:20.000000000 +0200
+--- src/version.c	2013-05-30 19:16:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1075,
+  /**/
+
+-- 
+One difference between a man and a machine is that a machine is quiet
+when well oiled.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

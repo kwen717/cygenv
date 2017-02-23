@@ -1,0 +1,743 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1047
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1047
+Problem:    Python: dir() does not work properly.
+Solution:   Python patch 8.  Add __dir__ method to all objects with custom
+	    tp_getattr supplemented by __members__ attribute for at least
+	    python-2* versions.  __members__ is not mentioned in python-3*
+	    dir() output even if it is accessible. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1046/src/if_py_both.h	2013-05-29 22:26:15.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 117,122 ****
+--- 117,175 ----
+      return (char_u *) p;
+  }
+  
++     static int
++ add_string(PyObject *list, char *s)
++ {
++     PyObject	*string;
++ 
++     if (!(string = PyString_FromString(s)))
++ 	return -1;
++     if (PyList_Append(list, string))
++     {
++ 	Py_DECREF(string);
++ 	return -1;
++     }
++ 
++     Py_DECREF(string);
++     return 0;
++ }
++ 
++     static PyObject *
++ ObjectDir(PyObject *self, char **attributes)
++ {
++     PyMethodDef	*method;
++     char	**attr;
++     PyObject	*r;
++ 
++     if (!(r = PyList_New(0)))
++ 	return NULL;
++ 
++     if (self)
++ 	for (method = self->ob_type->tp_methods ; method->ml_name != NULL ; ++method)
++ 	    if (add_string(r, (char *) method->ml_name))
++ 	    {
++ 		Py_DECREF(r);
++ 		return NULL;
++ 	    }
++ 
++     for (attr = attributes ; *attr ; ++attr)
++ 	if (add_string(r, *attr))
++ 	{
++ 	    Py_DECREF(r);
++ 	    return NULL;
++ 	}
++ 
++ #if PY_MAJOR_VERSION < 3
++     if (add_string(r, "__members__"))
++     {
++ 	Py_DECREF(r);
++ 	return NULL;
++     }
++ #endif
++ 
++     return r;
++ }
++ 
+  /* Output buffer management
+   */
+  
+***************
+*** 132,137 ****
+--- 185,201 ----
+      long error;
+  } OutputObject;
+  
++ static char *OutputAttrs[] = {
++     "softspace",
++     NULL
++ };
++ 
++     static PyObject *
++ OutputDir(PyObject *self)
++ {
++     return ObjectDir(self, OutputAttrs);
++ }
++ 
+      static int
+  OutputSetattr(OutputObject *self, char *name, PyObject *val)
+  {
+***************
+*** 291,296 ****
+--- 355,361 ----
+      {"write",	    (PyCFunction)OutputWrite,		METH_VARARGS,	""},
+      {"writelines",  (PyCFunction)OutputWritelines,	METH_VARARGS,	""},
+      {"flush",	    (PyCFunction)OutputFlush,		METH_NOARGS,	""},
++     {"__dir__",	    (PyCFunction)OutputDir,		METH_NOARGS,	""},
+      { NULL,	    NULL,				0,		NULL}
+  };
+  
+***************
+*** 826,831 ****
+--- 891,907 ----
+      DESTRUCTOR_FINISH(self);
+  }
+  
++ static char *DictionaryAttrs[] = {
++     "locked", "scope",
++     NULL
++ };
++ 
++     static PyObject *
++ DictionaryDir(PyObject *self)
++ {
++     return ObjectDir(self, DictionaryAttrs);
++ }
++ 
+      static int
+  DictionarySetattr(DictionaryObject *self, char *name, PyObject *val)
+  {
+***************
+*** 985,991 ****
+  
+  static struct PyMethodDef DictionaryMethods[] = {
+      {"keys",	(PyCFunction)DictionaryListKeys,	METH_NOARGS,	""},
+!     { NULL,	NULL,					0,		NULL }
+  };
+  
+  static PyTypeObject ListType;
+--- 1061,1068 ----
+  
+  static struct PyMethodDef DictionaryMethods[] = {
+      {"keys",	(PyCFunction)DictionaryListKeys,	METH_NOARGS,	""},
+!     {"__dir__",	(PyCFunction)DictionaryDir,		METH_NOARGS,	""},
+!     { NULL,	NULL,					0,		NULL}
+  };
+  
+  static PyTypeObject ListType;
+***************
+*** 1331,1336 ****
+--- 1408,1424 ----
+      return (PyObject *)(self);
+  }
+  
++ static char *ListAttrs[] = {
++     "locked",
++     NULL
++ };
++ 
++     static PyObject *
++ ListDir(PyObject *self)
++ {
++     return ObjectDir(self, ListAttrs);
++ }
++ 
+      static int
+  ListSetattr(ListObject *self, char *name, PyObject *val)
+  {
+***************
+*** 1368,1375 ****
+  }
+  
+  static struct PyMethodDef ListMethods[] = {
+!     {"extend",	(PyCFunction)ListConcatInPlace,	METH_O,	""},
+!     { NULL,	NULL,				0,	NULL }
+  };
+  
+  typedef struct
+--- 1456,1464 ----
+  }
+  
+  static struct PyMethodDef ListMethods[] = {
+!     {"extend",	(PyCFunction)ListConcatInPlace,	METH_O,		""},
+!     {"__dir__",	(PyCFunction)ListDir,		METH_NOARGS,	""},
+!     { NULL,	NULL,				0,		NULL}
+  };
+  
+  typedef struct
+***************
+*** 1408,1413 ****
+--- 1497,1513 ----
+      DESTRUCTOR_FINISH(self);
+  }
+  
++ static char *FunctionAttrs[] = {
++     "softspace",
++     NULL
++ };
++ 
++     static PyObject *
++ FunctionDir(PyObject *self)
++ {
++     return ObjectDir(self, FunctionAttrs);
++ }
++ 
+      static PyObject *
+  FunctionCall(FunctionObject *self, PyObject *argsObject, PyObject *kwargs)
+  {
+***************
+*** 1472,1479 ****
+  }
+  
+  static struct PyMethodDef FunctionMethods[] = {
+!     {"__call__",    (PyCFunction)FunctionCall,	METH_VARARGS|METH_KEYWORDS, ""},
+!     { NULL,	    NULL,			0,			   NULL}
+  };
+  
+  /*
+--- 1572,1580 ----
+  }
+  
+  static struct PyMethodDef FunctionMethods[] = {
+!     {"__call__",(PyCFunction)FunctionCall,  METH_VARARGS|METH_KEYWORDS,	""},
+!     {"__dir__",	(PyCFunction)FunctionDir,   METH_NOARGS,		""},
+!     { NULL,	NULL,			0,				NULL}
+  };
+  
+  /*
+***************
+*** 1842,1847 ****
+--- 1943,1959 ----
+      DESTRUCTOR_FINISH(self);
+  }
+  
++ static char *TabPageAttrs[] = {
++     "windows", "number", "vars", "window", "valid",
++     NULL
++ };
++ 
++     static PyObject *
++ TabPageDir(PyObject *self)
++ {
++     return ObjectDir(self, TabPageAttrs);
++ }
++ 
+      static PyObject *
+  TabPageAttrValid(TabPageObject *self, char *name)
+  {
+***************
+*** 1873,1878 ****
+--- 1985,1992 ----
+  	else
+  	    return WindowNew(self->tab->tp_curwin, self->tab);
+      }
++     else if (strcmp(name, "__members__") == 0)
++ 	return ObjectDir(NULL, TabPageAttrs);
+      return NULL;
+  }
+  
+***************
+*** 1901,1908 ****
+  }
+  
+  static struct PyMethodDef TabPageMethods[] = {
+!     /* name,	    function,		calling,    documentation */
+!     { NULL,	    NULL,		0,	    NULL }
+  };
+  
+  /*
+--- 2015,2023 ----
+  }
+  
+  static struct PyMethodDef TabPageMethods[] = {
+!     /* name,	    function,			calling,	documentation */
+!     {"__dir__",	    (PyCFunction)TabPageDir,	METH_NOARGS,	""},
+!     { NULL,	    NULL,			0,		NULL}
+  };
+  
+  /*
+***************
+*** 2049,2054 ****
+--- 2164,2180 ----
+      else
+  	return firstwin;
+  }
++ static char *WindowAttrs[] = {
++     "buffer", "cursor", "height", "vars", "options", "number", "row", "col",
++     "tabpage", "valid",
++     NULL
++ };
++ 
++     static PyObject *
++ WindowDir(PyObject *self)
++ {
++     return ObjectDir(self, WindowAttrs);
++ }
+  
+      static PyObject *
+  WindowAttrValid(WindowObject *self, char *name)
+***************
+*** 2103,2111 ****
+  	Py_INCREF(self->tabObject);
+  	return (PyObject *)(self->tabObject);
+      }
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssssssssss]", "buffer", "cursor", "height",
+! 		"vars", "options", "number", "row", "col", "tabpage", "valid");
+      else
+  	return NULL;
+  }
+--- 2229,2236 ----
+  	Py_INCREF(self->tabObject);
+  	return (PyObject *)(self->tabObject);
+      }
+!     else if (strcmp(name, "__members__") == 0)
+! 	return ObjectDir(NULL, WindowAttrs);
+      else
+  	return NULL;
+  }
+***************
+*** 2228,2235 ****
+  }
+  
+  static struct PyMethodDef WindowMethods[] = {
+!     /* name,	    function,		calling,    documentation */
+!     { NULL,	    NULL,		0,	    NULL }
+  };
+  
+  /*
+--- 2353,2361 ----
+  }
+  
+  static struct PyMethodDef WindowMethods[] = {
+!     /* name,	    function,			calling,	documentation */
+!     {"__dir__",	    (PyCFunction)WindowDir,	METH_NOARGS,	""},
+!     { NULL,	    NULL,			0,		NULL}
+  };
+  
+  /*
+***************
+*** 3122,3127 ****
+--- 3248,3264 ----
+      return RBSlice(self->buf, lo, hi, self->start, self->end);
+  }
+  
++ static char *RangeAttrs[] = {
++     "start", "end",
++     NULL
++ };
++ 
++     static PyObject *
++ RangeDir(PyObject *self)
++ {
++     return ObjectDir(self, RangeAttrs);
++ }
++ 
+      static PyObject *
+  RangeAppend(RangeObject *self, PyObject *args)
+  {
+***************
+*** 3162,3168 ****
+  static struct PyMethodDef RangeMethods[] = {
+      /* name,	function,			calling,	documentation */
+      {"append",	(PyCFunction)RangeAppend,	METH_VARARGS,	"Append data to the Vim range" },
+!     { NULL,	NULL,				0,		NULL }
+  };
+  
+  static PyTypeObject BufferType;
+--- 3299,3306 ----
+  static struct PyMethodDef RangeMethods[] = {
+      /* name,	function,			calling,	documentation */
+      {"append",	(PyCFunction)RangeAppend,	METH_VARARGS,	"Append data to the Vim range" },
+!     {"__dir__",	(PyCFunction)RangeDir,		METH_NOARGS,	""},
+!     { NULL,	NULL,				0,		NULL}
+  };
+  
+  static PyTypeObject BufferType;
+***************
+*** 3239,3244 ****
+--- 3377,3393 ----
+      return RBSlice(self, lo, hi, 1, -1);
+  }
+  
++ static char *BufferAttrs[] = {
++     "name", "number", "vars", "options", "valid",
++     NULL
++ };
++ 
++     static PyObject *
++ BufferDir(PyObject *self)
++ {
++     return ObjectDir(self, BufferAttrs);
++ }
++ 
+      static PyObject *
+  BufferAttrValid(BufferObject *self, char *name)
+  {
+***************
+*** 3265,3273 ****
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_BUF, self->buf, (checkfun) CheckBuffer,
+  			(PyObject *) self);
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sssss]", "name", "number", "vars", "options",
+! 		"valid");
+      else
+  	return NULL;
+  }
+--- 3414,3421 ----
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_BUF, self->buf, (checkfun) CheckBuffer,
+  			(PyObject *) self);
+!     else if (strcmp(name, "__members__") == 0)
+! 	return ObjectDir(NULL, BufferAttrs);
+      else
+  	return NULL;
+  }
+***************
+*** 3403,3412 ****
+      {"append",	    (PyCFunction)BufferAppend,	METH_VARARGS,	"Append data to Vim buffer" },
+      {"mark",	    (PyCFunction)BufferMark,	METH_VARARGS,	"Return (row,col) representing position of named mark" },
+      {"range",	    (PyCFunction)BufferRange,	METH_VARARGS,	"Return a range object which represents the part of the given buffer between line numbers s and e" },
+! #if PY_VERSION_HEX >= 0x03000000
+!     {"__dir__",	    (PyCFunction)BufferDir,	METH_NOARGS,	"List buffer attributes" },
+! #endif
+!     { NULL,	    NULL,			0,		NULL }
+  };
+  
+  /*
+--- 3551,3558 ----
+      {"append",	    (PyCFunction)BufferAppend,	METH_VARARGS,	"Append data to Vim buffer" },
+      {"mark",	    (PyCFunction)BufferMark,	METH_VARARGS,	"Return (row,col) representing position of named mark" },
+      {"range",	    (PyCFunction)BufferRange,	METH_VARARGS,	"Return a range object which represents the part of the given buffer between line numbers s and e" },
+!     {"__dir__",	    (PyCFunction)BufferDir,	METH_NOARGS,	""},
+!     { NULL,	    NULL,			0,		NULL}
+  };
+  
+  /*
+***************
+*** 3538,3543 ****
+--- 3684,3700 ----
+  /* Current items object
+   */
+  
++ static char *CurrentAttrs[] = {
++     "buffer", "window", "line", "range", "tabpage",
++     NULL
++ };
++ 
++     static PyObject *
++ CurrentDir(PyObject *self)
++ {
++     return ObjectDir(self, CurrentAttrs);
++ }
++ 
+      static PyObject *
+  CurrentGetattr(PyObject *self UNUSED, char *name)
+  {
+***************
+*** 3551,3564 ****
+  	return GetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum);
+      else if (strcmp(name, "range") == 0)
+  	return RangeNew(curbuf, RangeStart, RangeEnd);
+!     else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sssss]", "buffer", "window", "line", "range",
+! 		"tabpage");
+      else
+!     {
+! 	PyErr_SetString(PyExc_AttributeError, name);
+  	return NULL;
+!     }
+  }
+  
+      static int
+--- 3708,3721 ----
+  	return GetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum);
+      else if (strcmp(name, "range") == 0)
+  	return RangeNew(curbuf, RangeStart, RangeEnd);
+!     else if (strcmp(name, "__members__") == 0)
+! 	return ObjectDir(NULL, CurrentAttrs);
+      else
+! #if PY_MAJOR_VERSION < 3
+! 	return Py_FindMethod(WindowMethods, self, name);
+! #else
+  	return NULL;
+! #endif
+  }
+  
+      static int
+***************
+*** 3661,3666 ****
+--- 3818,3829 ----
+      }
+  }
+  
++ static struct PyMethodDef CurrentMethods[] = {
++     /* name,	    function,			calling,	documentation */
++     {"__dir__",	    (PyCFunction)CurrentDir,	METH_NOARGS,	""},
++     { NULL,	    NULL,			0,		NULL}
++ };
++ 
+      static void
+  init_range_cmd(exarg_T *eap)
+  {
+***************
+*** 4397,4402 ****
+--- 4560,4566 ----
+      CurrentType.tp_basicsize = sizeof(CurrentObject);
+      CurrentType.tp_flags = Py_TPFLAGS_DEFAULT;
+      CurrentType.tp_doc = "vim current object";
++     CurrentType.tp_methods = CurrentMethods;
+  #if PY_MAJOR_VERSION >= 3
+      CurrentType.tp_getattro = (getattrofunc)CurrentGetattro;
+      CurrentType.tp_setattro = (setattrofunc)CurrentSetattro;
+*** ../vim-7.3.1046/src/if_python3.c	2013-05-29 22:15:26.000000000 +0200
+--- src/if_python3.c	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 666,672 ****
+      return PyType_GenericAlloc(type,nitems);
+  }
+  
+- static PyObject *BufferDir(PyObject *);
+  static PyObject *OutputGetattro(PyObject *, PyObject *);
+  static int OutputSetattro(PyObject *, PyObject *, PyObject *);
+  static PyObject *BufferGetattro(PyObject *, PyObject *);
+--- 666,671 ----
+***************
+*** 1094,1107 ****
+      return BufferSetattr((BufferObject *)(self), name, val);
+  }
+  
+-     static PyObject *
+- BufferDir(PyObject *self UNUSED)
+- {
+-     return Py_BuildValue("[ssssssss]",
+- 	    "name", "number", "vars", "options", "valid",
+- 	    "append", "mark", "range");
+- }
+- 
+  /******************/
+  
+      static PyObject *
+--- 1093,1098 ----
+***************
+*** 1368,1375 ****
+      static PyObject *
+  CurrentGetattro(PyObject *self, PyObject *nameobj)
+  {
+      GET_ATTR_STRING(name, nameobj);
+!     return CurrentGetattr(self, name);
+  }
+  
+      static int
+--- 1359,1369 ----
+      static PyObject *
+  CurrentGetattro(PyObject *self, PyObject *nameobj)
+  {
++     PyObject	*r;
+      GET_ATTR_STRING(name, nameobj);
+!     if (!(r = CurrentGetattr(self, name)))
+! 	return PyObject_GenericGetAttr(self, nameobj);
+!     return r;
+  }
+  
+      static int
+*** ../vim-7.3.1046/src/if_python.c	2013-05-29 22:15:26.000000000 +0200
+--- src/if_python.c	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 1066,1071 ****
+--- 1066,1073 ----
+  {
+      if (strcmp(name, "softspace") == 0)
+  	return PyInt_FromLong(((OutputObject *)(self))->softspace);
++     else if (strcmp(name, "__members__") == 0)
++ 	return ObjectDir(NULL, OutputAttrs);
+  
+      return Py_FindMethod(OutputMethods, self, name);
+  }
+***************
+*** 1177,1182 ****
+--- 1179,1186 ----
+  	return Py_BuildValue(Py_ssize_t_fmt, ((RangeObject *)(self))->start - 1);
+      else if (strcmp(name, "end") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, ((RangeObject *)(self))->end - 1);
++     else if (strcmp(name, "__members__") == 0)
++ 	return ObjectDir(NULL, RangeAttrs);
+      else
+  	return Py_FindMethod(RangeMethods, self, name);
+  }
+***************
+*** 1396,1401 ****
+--- 1400,1407 ----
+  	return PyInt_FromLong(this->dict->dv_lock);
+      else if (strcmp(name, "scope") == 0)
+  	return PyInt_FromLong(this->dict->dv_scope);
++     else if (strcmp(name, "__members__") == 0)
++ 	return ObjectDir(NULL, DictionaryAttrs);
+  
+      return Py_FindMethod(DictionaryMethods, self, name);
+  }
+***************
+*** 1420,1425 ****
+--- 1426,1433 ----
+  {
+      if (strcmp(name, "locked") == 0)
+  	return PyInt_FromLong(((ListObject *)(self))->list->lv_lock);
++     else if (strcmp(name, "__members__") == 0)
++ 	return ObjectDir(NULL, ListAttrs);
+  
+      return Py_FindMethod(ListMethods, self, name);
+  }
+***************
+*** 1431,1436 ****
+--- 1439,1446 ----
+  
+      if (strcmp(name, "name") == 0)
+  	return PyString_FromString((char *)(this->name));
++     else if (strcmp(name, "__members__") == 0)
++ 	return ObjectDir(NULL, FunctionAttrs);
+      else
+  	return Py_FindMethod(FunctionMethods, self, name);
+  }
+*** ../vim-7.3.1046/src/testdir/test86.in	2013-05-29 22:15:26.000000000 +0200
+--- src/testdir/test86.in	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 691,696 ****
+--- 691,714 ----
+      cb.append(expr + ':' + attr + ':' + repr(type(eval(expr)) is getattr(vim, attr)))
+  EOF
+  :"
++ :" Test __dir__() method
++ py << EOF
++ for name, o in (
++         ('current',    vim.current),
++         ('buffer',     vim.current.buffer),
++         ('window',     vim.current.window),
++         ('tabpage',    vim.current.tabpage),
++         ('range',      vim.current.range),
++         ('dictionary', vim.bindeval('{}')),
++         ('list',       vim.bindeval('[]')),
++         ('function',   vim.bindeval('function("tr")')),
++         ('output',     sys.stdout),
++     ):
++     cb.append(name + ':' + ','.join(dir(o)))
++ del name
++ del o
++ EOF
++ :"
+  :" Test exceptions
+  :fun Exe(e)
+  :   execute a:e
+*** ../vim-7.3.1046/src/testdir/test86.ok	2013-05-29 22:15:26.000000000 +0200
+--- src/testdir/test86.ok	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 382,387 ****
+--- 382,396 ----
+  vim.current.range:Range:True
+  vim.current.window:Window:True
+  vim.current.tabpage:TabPage:True
++ current:__dir__,__members__,buffer,line,range,tabpage,window
++ buffer:__dir__,__members__,append,mark,name,number,options,range,valid,vars
++ window:__dir__,__members__,buffer,col,cursor,height,number,options,row,tabpage,valid,vars
++ tabpage:__dir__,__members__,number,valid,vars,window,windows
++ range:__dir__,__members__,append,end,start
++ dictionary:__dir__,__members__,keys,locked,scope
++ list:__dir__,__members__,extend,locked
++ function:__call__,__dir__,__members__,softspace
++ output:__dir__,__members__,flush,softspace,write,writelines
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1046/src/testdir/test87.in	2013-05-29 22:15:26.000000000 +0200
+--- src/testdir/test87.in	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 669,674 ****
+--- 669,692 ----
+      cb.append(expr + ':' + attr + ':' + repr(type(eval(expr)) is getattr(vim, attr)))
+  EOF
+  :"
++ :" Test __dir__() method
++ py3 << EOF
++ for name, o in (
++         ('current',    vim.current),
++         ('buffer',     vim.current.buffer),
++         ('window',     vim.current.window),
++         ('tabpage',    vim.current.tabpage),
++         ('range',      vim.current.range),
++         ('dictionary', vim.bindeval('{}')),
++         ('list',       vim.bindeval('[]')),
++         ('function',   vim.bindeval('function("tr")')),
++         ('output',     sys.stdout),
++     ):
++     cb.append(name + ':' + ','.join(dir(o)))
++ del name
++ del o
++ EOF
++ :"
+  :" Test exceptions
+  :fun Exe(e)
+  :   execute a:e
+*** ../vim-7.3.1046/src/testdir/test87.ok	2013-05-29 22:15:26.000000000 +0200
+--- src/testdir/test87.ok	2013-05-29 22:29:26.000000000 +0200
+***************
+*** 371,376 ****
+--- 371,385 ----
+  vim.current.range:Range:True
+  vim.current.window:Window:True
+  vim.current.tabpage:TabPage:True
++ current:__dir__,buffer,line,range,tabpage,window
++ buffer:__dir__,append,mark,name,number,options,range,valid,vars
++ window:__dir__,buffer,col,cursor,height,number,options,row,tabpage,valid,vars
++ tabpage:__dir__,number,valid,vars,window,windows
++ range:__dir__,append,end,start
++ dictionary:__dir__,keys,locked,scope
++ list:__dir__,extend,locked
++ function:__call__,__dir__,softspace
++ output:__dir__,flush,softspace,write,writelines
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1046/src/version.c	2013-05-29 22:26:15.000000000 +0200
+--- src/version.c	2013-05-29 22:35:24.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1047,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+22. You've already visited all the links at Yahoo and you're halfway through
+    Lycos.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,159 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1278
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1278
+Problem:    When someone sets the screen size to a huge value with "stty" Vim
+	    runs out of memory before reducing the size.
+Solution:   Limit Rows and Columns in more places.
+Files:	    src/gui.c, src/gui_gtk_x11.c, src/option.c, src/os_unix.c,
+	    src/proto/term.pro, src/term.c
+
+
+*** ../vim-7.3.1277/src/gui.c	2013-06-29 15:19:17.000000000 +0200
+--- src/gui.c	2013-06-30 17:41:48.000000000 +0200
+***************
+*** 1620,1625 ****
+--- 1620,1626 ----
+  	    un_maximize = FALSE;
+  #endif
+      }
++     limit_screen_size();
+      gui.num_cols = Columns;
+      gui.num_rows = Rows;
+  
+*** ../vim-7.3.1277/src/gui_gtk_x11.c	2013-05-21 12:52:00.000000000 +0200
+--- src/gui_gtk_x11.c	2013-06-30 17:42:13.000000000 +0200
+***************
+*** 3698,3703 ****
+--- 3698,3704 ----
+  		p_window = h - 1;
+  	    Rows = h;
+  	}
++ 	limit_screen_size();
+  
+  	pixel_width = (guint)(gui_get_base_width() + Columns * gui.char_width);
+  	pixel_height = (guint)(gui_get_base_height() + Rows * gui.char_height);
+*** ../vim-7.3.1277/src/option.c	2013-06-29 14:42:21.000000000 +0200
+--- src/option.c	2013-06-30 17:45:36.000000000 +0200
+***************
+*** 8528,8538 ****
+  	}
+  	Columns = MIN_COLUMNS;
+      }
+!     /* Limit the values to avoid an overflow in Rows * Columns. */
+!     if (Columns > 10000)
+! 	Columns = 10000;
+!     if (Rows > 1000)
+! 	Rows = 1000;
+  
+  #ifdef DJGPP
+      /* avoid a crash by checking for a too large value of 'columns' */
+--- 8528,8534 ----
+  	}
+  	Columns = MIN_COLUMNS;
+      }
+!     limit_screen_size();
+  
+  #ifdef DJGPP
+      /* avoid a crash by checking for a too large value of 'columns' */
+*** ../vim-7.3.1277/src/os_unix.c	2013-06-29 14:16:58.000000000 +0200
+--- src/os_unix.c	2013-06-30 17:43:25.000000000 +0200
+***************
+*** 3777,3782 ****
+--- 3777,3783 ----
+  
+      Rows = rows;
+      Columns = columns;
++     limit_screen_size();
+      return OK;
+  }
+  
+*** ../vim-7.3.1277/src/proto/term.pro	2013-03-13 19:29:24.000000000 +0100
+--- src/proto/term.pro	2013-06-30 17:47:49.000000000 +0200
+***************
+*** 26,31 ****
+--- 26,32 ----
+  void ttest __ARGS((int pairs));
+  void add_long_to_buf __ARGS((long_u val, char_u *dst));
+  void check_shellsize __ARGS((void));
++ void limit_screen_size __ARGS((void));
+  void win_new_shellsize __ARGS((void));
+  void shell_resized __ARGS((void));
+  void shell_resized_check __ARGS((void));
+*** ../vim-7.3.1277/src/term.c	2013-05-15 14:22:36.000000000 +0200
+--- src/term.c	2013-06-30 17:47:34.000000000 +0200
+***************
+*** 2962,2976 ****
+  #endif
+  
+  /*
+!  * Check if the new shell size is valid, correct it if it's too small.
+   */
+      void
+  check_shellsize()
+  {
+-     if (Columns < MIN_COLUMNS)
+- 	Columns = MIN_COLUMNS;
+      if (Rows < min_rows())	/* need room for one window and command line */
+  	Rows = min_rows();
+  }
+  
+  /*
+--- 2962,2990 ----
+  #endif
+  
+  /*
+!  * Check if the new shell size is valid, correct it if it's too small or way
+!  * too big.
+   */
+      void
+  check_shellsize()
+  {
+      if (Rows < min_rows())	/* need room for one window and command line */
+  	Rows = min_rows();
++     limit_screen_size();
++ }
++ 
++ /*
++  * Limit Rows and Columns to avoid an overflow in Rows * Columns.
++  */
++     void
++ limit_screen_size()
++ {
++     if (Columns < MIN_COLUMNS)
++ 	Columns = MIN_COLUMNS;
++     else if (Columns > 10000)
++ 	Columns = 10000;
++     if (Rows > 1000)
++ 	Rows = 1000;
+  }
+  
+  /*
+*** ../vim-7.3.1277/src/version.c	2013-06-30 17:23:46.000000000 +0200
+--- src/version.c	2013-06-30 17:50:34.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1278,
+  /**/
+
+-- 
+ARTHUR:  Be quiet!
+DENNIS:  --but by a two-thirds majority in the case of more--
+ARTHUR:  Be quiet!  I order you to be quiet!
+WOMAN:   Order, eh -- who does he think he is?
+ARTHUR:  I am your king!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,119 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.910
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.910
+Problem:    Python code in #ifdef branches with only minor differences.
+Solution:   Merge the #ifdef branches. (ZyX)
+Files:	    src/if_py_both.h, src/if_python.c
+
+
+*** ../vim-7.3.909/src/if_py_both.h	2013-04-24 13:39:11.000000000 +0200
+--- src/if_py_both.h	2013-04-24 13:42:30.000000000 +0200
+***************
+*** 2853,2859 ****
+  	tv->v_type = VAR_FUNC;
+  	func_ref(tv->vval.v_string);
+      }
+- #if PY_MAJOR_VERSION >= 3
+      else if (PyBytes_Check(obj))
+      {
+  	char_u	*result;
+--- 2853,2858 ----
+***************
+*** 2873,2902 ****
+  	PyObject	*bytes;
+  	char_u	*result;
+  
+- 	bytes = PyString_AsBytes(obj);
+- 	if (bytes == NULL)
+- 	    return -1;
+- 
+- 	if(PyString_AsStringAndSize(bytes, (char **) &result, NULL) == -1)
+- 	    return -1;
+- 	if (result == NULL)
+- 	    return -1;
+- 
+- 	if (set_string_copy(result, tv) == -1)
+- 	{
+- 	    Py_XDECREF(bytes);
+- 	    return -1;
+- 	}
+- 	Py_XDECREF(bytes);
+- 
+- 	tv->v_type = VAR_STRING;
+-     }
+- #else
+-     else if (PyUnicode_Check(obj))
+-     {
+- 	PyObject	*bytes;
+- 	char_u	*result;
+- 
+  	bytes = PyUnicode_AsEncodedString(obj, (char *)ENC_OPT, NULL);
+  	if (bytes == NULL)
+  	    return -1;
+--- 2872,2877 ----
+***************
+*** 2915,2934 ****
+  
+  	tv->v_type = VAR_STRING;
+      }
+!     else if (PyString_Check(obj))
+!     {
+! 	char_u	*result;
+! 
+! 	if(PyString_AsStringAndSize(obj, (char **) &result, NULL) == -1)
+! 	    return -1;
+! 	if (result == NULL)
+! 	    return -1;
+! 
+! 	if (set_string_copy(result, tv) == -1)
+! 	    return -1;
+! 
+! 	tv->v_type = VAR_STRING;
+!     }
+      else if (PyInt_Check(obj))
+      {
+  	tv->v_type = VAR_NUMBER;
+--- 2890,2896 ----
+  
+  	tv->v_type = VAR_STRING;
+      }
+! #if PY_MAJOR_VERSION < 3
+      else if (PyInt_Check(obj))
+      {
+  	tv->v_type = VAR_NUMBER;
+*** ../vim-7.3.909/src/if_python.c	2013-04-24 13:39:11.000000000 +0200
+--- src/if_python.c	2013-04-24 13:42:30.000000000 +0200
+***************
+*** 59,64 ****
+--- 59,65 ----
+  static void init_structs(void);
+  
+  #define PyBytes_FromString PyString_FromString
++ #define PyBytes_Check PyString_Check
+  
+  /* No-op conversion functions, use with care! */
+  #define PyString_AsBytes(obj) (obj)
+*** ../vim-7.3.909/src/version.c	2013-04-24 13:39:11.000000000 +0200
+--- src/version.c	2013-04-24 13:43:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     910,
+  /**/
+
+-- 
+Your fault: core dumped
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

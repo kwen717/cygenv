@@ -1,0 +1,126 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1306
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1306
+Problem:    When redrawing the screen during startup the intro message may be
+	    cleared.
+Solution:   Redisplay the intro message when appropriate.
+Files:	    src/screen.c, src/version.c, src/proto/version.pro
+
+
+*** ../vim-7.3.1305/src/screen.c	2013-07-03 13:29:55.000000000 +0200
+--- src/screen.c	2013-07-04 22:23:55.000000000 +0200
+***************
+*** 389,395 ****
+  	    }
+  	    ret = 4;
+  	}
+- 	setcursor();
+      }
+  
+      vim_free(screenline);
+--- 389,394 ----
+***************
+*** 405,410 ****
+--- 404,414 ----
+  	vim_free(screenline2);
+  #endif
+  
++     /* Show the intro message when appropriate. */
++     maybe_intro_message();
++ 
++     setcursor();
++ 
+      return ret;
+  }
+  
+***************
+*** 715,727 ****
+  	showmode();
+  
+      /* May put up an introductory message when not editing a file */
+!     if (!did_intro && bufempty()
+! 	    && curbuf->b_fname == NULL
+! #ifdef FEAT_WINDOWS
+! 	    && firstwin->w_next == NULL
+! #endif
+! 	    && vim_strchr(p_shm, SHM_INTRO) == NULL)
+! 	intro_message(FALSE);
+      did_intro = TRUE;
+  
+  #ifdef FEAT_GUI
+--- 719,726 ----
+  	showmode();
+  
+      /* May put up an introductory message when not editing a file */
+!     if (!did_intro)
+! 	maybe_intro_message();
+      did_intro = TRUE;
+  
+  #ifdef FEAT_GUI
+*** ../vim-7.3.1305/src/version.c	2013-07-04 21:19:28.000000000 +0200
+--- src/version.c	2013-07-04 22:29:42.000000000 +0200
+***************
+*** 3777,3782 ****
+--- 3779,3799 ----
+  static void do_intro_line __ARGS((int row, char_u *mesg, int add_version, int attr));
+  
+  /*
++  * Show the intro message when not editing a file.
++  */
++     void
++ maybe_intro_message()
++ {
++     if (bufempty()
++ 	    && curbuf->b_fname == NULL
++ #ifdef FEAT_WINDOWS
++ 	    && firstwin->w_next == NULL
++ #endif
++ 	    && vim_strchr(p_shm, SHM_INTRO) == NULL)
++ 	intro_message(FALSE);
++ }
++ 
++ /*
+   * Give an introductory message about Vim.
+   * Only used when starting Vim on an empty file, without a file name.
+   * Or with the ":intro" command (for Sven :-).
+*** ../vim-7.3.1305/src/proto/version.pro	2010-08-15 21:57:28.000000000 +0200
+--- src/proto/version.pro	2013-07-04 22:19:53.000000000 +0200
+***************
+*** 4,9 ****
+--- 4,10 ----
+  int has_patch __ARGS((int n));
+  void ex_version __ARGS((exarg_T *eap));
+  void list_version __ARGS((void));
++ void maybe_intro_message __ARGS((void));
+  void intro_message __ARGS((int colon));
+  void ex_intro __ARGS((exarg_T *eap));
+  /* vim: set ft=c : */
+*** ../vim-7.3.1305/src/version.c	2013-07-04 21:19:28.000000000 +0200
+--- src/version.c	2013-07-04 22:29:42.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1306,
+  /**/
+
+-- 
+ROBIN:  The what?
+ARTHUR: The Holy Hand Grenade of Antioch.  'Tis one of the sacred relics
+        Brother Maynard always carries with him.
+ALL:    Yes. Of course.
+ARTHUR: (shouting) Bring up the Holy Hand Grenade!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

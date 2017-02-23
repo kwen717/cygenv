@@ -1,0 +1,329 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1261
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1261 (after patch 7.3.1179)
+Problem:    A buffer-local language mapping from a keymap stops a global
+	    insert mode mapping from working. (Ron Aaron)
+Solution:   Do not wait for more characters to be typed only when the mapping
+	    was defined with <nowait>.
+Files:	    runtime/doc/map.txt, src/eval.c, src/getchar.c,
+	    src/testdir/test75.in, src/testdir/test75.ok
+
+
+*** ../vim-7.3.1260/runtime/doc/map.txt	2013-06-12 21:00:18.000000000 +0200
+--- runtime/doc/map.txt	2013-06-29 13:55:01.000000000 +0200
+***************
+*** 159,167 ****
+  
+  1.2 SPECIAL ARGUMENTS					*:map-arguments*
+  
+! "<buffer>", "<silent>", "<special>", "<script>", "<expr>" and "<unique>" can
+! be used in any order.  They must appear right after the command, before any
+! other arguments.
+  
+  				*:map-local* *:map-<buffer>* *E224* *E225*
+  If the first argument to one of these commands is "<buffer>" the mapping will
+--- 159,167 ----
+  
+  1.2 SPECIAL ARGUMENTS					*:map-arguments*
+  
+! "<buffer>", "<nowait>", "<silent>", "<special>", "<script>", "<expr>" and
+! "<unique>" can be used in any order.  They must appear right after the
+! command, before any other arguments.
+  
+  				*:map-local* *:map-<buffer>* *E224* *E225*
+  If the first argument to one of these commands is "<buffer>" the mapping will
+***************
+*** 169,175 ****
+  	:map <buffer>  ,w  /[.,;]<CR>
+  Then you can map ",w" to something else in another buffer: >
+  	:map <buffer>  ,w  /[#&!]<CR>
+! The local buffer mappings are used before the global ones.
+  The "<buffer>" argument can also be used to clear mappings: >
+  	:unmap <buffer> ,w
+  	:mapclear <buffer>
+--- 169,177 ----
+  	:map <buffer>  ,w  /[.,;]<CR>
+  Then you can map ",w" to something else in another buffer: >
+  	:map <buffer>  ,w  /[#&!]<CR>
+! The local buffer mappings are used before the global ones.  See <nowait> below
+! to make a short local mapping not taking effect when a longer global one
+! exists.
+  The "<buffer>" argument can also be used to clear mappings: >
+  	:unmap <buffer> ,w
+  	:mapclear <buffer>
+***************
+*** 177,182 ****
+--- 179,192 ----
+  unloaded.  Just like local option values.
+  Also see |map-precedence|.
+  
++ 						*:map-<nowait>* *:map-nowait*
++ When defining a buffer-local mapping for "," there may be a global mapping
++ that starts with ",".  Then you need to type another character for Vim to know
++ whether to use the "," mapping or the longer one.  To avoid this add the
++ <nowait> argument.  Then the mapping will be used when it matches, Vim does
++ not wait for more characters to be typed.  However, if the characters were
++ already type they are used.
++ 
+  						*:map-<silent>* *:map-silent*
+  To define a mapping which will not be echoed on the command line, add
+  "<silent>" as the first argument.  Example: >
+*** ../vim-7.3.1260/src/eval.c	2013-06-24 22:17:27.000000000 +0200
+--- src/eval.c	2013-06-29 13:32:35.000000000 +0200
+***************
+*** 13735,13740 ****
+--- 13735,13741 ----
+  	dict_add_nr_str(dict, "silent",  mp->m_silent  ? 1L : 0L, NULL);
+  	dict_add_nr_str(dict, "sid",     (long)mp->m_script_ID, NULL);
+  	dict_add_nr_str(dict, "buffer",  (long)buffer_local, NULL);
++ 	dict_add_nr_str(dict, "nowait",  mp->m_nowait  ? 1L : 0L, NULL);
+  	dict_add_nr_str(dict, "mode",    0L, mapmode);
+  
+  	vim_free(lhs);
+*** ../vim-7.3.1260/src/getchar.c	2013-06-12 21:00:18.000000000 +0200
+--- src/getchar.c	2013-06-29 13:43:27.000000000 +0200
+***************
+*** 1924,1930 ****
+      mapblock_T	*mp;
+  #ifdef FEAT_LOCALMAP
+      mapblock_T	*mp2;
+-     int		expecting_global_mappings;
+  #endif
+      mapblock_T	*mp_match;
+      int		mp_match_len = 0;
+--- 1924,1929 ----
+***************
+*** 2106,2114 ****
+  			/* First try buffer-local mappings. */
+  			mp = curbuf->b_maphash[MAP_HASH(local_State, c1)];
+  			mp2 = maphash[MAP_HASH(local_State, c1)];
+- 			expecting_global_mappings = (mp && mp2);
+  			if (mp == NULL)
+  			{
+  			    mp = mp2;
+  			    mp2 = NULL;
+  			}
+--- 2105,2113 ----
+  			/* First try buffer-local mappings. */
+  			mp = curbuf->b_maphash[MAP_HASH(local_State, c1)];
+  			mp2 = maphash[MAP_HASH(local_State, c1)];
+  			if (mp == NULL)
+  			{
++ 			    /* There are no buffer-local mappings. */
+  			    mp = mp2;
+  			    mp2 = NULL;
+  			}
+***************
+*** 2130,2145 ****
+  #endif
+  				(mp = mp->m_next))
+  			{
+- #ifdef FEAT_LOCALMAP
+- 			    if (expecting_global_mappings && mp2 == NULL)
+- 			    {
+- 				/* This is the first global mapping. If we've
+- 				 * got a complete buffer-local match, use it. */
+- 				if (mp_match)
+- 				    break;
+- 				expecting_global_mappings = FALSE;
+- 			    }
+- #endif
+  			    /*
+  			     * Only consider an entry if the first character
+  			     * matches and it is for the current state.
+--- 2129,2134 ----
+***************
+*** 2215,2221 ****
+  
+  				    if (keylen > typebuf.tb_len)
+  				    {
+! 					if (!timedout)
+  					{
+  					    /* break at a partly match */
+  					    keylen = KEYLEN_PART_MAP;
+--- 2204,2211 ----
+  
+  				    if (keylen > typebuf.tb_len)
+  				    {
+! 					if (!timedout && !(mp_match != NULL
+! 						       && mp_match->m_nowait))
+  					{
+  					    /* break at a partly match */
+  					    keylen = KEYLEN_PART_MAP;
+***************
+*** 3207,3212 ****
+--- 3197,3203 ----
+      mapblock_T	**abbr_table;
+      mapblock_T	**map_table;
+      int		unique = FALSE;
++     int		nowait = FALSE;
+      int		silent = FALSE;
+      int		special = FALSE;
+  #ifdef FEAT_EVAL
+***************
+*** 3225,3231 ****
+      else
+  	noremap = REMAP_YES;
+  
+!     /* Accept <buffer>, <silent>, <expr> <script> and <unique> in any order. */
+      for (;;)
+      {
+  #ifdef FEAT_LOCALMAP
+--- 3216,3223 ----
+      else
+  	noremap = REMAP_YES;
+  
+!     /* Accept <buffer>, <nowait>, <silent>, <expr> <script> and <unique> in
+!      * any order. */
+      for (;;)
+      {
+  #ifdef FEAT_LOCALMAP
+***************
+*** 3242,3247 ****
+--- 3234,3249 ----
+  #endif
+  
+  	/*
++ 	 * Check for "<nowait>": don't wait for more characters.
++ 	 */
++ 	if (STRNCMP(keys, "<nowait>", 8) == 0)
++ 	{
++ 	    keys = skipwhite(keys + 8);
++ 	    nowait = TRUE;
++ 	    continue;
++ 	}
++ 
++ 	/*
+  	 * Check for "<silent>": don't echo commands.
+  	 */
+  	if (STRNCMP(keys, "<silent>", 8) == 0)
+***************
+*** 3607,3612 ****
+--- 3609,3615 ----
+  				vim_free(mp->m_orig_str);
+  				mp->m_orig_str = vim_strsave(orig_rhs);
+  				mp->m_noremap = noremap;
++ 				mp->m_nowait = nowait;
+  				mp->m_silent = silent;
+  				mp->m_mode = mode;
+  #ifdef FEAT_EVAL
+***************
+*** 3695,3700 ****
+--- 3698,3704 ----
+      }
+      mp->m_keylen = (int)STRLEN(mp->m_keys);
+      mp->m_noremap = noremap;
++     mp->m_nowait = nowait;
+      mp->m_silent = silent;
+      mp->m_mode = mode;
+  #ifdef FEAT_EVAL
+***************
+*** 4173,4178 ****
+--- 4177,4187 ----
+  		arg = skipwhite(arg + 8);
+  		continue;
+  	    }
++ 	    if (STRNCMP(arg, "<nowait>", 8) == 0)
++ 	    {
++ 		arg = skipwhite(arg + 8);
++ 		continue;
++ 	    }
+  	    if (STRNCMP(arg, "<silent>", 8) == 0)
+  	    {
+  		arg = skipwhite(arg + 8);
+***************
+*** 4229,4235 ****
+      {
+  	count = 0;
+  
+! 	for (i = 0; i < 5; ++i)
+  	{
+  	    if (i == 0)
+  		p = (char_u *)"<silent>";
+--- 4238,4244 ----
+      {
+  	count = 0;
+  
+! 	for (i = 0; i < 6; ++i)
+  	{
+  	    if (i == 0)
+  		p = (char_u *)"<silent>";
+***************
+*** 4245,4250 ****
+--- 4254,4261 ----
+  	    else if (i == 4 && !expand_buffer)
+  		p = (char_u *)"<buffer>";
+  #endif
++ 	    else if (i == 5)
++ 		p = (char_u *)"<nowait>";
+  	    else
+  		continue;
+  
+***************
+*** 4857,4862 ****
+--- 4868,4875 ----
+  			return FAIL;
+  		    if (buf != NULL && fputs(" <buffer>", fd) < 0)
+  			return FAIL;
++ 		    if (mp->m_nowait && fputs(" <nowait>", fd) < 0)
++ 			return FAIL;
+  		    if (mp->m_silent && fputs(" <silent>", fd) < 0)
+  			return FAIL;
+  #ifdef FEAT_EVAL
+*** ../vim-7.3.1260/src/testdir/test75.in	2011-08-19 22:28:58.000000000 +0200
+--- src/testdir/test75.in	2013-06-29 13:48:42.000000000 +0200
+***************
+*** 9,14 ****
+--- 9,16 ----
+  :call append('$', maparg('foo<C-V>'))
+  :call append('$', string(maparg('foo<C-V>', '', 0, 1)))
+  :call append('$', string(maparg('bar', '', 0, 1)))
++ :map <buffer> <nowait> foo bar
++ :call append('$', string(maparg('foo', '', 0, 1)))
+  :"
+  :map abc x<char-114>x
+  :call append('$', maparg('abc'))
+*** ../vim-7.3.1260/src/testdir/test75.ok	2011-08-19 22:28:58.000000000 +0200
+--- src/testdir/test75.ok	2013-06-29 13:50:08.000000000 +0200
+***************
+*** 1,5 ****
+  is<F4>foo
+! {'silent': 0, 'noremap': 0, 'lhs': 'foo<C-V>', 'mode': ' ', 'expr': 0, 'sid': 0, 'rhs': 'is<F4>foo', 'buffer': 0}
+! {'silent': 1, 'noremap': 1, 'lhs': 'bar', 'mode': 'v', 'expr': 1, 'sid': 0, 'rhs': 'isbar', 'buffer': 1}
+  xrx
+  yRy
+--- 1,6 ----
+  is<F4>foo
+! {'silent': 0, 'noremap': 0, 'lhs': 'foo<C-V>', 'mode': ' ', 'nowait': 0, 'expr': 0, 'sid': 0, 'rhs': 'is<F4>foo', 'buffer': 0}
+! {'silent': 1, 'noremap': 1, 'lhs': 'bar', 'mode': 'v', 'nowait': 0, 'expr': 1, 'sid': 0, 'rhs': 'isbar', 'buffer': 1}
+! {'silent': 0, 'noremap': 0, 'lhs': 'foo', 'mode': ' ', 'nowait': 1, 'expr': 0, 'sid': 0, 'rhs': 'bar', 'buffer': 1}
+  xrx
+  yRy
+*** ../vim-7.3.1260/src/version.c	2013-06-29 12:58:27.000000000 +0200
+--- src/version.c	2013-06-29 13:25:13.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1261,
+  /**/
+
+-- 
+GUARD #2:  It could be carried by an African swallow!
+GUARD #1:  Oh, yeah, an African swallow maybe, but not a European swallow,
+           that's my point.
+GUARD #2:  Oh, yeah, I agree with that...
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

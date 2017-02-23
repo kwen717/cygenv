@@ -1,0 +1,55 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.849
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.849
+Problem:    ":g//" gives "Pattern not found error" with E486.  Should not use
+	    the error number, it's not a regular error message.
+Solution:   Use a normal message. (David Bürgin)
+Files:	    src/ex_cmds.c
+
+
+*** ../vim-7.3.848/src/ex_cmds.c	2013-02-06 18:23:58.000000000 +0100
+--- src/ex_cmds.c	2013-03-07 16:05:49.000000000 +0100
+***************
+*** 5411,5417 ****
+  	if (type == 'v')
+  	    smsg((char_u *)_("Pattern found in every line: %s"), pat);
+  	else
+! 	    smsg((char_u *)_(e_patnotf2), pat);
+      }
+      else
+  	global_exe(cmd);
+--- 5411,5417 ----
+  	if (type == 'v')
+  	    smsg((char_u *)_("Pattern found in every line: %s"), pat);
+  	else
+! 	    smsg((char_u *)_("Pattern not found: %s"), pat);
+      }
+      else
+  	global_exe(cmd);
+*** ../vim-7.3.848/src/version.c	2013-03-07 15:16:16.000000000 +0100
+--- src/version.c	2013-03-07 16:03:57.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     849,
+  /**/
+
+-- 
+Apparently, 1 in 5 people in the world are Chinese.  And there are 5
+people in my family, so it must be one of them.  It's either my mum
+or my dad.  Or my older brother Colin.  Or my younger brother
+Ho-Cha-Chu.  But I think it's Colin.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

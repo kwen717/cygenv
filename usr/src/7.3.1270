@@ -1,0 +1,57 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1270
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1270
+Problem:    Using "Vp" in an empty buffer can't be undone. (Hauke Petersen)
+Solution:   Save one line in an empty buffer. (Christian Brabandt)
+Files:	    src/ops.c
+
+
+*** ../vim-7.3.1269/src/ops.c	2013-05-06 04:21:35.000000000 +0200
+--- src/ops.c	2013-06-29 17:14:19.000000000 +0200
+***************
+*** 3497,3503 ****
+  #endif
+  	if (dir == FORWARD)
+  	    ++lnum;
+! 	if (u_save(lnum - 1, lnum) == FAIL)
+  	    goto end;
+  #ifdef FEAT_FOLDING
+  	if (dir == FORWARD)
+--- 3497,3505 ----
+  #endif
+  	if (dir == FORWARD)
+  	    ++lnum;
+! 	/* In an empty buffer the empty line is going to be replaced, include
+! 	 * it in the saved lines. */
+! 	if ((bufempty() ? u_save(0, 1) : u_save(lnum - 1, lnum)) == FAIL)
+  	    goto end;
+  #ifdef FEAT_FOLDING
+  	if (dir == FORWARD)
+*** ../vim-7.3.1269/src/version.c	2013-06-29 16:21:50.000000000 +0200
+--- src/version.c	2013-06-29 17:18:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1270,
+  /**/
+
+-- 
+ARTHUR:  Well, I can't just call you `Man'.
+DENNIS:  Well, you could say `Dennis'.
+ARTHUR:  Well, I didn't know you were called `Dennis.'
+DENNIS:  Well, you didn't bother to find out, did you?
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

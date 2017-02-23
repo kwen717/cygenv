@@ -1,0 +1,65 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.883
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.883 (after 7.3.880)
+Problem:    Can't build with some combination of features.
+Solution:   Adjust #ifdefs.
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.882/src/ex_getln.c	2013-04-05 18:58:41.000000000 +0200
+--- src/ex_getln.c	2013-04-06 13:24:22.000000000 +0200
+***************
+*** 114,126 ****
+  static int	ExpandRTDir __ARGS((char_u *pat, int *num_file, char_u ***file, char *dirname[]));
+  # ifdef FEAT_CMDHIST
+  static char_u	*get_history_arg __ARGS((expand_T *xp, int idx));
+- static void	clear_hist_entry __ARGS((histentry_T *hisptr));
+  # endif
+  # if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL)
+  static int	ExpandUserDefined __ARGS((expand_T *xp, regmatch_T *regmatch, int *num_file, char_u ***file));
+  static int	ExpandUserList __ARGS((expand_T *xp, int *num_file, char_u ***file));
+  # endif
+  #endif
+  
+  #ifdef FEAT_CMDWIN
+  static int	ex_window __ARGS((void));
+--- 114,128 ----
+  static int	ExpandRTDir __ARGS((char_u *pat, int *num_file, char_u ***file, char *dirname[]));
+  # ifdef FEAT_CMDHIST
+  static char_u	*get_history_arg __ARGS((expand_T *xp, int idx));
+  # endif
+  # if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL)
+  static int	ExpandUserDefined __ARGS((expand_T *xp, regmatch_T *regmatch, int *num_file, char_u ***file));
+  static int	ExpandUserList __ARGS((expand_T *xp, int *num_file, char_u ***file));
+  # endif
+  #endif
++ #ifdef FEAT_CMDHIST
++ static void	clear_hist_entry __ARGS((histentry_T *hisptr));
++ #endif
+  
+  #ifdef FEAT_CMDWIN
+  static int	ex_window __ARGS((void));
+*** ../vim-7.3.882/src/version.c	2013-04-05 19:50:12.000000000 +0200
+--- src/version.c	2013-04-06 14:28:41.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     883,
+  /**/
+
+-- 
+Why is it called "Windows"?  "Gates" would be more appropriate...
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

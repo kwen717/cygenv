@@ -1,0 +1,92 @@
+# git.cygport - directions for packaging git for cygwin
+
+# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012 Eric Blake
+# This file is free software; I give unlimited permission to copy and/or
+# distribute it, with or without modifications, as long as this notice is
+# preserved.
+
+inherit perl
+
+DESCRIPTION="Fast Version Control System"
+HOMEPAGE=http://git.or.cz
+SRC_URI="https://git-core.googlecode.com/files/$P.tar.gz"
+#SRC_URI="$SRC_URI $SRC_URI.sign"
+
+PKG_NAMES="$PN git-svn gitk git-gui git-completion"
+PKG_HINTS=$PKG_NAMES
+PKG_CONTENTS[0]="
+usr/bin/git-*
+usr/bin/git.exe
+usr/lib/git-core/git-[a-fh-rt-z]*
+usr/lib/git-core/git-g[a-tv-z]*
+usr/lib/git-core/git-s[a-uw-z]*
+usr/lib/git-core/git.exe
+usr/lib/git-core/mergetools
+usr/lib/perl5
+usr/lib/python2.6
+usr/share/doc
+usr/share/git-core
+usr/share/gitweb
+usr/share/locale
+usr/share/man/man1/git-[a-fh-rt-z]*
+usr/share/man/man1/git-g[a-tv-z]*
+usr/share/man/man1/git-s[a-uw-z]*
+usr/share/man/man1/gitweb.1.gz
+usr/share/man/man1/git.1.gz
+usr/share/man/man[357]
+"
+PKG_CONTENTS[1]="
+usr/lib/git-core/git-svn
+usr/share/man/man1/git-svn.1.gz
+"
+PKG_CONTENTS[2]="
+usr/bin/gitk
+usr/share/gitk
+usr/share/man/man1/gitk.1.gz
+"
+PKG_CONTENTS[3]="
+usr/lib/git-core/git-gui*
+usr/share/git-gui
+usr/share/man/man1/git-gui.1.gz
+"
+PKG_CONTENTS[4]="
+etc/bash_completion.d
+"
+
+MAKEOPTS='ASCIIDOC8=yes INSTALLDIRS=vendor'
+DIFF_EXCLUDES='GIT-VERSION-FILE'
+
+src_compile()
+{
+  # the configure script is not distributed, and VPATH builds aren't supported
+  cd $S
+  make configure
+  lndirs
+  cd $B
+  # tcl doesn't know how to see symlinks in globs
+  for f in `find -name '*.tcl'` ; do
+    test -z "$(readlink $f)" && continue
+    ln -f "$(readlink $f)" $f
+  done
+  cygconf CC=gcc-4 --mandir=/usr/share/man
+  # docs aren't built by default
+  cygmake all doc
+}
+
+src_install()
+{
+  # ship bash completion
+  mkdir -p $D/etc/bash_completion.d
+  cp $S/contrib/completion/git-completion.bash $D/etc/bash_completion.d/git
+  # docs aren't installed by default
+  cd $B
+  cyginstall install-doc || error "cyginstall failed!"
+  # avoid clash with perl pod list
+  perl_postinst || error "perl_postinst failed!"
+}
+
+# Local Variables:
+# fill-column: 72
+# mode: sh
+# sh-indentation: 2
+# End:

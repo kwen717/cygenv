@@ -1,0 +1,224 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.956
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.956
+Problem:    Python vim.bindeval() causes SIGABRT.
+Solution:   Make pygilstate a local variable. (Yukihiro Nakadaira)
+Files:	    src/if_py_both.h, src/if_python.c, src/if_python3.c
+
+
+*** ../vim-7.3.955/src/if_py_both.h	2013-05-15 16:11:46.000000000 +0200
+--- src/if_py_both.h	2013-05-15 17:37:48.000000000 +0200
+***************
+*** 1298,1304 ****
+--- 1298,1311 ----
+  	}
+      }
+  
++     Py_BEGIN_ALLOW_THREADS
++     Python_Lock_Vim();
++ 
+      error = func_call(name, &args, selfdict, &rettv);
++ 
++     Python_Release_Vim();
++     Py_END_ALLOW_THREADS
++ 
+      if (error != OK)
+      {
+  	result = NULL;
+*** ../vim-7.3.955/src/if_python.c	2013-05-15 16:04:34.000000000 +0200
+--- src/if_python.c	2013-05-15 17:37:48.000000000 +0200
+***************
+*** 676,686 ****
+  typedef PyObject PyThreadState;
+  #endif
+  
+! #ifdef PY_CAN_RECURSE
+! static PyGILState_STATE pygilstate = PyGILState_UNLOCKED;
+! #else
+  static PyThreadState *saved_python_thread = NULL;
+- #endif
+  
+  /*
+   * Suspend a thread of the Python interpreter, other threads are allowed to
+--- 676,683 ----
+  typedef PyObject PyThreadState;
+  #endif
+  
+! #ifndef PY_CAN_RECURSE
+  static PyThreadState *saved_python_thread = NULL;
+  
+  /*
+   * Suspend a thread of the Python interpreter, other threads are allowed to
+***************
+*** 689,699 ****
+      static void
+  Python_SaveThread(void)
+  {
+- #ifdef PY_CAN_RECURSE
+-     PyGILState_Release(pygilstate);
+- #else
+      saved_python_thread = PyEval_SaveThread();
+- #endif
+  }
+  
+  /*
+--- 686,692 ----
+***************
+*** 703,715 ****
+      static void
+  Python_RestoreThread(void)
+  {
+- #ifdef PY_CAN_RECURSE
+-     pygilstate = PyGILState_Ensure();
+- #else
+      PyEval_RestoreThread(saved_python_thread);
+      saved_python_thread = NULL;
+- #endif
+  }
+  
+      void
+  python_end()
+--- 696,705 ----
+      static void
+  Python_RestoreThread(void)
+  {
+      PyEval_RestoreThread(saved_python_thread);
+      saved_python_thread = NULL;
+  }
++ #endif
+  
+      void
+  python_end()
+***************
+*** 725,738 ****
+--- 715,736 ----
+  #ifdef DYNAMIC_PYTHON
+      if (hinstPython && Py_IsInitialized())
+      {
++ # ifdef PY_CAN_RECURSE
++ 	PyGILState_Ensure();
++ # else
+  	Python_RestoreThread();	    /* enter python */
++ # endif
+  	Py_Finalize();
+      }
+      end_dynamic_python();
+  #else
+      if (Py_IsInitialized())
+      {
++ # ifdef PY_CAN_RECURSE
++ 	PyGILState_Ensure();
++ # else
+  	Python_RestoreThread();	    /* enter python */
++ # endif
+  	Py_Finalize();
+      }
+  #endif
+***************
+*** 837,842 ****
+--- 835,843 ----
+  #if defined(HAVE_LOCALE_H) || defined(X_LOCALE)
+      char		*saved_locale;
+  #endif
++ #ifdef PY_CAN_RECURSE
++     PyGILState_STATE	pygilstate;
++ #endif
+  
+  #ifndef PY_CAN_RECURSE
+      if (recursive)
+***************
+*** 881,887 ****
+--- 882,892 ----
+      }
+  #endif
+  
++ #ifdef PY_CAN_RECURSE
++     pygilstate = PyGILState_Ensure();
++ #else
+      Python_RestoreThread();	    /* enter python */
++ #endif
+  
+      if (rettv == NULL)
+  	PyRun_SimpleString((char *)(cmd));
+***************
+*** 905,911 ****
+--- 910,920 ----
+  	PyErr_Clear();
+      }
+  
++ #ifdef PY_CAN_RECURSE
++     PyGILState_Release(pygilstate);
++ #else
+      Python_SaveThread();	    /* leave python */
++ #endif
+  
+  #if defined(HAVE_LOCALE_H) || defined(X_LOCALE)
+      if (saved_locale != NULL)
+*** ../vim-7.3.955/src/if_python3.c	2013-05-15 16:04:34.000000000 +0200
+--- src/if_python3.c	2013-05-15 17:37:48.000000000 +0200
+***************
+*** 699,706 ****
+   * 1. Python interpreter main program.
+   */
+  
+- static PyGILState_STATE pygilstate = PyGILState_UNLOCKED;
+- 
+      void
+  python3_end()
+  {
+--- 699,704 ----
+***************
+*** 718,724 ****
+      if (Py_IsInitialized())
+      {
+  	// acquire lock before finalizing
+! 	pygilstate = PyGILState_Ensure();
+  
+  	Py_Finalize();
+      }
+--- 716,722 ----
+      if (Py_IsInitialized())
+      {
+  	// acquire lock before finalizing
+! 	PyGILState_Ensure();
+  
+  	Py_Finalize();
+      }
+***************
+*** 826,831 ****
+--- 824,830 ----
+  #endif
+      PyObject		*cmdstr;
+      PyObject		*cmdbytes;
++     PyGILState_STATE	pygilstate;
+  
+  #if defined(MACOS) && !defined(MACOS_X_UNIX)
+      GetPort(&oldPort);
+*** ../vim-7.3.955/src/version.c	2013-05-15 16:27:33.000000000 +0200
+--- src/version.c	2013-05-15 17:48:15.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     956,
+  /**/
+
+-- 
+GUEST:        He's killed the best man!
+SECOND GUEST: (holding a limp WOMAN) He's killed my auntie.
+FATHER:       No, please!  This is supposed to be a happy occasion!  Let's
+              not bicker and argue about who killed who ...
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

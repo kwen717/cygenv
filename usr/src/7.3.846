@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.846
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.846
+Problem:    Missing proto file, listing a non-existing proto file.
+Solution:   Remove the file.  Add os_beos.pro only in Mercurial.
+Files:	    Filelist
+
+
+*** ../vim-7.3.845/Filelist	2013-02-26 17:59:37.000000000 +0100
+--- Filelist	2013-03-07 13:27:30.000000000 +0100
+***************
+*** 84,90 ****
+  		src/testdir/test60.vim \
+  		src/testdir/test83-tags? \
+  		src/proto.h \
+- 		src/proto/arabic.pro \
+  		src/proto/blowfish.pro \
+  		src/proto/buffer.pro \
+  		src/proto/charset.pro \
+--- 84,89 ----
+*** ../vim-7.3.845/src/version.c	2013-03-07 13:21:28.000000000 +0100
+--- src/version.c	2013-03-07 13:23:02.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     846,
+  /**/
+
+-- 
+I am also told that there is a logical proof out there somewhere
+that demonstrates that there is no task which duct tape cannot handle.
+					-- Paul Brannan
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

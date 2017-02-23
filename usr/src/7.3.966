@@ -1,0 +1,301 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.966
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.966
+Problem:    There is ":py3do" but no ":pydo".
+Solution:   Add the ":pydo" command. (Lilydjwg)
+Files:	    runtime/doc/if_pyth.txt, src/ex_cmds.h, src/ex_docmd.c,
+	    src/if_py_both.h, src/if_python.c, src/if_python3.c,
+	    src/proto/if_python.pro
+
+
+*** ../vim-7.3.965/runtime/doc/if_pyth.txt	2013-05-17 16:18:27.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-17 16:34:28.000000000 +0200
+***************
+*** 57,62 ****
+--- 57,78 ----
+  Note: Python is very sensitive to the indenting.  Make sure the "class" line
+  and "EOF" do not have any indent.
+  
++ 							*:pydo*
++ :[range]pydo {body}	Execute Python function "def _vim_pydo(line, linenr):
++ 			{body}" for each line in the [range], with the
++ 			function arguments being set to the text of each line
++ 			in turn, without a trailing <EOL>, and the current
++ 			line number. The function should return a string or
++ 			None. If a string is returned, it becomes the text of
++ 			the line in the current turn. The default for [range]
++ 			is the whole file: "1,$".
++ 			{not in Vi}
++ 
++ Examples:
++ >
++ 	:pydo return "%s\t%d" % (line[::-1], len(line))
++ 	:pydo if line: return "%4d: %s" % (linenr, line)
++ <
+  							*:pyfile* *:pyf*
+  :[range]pyf[ile] {file}
+  			Execute the Python script in {file}.  The whole
+***************
+*** 485,511 ****
+  8. Python 3						*python3*
+  
+  							*:py3* *:python3*
+! The |:py3| and |:python3| commands work similar to |:python|.  A simple check
+  if the `:py3` command is working: >
+  	:py3 print("Hello")
+  <							*:py3file*
+! The |:py3file| command works similar to |:pyfile|.
+! 
+  							*:py3do* *E863*
+! :[range]py3do {body}	Execute Python function "def _vim_pydo(line, linenr):
+! 			{body}" for each line in the [range], with the
+! 			function arguments being set to the text of each line
+! 			in turn, without a trailing <EOL>, and the current
+! 			line number. The function should return a string or
+! 			None. If a string is returned, it becomes the text of
+! 			the line in the current turn. The default for [range]
+! 			is the whole file: "1,$".
+! 			{not in Vi}
+  
+- Examples:
+- >
+- 	:py3do return "%s\t%d" % (line[::-1], len(line))
+- 	:py3do if line: return "%4d: %s" % (linenr, line)
+  
+  Vim can be built in four ways (:version output):
+  1. No Python support	    (-python, -python3)
+--- 501,514 ----
+  8. Python 3						*python3*
+  
+  							*:py3* *:python3*
+! The `:py3` and `:python3` commands work similar to `:python`.  A simple check
+  if the `:py3` command is working: >
+  	:py3 print("Hello")
+  <							*:py3file*
+! The `:py3file` command works similar to `:pyfile`.
+  							*:py3do* *E863*
+! The `:py3do` command works similar to `:pydo`.
+  
+  
+  Vim can be built in four ways (:version output):
+  1. No Python support	    (-python, -python3)
+*** ../vim-7.3.965/src/ex_cmds.h	2013-05-15 18:28:08.000000000 +0200
+--- src/ex_cmds.h	2013-05-17 16:29:38.000000000 +0200
+***************
+*** 739,744 ****
+--- 739,746 ----
+  			TRLBAR|CMDWIN),
+  EX(CMD_python,		"python",	ex_python,
+  			RANGE|EXTRA|NEEDARG|CMDWIN),
++ EX(CMD_pydo,		"pydo",		ex_pydo,
++ 			RANGE|DFLALL|EXTRA|NEEDARG|CMDWIN),
+  EX(CMD_pyfile,		"pyfile",	ex_pyfile,
+  			RANGE|FILE1|NEEDARG|CMDWIN),
+  EX(CMD_py3,		"py3",		ex_py3,
+*** ../vim-7.3.965/src/ex_docmd.c	2013-05-15 18:28:08.000000000 +0200
+--- src/ex_docmd.c	2013-05-17 16:29:38.000000000 +0200
+***************
+*** 268,273 ****
+--- 268,274 ----
+  #endif
+  #ifndef FEAT_PYTHON
+  # define ex_python		ex_script_ni
++ # define ex_pydo		ex_ni
+  # define ex_pyfile		ex_ni
+  #endif
+  #ifndef FEAT_PYTHON3
+*** ../vim-7.3.965/src/if_py_both.h	2013-05-17 16:24:27.000000000 +0200
+--- src/if_py_both.h	2013-05-17 16:29:38.000000000 +0200
+***************
+*** 22,27 ****
+--- 22,28 ----
+  #else
+  # define ENC_OPT "latin1"
+  #endif
++ #define DOPY_FUNC "_vim_pydo"
+  
+  #define PyErr_SetVim(str) PyErr_SetString(VimError, str)
+  
+*** ../vim-7.3.965/src/if_python.c	2013-05-17 16:18:27.000000000 +0200
+--- src/if_python.c	2013-05-17 16:29:38.000000000 +0200
+***************
+*** 198,203 ****
+--- 198,206 ----
+  # define PyModule_GetDict dll_PyModule_GetDict
+  # define PyRun_SimpleString dll_PyRun_SimpleString
+  # define PyRun_String dll_PyRun_String
++ # define PyObject_GetAttrString dll_PyObject_GetAttrString
++ # define PyObject_SetAttrString dll_PyObject_SetAttrString
++ # define PyObject_CallFunctionObjArgs dll_PyObject_CallFunctionObjArgs
+  # define PyString_AsString dll_PyString_AsString
+  # define PyString_AsStringAndSize dll_PyString_AsStringAndSize
+  # define PyString_FromString dll_PyString_FromString
+***************
+*** 303,308 ****
+--- 306,314 ----
+  static PyObject*(*dll_PyModule_GetDict)(PyObject *);
+  static int(*dll_PyRun_SimpleString)(char *);
+  static PyObject *(*dll_PyRun_String)(char *, int, PyObject *, PyObject *);
++ static PyObject* (*dll_PyObject_GetAttrString)(PyObject *, const char *);
++ static PyObject* (*dll_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
++ static PyObject* (*dll_PyObject_CallFunctionObjArgs)(PyObject *, ...);
+  static char*(*dll_PyString_AsString)(PyObject *);
+  static int(*dll_PyString_AsStringAndSize)(PyObject *, char **, int *);
+  static PyObject*(*dll_PyString_FromString)(const char *);
+***************
+*** 440,445 ****
+--- 446,454 ----
+      {"PyModule_GetDict", (PYTHON_PROC*)&dll_PyModule_GetDict},
+      {"PyRun_SimpleString", (PYTHON_PROC*)&dll_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&dll_PyRun_String},
++     {"PyObject_GetAttrString", (PYTHON_PROC*)&dll_PyObject_GetAttrString},
++     {"PyObject_SetAttrString", (PYTHON_PROC*)&dll_PyObject_SetAttrString},
++     {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&dll_PyObject_CallFunctionObjArgs},
+      {"PyString_AsString", (PYTHON_PROC*)&dll_PyString_AsString},
+      {"PyString_AsStringAndSize", (PYTHON_PROC*)&dll_PyString_AsStringAndSize},
+      {"PyString_FromString", (PYTHON_PROC*)&dll_PyString_FromString},
+***************
+*** 995,1000 ****
+--- 1004,1096 ----
+      DoPythonCommand(eap, buffer, NULL);
+  }
+  
++     void
++ ex_pydo(exarg_T *eap)
++ {
++     linenr_T		i;
++     const char		*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
++     const char		*s = (const char *) eap->arg;
++     size_t		len;
++     char		*code;
++     int			status;
++     PyObject		*pyfunc, *pymain;
++     PyGILState_STATE	pygilstate;
++ 
++     if (Python_Init())
++         return;
++ 
++     if (u_save(eap->line1 - 1, eap->line2 + 1) != OK)
++     {
++ 	EMSG(_("cannot save undo information"));
++ 	return;
++     }
++     len = strlen(code_hdr) + strlen(s);
++     code = malloc(len + 1);
++     STRCPY(code, code_hdr);
++     STRNCAT(code, s, len + 1);
++     pygilstate = PyGILState_Ensure();
++     status = PyRun_SimpleString(code);
++     vim_free(code);
++     if (status)
++     {
++ 	EMSG(_("failed to run the code"));
++ 	return;
++     }
++     status = 0; /* good */
++     pymain = PyImport_AddModule("__main__");
++     pyfunc = PyObject_GetAttrString(pymain, DOPY_FUNC);
++     PyGILState_Release(pygilstate);
++ 
++     for (i = eap->line1; i <= eap->line2; i++)
++     {
++ 	const char *line;
++ 	PyObject *pyline, *pylinenr, *pyret;
++ 
++ 	line = (char *)ml_get(i);
++ 	pygilstate = PyGILState_Ensure();
++ 	pyline = PyString_FromStringAndSize(line, strlen(line));
++ 	pylinenr = PyLong_FromLong(i);
++ 	pyret = PyObject_CallFunctionObjArgs(pyfunc, pyline, pylinenr, NULL);
++ 	Py_DECREF(pyline);
++ 	Py_DECREF(pylinenr);
++ 	if (!pyret)
++ 	{
++ 	    PyErr_PrintEx(0);
++ 	    PythonIO_Flush();
++ 	    status = 1;
++ 	    goto out;
++ 	}
++ 
++ 	if (pyret && pyret != Py_None)
++ 	{
++ 	    if (!PyString_Check(pyret))
++ 	    {
++ 		EMSG(_("E863: return value must be an instance of str"));
++ 		Py_XDECREF(pyret);
++ 		status = 1;
++ 		goto out;
++ 	    }
++ 	    ml_replace(i, (char_u *) PyString_AsString(pyret), 1);
++ 	    changed();
++ #ifdef SYNTAX_HL
++ 	    syn_changed(i); /* recompute syntax hl. for this line */
++ #endif
++ 	}
++ 	Py_XDECREF(pyret);
++ 	PythonIO_Flush();
++ 	PyGILState_Release(pygilstate);
++     }
++     pygilstate = PyGILState_Ensure();
++ out:
++     Py_DECREF(pyfunc);
++     PyObject_SetAttrString(pymain, DOPY_FUNC, NULL);
++     PyGILState_Release(pygilstate);
++     if (status)
++ 	return;
++     check_cursor();
++     update_curbuf(NOT_VALID);
++ }
++ 
+  /******************************************************
+   * 2. Python output stream: writes output via [e]msg().
+   */
+*** ../vim-7.3.965/src/if_python3.c	2013-05-17 16:18:27.000000000 +0200
+--- src/if_python3.c	2013-05-17 16:29:38.000000000 +0200
+***************
+*** 76,82 ****
+  #else
+  # define CODEC_ERROR_HANDLER NULL
+  #endif
+- #define DOPY_FUNC "_vim_pydo"
+  
+  /* Python 3 does not support CObjects, always use Capsules */
+  #define PY_USE_CAPSULE
+--- 76,81 ----
+*** ../vim-7.3.965/src/proto/if_python.pro	2013-05-15 15:12:25.000000000 +0200
+--- src/proto/if_python.pro	2013-05-17 16:29:38.000000000 +0200
+***************
+*** 3,8 ****
+--- 3,9 ----
+  void python_end __ARGS((void));
+  int python_loaded __ARGS((void));
+  void ex_python __ARGS((exarg_T *eap));
++ void ex_pydo __ARGS((exarg_T *eap));
+  void ex_pyfile __ARGS((exarg_T *eap));
+  void python_buffer_free __ARGS((buf_T *buf));
+  void python_window_free __ARGS((win_T *win));
+*** ../vim-7.3.965/src/version.c	2013-05-17 16:24:27.000000000 +0200
+--- src/version.c	2013-05-17 16:39:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     966,
+  /**/
+
+-- 
+A hamburger walks into a bar, and the bartender says: "I'm sorry,
+but we don't serve food here."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1209
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1209
+Problem:    No completion for ":tabdo".
+Solution:   Add tabdo to the list of modifiers. (Dominique Pelle)
+Files:	    src/ex_docmd.c
+
+
+*** ../vim-7.3.1208/src/ex_docmd.c	2013-06-14 19:15:52.000000000 +0200
+--- src/ex_docmd.c	2013-06-16 16:11:32.000000000 +0200
+***************
+*** 3603,3608 ****
+--- 3603,3609 ----
+  	case CMD_sandbox:
+  	case CMD_silent:
+  	case CMD_tab:
++ 	case CMD_tabdo:
+  	case CMD_topleft:
+  	case CMD_verbose:
+  	case CMD_vertical:
+*** ../vim-7.3.1208/src/version.c	2013-06-16 16:01:20.000000000 +0200
+--- src/version.c	2013-06-16 16:12:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1209,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+232. You start conversations with, "Have you gotten an ISDN line?"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

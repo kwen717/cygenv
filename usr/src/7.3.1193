@@ -1,0 +1,60 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1193
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1193
+Problem:    fail_if_missing not used for Python 3.
+Solution:   Give an error when Python 3 can't be configured. (Andrei Olsen)
+Files:	    src/configure.in, src/auto/configure
+
+
+*** ../vim-7.3.1192/src/configure.in	2013-06-11 20:53:24.000000000 +0200
+--- src/configure.in	2013-06-14 21:19:40.000000000 +0200
+***************
+*** 1229,1234 ****
+--- 1229,1237 ----
+        AC_MSG_RESULT(too old)
+      fi
+    fi
++   if test "$fail_if_missing" = "yes" -a "$python3_ok" != "yes"; then
++     AC_MSG_ERROR([could not configure python3])
++   fi
+  fi
+  
+  AC_SUBST(PYTHON3_CONFDIR)
+*** ../vim-7.3.1192/src/auto/configure	2013-06-11 20:53:24.000000000 +0200
+--- src/auto/configure	2013-06-14 21:19:43.000000000 +0200
+***************
+*** 5826,5831 ****
+--- 5826,5834 ----
+  $as_echo "too old" >&6; }
+      fi
+    fi
++   if test "$fail_if_missing" = "yes" -a "$python3_ok" != "yes"; then
++     as_fn_error "could not configure python3" "$LINENO" 5
++   fi
+  fi
+  
+  
+*** ../vim-7.3.1192/src/version.c	2013-06-14 21:15:21.000000000 +0200
+--- src/version.c	2013-06-14 21:20:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1193,
+  /**/
+
+-- 
+$ echo pizza > /dev/oven
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

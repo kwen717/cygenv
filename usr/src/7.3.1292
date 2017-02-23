@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1292
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1292
+Problem:    Possibly using invalid pointer when searcing for window. (Raichoo)
+Solution:   Use "firstwin" instead of "tp_firstwin" for current tab.
+Files:	    src/window.c
+
+
+*** ../vim-7.3.1291/src/window.c	2013-06-28 20:16:50.000000000 +0200
+--- src/window.c	2013-07-03 13:53:59.000000000 +0200
+***************
+*** 4077,4083 ****
+      tabpage_T	*tp;
+  
+      for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
+! 	for (wp = tp->tp_firstwin; wp != NULL; wp = wp->w_next)
+  	    if (wp == win)
+  		return tp;
+      return NULL;
+--- 4077,4084 ----
+      tabpage_T	*tp;
+  
+      for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
+! 	for (wp = (tp == curtab ? firstwin : tp->tp_firstwin);
+! 						  wp != NULL; wp = wp->w_next)
+  	    if (wp == win)
+  		return tp;
+      return NULL;
+*** ../vim-7.3.1291/src/version.c	2013-07-03 13:29:55.000000000 +0200
+--- src/version.c	2013-07-03 13:57:01.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1292,
+  /**/
+
+-- 
+There can't be a crisis today, my schedule is already full.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

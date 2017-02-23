@@ -1,0 +1,602 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1227
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1227
+Problem:    Inconsistent string conversion.
+Solution:   Use 'encoding' instead of utf-8. Use METH_O in place of
+	    METH_VARARGS where appropriate. (ZyX)
+Files:	    src/if_py_both.h, src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1226/src/if_py_both.h	2013-06-23 12:51:27.000000000 +0200
+--- src/if_py_both.h	2013-06-23 12:57:34.000000000 +0200
+***************
+*** 466,486 ****
+   */
+  
+      static PyObject *
+! VimCommand(PyObject *self UNUSED, PyObject *args)
+  {
+!     char *cmd;
+!     PyObject *result;
+  
+!     if (!PyArg_ParseTuple(args, "s", &cmd))
+  	return NULL;
+  
+-     PyErr_Clear();
+- 
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+  
+      VimTryStart();
+!     do_cmdline_cmd((char_u *)cmd);
+      update_screen(VALID);
+  
+      Python_Release_Vim();
+--- 466,485 ----
+   */
+  
+      static PyObject *
+! VimCommand(PyObject *self UNUSED, PyObject *string)
+  {
+!     char_u	*cmd;
+!     PyObject	*result;
+!     PyObject	*todecref;
+  
+!     if (!(cmd = StringToChars(string, &todecref)))
+  	return NULL;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+  
+      VimTryStart();
+!     do_cmdline_cmd(cmd);
+      update_screen(VALID);
+  
+      Python_Release_Vim();
+***************
+*** 491,498 ****
+      else
+  	result = Py_None;
+  
+- 
+      Py_XINCREF(result);
+      return result;
+  }
+  
+--- 490,497 ----
+      else
+  	result = Py_None;
+  
+      Py_XINCREF(result);
++     Py_XDECREF(todecref);
+      return result;
+  }
+  
+***************
+*** 641,661 ****
+      static PyObject *
+  VimEval(PyObject *self UNUSED, PyObject *args)
+  {
+!     char	*expr;
+      typval_T	*our_tv;
+      PyObject	*result;
+!     PyObject    *lookup_dict;
+  
+!     if (!PyArg_ParseTuple(args, "s", &expr))
+  	return NULL;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      VimTryStart();
+!     our_tv = eval_expr((char_u *)expr, NULL);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+      if (VimTryEnd())
+  	return NULL;
+  
+--- 640,667 ----
+      static PyObject *
+  VimEval(PyObject *self UNUSED, PyObject *args)
+  {
+!     char_u	*expr;
+      typval_T	*our_tv;
++     PyObject	*string;
++     PyObject	*todecref;
+      PyObject	*result;
+!     PyObject	*lookup_dict;
+  
+!     if (!PyArg_ParseTuple(args, "O", &string))
+! 	return NULL;
+! 
+!     if (!(expr = StringToChars(string, &todecref)))
+  	return NULL;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      VimTryStart();
+!     our_tv = eval_expr(expr, NULL);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
++     Py_XDECREF(todecref);
++ 
+      if (VimTryEnd())
+  	return NULL;
+  
+***************
+*** 688,709 ****
+  static PyObject *ConvertToPyObject(typval_T *);
+  
+      static PyObject *
+! VimEvalPy(PyObject *self UNUSED, PyObject *args)
+  {
+-     char	*expr;
+      typval_T	*our_tv;
+      PyObject	*result;
+  
+!     if (!PyArg_ParseTuple(args, "s", &expr))
+  	return NULL;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      VimTryStart();
+!     our_tv = eval_expr((char_u *)expr, NULL);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+      if (VimTryEnd())
+  	return NULL;
+  
+--- 694,718 ----
+  static PyObject *ConvertToPyObject(typval_T *);
+  
+      static PyObject *
+! VimEvalPy(PyObject *self UNUSED, PyObject *string)
+  {
+      typval_T	*our_tv;
+      PyObject	*result;
++     char_u	*expr;
++     PyObject	*todecref;
+  
+!     if (!(expr = StringToChars(string, &todecref)))
+  	return NULL;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      VimTryStart();
+!     our_tv = eval_expr(expr, NULL);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
++     Py_XDECREF(todecref);
++ 
+      if (VimTryEnd())
+  	return NULL;
+  
+***************
+*** 724,743 ****
+  }
+  
+      static PyObject *
+! VimStrwidth(PyObject *self UNUSED, PyObject *args)
+  {
+!     char	*expr;
+  
+!     if (!PyArg_ParseTuple(args, "s", &expr))
+  	return NULL;
+  
+-     return PyLong_FromLong(
+  #ifdef FEAT_MBYTE
+! 	    mb_string2cells((char_u *)expr, (int)STRLEN(expr))
+  #else
+! 	    STRLEN(expr)
+  #endif
+! 	    );
+  }
+  
+      static PyObject *
+--- 733,756 ----
+  }
+  
+      static PyObject *
+! VimStrwidth(PyObject *self UNUSED, PyObject *string)
+  {
+!     char_u	*str;
+!     PyObject	*todecref;
+!     int		result;
+  
+!     if (!(str = StringToChars(string, &todecref)))
+  	return NULL;
+  
+  #ifdef FEAT_MBYTE
+!     result = mb_string2cells(str, (int)STRLEN(str));
+  #else
+!     result = STRLEN(str);
+  #endif
+! 
+!     Py_XDECREF(todecref);
+! 
+!     return PyLong_FromLong(result);
+  }
+  
+      static PyObject *
+***************
+*** 840,852 ****
+  }
+  
+      static PyObject *
+! VimForeachRTP(PyObject *self UNUSED, PyObject *args)
+  {
+      map_rtp_data	data;
+  
+!     if (!PyArg_ParseTuple(args, "O", &data.callable))
+! 	return NULL;
+! 
+      data.result = NULL;
+  
+      do_in_runtimepath(NULL, FALSE, &map_rtp_callback, &data);
+--- 853,863 ----
+  }
+  
+      static PyObject *
+! VimForeachRTP(PyObject *self UNUSED, PyObject *callable)
+  {
+      map_rtp_data	data;
+  
+!     data.callable = callable;
+      data.result = NULL;
+  
+      do_in_runtimepath(NULL, FALSE, &map_rtp_callback, &data);
+***************
+*** 1099,1111 ****
+  
+  static struct PyMethodDef VimMethods[] = {
+      /* name,	    function,			calling,			documentation */
+!     {"command",	    VimCommand,			METH_VARARGS,			"Execute a Vim ex-mode command" },
+      {"eval",	    VimEval,			METH_VARARGS,			"Evaluate an expression using Vim evaluator" },
+!     {"bindeval",    VimEvalPy,			METH_VARARGS,			"Like eval(), but returns objects attached to vim ones"},
+!     {"strwidth",    VimStrwidth,		METH_VARARGS,			"Screen string width, counts <Tab> as having width 1"},
+      {"chdir",	    (PyCFunction)VimChdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+      {"fchdir",	    (PyCFunction)VimFchdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     {"foreach_rtp", VimForeachRTP,		METH_VARARGS,			"Call given callable for each path in &rtp"},
+      {"find_module", FinderFindModule,		METH_VARARGS,			"Internal use only, returns loader object for any input it receives"},
+      {"path_hook",   VimPathHook,		METH_VARARGS,			"Hook function to install in sys.path_hooks"},
+      {"_get_paths",  (PyCFunction)Vim_GetPaths,	METH_NOARGS,			"Get &rtp-based additions to sys.path"},
+--- 1110,1122 ----
+  
+  static struct PyMethodDef VimMethods[] = {
+      /* name,	    function,			calling,			documentation */
+!     {"command",	    VimCommand,			METH_O,				"Execute a Vim ex-mode command" },
+      {"eval",	    VimEval,			METH_VARARGS,			"Evaluate an expression using Vim evaluator" },
+!     {"bindeval",    VimEvalPy,			METH_O,				"Like eval(), but returns objects attached to vim ones"},
+!     {"strwidth",    VimStrwidth,		METH_O,				"Screen string width, counts <Tab> as having width 1"},
+      {"chdir",	    (PyCFunction)VimChdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+      {"fchdir",	    (PyCFunction)VimFchdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     {"foreach_rtp", VimForeachRTP,		METH_O,				"Call given callable for each path in &rtp"},
+      {"find_module", FinderFindModule,		METH_VARARGS,			"Internal use only, returns loader object for any input it receives"},
+      {"path_hook",   VimPathHook,		METH_VARARGS,			"Hook function to install in sys.path_hooks"},
+      {"_get_paths",  (PyCFunction)Vim_GetPaths,	METH_NOARGS,			"Get &rtp-based additions to sys.path"},
+***************
+*** 1733,1739 ****
+      {
+  	PyObject	*object;
+  
+! 	if (!PyArg_Parse(args, "(O)", &object))
+  	    return NULL;
+  
+  	if (PyObject_HasAttrString(object, "keys"))
+--- 1744,1750 ----
+      {
+  	PyObject	*object;
+  
+! 	if (!PyArg_ParseTuple(args, "O", &object))
+  	    return NULL;
+  
+  	if (PyObject_HasAttrString(object, "keys"))
+***************
+*** 1877,1889 ****
+  }
+  
+      static PyObject *
+! DictionaryHasKey(DictionaryObject *self, PyObject *args)
+  {
+-     PyObject	*keyObject;
+- 
+-     if (!PyArg_ParseTuple(args, "O", &keyObject))
+- 	return NULL;
+- 
+      return _DictionaryItem(self, keyObject, DICT_FLAG_RETURN_BOOL);
+  }
+  
+--- 1888,1895 ----
+  }
+  
+      static PyObject *
+! DictionaryHasKey(DictionaryObject *self, PyObject *keyObject)
+  {
+      return _DictionaryItem(self, keyObject, DICT_FLAG_RETURN_BOOL);
+  }
+  
+***************
+*** 1914,1920 ****
+      {"get",	(PyCFunction)DictionaryGet,		METH_VARARGS,	""},
+      {"pop",	(PyCFunction)DictionaryPop,		METH_VARARGS,	""},
+      {"popitem",	(PyCFunction)DictionaryPopItem,		METH_NOARGS,	""},
+!     {"has_key",	(PyCFunction)DictionaryHasKey,		METH_VARARGS,	""},
+      {"__dir__",	(PyCFunction)DictionaryDir,		METH_NOARGS,	""},
+      { NULL,	NULL,					0,		NULL}
+  };
+--- 1920,1926 ----
+      {"get",	(PyCFunction)DictionaryGet,		METH_VARARGS,	""},
+      {"pop",	(PyCFunction)DictionaryPop,		METH_VARARGS,	""},
+      {"popitem",	(PyCFunction)DictionaryPopItem,		METH_NOARGS,	""},
+!     {"has_key",	(PyCFunction)DictionaryHasKey,		METH_O,		""},
+      {"__dir__",	(PyCFunction)DictionaryDir,		METH_NOARGS,	""},
+      { NULL,	NULL,					0,		NULL}
+  };
+***************
+*** 2434,2444 ****
+  	return NULL;
+      }
+  
+!     if (!PyArg_ParseTuple(args, "s", &name))
+  	return NULL;
+  
+      self = FunctionNew(subtype, name);
+  
+      return self;
+  }
+  
+--- 2440,2452 ----
+  	return NULL;
+      }
+  
+!     if (!PyArg_ParseTuple(args, "et", "ascii", &name))
+  	return NULL;
+  
+      self = FunctionNew(subtype, name);
+  
++     PyMem_Free(name);
++ 
+      return self;
+  }
+  
+***************
+*** 4383,4402 ****
+  }
+  
+      static PyObject *
+! BufferMark(BufferObject *self, PyObject *args)
+  {
+      pos_T	*posp;
+!     char	*pmark;
+!     char	mark;
+      buf_T	*savebuf;
+  
+      if (CheckBuffer(self))
+  	return NULL;
+  
+!     if (!PyArg_ParseTuple(args, "s", &pmark))
+  	return NULL;
+  
+!     if (STRLEN(pmark) != 1)
+      {
+  	PyErr_SetString(PyExc_ValueError,
+  		_("mark name must be a single character"));
+--- 4391,4411 ----
+  }
+  
+      static PyObject *
+! BufferMark(BufferObject *self, PyObject *pmarkObject)
+  {
+      pos_T	*posp;
+!     char_u	*pmark;
+!     char_u	mark;
+      buf_T	*savebuf;
++     PyObject	*todecref;
+  
+      if (CheckBuffer(self))
+  	return NULL;
+  
+!     if (!(pmark = StringToChars(pmarkObject, &todecref)))
+  	return NULL;
+  
+!     if (pmark[0] == '\0' || pmark[1] != '\0')
+      {
+  	PyErr_SetString(PyExc_ValueError,
+  		_("mark name must be a single character"));
+***************
+*** 4404,4409 ****
+--- 4413,4421 ----
+      }
+  
+      mark = *pmark;
++ 
++     Py_XDECREF(todecref);
++ 
+      VimTryStart();
+      switch_buffer(&savebuf, self->buf);
+      posp = getmark(mark, FALSE);
+***************
+*** 4461,4467 ****
+  static struct PyMethodDef BufferMethods[] = {
+      /* name,	    function,			calling,	documentation */
+      {"append",	    (PyCFunction)BufferAppend,	METH_VARARGS,	"Append data to Vim buffer" },
+!     {"mark",	    (PyCFunction)BufferMark,	METH_VARARGS,	"Return (row,col) representing position of named mark" },
+      {"range",	    (PyCFunction)BufferRange,	METH_VARARGS,	"Return a range object which represents the part of the given buffer between line numbers s and e" },
+      {"__dir__",	    (PyCFunction)BufferDir,	METH_NOARGS,	""},
+      { NULL,	    NULL,			0,		NULL}
+--- 4473,4479 ----
+  static struct PyMethodDef BufferMethods[] = {
+      /* name,	    function,			calling,	documentation */
+      {"append",	    (PyCFunction)BufferAppend,	METH_VARARGS,	"Append data to Vim buffer" },
+!     {"mark",	    (PyCFunction)BufferMark,	METH_O,		"Return (row,col) representing position of named mark" },
+      {"range",	    (PyCFunction)BufferRange,	METH_VARARGS,	"Return a range object which represents the part of the given buffer between line numbers s and e" },
+      {"__dir__",	    (PyCFunction)BufferDir,	METH_NOARGS,	""},
+      { NULL,	    NULL,			0,		NULL}
+*** ../vim-7.3.1226/src/testdir/test86.ok	2013-06-23 12:51:27.000000000 +0200
+--- src/testdir/test86.ok	2013-06-23 12:57:34.000000000 +0200
+***************
+*** 446,459 ****
+  sys.stdout.writelines(None):TypeError:("'NoneType' object is not iterable",)
+  sys.stdout.writelines([1]):TypeError:('coercing to Unicode: need string or buffer, int found',)
+  > VimCommand
+! vim.command(1):TypeError:('must be string, not int',)
+  > VimToPython
+  > VimEval
+! vim.eval(1):TypeError:('must be string, not int',)
+  > VimEvalPy
+! vim.bindeval(1):TypeError:('must be string, not int',)
+  > VimStrwidth
+! vim.strwidth(1):TypeError:('must be string, not int',)
+  > Dictionary
+  >> DictionaryConstructor
+  vim.Dictionary("abc"):ValueError:('expected sequence element of size 2',)
+--- 446,459 ----
+  sys.stdout.writelines(None):TypeError:("'NoneType' object is not iterable",)
+  sys.stdout.writelines([1]):TypeError:('coercing to Unicode: need string or buffer, int found',)
+  > VimCommand
+! vim.command(1):TypeError:('object must be string',)
+  > VimToPython
+  > VimEval
+! vim.eval(1):TypeError:('object must be string',)
+  > VimEvalPy
+! vim.bindeval(1):TypeError:('object must be string',)
+  > VimStrwidth
+! vim.strwidth(1):TypeError:('object must be string',)
+  > Dictionary
+  >> DictionaryConstructor
+  vim.Dictionary("abc"):ValueError:('expected sequence element of size 2',)
+***************
+*** 683,689 ****
+  >> DictionaryPopItem
+  d.popitem(1, 2):TypeError:('popitem() takes no arguments (2 given)',)
+  >> DictionaryHasKey
+! d.has_key():TypeError:('function takes exactly 1 argument (0 given)',)
+  > List
+  >> ListConstructor
+  vim.List(1, 2):TypeError:('function takes at most 1 argument (2 given)',)
+--- 683,689 ----
+  >> DictionaryPopItem
+  d.popitem(1, 2):TypeError:('popitem() takes no arguments (2 given)',)
+  >> DictionaryHasKey
+! d.has_key():TypeError:('has_key() takes exactly one argument (0 given)',)
+  > List
+  >> ListConstructor
+  vim.List(1, 2):TypeError:('function takes at most 1 argument (2 given)',)
+***************
+*** 1065,1071 ****
+  vim.current.buffer.name = True:TypeError:('object must be string',)
+  vim.current.buffer.xxx = True:AttributeError:('xxx',)
+  >> BufferMark
+! vim.current.buffer.mark(0):TypeError:('must be string, not int',)
+  vim.current.buffer.mark("abc"):ValueError:('mark name must be a single character',)
+  vim.current.buffer.mark("!"):error:('invalid mark name',)
+  >> BufferRange
+--- 1065,1071 ----
+  vim.current.buffer.name = True:TypeError:('object must be string',)
+  vim.current.buffer.xxx = True:AttributeError:('xxx',)
+  >> BufferMark
+! vim.current.buffer.mark(0):TypeError:('object must be string',)
+  vim.current.buffer.mark("abc"):ValueError:('mark name must be a single character',)
+  vim.current.buffer.mark("!"):error:('invalid mark name',)
+  >> BufferRange
+*** ../vim-7.3.1226/src/testdir/test87.ok	2013-06-23 12:51:27.000000000 +0200
+--- src/testdir/test87.ok	2013-06-23 12:57:34.000000000 +0200
+***************
+*** 439,452 ****
+  sys.stdout.writelines(FailingIterNext()):(<class 'NotImplementedError'>, NotImplementedError())
+  <<< Finished
+  > VimCommand
+! vim.command(1):(<class 'TypeError'>, TypeError('must be str, not int',))
+  > VimToPython
+  > VimEval
+! vim.eval(1):(<class 'TypeError'>, TypeError('must be str, not int',))
+  > VimEvalPy
+! vim.bindeval(1):(<class 'TypeError'>, TypeError('must be str, not int',))
+  > VimStrwidth
+! vim.strwidth(1):(<class 'TypeError'>, TypeError('must be str, not int',))
+  > Dictionary
+  >> DictionaryConstructor
+  vim.Dictionary("abc"):(<class 'ValueError'>, ValueError('expected sequence element of size 2',))
+--- 439,452 ----
+  sys.stdout.writelines(FailingIterNext()):(<class 'NotImplementedError'>, NotImplementedError())
+  <<< Finished
+  > VimCommand
+! vim.command(1):(<class 'TypeError'>, TypeError('object must be string',))
+  > VimToPython
+  > VimEval
+! vim.eval(1):(<class 'TypeError'>, TypeError('object must be string',))
+  > VimEvalPy
+! vim.bindeval(1):(<class 'TypeError'>, TypeError('object must be string',))
+  > VimStrwidth
+! vim.strwidth(1):(<class 'TypeError'>, TypeError('object must be string',))
+  > Dictionary
+  >> DictionaryConstructor
+  vim.Dictionary("abc"):(<class 'ValueError'>, ValueError('expected sequence element of size 2',))
+***************
+*** 680,686 ****
+  >> DictionaryPopItem
+  d.popitem(1, 2):(<class 'TypeError'>, TypeError('popitem() takes no arguments (2 given)',))
+  >> DictionaryHasKey
+! d.has_key():(<class 'TypeError'>, TypeError('function takes exactly 1 argument (0 given)',))
+  > List
+  >> ListConstructor
+  vim.List(1, 2):(<class 'TypeError'>, TypeError('function takes at most 1 argument (2 given)',))
+--- 680,686 ----
+  >> DictionaryPopItem
+  d.popitem(1, 2):(<class 'TypeError'>, TypeError('popitem() takes no arguments (2 given)',))
+  >> DictionaryHasKey
+! d.has_key():(<class 'TypeError'>, TypeError('has_key() takes exactly one argument (0 given)',))
+  > List
+  >> ListConstructor
+  vim.List(1, 2):(<class 'TypeError'>, TypeError('function takes at most 1 argument (2 given)',))
+***************
+*** 1074,1080 ****
+  vim.current.buffer.name = True:(<class 'TypeError'>, TypeError('object must be string',))
+  vim.current.buffer.xxx = True:(<class 'AttributeError'>, AttributeError('xxx',))
+  >> BufferMark
+! vim.current.buffer.mark(0):(<class 'TypeError'>, TypeError('must be str, not int',))
+  vim.current.buffer.mark("abc"):(<class 'ValueError'>, ValueError('mark name must be a single character',))
+  vim.current.buffer.mark("!"):(<class 'vim.error'>, error('invalid mark name',))
+  >> BufferRange
+--- 1074,1080 ----
+  vim.current.buffer.name = True:(<class 'TypeError'>, TypeError('object must be string',))
+  vim.current.buffer.xxx = True:(<class 'AttributeError'>, AttributeError('xxx',))
+  >> BufferMark
+! vim.current.buffer.mark(0):(<class 'TypeError'>, TypeError('object must be string',))
+  vim.current.buffer.mark("abc"):(<class 'ValueError'>, ValueError('mark name must be a single character',))
+  vim.current.buffer.mark("!"):(<class 'vim.error'>, error('invalid mark name',))
+  >> BufferRange
+*** ../vim-7.3.1226/src/version.c	2013-06-23 12:51:27.000000000 +0200
+--- src/version.c	2013-06-23 12:56:45.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1227,
+  /**/
+
+-- 
+       We're knights of the Round Table
+       Our shows are formidable
+       But many times
+       We're given rhymes
+       That are quite unsingable
+       We're opera mad in Camelot
+       We sing from the diaphragm a lot.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

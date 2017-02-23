@@ -1,0 +1,135 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1247
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1247
+Problem:    New regexp engine: '[ ]\@!\p\%([ ]\@!\p\)*:' does not always match.
+Solution:   When there is a PIM add a duplicate state that starts at another
+	    position.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1246/src/regexp_nfa.c	2013-06-26 12:42:38.000000000 +0200
+--- src/regexp_nfa.c	2013-06-26 17:54:31.000000000 +0200
+***************
+*** 3642,3655 ****
+  	    if (i < sub1->in_use)
+  		s1 = sub1->list.multi[i].start.lnum;
+  	    else
+! 		s1 = 0;
+  	    if (i < sub2->in_use)
+  		s2 = sub2->list.multi[i].start.lnum;
+  	    else
+! 		s2 = 0;
+  	    if (s1 != s2)
+  		return FALSE;
+! 	    if (s1 != 0 && sub1->list.multi[i].start.col
+  					     != sub2->list.multi[i].start.col)
+  		return FALSE;
+  	}
+--- 3642,3655 ----
+  	    if (i < sub1->in_use)
+  		s1 = sub1->list.multi[i].start.lnum;
+  	    else
+! 		s1 = -1;
+  	    if (i < sub2->in_use)
+  		s2 = sub2->list.multi[i].start.lnum;
+  	    else
+! 		s2 = -1;
+  	    if (s1 != s2)
+  		return FALSE;
+! 	    if (s1 != -1 && sub1->list.multi[i].start.col
+  					     != sub2->list.multi[i].start.col)
+  		return FALSE;
+  	}
+***************
+*** 3931,3938 ****
+  	    if (state->lastlist[nfa_ll_index] == l->id)
+  	    {
+  		/* This state is already in the list, don't add it again,
+! 		 * unless it is an MOPEN that is used for a backreference. */
+! 		if (!nfa_has_backref)
+  		{
+  skip_add:
+  #ifdef ENABLE_LOG
+--- 3931,3939 ----
+  	    if (state->lastlist[nfa_ll_index] == l->id)
+  	    {
+  		/* This state is already in the list, don't add it again,
+! 		 * unless it is an MOPEN that is used for a backreference or
+! 		 * when there is a PIM. */
+! 		if (!nfa_has_backref && pim == NULL)
+  		{
+  skip_add:
+  #ifdef ENABLE_LOG
+***************
+*** 3949,3957 ****
+  		    goto skip_add;
+  	    }
+  
+! 	    /* When there are backreferences the number of states may be (a
+! 	     * lot) bigger than anticipated. */
+! 	    if (nfa_has_backref && l->n == l->len)
+  	    {
+  		int newlen = l->len * 3 / 2 + 50;
+  
+--- 3950,3958 ----
+  		    goto skip_add;
+  	    }
+  
+! 	    /* When there are backreferences or PIMs the number of states may
+! 	     * be (a lot) bigger than anticipated. */
+! 	    if (l->n == l->len)
+  	    {
+  		int newlen = l->len * 3 / 2 + 50;
+  
+*** ../vim-7.3.1246/src/testdir/test64.in	2013-06-26 12:42:38.000000000 +0200
+--- src/testdir/test64.in	2013-06-26 16:43:19.000000000 +0200
+***************
+*** 338,343 ****
+--- 338,344 ----
+  :call add(tl, [2, '^\%(.*bar\)\@!.*\zsfoo', ' bar foo '])
+  :call add(tl, [2, '^\%(.*bar\)\@!.*\zsfoo', ' foo bar '])
+  :call add(tl, [2, '^\%(.*bar\)\@!.*\zsfoo', ' foo xxx ', 'foo'])
++ :call add(tl, [2, '[ ]\@!\p\%([ ]\@!\p\)*:', 'implicit mappings:', 'mappings:'])
+  :"
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+*** ../vim-7.3.1246/src/testdir/test64.ok	2013-06-26 12:42:38.000000000 +0200
+--- src/testdir/test64.ok	2013-06-26 17:33:11.000000000 +0200
+***************
+*** 770,775 ****
+--- 770,778 ----
+  OK 0 - ^\%(.*bar\)\@!.*\zsfoo
+  OK 1 - ^\%(.*bar\)\@!.*\zsfoo
+  OK 2 - ^\%(.*bar\)\@!.*\zsfoo
++ OK 0 - [ ]\@!\p\%([ ]\@!\p\)*:
++ OK 1 - [ ]\@!\p\%([ ]\@!\p\)*:
++ OK 2 - [ ]\@!\p\%([ ]\@!\p\)*:
+  OK 0 - [[:alpha:]]\{-2,6}
+  OK 1 - [[:alpha:]]\{-2,6}
+  OK 2 - [[:alpha:]]\{-2,6}
+*** ../vim-7.3.1246/src/version.c	2013-06-26 14:04:37.000000000 +0200
+--- src/version.c	2013-06-26 17:30:26.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1247,
+  /**/
+
+-- 
+FATHER: One day, lad, all this will be yours ...
+PRINCE: What - the curtains?
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

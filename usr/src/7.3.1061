@@ -1,0 +1,1964 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1061
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1061
+Problem:    Python: Dictionary is not standard.
+Solution:   Python patch 20: Add standard methods and fields. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/eval.c, src/if_py_both.h,
+	    src/if_python3.c, src/if_python.c, src/proto/eval.pro,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1060/runtime/doc/if_pyth.txt	2013-05-29 22:02:18.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 12,20 ****
+  4. Range objects				|python-range|
+  5. Window objects				|python-window|
+  6. Tab page objects				|python-tabpage|
+! 7. pyeval(), py3eval() Vim functions		|python-pyeval|
+! 8. Dynamic loading				|python-dynamic|
+! 9. Python 3					|python3|
+  
+  {Vi does not have any of these commands}
+  
+--- 12,21 ----
+  4. Range objects				|python-range|
+  5. Window objects				|python-window|
+  6. Tab page objects				|python-tabpage|
+! 7. vim.bindeval objects				|python-bindeval-objects|
+! 8. pyeval(), py3eval() Vim functions		|python-pyeval|
+! 9. Dynamic loading				|python-dynamic|
+! 10. Python 3					|python3|
+  
+  {Vi does not have any of these commands}
+  
+***************
+*** 171,217 ****
+  	'eval_expr', 'kind': 'f', 'filename': './src/eval.c'}]
+  
+  vim.bindeval(str)					*python-bindeval*
+! 	Like |python-eval|, but
+! 	1. if expression evaluates to |List| or |Dictionary| it is returned as 
+! 	   vimlist or vimdictionary python type that are connected to original 
+! 	   list or dictionary. Thus modifications to these objects imply 
+! 	   modifications of the original.
+! 
+! 	   Additionally, vim.List and vim.Dictionary type have read-write 
+! 	   `.locked` attribute that returns
+! 	     Value           Meaning ~
+! 	     zero            Variable is not locked
+! 	     vim.VAR_LOCKED  Variable is locked, but can be unlocked
+! 	     vim.VAR_FIXED   Variable is locked and can't be unlocked
+! 	   integer constants. If variable is not fixed, you can do 
+! 	   `var.locked=True` to lock it and `var.locked=False` to unlock. 
+! 	   There is no recursive locking like |:lockvar|! does. There is also 
+! 	   no way to lock a specific key or check whether it is locked (in any 
+! 	   case these locks are ignored by anything except |:let|: |extend()| 
+! 	   does not care, neither does python interface).
+! 
+! 	   vim.Dictionary type also supports `.scope` attribute which is one 
+! 	   of
+! 	     Value              Meaning ~
+! 	     zero               Dictionary is not a scope one
+! 	     vim.VAR_DEF_SCOPE  Function-local or global scope dictionary
+! 	     vim.VAR_SCOPE      Other scope dictionary
+! 
+! 	2. if expression evaluates to a function reference, then it returns 
+! 	   callable vim.Function object. Use self keyword argument to assign 
+! 	   |self| object for dictionary functions.
+! 
+! 	Note: this function has the same behavior as |lua-eval| (except that 
+! 	      lua does not support running vim functions), |python-eval| is 
+! 	      kept for backwards compatibility in order not to make scripts 
+! 	      relying on outputs of vim.eval() being a copy of original or 
+! 	      vim.eval("1") returning a string.
+! 
+! 	You can use "List", "Dictionary" and "Function" vim module attributes 
+! 	to test whether object has given type. These types are currently not 
+! 	subclassable, neither they contain constructors, so you can use them 
+! 	only for checks like `isinstance(obj, vim.List)`.
+! 
+  
+  Error object of the "vim" module
+  
+--- 172,180 ----
+  	'eval_expr', 'kind': 'f', 'filename': './src/eval.c'}]
+  
+  vim.bindeval(str)					*python-bindeval*
+! 	Like |python-eval|, but returns special objects described in 
+! 	|python-bindeval-objects|. These python objects let you modify (|List| 
+! 	or |Dictionary|) or call (|Funcref|) vim objecs.
+  
+  Error object of the "vim" module
+  
+***************
+*** 497,509 ****
+  TabPage object type is available using "TabPage" attribute of vim module.
+  
+  ==============================================================================
+! 7. pyeval() and py3eval() Vim functions			*python-pyeval*
+  
+  To facilitate bi-directional interface, you can use |pyeval()| and |py3eval()| 
+  functions to evaluate Python expressions and pass their values to VimL.
+  
+  ==============================================================================
+! 8. Dynamic loading					*python-dynamic*
+  
+  On MS-Windows the Python library can be loaded dynamically.  The |:version|
+  output then includes |+python/dyn|.
+--- 460,549 ----
+  TabPage object type is available using "TabPage" attribute of vim module.
+  
+  ==============================================================================
+! 7. vim.bindeval objects				*python-bindeval-objects*
+! 
+! vim.Dictionary object				*python-Dictionary*
+!     Dictionary-like object providing access to vim |Dictionary| type.
+!     Attributes:
+!         Attribute  Description ~
+!         locked     One of                       *python-.locked*
+!                     Value           Description ~
+!                     zero            Variable is not locked
+!                     vim.VAR_LOCKED  Variable is locked, but can be unlocked
+!                     vim.VAR_FIXED   Variable is locked and can't be unlocked
+!                    Read-write. You can unlock locked variable by assigning 
+!                    `True` or `False` to this attribute. No recursive locking 
+!                    is supported.
+!         scope      One of
+!                     Value              Description ~
+!                     zero               Dictionary is not a scope one
+!                     vim.VAR_DEF_SCOPE  |g:| or |l:| dictionary
+!                     vim.VAR_SCOPE      Other scope dictionary,
+!                                        see |internal-variables|
+!     Methods:
+!         Method      Description ~
+!         keys()      Returns a list with dictionary keys.
+!         values()    Returns a list with dictionary values.
+!         items()     Returns a list of 2-tuples with dictionary contents.
+!         update(iterable)
+!         update(dictionary)
+!         update(**kwargs)
+!                     Adds keys to dictionary.
+!     Examples: >
+!         py d = vim.bindeval('{}')
+!         d['a'] = 'b'				# Item assignment
+!         print d['a']				# getting item
+!         d.update({'c': 'd'})			# .update(dictionary)
+!         d.update(e='f')				# .update(**kwargs)
+!         d.update((('g', 'h'), ('i', 'j')))	# .update(iterable)
+!         for key in d.keys():			# .keys()
+!         for val in d.values():			# .values()
+!         for key, val in d.items():		# .items()
+!         print isinstance(d, vim.Dictionary)	# True
+!         for key in d:				# Iteration over keys
+! <
+!     Note: when iterating over keys you should not modify dictionary.
+! 
+! vim.List object					*python-List*
+!     Sequence-like object providing access to vim |List| type.
+!     Supports `.locked` attribute, see |python-.locked|. Also supports the 
+!     following methods:
+!         Method          Description ~
+!         extend(item)    Add items to the list.
+!     Examples: >
+!         l = vim.bindeval('[]')
+!         l.extend(['abc', 'def'])	# .extend() method
+!         print l[1:]			# slicing
+!         l[:0] = ['ghi', 'jkl']		# slice assignment
+!         print l[0]			# getting item
+!         l[0] = 'mno'			# assignment
+!         for i in l:			# iteration
+!         print isinstance(l, vim.List)	# True
+! 
+! vim.Function object				*python-Function*
+!     Function-like object, acting like vim |Funcref| object. Supports `.name` 
+!     attribute and is callable. Accepts special keyword argument `self`, see 
+!     |Dictionary-function|.
+!     Examples: >
+!         f = vim.bindeval('function("tr")')
+!         print f('abc', 'a', 'b')		# Calls tr('abc', 'a', 'b')
+!         vim.command('''
+!             function DictFun() dict
+!                 return self
+!             endfunction
+!         ''')
+!         f = vim.bindeval('function("DictFun")')
+!         print f(self={})			# Like call('DictFun', [], {})
+!         print isinstance(f, vim.Function)	# True
+! 
+! ==============================================================================
+! 8. pyeval() and py3eval() Vim functions			*python-pyeval*
+  
+  To facilitate bi-directional interface, you can use |pyeval()| and |py3eval()| 
+  functions to evaluate Python expressions and pass their values to VimL.
+  
+  ==============================================================================
+! 9. Dynamic loading					*python-dynamic*
+  
+  On MS-Windows the Python library can be loaded dynamically.  The |:version|
+  output then includes |+python/dyn|.
+***************
+*** 520,526 ****
+  sure edit "gvim.exe" and search for "python\d*.dll\c".
+  
+  ==============================================================================
+! 9. Python 3						*python3*
+  
+  							*:py3* *:python3*
+  The `:py3` and `:python3` commands work similar to `:python`.  A simple check
+--- 560,566 ----
+  sure edit "gvim.exe" and search for "python\d*.dll\c".
+  
+  ==============================================================================
+! 10. Python 3						*python3*
+  
+  							*:py3* *:python3*
+  The `:py3` and `:python3` commands work similar to `:python`.  A simple check
+*** ../vim-7.3.1060/src/eval.c	2013-05-30 12:35:48.000000000 +0200
+--- src/eval.c	2013-05-30 12:52:11.000000000 +0200
+***************
+*** 10157,10162 ****
+--- 10157,10218 ----
+  }
+  
+  /*
++  * Go over all entries in "d2" and add them to "d1".
++  * When "action" is "error" then a duplicate key is an error.
++  * When "action" is "force" then a duplicate key is overwritten.
++  * Otherwise duplicate keys are ignored ("action" is "keep").
++  */
++     void
++ dict_extend(d1, d2, action)
++     dict_T	*d1;
++     dict_T	*d2;
++     char_u	*action;
++ {
++     dictitem_T	*di1;
++     hashitem_T	*hi2;
++     int		todo;
++ 
++     todo = (int)d2->dv_hashtab.ht_used;
++     for (hi2 = d2->dv_hashtab.ht_array; todo > 0; ++hi2)
++     {
++ 	if (!HASHITEM_EMPTY(hi2))
++ 	{
++ 	    --todo;
++ 	    di1 = dict_find(d1, hi2->hi_key, -1);
++ 	    if (d1->dv_scope != 0)
++ 	    {
++ 		/* Disallow replacing a builtin function in l: and g:.
++ 		 * Check the key to be valid when adding to any
++ 		 * scope. */
++ 		if (d1->dv_scope == VAR_DEF_SCOPE
++ 			&& HI2DI(hi2)->di_tv.v_type == VAR_FUNC
++ 			&& var_check_func_name(hi2->hi_key,
++ 							 di1 == NULL))
++ 		    break;
++ 		if (!valid_varname(hi2->hi_key))
++ 		    break;
++ 	    }
++ 	    if (di1 == NULL)
++ 	    {
++ 		di1 = dictitem_copy(HI2DI(hi2));
++ 		if (di1 != NULL && dict_add(d1, di1) == FAIL)
++ 		    dictitem_free(di1);
++ 	    }
++ 	    else if (*action == 'e')
++ 	    {
++ 		EMSG2(_("E737: Key already exists: %s"), hi2->hi_key);
++ 		break;
++ 	    }
++ 	    else if (*action == 'f' && HI2DI(hi2) != di1)
++ 	    {
++ 		clear_tv(&di1->di_tv);
++ 		copy_tv(&HI2DI(hi2)->di_tv, &di1->di_tv);
++ 	    }
++ 	}
++     }
++ }
++ 
++ /*
+   * "extend(list, list [, idx])" function
+   * "extend(dict, dict [, action])" function
+   */
+***************
+*** 10206,10217 ****
+      }
+      else if (argvars[0].v_type == VAR_DICT && argvars[1].v_type == VAR_DICT)
+      {
+! 	dict_T		*d1, *d2;
+! 	dictitem_T	*di1;
+! 	char_u		*action;
+! 	int		i;
+! 	hashitem_T	*hi2;
+! 	int		todo;
+  
+  	d1 = argvars[0].vval.v_dict;
+  	d2 = argvars[1].vval.v_dict;
+--- 10262,10270 ----
+      }
+      else if (argvars[0].v_type == VAR_DICT && argvars[1].v_type == VAR_DICT)
+      {
+! 	dict_T	*d1, *d2;
+! 	char_u	*action;
+! 	int	i;
+  
+  	d1 = argvars[0].vval.v_dict;
+  	d2 = argvars[1].vval.v_dict;
+***************
+*** 10238,10283 ****
+  	    else
+  		action = (char_u *)"force";
+  
+! 	    /* Go over all entries in the second dict and add them to the
+! 	     * first dict. */
+! 	    todo = (int)d2->dv_hashtab.ht_used;
+! 	    for (hi2 = d2->dv_hashtab.ht_array; todo > 0; ++hi2)
+! 	    {
+! 		if (!HASHITEM_EMPTY(hi2))
+! 		{
+! 		    --todo;
+! 		    di1 = dict_find(d1, hi2->hi_key, -1);
+! 		    if (d1->dv_scope != 0)
+! 		    {
+! 			/* Disallow replacing a builtin function in l: and g:.
+! 			 * Check the key to be valid when adding to any
+! 			 * scope. */
+! 		        if (d1->dv_scope == VAR_DEF_SCOPE
+! 				&& HI2DI(hi2)->di_tv.v_type == VAR_FUNC
+! 				&& var_check_func_name(hi2->hi_key,
+! 								 di1 == NULL))
+! 			    break;
+! 			if (!valid_varname(hi2->hi_key))
+! 			    break;
+! 		    }
+! 		    if (di1 == NULL)
+! 		    {
+! 			di1 = dictitem_copy(HI2DI(hi2));
+! 			if (di1 != NULL && dict_add(d1, di1) == FAIL)
+! 			    dictitem_free(di1);
+! 		    }
+! 		    else if (*action == 'e')
+! 		    {
+! 			EMSG2(_("E737: Key already exists: %s"), hi2->hi_key);
+! 			break;
+! 		    }
+! 		    else if (*action == 'f' && HI2DI(hi2) != di1)
+! 		    {
+! 			clear_tv(&di1->di_tv);
+! 			copy_tv(&HI2DI(hi2)->di_tv, &di1->di_tv);
+! 		    }
+! 		}
+! 	    }
+  
+  	    copy_tv(&argvars[0], rettv);
+  	}
+--- 10291,10297 ----
+  	    else
+  		action = (char_u *)"force";
+  
+! 	    dict_extend(d1, d2, action);
+  
+  	    copy_tv(&argvars[0], rettv);
+  	}
+*** ../vim-7.3.1060/src/if_py_both.h	2013-05-30 12:43:50.000000000 +0200
+--- src/if_py_both.h	2013-05-30 12:52:42.000000000 +0200
+***************
+*** 31,37 ****
+  #define INVALID_TABPAGE_VALUE ((tabpage_T *)(-1))
+  
+  #define DICTKEY_DECL \
+!     PyObject	*dictkey_todecref;
+  #define DICTKEY_CHECK_EMPTY(err) \
+      if (*key == NUL) \
+      { \
+--- 31,37 ----
+  #define INVALID_TABPAGE_VALUE ((tabpage_T *)(-1))
+  
+  #define DICTKEY_DECL \
+!     PyObject	*dictkey_todecref = NULL;
+  #define DICTKEY_CHECK_EMPTY(err) \
+      if (*key == NUL) \
+      { \
+***************
+*** 63,68 ****
+--- 63,69 ----
+  
+  static int ConvertFromPyObject(PyObject *, typval_T *);
+  static int _ConvertFromPyObject(PyObject *, typval_T *, PyObject *);
++ static int ConvertFromPyMapping(PyObject *, typval_T *);
+  static PyObject *WindowNew(win_T *, tabpage_T *);
+  static PyObject *BufferNew (buf_T *);
+  static PyObject *LineToString(const char *);
+***************
+*** 877,888 ****
+      pylinkedlist_T	ref;
+  } DictionaryObject;
+  
+      static PyObject *
+! DictionaryNew(dict_T *dict)
+  {
+      DictionaryObject	*self;
+  
+!     self = PyObject_NEW(DictionaryObject, &DictionaryType);
+      if (self == NULL)
+  	return NULL;
+      self->dict = dict;
+--- 878,893 ----
+      pylinkedlist_T	ref;
+  } DictionaryObject;
+  
++ static PyObject *DictionaryUpdate(DictionaryObject *, PyObject *, PyObject *);
++ 
++ #define NEW_DICTIONARY(dict) DictionaryNew(&DictionaryType, dict)
++ 
+      static PyObject *
+! DictionaryNew(PyTypeObject *subtype, dict_T *dict)
+  {
+      DictionaryObject	*self;
+  
+!     self = (DictionaryObject *) subtype->tp_alloc(subtype, 0);
+      if (self == NULL)
+  	return NULL;
+      self->dict = dict;
+***************
+*** 893,898 ****
+--- 898,946 ----
+      return (PyObject *)(self);
+  }
+  
++     static dict_T *
++ py_dict_alloc()
++ {
++     dict_T	*r;
++ 
++     if (!(r = dict_alloc()))
++     {
++ 	PyErr_NoMemory();
++ 	return NULL;
++     }
++     ++r->dv_refcount;
++ 
++     return r;
++ }
++ 
++     static PyObject *
++ DictionaryConstructor(PyTypeObject *subtype, PyObject *args, PyObject *kwargs)
++ {
++     DictionaryObject	*self;
++     dict_T	*dict;
++ 
++     if (!(dict = py_dict_alloc()))
++ 	return NULL;
++ 
++     self = (DictionaryObject *) DictionaryNew(subtype, dict);
++ 
++     --dict->dv_refcount;
++ 
++     if (kwargs || PyTuple_Size(args))
++     {
++ 	PyObject	*tmp;
++ 	if (!(tmp = DictionaryUpdate(self, args, kwargs)))
++ 	{
++ 	    Py_DECREF(self);
++ 	    return NULL;
++ 	}
++ 
++ 	Py_DECREF(tmp);
++     }
++ 
++     return (PyObject *)(self);
++ }
++ 
+      static void
+  DictionaryDestructor(DictionaryObject *self)
+  {
+***************
+*** 918,924 ****
+  {
+      if (val == NULL)
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("Cannot delete DictionaryObject attributes"));
+  	return -1;
+      }
+  
+--- 966,973 ----
+  {
+      if (val == NULL)
+      {
+! 	PyErr_SetString(PyExc_AttributeError,
+! 		_("cannot delete vim.Dictionary attributes"));
+  	return -1;
+      }
+  
+***************
+*** 926,932 ****
+      {
+  	if (self->dict->dv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("Cannot modify fixed dictionary"));
+  	    return -1;
+  	}
+  	else
+--- 975,981 ----
+      {
+  	if (self->dict->dv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("cannot modify fixed dictionary"));
+  	    return -1;
+  	}
+  	else
+***************
+*** 943,949 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("Cannot set this attribute"));
+  	return -1;
+      }
+  }
+--- 992,998 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("cannot set this attribute"));
+  	return -1;
+      }
+  }
+***************
+*** 954,979 ****
+      return ((PyInt) (self->dict->dv_hashtab.ht_used));
+  }
+  
+      static PyObject *
+! DictionaryItem(DictionaryObject *self, PyObject *keyObject)
+  {
+      char_u	*key;
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+      DICTKEY_GET(NULL, 0)
+  
+!     di = dict_find(self->dict, key, -1);
+  
+      DICTKEY_UNREF
+  
+!     if (di == NULL)
+      {
+! 	PyErr_SetObject(PyExc_KeyError, keyObject);
+  	return NULL;
+      }
+  
+!     return ConvertToPyObject(&di->di_tv);
+  }
+  
+      static PyInt
+--- 1003,1172 ----
+      return ((PyInt) (self->dict->dv_hashtab.ht_used));
+  }
+  
++ #define DICT_FLAG_HAS_DEFAULT	0x01
++ #define DICT_FLAG_POP		0x02
++ #define DICT_FLAG_NONE_DEFAULT	0x04
++ #define DICT_FLAG_RETURN_BOOL	0x08 /* Incompatible with DICT_FLAG_POP */
++ #define DICT_FLAG_RETURN_PAIR	0x10
++ 
+      static PyObject *
+! _DictionaryItem(DictionaryObject *self, PyObject *args, int flags)
+  {
++     PyObject	*keyObject;
++     PyObject	*defObject = ((flags & DICT_FLAG_NONE_DEFAULT)? Py_None : NULL);
++     PyObject	*r;
+      char_u	*key;
+      dictitem_T	*di;
++     dict_T	*dict = self->dict;
++     hashitem_T	*hi;
++ 
+      DICTKEY_DECL
+  
++     if (flags & DICT_FLAG_HAS_DEFAULT)
++     {
++ 	if (!PyArg_ParseTuple(args, "O|O", &keyObject, &defObject))
++ 	    return NULL;
++     }
++     else
++ 	keyObject = args;
++ 
++     if (flags & DICT_FLAG_RETURN_BOOL)
++ 	defObject = Py_False;
++ 
+      DICTKEY_GET(NULL, 0)
+  
+!     hi = hash_find(&dict->dv_hashtab, key);
+  
+      DICTKEY_UNREF
+  
+!     if (HASHITEM_EMPTY(hi))
+      {
+! 	if (defObject)
+! 	{
+! 	    Py_INCREF(defObject);
+! 	    return defObject;
+! 	}
+! 	else
+! 	{
+! 	    PyErr_SetObject(PyExc_KeyError, keyObject);
+! 	    return NULL;
+! 	}
+!     }
+!     else if (flags & DICT_FLAG_RETURN_BOOL)
+!     {
+! 	Py_INCREF(Py_True);
+! 	return Py_True;
+!     }
+! 
+!     di = dict_lookup(hi);
+! 
+!     if (!(r = ConvertToPyObject(&di->di_tv)))
+  	return NULL;
++ 
++     if (flags & DICT_FLAG_POP)
++     {
++ 	if (dict->dv_lock)
++ 	{
++ 	    PyErr_SetVim(_("dict is locked"));
++ 	    Py_DECREF(r);
++ 	    return NULL;
++ 	}
++ 
++ 	hash_remove(&dict->dv_hashtab, hi);
++ 	dictitem_free(di);
+      }
+  
+!     if (flags & DICT_FLAG_RETURN_PAIR)
+!     {
+! 	PyObject	*tmp = r;
+! 
+! 	if (!(r = Py_BuildValue("(" Py_bytes_fmt "O)", hi->hi_key, tmp)))
+! 	{
+! 	    Py_DECREF(tmp);
+! 	    return NULL;
+! 	}
+!     }
+! 
+!     return r;
+! }
+! 
+!     static PyObject *
+! DictionaryItem(DictionaryObject *self, PyObject *keyObject)
+! {
+!     return _DictionaryItem(self, keyObject, 0);
+! }
+! 
+!     static int
+! DictionaryContains(DictionaryObject *self, PyObject *keyObject)
+! {
+!     PyObject	*rObj = _DictionaryItem(self, keyObject, DICT_FLAG_RETURN_BOOL);
+!     int		r;
+! 
+!     r = (rObj == Py_True);
+! 
+!     Py_DECREF(Py_True);
+! 
+!     return r;
+! }
+! 
+! typedef struct
+! {
+!     hashitem_T	*ht_array;
+!     long_u	ht_used;
+!     hashtab_T	*ht;
+!     hashitem_T	*hi;
+!     int		todo;
+! } dictiterinfo_T;
+! 
+!     static PyObject *
+! DictionaryIterNext(dictiterinfo_T **dii)
+! {
+!     PyObject	*r;
+! 
+!     if (!(*dii)->todo)
+! 	return NULL;
+! 
+!     if ((*dii)->ht->ht_array != (*dii)->ht_array ||
+! 	    (*dii)->ht->ht_used != (*dii)->ht_used)
+!     {
+! 	PyErr_SetString(PyExc_RuntimeError,
+! 		_("hashtab changed during iteration"));
+! 	return NULL;
+!     }
+! 
+!     while (((*dii)->todo) && HASHITEM_EMPTY((*dii)->hi))
+! 	++((*dii)->hi);
+! 
+!     --((*dii)->todo);
+! 
+!     if (!(r = PyBytes_FromString((char *) (*dii)->hi->hi_key)))
+! 	return NULL;
+! 
+!     return r;
+! }
+! 
+!     static PyObject *
+! DictionaryIter(DictionaryObject *self)
+! {
+!     dictiterinfo_T	*dii;
+!     hashtab_T		*ht;
+! 
+!     if (!(dii = PyMem_New(dictiterinfo_T, 1)))
+!     {
+! 	PyErr_NoMemory();
+! 	return NULL;
+!     }
+! 
+!     ht = &self->dict->dv_hashtab;
+!     dii->ht_array = ht->ht_array;
+!     dii->ht_used = ht->ht_used;
+!     dii->ht = ht;
+!     dii->hi = dii->ht_array;
+!     dii->todo = dii->ht_used;
+! 
+!     return IterNew(dii,
+! 	    (destructorfun) PyMem_Free, (nextfun) DictionaryIterNext,
+! 	    NULL, NULL);
+  }
+  
+      static PyInt
+***************
+*** 1016,1033 ****
+  
+      if (di == NULL)
+      {
+! 	di = dictitem_alloc(key);
+! 	if (di == NULL)
+  	{
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+  	di->di_tv.v_lock = 0;
+  
+  	if (dict_add(dict, di) == FAIL)
+  	{
+  	    DICTKEY_UNREF
+  	    vim_free(di);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+--- 1209,1227 ----
+  
+      if (di == NULL)
+      {
+! 	if (!(di = dictitem_alloc(key)))
+  	{
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+  	di->di_tv.v_lock = 0;
++ 	di->di_tv.v_type = VAR_UNKNOWN;
+  
+  	if (dict_add(dict, di) == FAIL)
+  	{
+  	    DICTKEY_UNREF
+  	    vim_free(di);
++ 	    dictitem_free(di);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+***************
+*** 1042,1062 ****
+      return 0;
+  }
+  
+      static PyObject *
+! DictionaryListKeys(DictionaryObject *self)
+  {
+      dict_T	*dict = self->dict;
+      long_u	todo = dict->dv_hashtab.ht_used;
+      Py_ssize_t	i = 0;
+      PyObject	*r;
+      hashitem_T	*hi;
+  
+      r = PyList_New(todo);
+      for (hi = dict->dv_hashtab.ht_array; todo > 0; ++hi)
+      {
+  	if (!HASHITEM_EMPTY(hi))
+  	{
+! 	    PyList_SetItem(r, i, PyBytes_FromString((char *)(hi->hi_key)));
+  	    --todo;
+  	    ++i;
+  	}
+--- 1236,1269 ----
+      return 0;
+  }
+  
++ typedef PyObject *(*hi_to_py)(hashitem_T *);
++ 
+      static PyObject *
+! DictionaryListObjects(DictionaryObject *self, hi_to_py hiconvert)
+  {
+      dict_T	*dict = self->dict;
+      long_u	todo = dict->dv_hashtab.ht_used;
+      Py_ssize_t	i = 0;
+      PyObject	*r;
+      hashitem_T	*hi;
++     PyObject	*newObj;
+  
+      r = PyList_New(todo);
+      for (hi = dict->dv_hashtab.ht_array; todo > 0; ++hi)
+      {
+  	if (!HASHITEM_EMPTY(hi))
+  	{
+! 	    if (!(newObj = hiconvert(hi)))
+! 	    {
+! 		Py_DECREF(r);
+! 		return NULL;
+! 	    }
+! 	    if (PyList_SetItem(r, i, newObj))
+! 	    {
+! 		Py_DECREF(r);
+! 		Py_DECREF(newObj);
+! 		return NULL;
+! 	    }
+  	    --todo;
+  	    ++i;
+  	}
+***************
+*** 1064,1069 ****
+--- 1271,1505 ----
+      return r;
+  }
+  
++     static PyObject *
++ dict_key(hashitem_T *hi)
++ {
++     return PyBytes_FromString((char *)(hi->hi_key));
++ }
++ 
++     static PyObject *
++ DictionaryListKeys(DictionaryObject *self)
++ {
++     return DictionaryListObjects(self, dict_key);
++ }
++ 
++     static PyObject *
++ dict_val(hashitem_T *hi)
++ {
++     dictitem_T	*di;
++ 
++     di = dict_lookup(hi);
++     return ConvertToPyObject(&di->di_tv);
++ }
++ 
++     static PyObject *
++ DictionaryListValues(DictionaryObject *self)
++ {
++     return DictionaryListObjects(self, dict_val);
++ }
++ 
++     static PyObject *
++ dict_item(hashitem_T *hi)
++ {
++     PyObject	*keyObject;
++     PyObject	*valObject;
++     PyObject	*r;
++ 
++     if (!(keyObject = dict_key(hi)))
++ 	return NULL;
++ 
++     if (!(valObject = dict_val(hi)))
++     {
++ 	Py_DECREF(keyObject);
++ 	return NULL;
++     }
++ 
++     r = Py_BuildValue("(OO)", keyObject, valObject);
++ 
++     Py_DECREF(keyObject);
++     Py_DECREF(valObject);
++ 
++     return r;
++ }
++ 
++     static PyObject *
++ DictionaryListItems(DictionaryObject *self)
++ {
++     return DictionaryListObjects(self, dict_item);
++ }
++ 
++     static PyObject *
++ DictionaryUpdate(DictionaryObject *self, PyObject *args, PyObject *kwargs)
++ {
++     dict_T	*dict = self->dict;
++ 
++     if (dict->dv_lock)
++     {
++ 	PyErr_SetVim(_("dict is locked"));
++ 	return NULL;
++     }
++ 
++     if (kwargs)
++     {
++ 	typval_T	tv;
++ 
++ 	if (ConvertFromPyMapping(kwargs, &tv) == -1)
++ 	    return NULL;
++ 
++ 	VimTryStart();
++ 	dict_extend(self->dict, tv.vval.v_dict, (char_u *) "force");
++ 	clear_tv(&tv);
++ 	if (VimTryEnd())
++ 	    return NULL;
++     }
++     else
++     {
++ 	PyObject	*object;
++ 
++ 	if (!PyArg_Parse(args, "(O)", &object))
++ 	    return NULL;
++ 
++ 	if (PyObject_HasAttrString(object, "keys"))
++ 	    return DictionaryUpdate(self, NULL, object);
++ 	else
++ 	{
++ 	    PyObject	*iterator;
++ 	    PyObject	*item;
++ 
++ 	    if (!(iterator = PyObject_GetIter(object)))
++ 		return NULL;
++ 
++ 	    while ((item = PyIter_Next(iterator)))
++ 	    {
++ 		PyObject	*fast;
++ 		PyObject	*keyObject;
++ 		PyObject	*valObject;
++ 		PyObject	*todecref;
++ 		char_u		*key;
++ 		dictitem_T	*di;
++ 
++ 		if (!(fast = PySequence_Fast(item, "")))
++ 		{
++ 		    Py_DECREF(iterator);
++ 		    Py_DECREF(item);
++ 		    return NULL;
++ 		}
++ 
++ 		Py_DECREF(item);
++ 
++ 		if (PySequence_Fast_GET_SIZE(fast) != 2)
++ 		{
++ 		    Py_DECREF(iterator);
++ 		    Py_DECREF(fast);
++ 		    PyErr_SetString(PyExc_ValueError,
++ 			    _("expected sequence element of size 2"));
++ 		    return NULL;
++ 		}
++ 
++ 		keyObject = PySequence_Fast_GET_ITEM(fast, 0);
++ 
++ 		if (!(key = StringToChars(keyObject, &todecref)))
++ 		{
++ 		    Py_DECREF(iterator);
++ 		    Py_DECREF(fast);
++ 		    return NULL;
++ 		}
++ 
++ 		di = dictitem_alloc(key);
++ 
++ 		Py_XDECREF(todecref);
++ 
++ 		if (di == NULL)
++ 		{
++ 		    Py_DECREF(fast);
++ 		    Py_DECREF(iterator);
++ 		    PyErr_NoMemory();
++ 		    return NULL;
++ 		}
++ 		di->di_tv.v_lock = 0;
++ 		di->di_tv.v_type = VAR_UNKNOWN;
++ 
++ 		valObject = PySequence_Fast_GET_ITEM(fast, 1);
++ 
++ 		if (ConvertFromPyObject(valObject, &di->di_tv) == -1)
++ 		{
++ 		    Py_DECREF(iterator);
++ 		    Py_DECREF(fast);
++ 		    dictitem_free(di);
++ 		    return NULL;
++ 		}
++ 
++ 		Py_DECREF(fast);
++ 
++ 		if (dict_add(dict, di) == FAIL)
++ 		{
++ 		    Py_DECREF(iterator);
++ 		    dictitem_free(di);
++ 		    PyErr_SetVim(_("failed to add key to dictionary"));
++ 		    return NULL;
++ 		}
++ 	    }
++ 
++ 	    Py_DECREF(iterator);
++ 
++ 	    /* Iterator may have finished due to an exception */
++ 	    if (PyErr_Occurred())
++ 		return NULL;
++ 	}
++     }
++     Py_INCREF(Py_None);
++     return Py_None;
++ }
++ 
++     static PyObject *
++ DictionaryGet(DictionaryObject *self, PyObject *args)
++ {
++     return _DictionaryItem(self, args,
++ 			    DICT_FLAG_HAS_DEFAULT|DICT_FLAG_NONE_DEFAULT);
++ }
++ 
++     static PyObject *
++ DictionaryPop(DictionaryObject *self, PyObject *args)
++ {
++     return _DictionaryItem(self, args, DICT_FLAG_HAS_DEFAULT|DICT_FLAG_POP);
++ }
++ 
++     static PyObject *
++ DictionaryPopItem(DictionaryObject *self, PyObject *args)
++ {
++     PyObject	*keyObject;
++ 
++     if (!PyArg_ParseTuple(args, "O", &keyObject))
++ 	return NULL;
++ 
++     return _DictionaryItem(self, keyObject,
++ 			    DICT_FLAG_POP|DICT_FLAG_RETURN_PAIR);
++ }
++ 
++     static PyObject *
++ DictionaryHasKey(DictionaryObject *self, PyObject *args)
++ {
++     PyObject	*keyObject;
++ 
++     if (!PyArg_ParseTuple(args, "O", &keyObject))
++ 	return NULL;
++ 
++     return _DictionaryItem(self, keyObject, DICT_FLAG_RETURN_BOOL);
++ }
++ 
++ static PySequenceMethods DictionaryAsSeq = {
++     0,					/* sq_length */
++     0,					/* sq_concat */
++     0,					/* sq_repeat */
++     0,					/* sq_item */
++     0,					/* sq_slice */
++     0,					/* sq_ass_item */
++     0,					/* sq_ass_slice */
++     (objobjproc) DictionaryContains,	/* sq_contains */
++     0,					/* sq_inplace_concat */
++     0,					/* sq_inplace_repeat */
++ };
++ 
+  static PyMappingMethods DictionaryAsMapping = {
+      (lenfunc)       DictionaryLength,
+      (binaryfunc)    DictionaryItem,
+***************
+*** 1072,1077 ****
+--- 1508,1520 ----
+  
+  static struct PyMethodDef DictionaryMethods[] = {
+      {"keys",	(PyCFunction)DictionaryListKeys,	METH_NOARGS,	""},
++     {"values",	(PyCFunction)DictionaryListValues,	METH_NOARGS,	""},
++     {"items",	(PyCFunction)DictionaryListItems,	METH_NOARGS,	""},
++     {"update",	(PyCFunction)DictionaryUpdate,		METH_VARARGS|METH_KEYWORDS, ""},
++     {"get",	(PyCFunction)DictionaryGet,		METH_VARARGS,	""},
++     {"pop",	(PyCFunction)DictionaryPop,		METH_VARARGS,	""},
++     {"popitem",	(PyCFunction)DictionaryPopItem,		METH_VARARGS,	""},
++     {"has_key",	(PyCFunction)DictionaryHasKey,		METH_VARARGS,	""},
+      {"__dir__",	(PyCFunction)DictionaryDir,		METH_NOARGS,	""},
+      { NULL,	NULL,					0,		NULL}
+  };
+***************
+*** 1541,1554 ****
+  	selfdictObject = PyDict_GetItemString(kwargs, "self");
+  	if (selfdictObject != NULL)
+  	{
+! 	    if (!PyMapping_Check(selfdictObject))
+! 	    {
+! 		PyErr_SetString(PyExc_TypeError,
+! 				   _("'self' argument must be a dictionary"));
+! 		clear_tv(&args);
+! 		return NULL;
+! 	    }
+! 	    if (ConvertFromPyObject(selfdictObject, &selfdicttv) == -1)
+  	    {
+  		clear_tv(&args);
+  		return NULL;
+--- 1984,1990 ----
+  	selfdictObject = PyDict_GetItemString(kwargs, "self");
+  	if (selfdictObject != NULL)
+  	{
+! 	    if (ConvertFromPyMapping(selfdictObject, &selfdicttv) == -1)
+  	    {
+  		clear_tv(&args);
+  		return NULL;
+***************
+*** 1994,2000 ****
+      else if (strcmp(name, "number") == 0)
+  	return PyLong_FromLong((long) get_tab_number(self->tab));
+      else if (strcmp(name, "vars") == 0)
+! 	return DictionaryNew(self->tab->tp_vars);
+      else if (strcmp(name, "window") == 0)
+      {
+  	/* For current tab window.c does not bother to set or update tp_curwin
+--- 2430,2436 ----
+      else if (strcmp(name, "number") == 0)
+  	return PyLong_FromLong((long) get_tab_number(self->tab));
+      else if (strcmp(name, "vars") == 0)
+! 	return NEW_DICTIONARY(self->tab->tp_vars);
+      else if (strcmp(name, "window") == 0)
+      {
+  	/* For current tab window.c does not bother to set or update tp_curwin
+***************
+*** 2225,2231 ****
+  	return PyLong_FromLong((long)(W_WINCOL(self->win)));
+  #endif
+      else if (strcmp(name, "vars") == 0)
+! 	return DictionaryNew(self->win->w_vars);
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_WIN, self->win, (checkfun) CheckWindow,
+  			(PyObject *) self);
+--- 2661,2667 ----
+  	return PyLong_FromLong((long)(W_WINCOL(self->win)));
+  #endif
+      else if (strcmp(name, "vars") == 0)
+! 	return NEW_DICTIONARY(self->win->w_vars);
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_WIN, self->win, (checkfun) CheckWindow,
+  			(PyObject *) self);
+***************
+*** 3402,3408 ****
+      else if (strcmp(name, "number") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, self->buf->b_fnum);
+      else if (strcmp(name, "vars") == 0)
+! 	return DictionaryNew(self->buf->b_vars);
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_BUF, self->buf, (checkfun) CheckBuffer,
+  			(PyObject *) self);
+--- 3838,3844 ----
+      else if (strcmp(name, "number") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, self->buf->b_fnum);
+      else if (strcmp(name, "vars") == 0)
+! 	return NEW_DICTIONARY(self->buf->b_vars);
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_BUF, self->buf, (checkfun) CheckBuffer,
+  			(PyObject *) self);
+***************
+*** 4307,4312 ****
+--- 4743,4778 ----
+  }
+  
+      static int
++ ConvertFromPyMapping(PyObject *obj, typval_T *tv)
++ {
++     PyObject	*lookup_dict;
++     int		r;
++ 
++     if (!(lookup_dict = PyDict_New()))
++ 	return -1;
++ 
++     if (PyType_IsSubtype(obj->ob_type, &DictionaryType))
++     {
++ 	tv->v_type = VAR_DICT;
++ 	tv->vval.v_dict = (((DictionaryObject *)(obj))->dict);
++ 	++tv->vval.v_dict->dv_refcount;
++ 	r = 0;
++     }
++     else if (PyDict_Check(obj))
++ 	r = convert_dl(obj, tv, pydict_to_tv, lookup_dict);
++     else if (PyMapping_Check(obj))
++ 	r = convert_dl(obj, tv, pymap_to_tv, lookup_dict);
++     else
++     {
++ 	PyErr_SetString(PyExc_TypeError,
++ 		_("unable to convert object to vim dictionary"));
++ 	r = -1;
++     }
++     Py_DECREF(lookup_dict);
++     return r;
++ }
++ 
++     static int
+  ConvertFromPyObject(PyObject *obj, typval_T *tv)
+  {
+      PyObject	*lookup_dict;
+***************
+*** 4322,4328 ****
+      static int
+  _ConvertFromPyObject(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+!     if (obj->ob_type == &DictionaryType)
+      {
+  	tv->v_type = VAR_DICT;
+  	tv->vval.v_dict = (((DictionaryObject *)(obj))->dict);
+--- 4788,4794 ----
+      static int
+  _ConvertFromPyObject(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+!     if (PyType_IsSubtype(obj->ob_type, &DictionaryType))
+      {
+  	tv->v_type = VAR_DICT;
+  	tv->vval.v_dict = (((DictionaryObject *)(obj))->dict);
+***************
+*** 4437,4443 ****
+  	case VAR_LIST:
+  	    return ListNew(tv->vval.v_list);
+  	case VAR_DICT:
+! 	    return DictionaryNew(tv->vval.v_dict);
+  	case VAR_FUNC:
+  	    return FunctionNew(tv->vval.v_string == NULL
+  					  ? (char_u *)"" : tv->vval.v_string);
+--- 4903,4909 ----
+  	case VAR_LIST:
+  	    return ListNew(tv->vval.v_list);
+  	case VAR_DICT:
+! 	    return NEW_DICTIONARY(tv->vval.v_dict);
+  	case VAR_FUNC:
+  	    return FunctionNew(tv->vval.v_string == NULL
+  					  ? (char_u *)"" : tv->vval.v_string);
+***************
+*** 4608,4617 ****
+      DictionaryType.tp_name = "vim.dictionary";
+      DictionaryType.tp_basicsize = sizeof(DictionaryObject);
+      DictionaryType.tp_dealloc = (destructor)DictionaryDestructor;
+      DictionaryType.tp_as_mapping = &DictionaryAsMapping;
+!     DictionaryType.tp_flags = Py_TPFLAGS_DEFAULT;
+      DictionaryType.tp_doc = "dictionary pushing modifications to vim structure";
+      DictionaryType.tp_methods = DictionaryMethods;
+  #if PY_MAJOR_VERSION >= 3
+      DictionaryType.tp_getattro = (getattrofunc)DictionaryGetattro;
+      DictionaryType.tp_setattro = (setattrofunc)DictionarySetattro;
+--- 5074,5087 ----
+      DictionaryType.tp_name = "vim.dictionary";
+      DictionaryType.tp_basicsize = sizeof(DictionaryObject);
+      DictionaryType.tp_dealloc = (destructor)DictionaryDestructor;
++     DictionaryType.tp_as_sequence = &DictionaryAsSeq;
+      DictionaryType.tp_as_mapping = &DictionaryAsMapping;
+!     DictionaryType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE;
+      DictionaryType.tp_doc = "dictionary pushing modifications to vim structure";
+      DictionaryType.tp_methods = DictionaryMethods;
++     DictionaryType.tp_iter = (getiterfunc)DictionaryIter;
++     DictionaryType.tp_new = (newfunc)DictionaryConstructor;
++     DictionaryType.tp_alloc = (allocfunc)PyType_GenericAlloc;
+  #if PY_MAJOR_VERSION >= 3
+      DictionaryType.tp_getattro = (getattrofunc)DictionaryGetattro;
+      DictionaryType.tp_setattro = (setattrofunc)DictionarySetattro;
+***************
+*** 4786,4793 ****
+  	return -1;
+      ADD_OBJECT(m, "error", VimError);
+  
+!     ADD_CHECKED_OBJECT(m, "vars",  DictionaryNew(&globvardict));
+!     ADD_CHECKED_OBJECT(m, "vvars", DictionaryNew(&vimvardict));
+      ADD_CHECKED_OBJECT(m, "options",
+  	    OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL));
+      return 0;
+--- 5256,5263 ----
+  	return -1;
+      ADD_OBJECT(m, "error", VimError);
+  
+!     ADD_CHECKED_OBJECT(m, "vars",  NEW_DICTIONARY(&globvardict));
+!     ADD_CHECKED_OBJECT(m, "vvars", NEW_DICTIONARY(&vimvardict));
+      ADD_CHECKED_OBJECT(m, "options",
+  	    OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL));
+      return 0;
+*** ../vim-7.3.1060/src/if_python3.c	2013-05-30 12:40:36.000000000 +0200
+--- src/if_python3.c	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 96,101 ****
+--- 96,102 ----
+  #define PyInt_FromLong(i) PyLong_FromLong(i)
+  #define PyInt_AsLong(obj) PyLong_AsLong(obj)
+  #define Py_ssize_t_fmt "n"
++ #define Py_bytes_fmt "y"
+  
+  #if defined(DYNAMIC_PYTHON3) || defined(PROTO)
+  
+***************
+*** 149,154 ****
+--- 150,156 ----
+  # define PySequence_Check py3_PySequence_Check
+  # define PySequence_Size py3_PySequence_Size
+  # define PySequence_GetItem py3_PySequence_GetItem
++ # define PySequence_Fast py3_PySequence_Fast
+  # define PyTuple_Size py3_PyTuple_Size
+  # define PyTuple_GetItem py3_PyTuple_GetItem
+  # define PySlice_GetIndicesEx py3_PySlice_GetIndicesEx
+***************
+*** 168,173 ****
+--- 170,176 ----
+  #undef PyRun_String
+  # define PyRun_String py3_PyRun_String
+  # define PyObject_GetAttrString py3_PyObject_GetAttrString
++ # define PyObject_HasAttrString py3_PyObject_HasAttrString
+  # define PyObject_SetAttrString py3_PyObject_SetAttrString
+  # define PyObject_CallFunctionObjArgs py3_PyObject_CallFunctionObjArgs
+  # define PyEval_GetLocals py3_PyEval_GetLocals
+***************
+*** 269,274 ****
+--- 272,278 ----
+  static int (*py3_PySequence_Check)(PyObject *);
+  static Py_ssize_t (*py3_PySequence_Size)(PyObject *);
+  static PyObject* (*py3_PySequence_GetItem)(PyObject *, Py_ssize_t);
++ static PyObject* (*py3_PySequence_Fast)(PyObject *, const char *);
+  static Py_ssize_t (*py3_PyTuple_Size)(PyObject *);
+  static PyObject* (*py3_PyTuple_GetItem)(PyObject *, Py_ssize_t);
+  static int (*py3_PyMapping_Check)(PyObject *);
+***************
+*** 282,287 ****
+--- 286,292 ----
+  static int (*py3_PyRun_SimpleString)(char *);
+  static PyObject* (*py3_PyRun_String)(char *, int, PyObject *, PyObject *);
+  static PyObject* (*py3_PyObject_GetAttrString)(PyObject *, const char *);
++ static int (*py3_PyObject_HasAttrString)(PyObject *, const char *);
+  static PyObject* (*py3_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
+  static PyObject* (*py3_PyObject_CallFunctionObjArgs)(PyObject *, ...);
+  static PyObject* (*py3_PyEval_GetGlobals)();
+***************
+*** 425,430 ****
+--- 430,436 ----
+      {"PySequence_Check", (PYTHON_PROC*)&py3_PySequence_Check},
+      {"PySequence_Size", (PYTHON_PROC*)&py3_PySequence_Size},
+      {"PySequence_GetItem", (PYTHON_PROC*)&py3_PySequence_GetItem},
++     {"PySequence_Fast", (PYTHON_PROC*)&py3_PySequence_Fast},
+      {"PyTuple_Size", (PYTHON_PROC*)&py3_PyTuple_Size},
+      {"PyTuple_GetItem", (PYTHON_PROC*)&py3_PyTuple_GetItem},
+      {"PySlice_GetIndicesEx", (PYTHON_PROC*)&py3_PySlice_GetIndicesEx},
+***************
+*** 435,440 ****
+--- 441,447 ----
+      {"PyRun_SimpleString", (PYTHON_PROC*)&py3_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&py3_PyRun_String},
+      {"PyObject_GetAttrString", (PYTHON_PROC*)&py3_PyObject_GetAttrString},
++     {"PyObject_HasAttrString", (PYTHON_PROC*)&py3_PyObject_HasAttrString},
+      {"PyObject_SetAttrString", (PYTHON_PROC*)&py3_PyObject_SetAttrString},
+      {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&py3_PyObject_CallFunctionObjArgs},
+      {"PyEval_GetGlobals", (PYTHON_PROC*)&py3_PyEval_GetGlobals},
+*** ../vim-7.3.1060/src/if_python.c	2013-05-30 12:40:36.000000000 +0200
+--- src/if_python.c	2013-05-30 12:48:47.000000000 +0200
+***************
+*** 103,108 ****
+--- 103,109 ----
+  # define PyIntIntObjArgProc intintobjargproc
+  # define Py_ssize_t_fmt "i"
+  #endif
++ #define Py_bytes_fmt "s"
+  
+  /* Parser flags */
+  #define single_input	256
+***************
+*** 187,192 ****
+--- 188,194 ----
+  # define PySequence_Check dll_PySequence_Check
+  # define PySequence_Size dll_PySequence_Size
+  # define PySequence_GetItem dll_PySequence_GetItem
++ # define PySequence_Fast dll_PySequence_Fast
+  # define PyTuple_Size dll_PyTuple_Size
+  # define PyTuple_GetItem dll_PyTuple_GetItem
+  # define PyTuple_Type (*dll_PyTuple_Type)
+***************
+*** 207,212 ****
+--- 209,215 ----
+  # define PyRun_SimpleString dll_PyRun_SimpleString
+  # define PyRun_String dll_PyRun_String
+  # define PyObject_GetAttrString dll_PyObject_GetAttrString
++ # define PyObject_HasAttrString dll_PyObject_HasAttrString
+  # define PyObject_SetAttrString dll_PyObject_SetAttrString
+  # define PyObject_CallFunctionObjArgs dll_PyObject_CallFunctionObjArgs
+  # define PyString_AsString dll_PyString_AsString
+***************
+*** 227,232 ****
+--- 230,236 ----
+  # define PySys_SetArgv dll_PySys_SetArgv
+  # define PyType_Type (*dll_PyType_Type)
+  # define PyType_Ready (*dll_PyType_Ready)
++ # define PyType_GenericAlloc dll_PyType_GenericAlloc
+  # define Py_BuildValue dll_Py_BuildValue
+  # define Py_FindMethod dll_Py_FindMethod
+  # define Py_InitModule4 dll_Py_InitModule4
+***************
+*** 318,323 ****
+--- 322,328 ----
+  static int (*dll_PySequence_Check)(PyObject *);
+  static PyInt(*dll_PySequence_Size)(PyObject *);
+  static PyObject*(*dll_PySequence_GetItem)(PyObject *, PyInt);
++ static PyObject*(*dll_PySequence_Fast)(PyObject *, const char *);
+  static PyInt(*dll_PyTuple_Size)(PyObject *);
+  static PyObject*(*dll_PyTuple_GetItem)(PyObject *, PyInt);
+  static PyTypeObject* dll_PyTuple_Type;
+***************
+*** 336,341 ****
+--- 341,347 ----
+  static int(*dll_PyRun_SimpleString)(char *);
+  static PyObject *(*dll_PyRun_String)(char *, int, PyObject *, PyObject *);
+  static PyObject* (*dll_PyObject_GetAttrString)(PyObject *, const char *);
++ static int (*dll_PyObject_HasAttrString)(PyObject *, const char *);
+  static PyObject* (*dll_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
+  static PyObject* (*dll_PyObject_CallFunctionObjArgs)(PyObject *, ...);
+  static char*(*dll_PyString_AsString)(PyObject *);
+***************
+*** 354,359 ****
+--- 360,366 ----
+  static int(*dll_PySys_SetArgv)(int, char **);
+  static PyTypeObject* dll_PyType_Type;
+  static int (*dll_PyType_Ready)(PyTypeObject *type);
++ static PyObject* (*dll_PyType_GenericAlloc)(PyTypeObject *type, PyInt nitems);
+  static PyObject*(*dll_Py_BuildValue)(char *, ...);
+  static PyObject*(*dll_Py_FindMethod)(struct PyMethodDef[], PyObject *, char *);
+  static PyObject*(*dll_Py_InitModule4)(char *, struct PyMethodDef *, char *, PyObject *, int);
+***************
+*** 475,483 ****
+      {"PyList_SetItem", (PYTHON_PROC*)&dll_PyList_SetItem},
+      {"PyList_Size", (PYTHON_PROC*)&dll_PyList_Size},
+      {"PyList_Type", (PYTHON_PROC*)&dll_PyList_Type},
+-     {"PySequence_GetItem", (PYTHON_PROC*)&dll_PySequence_GetItem},
+      {"PySequence_Size", (PYTHON_PROC*)&dll_PySequence_Size},
+      {"PySequence_Check", (PYTHON_PROC*)&dll_PySequence_Check},
+      {"PyTuple_GetItem", (PYTHON_PROC*)&dll_PyTuple_GetItem},
+      {"PyTuple_Size", (PYTHON_PROC*)&dll_PyTuple_Size},
+      {"PyTuple_Type", (PYTHON_PROC*)&dll_PyTuple_Type},
+--- 482,491 ----
+      {"PyList_SetItem", (PYTHON_PROC*)&dll_PyList_SetItem},
+      {"PyList_Size", (PYTHON_PROC*)&dll_PyList_Size},
+      {"PyList_Type", (PYTHON_PROC*)&dll_PyList_Type},
+      {"PySequence_Size", (PYTHON_PROC*)&dll_PySequence_Size},
+      {"PySequence_Check", (PYTHON_PROC*)&dll_PySequence_Check},
++     {"PySequence_GetItem", (PYTHON_PROC*)&dll_PySequence_GetItem},
++     {"PySequence_Fast", (PYTHON_PROC*)&dll_PySequence_Fast},
+      {"PyTuple_GetItem", (PYTHON_PROC*)&dll_PyTuple_GetItem},
+      {"PyTuple_Size", (PYTHON_PROC*)&dll_PyTuple_Size},
+      {"PyTuple_Type", (PYTHON_PROC*)&dll_PyTuple_Type},
+***************
+*** 496,501 ****
+--- 504,510 ----
+      {"PyRun_SimpleString", (PYTHON_PROC*)&dll_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&dll_PyRun_String},
+      {"PyObject_GetAttrString", (PYTHON_PROC*)&dll_PyObject_GetAttrString},
++     {"PyObject_HasAttrString", (PYTHON_PROC*)&dll_PyObject_HasAttrString},
+      {"PyObject_SetAttrString", (PYTHON_PROC*)&dll_PyObject_SetAttrString},
+      {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&dll_PyObject_CallFunctionObjArgs},
+      {"PyString_AsString", (PYTHON_PROC*)&dll_PyString_AsString},
+***************
+*** 514,519 ****
+--- 523,529 ----
+      {"PySys_SetArgv", (PYTHON_PROC*)&dll_PySys_SetArgv},
+      {"PyType_Type", (PYTHON_PROC*)&dll_PyType_Type},
+      {"PyType_Ready", (PYTHON_PROC*)&dll_PyType_Ready},
++     {"PyType_GenericAlloc", (PYTHON_PROC*)&dll_PyType_GenericAlloc},
+      {"Py_FindMethod", (PYTHON_PROC*)&dll_Py_FindMethod},
+      {"Py_SetPythonHome", (PYTHON_PROC*)&dll_Py_SetPythonHome},
+      {"Py_Initialize", (PYTHON_PROC*)&dll_Py_Initialize},
+***************
+*** 1116,1125 ****
+      (PyIntObjArgProc)	BufferAssItem,	    /* sq_ass_item,  x[i]=v   */
+      (PyIntIntObjArgProc) BufferAssSlice,    /* sq_ass_slice, x[i:j]=v */
+      (objobjproc)	0,
+- #if PY_MAJOR_VERSION >= 2
+      (binaryfunc)	0,
+      0,
+- #endif
+  };
+  
+  /* Buffer object - Implementation
+--- 1126,1133 ----
+*** ../vim-7.3.1060/src/proto/eval.pro	2013-05-30 12:35:48.000000000 +0200
+--- src/proto/eval.pro	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 75,80 ****
+--- 75,81 ----
+  dictitem_T *dict_find __ARGS((dict_T *d, char_u *key, int len));
+  char_u *get_dict_string __ARGS((dict_T *d, char_u *key, int save));
+  long get_dict_number __ARGS((dict_T *d, char_u *key));
++ void dict_extend __ARGS((dict_T *d1, dict_T *d2, char_u *action));
+  char_u *get_function_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expr_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expanded_name __ARGS((char_u *name, int check));
+*** ../vim-7.3.1060/src/testdir/test86.in	2013-05-30 12:26:52.000000000 +0200
+--- src/testdir/test86.in	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 31,46 ****
+  :"
+  :" Extending Dictionary directly with different types
+  :let d = {}
+! :py d=vim.bindeval('d')
+! :py d['1']='asd'
+! :py d['b']=[1, 2, f]
+! :py d['-1']={'a': 1}
+! :let dkeys = []
+! :py dk=vim.bindeval('dkeys')
+! :py dkeys=d.keys()
+! :py dkeys.sort()
+! :py dk.extend(dkeys)
+! :$put =string(dkeys)
+  :for [key, val] in sort(items(d))
+  :  $put =string(key) . ' : ' . string(val)
+  :  unlet key val
+--- 31,52 ----
+  :"
+  :" Extending Dictionary directly with different types
+  :let d = {}
+! py << EOF
+! d=vim.bindeval('d')
+! d['1']='asd'
+! d.update(b=[1, 2, f])
+! d.update((('-1', {'a': 1}),))
+! d.update({'0': -1})
+! dk = d.keys()
+! dv = d.values()
+! di = d.items()
+! dk.sort(key=repr)
+! dv.sort(key=repr)
+! di.sort(key=repr)
+! EOF
+! :$put =pyeval('repr(dk)')
+! :$put =substitute(pyeval('repr(dv)'),'0x\x\+','','g')
+! :$put =substitute(pyeval('repr(di)'),'0x\x\+','','g')
+  :for [key, val] in sort(items(d))
+  :  $put =string(key) . ' : ' . string(val)
+  :  unlet key val
+***************
+*** 60,66 ****
+--- 66,85 ----
+  :$put =string(l)
+  :"
+  :py del d['-1']
++ :$put =string(pyeval('d.get(''b'', 1)'))
++ :$put =string(pyeval('d.pop(''b'')'))
++ :$put =string(pyeval('d.get(''b'', 1)'))
++ :$put =string(pyeval('d.pop(''1'', 2)'))
++ :$put =string(pyeval('d.pop(''1'', 2)'))
++ :$put =pyeval('repr(d.has_key(''0''))')
++ :$put =pyeval('repr(d.has_key(''1''))')
++ :$put =pyeval('repr(''0'' in d)')
++ :$put =pyeval('repr(''1'' in d)')
++ :$put =pyeval('repr(list(iter(d)))')
+  :$put =string(d)
++ :$put =pyeval('repr(d.popitem(''0''))')
++ :$put =pyeval('repr(d.get(''0''))')
++ :$put =pyeval('repr(list(iter(d)))')
+  :"
+  :" removing items out of range: silently skip items that don't exist
+  :let l = [0, 1, 2, 3]
+***************
+*** 198,203 ****
+--- 217,225 ----
+  em('d[""]=1')
+  em('d["a\\0b"]=1')
+  em('d[u"a\\0b"]=1')
++ 
++ em('d.pop("abc")')
++ em('d.popitem("abc")')
+  EOF
+  :$put =messages
+  :unlet messages
+***************
+*** 709,714 ****
+--- 731,740 ----
+  del o
+  EOF
+  :"
++ :" Test vim.*.__new__
++ :$put =string(pyeval('vim.Dictionary({})'))
++ :$put =string(pyeval('vim.Dictionary(a=1)'))
++ :$put =string(pyeval('vim.Dictionary(((''a'', 1),))'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+***************
+*** 718,723 ****
+--- 744,759 ----
+  :py sys.stderr.writelines(iter('abc'))
+  :redir END
+  :$put =string(substitute(messages, '\d\+', '', 'g'))
++ :" Test subclassing
++ py << EOF
++ class DupDict(vim.Dictionary):
++     def __setitem__(self, key, value):
++         super(DupDict, self).__setitem__(key, value)
++         super(DupDict, self).__setitem__('dup_' + key, value)
++ dd = DupDict()
++ dd['a'] = 'b'
++ EOF
++ :$put =string(sort(keys(pyeval('dd'))))
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1060/src/testdir/test86.ok	2013-05-30 12:26:52.000000000 +0200
+--- src/testdir/test86.ok	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 4,16 ****
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! ['-1', '1', 'b']
+  '-1' : {'a': 1}
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
+  [0, function('strlen')]
+  [3]
+! {'1': 'asd', 'b': [1, 2, function('strlen')]}
+  [0, 1, 2, 3]
+  [0, 1, 2, 3]
+  [0, 1, 3]
+--- 4,32 ----
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! ['-1', '0', '1', 'b']
+! ['asd', -1L, <vim.dictionary object at >, <vim.list object at >]
+! [('-1', <vim.dictionary object at >), ('0', -1L), ('1', 'asd'), ('b', <vim.list object at >)]
+  '-1' : {'a': 1}
++ '0' : -1
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
+  [0, function('strlen')]
+  [3]
+! [1, 2, function('strlen')]
+! [1, 2, function('strlen')]
+! 1
+! 'asd'
+! 2
+! True
+! False
+! True
+! False
+! ['0']
+! {'0': -1}
+! ('', -1L)
+! None
+! []
+  [0, 1, 2, 3]
+  [0, 1, 2, 3]
+  [0, 1, 3]
+***************
+*** 44,49 ****
+--- 60,67 ----
+  ValueError
+  TypeError
+  TypeError
++ KeyError
++ KeyError
+  d : locked:0;scope:0
+  dl : locked:1;scope:0
+  v: : locked:2;scope:1
+***************
+*** 387,396 ****
+  window:__dir__,__members__,buffer,col,cursor,height,number,options,row,tabpage,valid,vars
+  tabpage:__dir__,__members__,number,valid,vars,window,windows
+  range:__dir__,__members__,append,end,start
+! dictionary:__dir__,__members__,keys,locked,scope
+  list:__dir__,__members__,extend,locked
+  function:__call__,__dir__,__members__,softspace
+  output:__dir__,__members__,flush,softspace,write,writelines
+  '
+  abcdef
+  line  :
+--- 405,417 ----
+  window:__dir__,__members__,buffer,col,cursor,height,number,options,row,tabpage,valid,vars
+  tabpage:__dir__,__members__,number,valid,vars,window,windows
+  range:__dir__,__members__,append,end,start
+! dictionary:__dir__,__members__,get,has_key,items,keys,locked,pop,popitem,scope,update,values
+  list:__dir__,__members__,extend,locked
+  function:__call__,__dir__,__members__,softspace
+  output:__dir__,__members__,flush,softspace,write,writelines
++ {}
++ {'a': 1}
++ {'a': 1}
+  '
+  abcdef
+  line  :
+***************
+*** 398,403 ****
+--- 419,425 ----
+  abc
+  line  :
+  abc'
++ ['a', 'dup_a']
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1060/src/testdir/test87.in	2013-05-30 12:26:52.000000000 +0200
+--- src/testdir/test87.in	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 26,41 ****
+  :"
+  :" Extending Dictionary directly with different types
+  :let d = {}
+! :py3 d=vim.bindeval('d')
+! :py3 d['1']='asd'
+! :py3 d['b']=[1, 2, f]
+! :py3 d['-1']={'a': 1}
+! :let dkeys = []
+! :py3 dk=vim.bindeval('dkeys')
+! :py3 dkeys=d.keys()
+! :py3 dkeys.sort()
+! :py3 dk+=dkeys
+! :$put =string(dkeys)
+  :for [key, val] in sort(items(d))
+  :  $put =string(key) . ' : ' . string(val)
+  :  unlet key val
+--- 26,47 ----
+  :"
+  :" Extending Dictionary directly with different types
+  :let d = {}
+! py3 << EOF
+! d=vim.bindeval('d')
+! d['1']='asd'
+! d.update(b=[1, 2, f])
+! d.update((('-1', {'a': 1}),))
+! d.update({'0': -1})
+! dk = d.keys()
+! dv = d.values()
+! di = d.items()
+! dk.sort(key=repr)
+! dv.sort(key=repr)
+! di.sort(key=repr)
+! EOF
+! :$put =py3eval('repr(dk)')
+! :$put =substitute(py3eval('repr(dv)'),'0x\x\+','','g')
+! :$put =substitute(py3eval('repr(di)'),'0x\x\+','','g')
+  :for [key, val] in sort(items(d))
+  :  $put =string(key) . ' : ' . string(val)
+  :  unlet key val
+***************
+*** 55,61 ****
+--- 61,80 ----
+  :$put =string(l)
+  :"
+  :py3 del d['-1']
++ :$put =string(py3eval('d.get(''b'', 1)'))
++ :$put =string(py3eval('d.pop(''b'')'))
++ :$put =string(py3eval('d.get(''b'', 1)'))
++ :$put =string(py3eval('d.pop(''1'', 2)'))
++ :$put =string(py3eval('d.pop(''1'', 2)'))
++ :$put =py3eval('repr(d.has_key(''0''))')
++ :$put =py3eval('repr(d.has_key(''1''))')
++ :$put =py3eval('repr(''0'' in d)')
++ :$put =py3eval('repr(''1'' in d)')
++ :$put =py3eval('repr(list(iter(d)))')
+  :$put =string(d)
++ :$put =py3eval('repr(d.popitem(''0''))')
++ :$put =py3eval('repr(d.get(''0''))')
++ :$put =py3eval('repr(list(iter(d)))')
+  :"
+  :" removing items out of range: silently skip items that don't exist
+  :let l = [0, 1, 2, 3]
+***************
+*** 181,215 ****
+  :py3 <<EOF
+  d=vim.bindeval('{}')
+  m=vim.bindeval('messages')
+! try:
+!     d['abc']
+! except Exception as e:
+!     m.extend([e.__class__.__name__])
+! 
+! try:
+!     d['abc']="\0"
+! except Exception as e:
+!     m.extend([e.__class__.__name__])
+! 
+! try:
+!     d['abc']=vim
+! except Exception as e:
+!     m.extend([e.__class__.__name__])
+! 
+! try:
+!     d['']=1
+! except Exception as e:
+!     m.extend([e.__class__.__name__])
+  
+! try:
+!     d['a\0b']=1
+! except Exception as e:
+!     m.extend([e.__class__.__name__])
+  
+! try:
+!     d[b'a\0b']=1
+! except Exception as e:
+!     m.extend([e.__class__.__name__])
+  EOF
+  :$put =messages
+  :unlet messages
+--- 200,220 ----
+  :py3 <<EOF
+  d=vim.bindeval('{}')
+  m=vim.bindeval('messages')
+! def em(expr, g=globals(), l=locals()):
+!     try:
+!         exec(expr, g, l)
+!     except Exception as e:
+!         m.extend([e.__class__.__name__])
+  
+! em('d["abc"]')
+! em('d["abc"]="\\0"')
+! em('d["abc"]=vim')
+! em('d[""]=1')
+! em('d["a\\0b"]=1')
+! em('d[b"a\\0b"]=1')
+  
+! em('d.pop("abc")')
+! em('d.popitem("abc")')
+  EOF
+  :$put =messages
+  :unlet messages
+***************
+*** 687,692 ****
+--- 692,701 ----
+  del o
+  EOF
+  :"
++ :" Test vim.Dictionary.__new__
++ :$put =string(py3eval('vim.Dictionary({})'))
++ :$put =string(py3eval('vim.Dictionary(a=1)'))
++ :$put =string(py3eval('vim.Dictionary(((''a'', 1),))'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+***************
+*** 696,701 ****
+--- 705,720 ----
+  :py sys.stderr.writelines(iter('abc'))
+  :redir END
+  :$put =string(substitute(messages, '\d\+', '', 'g'))
++ :" Test subclassing
++ py3 << EOF
++ class DupDict(vim.Dictionary):
++     def __setitem__(self, key, value):
++         super(DupDict, self).__setitem__(key, value)
++         super(DupDict, self).__setitem__('dup_' + key, value)
++ dd = DupDict()
++ dd['a'] = 'b'
++ EOF
++ :$put =string(sort(keys(py3eval('dd'))))
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1060/src/testdir/test87.ok	2013-05-30 12:26:52.000000000 +0200
+--- src/testdir/test87.ok	2013-05-30 12:47:48.000000000 +0200
+***************
+*** 4,16 ****
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! ['-1', '1', 'b']
+  '-1' : {'a': 1}
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
+  [0, function('strlen')]
+  [3]
+! {'1': 'asd', 'b': [1, 2, function('strlen')]}
+  [0, 1, 2, 3]
+  [0, 1, 2, 3]
+  [0, 1, 3]
+--- 4,32 ----
+  Vim(put):E684:
+  [0, 'as''d', [1, 2, function('strlen'), {'a': 1}]]
+  [0, function('strlen'), [1, 2, function('strlen'), {'a': 1}]]
+! [b'-1', b'0', b'1', b'b']
+! [-1, <vim.dictionary object at >, <vim.list object at >, b'asd']
+! [(b'-1', <vim.dictionary object at >), (b'0', -1), (b'1', b'asd'), (b'b', <vim.list object at >)]
+  '-1' : {'a': 1}
++ '0' : -1
+  '1' : 'asd'
+  'b' : [1, 2, function('strlen')]
+  [0, function('strlen')]
+  [3]
+! [1, 2, function('strlen')]
+! [1, 2, function('strlen')]
+! 1
+! 'asd'
+! 2
+! True
+! False
+! True
+! False
+! [b'0']
+! {'0': -1}
+! (b'', -1)
+! None
+! []
+  [0, 1, 2, 3]
+  [0, 1, 2, 3]
+  [0, 1, 3]
+***************
+*** 44,49 ****
+--- 60,67 ----
+  ValueError
+  TypeError
+  TypeError
++ KeyError
++ KeyError
+  d : locked:0;scope:0
+  dl : locked:1;scope:0
+  v: : locked:2;scope:1
+***************
+*** 376,385 ****
+  window:__dir__,buffer,col,cursor,height,number,options,row,tabpage,valid,vars
+  tabpage:__dir__,number,valid,vars,window,windows
+  range:__dir__,append,end,start
+! dictionary:__dir__,keys,locked,scope
+  list:__dir__,extend,locked
+  function:__call__,__dir__,softspace
+  output:__dir__,flush,softspace,write,writelines
+  '
+  abcdef
+  line  :
+--- 394,406 ----
+  window:__dir__,buffer,col,cursor,height,number,options,row,tabpage,valid,vars
+  tabpage:__dir__,number,valid,vars,window,windows
+  range:__dir__,append,end,start
+! dictionary:__dir__,get,has_key,items,keys,locked,pop,popitem,scope,update,values
+  list:__dir__,extend,locked
+  function:__call__,__dir__,softspace
+  output:__dir__,flush,softspace,write,writelines
++ {}
++ {'a': 1}
++ {'a': 1}
+  '
+  abcdef
+  line  :
+***************
+*** 387,392 ****
+--- 408,414 ----
+  abc
+  line  :
+  abc'
++ ['a', 'dup_a']
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1060/src/version.c	2013-05-30 12:43:50.000000000 +0200
+--- src/version.c	2013-05-30 12:59:48.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1061,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+4. Put your garbage can on your desk and label it "in".
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,47 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.894
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.894
+Problem:    Using wrong RUBY_VER causing Ruby build to break.
+Solution:   Correct the RUBY_VER value. (Yongwei Wu)
+Files:	    src/bigvim.bat
+
+
+*** ../vim-7.3.893/src/bigvim.bat	2012-08-29 14:18:26.000000000 +0200
+--- src/bigvim.bat	2013-04-15 12:32:08.000000000 +0200
+***************
+*** 1,5 ****
+  :: command to build big Vim with OLE, Perl, Python, Ruby and Tcl
+  SET VCDIR="C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin\"
+  SET TOOLDIR=E:\
+! %VCDIR%nmake -f Make_mvc.mak GUI=yes OLE=yes PERL=E:\perl514 DYNAMIC_PERL=yes PERL_VER=514 PYTHON=%TOOLDIR%python27 DYNAMIC_PYTHON=yes PYTHON_VER=27 PYTHON3=%TOOLDIR%python32 DYNAMIC_PYTHON3=yes PYTHON3_VER=32 RUBY=%TOOLDIR%ruby192 DYNAMIC_RUBY=yes RUBY_VER=192 RUBY_VER_LONG=1.9.2 TCL=%TOOLDIR%tcl TCL_VER=85 TCL_VER_LONG=8.5 DYNAMIC_TCL=yes %1 IME=yes CSCOPE=yes
+  
+--- 1,5 ----
+  :: command to build big Vim with OLE, Perl, Python, Ruby and Tcl
+  SET VCDIR="C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin\"
+  SET TOOLDIR=E:\
+! %VCDIR%nmake -f Make_mvc.mak GUI=yes OLE=yes PERL=E:\perl514 DYNAMIC_PERL=yes PERL_VER=514 PYTHON=%TOOLDIR%python27 DYNAMIC_PYTHON=yes PYTHON_VER=27 PYTHON3=%TOOLDIR%python32 DYNAMIC_PYTHON3=yes PYTHON3_VER=32 RUBY=%TOOLDIR%ruby192 DYNAMIC_RUBY=yes RUBY_VER=19 RUBY_VER_LONG=1.9.2 TCL=%TOOLDIR%tcl TCL_VER=85 TCL_VER_LONG=8.5 DYNAMIC_TCL=yes %1 IME=yes CSCOPE=yes
+  
+*** ../vim-7.3.893/src/version.c	2013-04-15 12:27:30.000000000 +0200
+--- src/version.c	2013-04-15 12:34:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     894,
+  /**/
+
+-- 
+Did you ever see a "Hit any key to continue" message in a music piece?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

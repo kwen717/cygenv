@@ -1,0 +1,280 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1084
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1084
+Problem:    New regexp engine: only accepts up to \{,10}.
+Solution:   Remove upper limit.  Remove dead code with NFA_PLUS.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1083/src/regexp_nfa.c	2013-05-31 22:14:48.000000000 +0200
+--- src/regexp_nfa.c	2013-05-31 23:09:16.000000000 +0200
+***************
+*** 29,39 ****
+  # define NFA_REGEXP_DEBUG_LOG	"nfa_regexp_debug.log"
+  #endif
+  
+- /* Upper limit allowed for {m,n} repetitions handled by NFA */
+- #define	    NFA_BRACES_MAXLIMIT		    10
+- /* For allocating space for the postfix representation */
+- #define	    NFA_POSTFIX_MULTIPLIER	    (NFA_BRACES_MAXLIMIT + 2)*2
+- 
+  enum
+  {
+      NFA_SPLIT = -1024,
+--- 29,34 ----
+***************
+*** 44,50 ****
+      NFA_CONCAT,
+      NFA_OR,
+      NFA_STAR,
+-     NFA_PLUS,
+      NFA_QUEST,
+      NFA_QUEST_NONGREEDY,	    /* Non-greedy version of \? */
+      NFA_NOT,			    /* used for [^ab] negated char ranges */
+--- 39,44 ----
+***************
+*** 253,259 ****
+      nstate = 0;
+      istate = 0;
+      /* A reasonable estimation for maximum size */
+!     nstate_max = (int)(STRLEN(expr) + 1) * NFA_POSTFIX_MULTIPLIER;
+  
+      /* Some items blow up in size, such as [A-z].  Add more space for that.
+       * When it is still not enough realloc_post_list() will be used. */
+--- 247,253 ----
+      nstate = 0;
+      istate = 0;
+      /* A reasonable estimation for maximum size */
+!     nstate_max = (int)(STRLEN(expr) + 1) * 25;
+  
+      /* Some items blow up in size, such as [A-z].  Add more space for that.
+       * When it is still not enough realloc_post_list() will be used. */
+***************
+*** 1365,1374 ****
+  	     * string.
+  	     * The submatch will the empty string.
+  	     *
+! 	     * In order to be consistent with the old engine, we disable
+! 	     * NFA_PLUS, and replace <atom>+ with <atom><atom>*
+  	     */
+- 	    /*	EMIT(NFA_PLUS);	 */
+  	    regnpar = old_regnpar;
+  	    regparse = old_regparse;
+  	    curchr = -1;
+--- 1359,1367 ----
+  	     * string.
+  	     * The submatch will the empty string.
+  	     *
+! 	     * In order to be consistent with the old engine, we replace
+! 	     * <atom>+ with <atom><atom>*
+  	     */
+  	    regnpar = old_regnpar;
+  	    regparse = old_regparse;
+  	    curchr = -1;
+***************
+*** 1443,1454 ****
+  		break;
+  	    }
+  
+! 	    if (maxval > NFA_BRACES_MAXLIMIT)
+! 	    {
+! 		/* This would yield a huge automaton and use too much memory.
+! 		 * Revert to old engine */
+  		return FAIL;
+- 	    }
+  
+  	    /* Special case: x{0} or x{-0} */
+  	    if (maxval == 0)
+--- 1436,1444 ----
+  		break;
+  	    }
+  
+! 	    /* TODO: \{-} doesn't work yet */
+! 	    if (maxval == MAX_LIMIT && !greedy)
+  		return FAIL;
+  
+  	    /* Special case: x{0} or x{-0} */
+  	    if (maxval == 0)
+***************
+*** 1478,1486 ****
+  		    return FAIL;
+  		/* after "minval" times, atoms are optional */
+  		if (i + 1 > minval)
+! 		    EMIT(quest);
+  		if (old_post_pos != my_post_start)
+  		    EMIT(NFA_CONCAT);
+  	    }
+  
+  	    /* Go to just after the repeated atom and the \{} */
+--- 1468,1483 ----
+  		    return FAIL;
+  		/* after "minval" times, atoms are optional */
+  		if (i + 1 > minval)
+! 		{
+! 		    if (maxval == MAX_LIMIT)
+! 			EMIT(NFA_STAR);
+! 		    else
+! 			EMIT(quest);
+! 		}
+  		if (old_post_pos != my_post_start)
+  		    EMIT(NFA_CONCAT);
++ 		if (i + 1 > minval && maxval == MAX_LIMIT)
++ 		    break;
+  	    }
+  
+  	    /* Go to just after the repeated atom and the \{} */
+***************
+*** 1779,1785 ****
+  	case NFA_EOF:		STRCPY(code, "NFA_EOF "); break;
+  	case NFA_BOF:		STRCPY(code, "NFA_BOF "); break;
+  	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
+- 	case NFA_PLUS:		STRCPY(code, "NFA_PLUS "); break;
+  	case NFA_NOT:		STRCPY(code, "NFA_NOT "); break;
+  	case NFA_SKIP_CHAR:	STRCPY(code, "NFA_SKIP_CHAR"); break;
+  	case NFA_OR:		STRCPY(code, "NFA_OR"); break;
+--- 1776,1781 ----
+***************
+*** 2343,2363 ****
+  	    PUSH(frag(s, append(e.out, list1(&s->out))));
+  	    break;
+  
+- 	case NFA_PLUS:
+- 	    /* One or more */
+- 	    if (nfa_calc_size == TRUE)
+- 	    {
+- 		nstate++;
+- 		break;
+- 	    }
+- 	    e = POP();
+- 	    s = new_state(NFA_SPLIT, e.start, NULL);
+- 	    if (s == NULL)
+- 		goto theend;
+- 	    patch(e.out, s);
+- 	    PUSH(frag(e.start, list1(&s->out1)));
+- 	    break;
+- 
+  	case NFA_SKIP_CHAR:
+  	    /* Symbol of 0-length, Used in a repetition
+  	     * with max/min count of 0 */
+--- 2339,2344 ----
+*** ../vim-7.3.1083/src/testdir/test64.in	2013-05-31 22:14:48.000000000 +0200
+--- src/testdir/test64.in	2013-05-31 22:55:52.000000000 +0200
+***************
+*** 182,188 ****
+  :call add(tl, [2, 'a\{0,}', 'oij sdigfusnf', ''])
+  :call add(tl, [2, 'a\{0,}', 'aaaaa aa', 'aaaaa'])
+  :call add(tl, [2, 'a\{2,}', 'sdfiougjdsafg'])
+! :call add(tl, [0, 'a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+  :call add(tl, [2, 'a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{,5}', 'abcd', 'a'])
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+--- 182,190 ----
+  :call add(tl, [2, 'a\{0,}', 'oij sdigfusnf', ''])
+  :call add(tl, [2, 'a\{0,}', 'aaaaa aa', 'aaaaa'])
+  :call add(tl, [2, 'a\{2,}', 'sdfiougjdsafg'])
+! :call add(tl, [2, 'a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+! :call add(tl, [2, 'a\{5,}', 'xxaaaaxxx '])
+! :call add(tl, [2, 'a\{5,}', 'xxaaaaaxxx ', 'aaaaa'])
+  :call add(tl, [2, 'a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{,5}', 'abcd', 'a'])
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+***************
+*** 225,231 ****
+--- 227,235 ----
+  :"
+  :" Test greedy-ness and lazy-ness
+  :call add(tl, [2, 'a\{-2,7}','aaaaaaaaaaaaa', 'aa'])
++ :call add(tl, [2, 'a\{-2,7}x','aaaaaaaaax', 'aaaaaaax'])
+  :call add(tl, [2, 'a\{2,7}','aaaaaaaaaaaaaaaaaaaa', 'aaaaaaa'])
++ :call add(tl, [2, 'a\{2,7}x','aaaaaaaaax', 'aaaaaaax'])
+  :call add(tl, [2, '\vx(.{-,8})yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz','ayxa','xayzxayz'])
+  :call add(tl, [2, '\vx(.*)yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz', 'ayxayzxayzxa',''])
+  :call add(tl, [2, '\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
+***************
+*** 366,372 ****
+  :call add(tl, [2, '\_[^a]\+', "asfi\n9888", "sfi\n9888"])
+  :"
+  :"""" Requiring lots of states.
+! :call add(tl, [0, '[0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}', " 12345678-1234-1234-1234-123456789012 ", "12345678-1234-1234-1234-123456789012", "1234-"])
+  :"
+  :"
+  :"""" Run the tests
+--- 370,376 ----
+  :call add(tl, [2, '\_[^a]\+', "asfi\n9888", "sfi\n9888"])
+  :"
+  :"""" Requiring lots of states.
+! :call add(tl, [2, '[0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}', " 12345678-1234-1234-1234-123456789012 ", "12345678-1234-1234-1234-123456789012", "1234-"])
+  :"
+  :"
+  :"""" Run the tests
+*** ../vim-7.3.1083/src/testdir/test64.ok	2013-05-31 22:14:48.000000000 +0200
+--- src/testdir/test64.ok	2013-05-31 23:02:02.000000000 +0200
+***************
+*** 389,394 ****
+--- 389,401 ----
+  OK 2 - a\{2,}
+  OK 0 - a\{2,}
+  OK 1 - a\{2,}
++ OK 2 - a\{2,}
++ OK 0 - a\{5,}
++ OK 1 - a\{5,}
++ OK 2 - a\{5,}
++ OK 0 - a\{5,}
++ OK 1 - a\{5,}
++ OK 2 - a\{5,}
+  OK 0 - a\{,0}
+  OK 1 - a\{,0}
+  OK 2 - a\{,0}
+***************
+*** 486,494 ****
+--- 493,507 ----
+  OK 0 - a\{-2,7}
+  OK 1 - a\{-2,7}
+  OK 2 - a\{-2,7}
++ OK 0 - a\{-2,7}x
++ OK 1 - a\{-2,7}x
++ OK 2 - a\{-2,7}x
+  OK 0 - a\{2,7}
+  OK 1 - a\{2,7}
+  OK 2 - a\{2,7}
++ OK 0 - a\{2,7}x
++ OK 1 - a\{2,7}x
++ OK 2 - a\{2,7}x
+  OK 0 - \vx(.{-,8})yz(.*)
+  OK 1 - \vx(.{-,8})yz(.*)
+  OK 2 - \vx(.{-,8})yz(.*)
+***************
+*** 803,808 ****
+--- 816,822 ----
+  OK 2 - \_[^a]\+
+  OK 0 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 1 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
++ OK 2 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  192.168.0.1
+  192.168.0.1
+  192.168.0.1
+*** ../vim-7.3.1083/src/version.c	2013-05-31 22:14:48.000000000 +0200
+--- src/version.c	2013-05-31 23:10:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1084,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+34. You laugh at people with a 10 Mbit connection.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

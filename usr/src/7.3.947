@@ -1,0 +1,703 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.947
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.947
+Problem:    Python: No iterator for vim.list and vim.bufferlist.
+Solution:   Add the iterators. Also fix name of FunctionType. Add tests for
+	    vim.buffers.  (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/eval.c, src/if_py_both.h,
+	    src/if_python3.c, src/if_python.c, src/proto/eval.pro,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.946/runtime/doc/if_pyth.txt	2013-05-15 13:38:41.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-15 14:24:11.000000000 +0200
+***************
+*** 214,219 ****
+--- 214,220 ----
+  	    :py b = vim.buffers[i]	# Indexing (read-only)
+  	    :py b in vim.buffers	# Membership test
+  	    :py n = len(vim.buffers)	# Number of elements
++ 	    :py for b in vim.buffers:	# Iterating over buffer list
+  <
+  vim.windows						*python-windows*
+  	A sequence object providing access to the list of vim windows.  The
+*** ../vim-7.3.946/src/eval.c	2013-05-06 04:50:26.000000000 +0200
+--- src/eval.c	2013-05-15 14:24:11.000000000 +0200
+***************
+*** 390,397 ****
+  static void clear_lval __ARGS((lval_T *lp));
+  static void set_var_lval __ARGS((lval_T *lp, char_u *endp, typval_T *rettv, int copy, char_u *op));
+  static int tv_op __ARGS((typval_T *tv1, typval_T *tv2, char_u  *op));
+- static void list_add_watch __ARGS((list_T *l, listwatch_T *lw));
+- static void list_rem_watch __ARGS((list_T *l, listwatch_T *lwrem));
+  static void list_fix_watch __ARGS((list_T *l, listitem_T *item));
+  static void ex_unletlock __ARGS((exarg_T *eap, char_u *argstart, int deep));
+  static int do_unlet_var __ARGS((lval_T *lp, char_u *name_end, int forceit));
+--- 390,395 ----
+***************
+*** 3106,3112 ****
+  /*
+   * Add a watcher to a list.
+   */
+!     static void
+  list_add_watch(l, lw)
+      list_T	*l;
+      listwatch_T	*lw;
+--- 3104,3110 ----
+  /*
+   * Add a watcher to a list.
+   */
+!     void
+  list_add_watch(l, lw)
+      list_T	*l;
+      listwatch_T	*lw;
+***************
+*** 3119,3125 ****
+   * Remove a watcher from a list.
+   * No warning when it isn't found...
+   */
+!     static void
+  list_rem_watch(l, lwrem)
+      list_T	*l;
+      listwatch_T	*lwrem;
+--- 3117,3123 ----
+   * Remove a watcher from a list.
+   * No warning when it isn't found...
+   */
+!     void
+  list_rem_watch(l, lwrem)
+      list_T	*l;
+      listwatch_T	*lwrem;
+*** ../vim-7.3.946/src/if_py_both.h	2013-05-15 13:38:41.000000000 +0200
+--- src/if_py_both.h	2013-05-15 14:24:11.000000000 +0200
+***************
+*** 531,596 ****
+  };
+  
+  /*
+!  * Buffer list object - Implementation
+   */
+  
+! static PyTypeObject BufMapType;
+  
+  typedef struct
+  {
+      PyObject_HEAD
+! } BufMapObject;
+  
+!     static PyInt
+! BufMapLength(PyObject *self UNUSED)
+  {
+!     buf_T	*b = firstbuf;
+!     PyInt	n = 0;
+  
+!     while (b)
+!     {
+! 	++n;
+! 	b = b->b_next;
+!     }
+  
+!     return n;
+  }
+  
+!     static PyObject *
+! BufMapItem(PyObject *self UNUSED, PyObject *keyObject)
+  {
+!     buf_T	*b;
+!     int		bnr;
+  
+! #if PY_MAJOR_VERSION < 3
+!     if (PyInt_Check(keyObject))
+! 	bnr = PyInt_AsLong(keyObject);
+!     else
+! #endif
+!     if (PyLong_Check(keyObject))
+! 	bnr = PyLong_AsLong(keyObject);
+!     else
+!     {
+! 	PyErr_SetString(PyExc_ValueError, _("key must be integer"));
+! 	return NULL;
+!     }
+  
+!     b = buflist_findnr(bnr);
+  
+!     if (b)
+! 	return BufferNew(b);
+!     else
+!     {
+! 	PyErr_SetString(PyExc_KeyError, _("no such buffer"));
+! 	return NULL;
+!     }
+  }
+  
+! static PyMappingMethods BufMapAsMapping = {
+!     (lenfunc)       BufMapLength,
+!     (binaryfunc)    BufMapItem,
+!     (objobjargproc) 0,
+! };
+  
+  typedef struct pylinkedlist_S {
+      struct pylinkedlist_S	*pll_next;
+--- 531,592 ----
+  };
+  
+  /*
+!  * Generic iterator object
+   */
+  
+! static PyTypeObject IterType;
+! 
+! typedef PyObject *(*nextfun)(void **);
+! typedef void (*destructorfun)(void *);
+! 
+! /* Main purpose of this object is removing the need for do python initialization 
+!  * (i.e. PyType_Ready and setting type attributes) for a big bunch of objects.
+!  */
+  
+  typedef struct
+  {
+      PyObject_HEAD
+!     void *cur;
+!     nextfun next;
+!     destructorfun destruct;
+! } IterObject;
+  
+!     static PyObject *
+! IterNew(void *start, destructorfun destruct, nextfun next)
+  {
+!     IterObject *self;
+  
+!     self = PyObject_NEW(IterObject, &IterType);
+!     self->cur = start;
+!     self->next = next;
+!     self->destruct = destruct;
+  
+!     return (PyObject *)(self);
+  }
+  
+!     static void
+! IterDestructor(PyObject *self)
+  {
+!     IterObject *this = (IterObject *)(self);
+  
+!     this->destruct(this->cur);
+  
+!     DESTRUCTOR_FINISH(self);
+! }
+  
+!     static PyObject *
+! IterNext(PyObject *self)
+! {
+!     IterObject *this = (IterObject *)(self);
+! 
+!     return this->next(&this->cur);
+  }
+  
+!     static PyObject *
+! IterIter(PyObject *self)
+! {
+!     return self;
+! }
+  
+  typedef struct pylinkedlist_S {
+      struct pylinkedlist_S	*pll_next;
+***************
+*** 990,995 ****
+--- 986,1040 ----
+      return list;
+  }
+  
++ typedef struct
++ {
++     listwatch_T	lw;
++     list_T	*list;
++ } listiterinfo_T;
++ 
++     static void
++ ListIterDestruct(listiterinfo_T *lii)
++ {
++     list_rem_watch(lii->list, &lii->lw);
++     PyMem_Free(lii);
++ }
++ 
++     static PyObject *
++ ListIterNext(listiterinfo_T **lii)
++ {
++     PyObject	*r;
++ 
++     if (!((*lii)->lw.lw_item))
++ 	return NULL;
++ 
++     if (!(r = ConvertToPyObject(&((*lii)->lw.lw_item->li_tv))))
++ 	return NULL;
++ 
++     (*lii)->lw.lw_item = (*lii)->lw.lw_item->li_next;
++ 
++     return r;
++ }
++ 
++     static PyObject *
++ ListIter(PyObject *self)
++ {
++     listiterinfo_T	*lii;
++     list_T	*l = ((ListObject *) (self))->list;
++ 
++     if (!(lii = PyMem_New(listiterinfo_T, 1)))
++     {
++ 	PyErr_NoMemory();
++ 	return NULL;
++     }
++ 
++     list_add_watch(l, &lii->lw);
++     lii->lw.lw_item = l->lv_first;
++     lii->list = l;
++ 
++     return IterNew(lii,
++ 	    (destructorfun) ListIterDestruct, (nextfun) ListIterNext);
++ }
++ 
+      static int
+  ListAssItem(PyObject *self, Py_ssize_t index, PyObject *obj)
+  {
+***************
+*** 2869,2874 ****
+--- 2914,3029 ----
+      { NULL,	    NULL,		0,	    NULL }
+  };
+  
++ /*
++  * Buffer list object - Implementation
++  */
++ 
++ static PyTypeObject BufMapType;
++ 
++ typedef struct
++ {
++     PyObject_HEAD
++ } BufMapObject;
++ 
++     static PyInt
++ BufMapLength(PyObject *self UNUSED)
++ {
++     buf_T	*b = firstbuf;
++     PyInt	n = 0;
++ 
++     while (b)
++     {
++ 	++n;
++ 	b = b->b_next;
++     }
++ 
++     return n;
++ }
++ 
++     static PyObject *
++ BufMapItem(PyObject *self UNUSED, PyObject *keyObject)
++ {
++     buf_T	*b;
++     int		bnr;
++ 
++ #if PY_MAJOR_VERSION < 3
++     if (PyInt_Check(keyObject))
++ 	bnr = PyInt_AsLong(keyObject);
++     else
++ #endif
++     if (PyLong_Check(keyObject))
++ 	bnr = PyLong_AsLong(keyObject);
++     else
++     {
++ 	PyErr_SetString(PyExc_ValueError, _("key must be integer"));
++ 	return NULL;
++     }
++ 
++     b = buflist_findnr(bnr);
++ 
++     if (b)
++ 	return BufferNew(b);
++     else
++     {
++ 	PyErr_SetString(PyExc_KeyError, _("no such buffer"));
++ 	return NULL;
++     }
++ }
++ 
++     static void
++ BufMapIterDestruct(PyObject *buffer)
++ {
++     /* Iteration was stopped before all buffers were processed */
++     if (buffer)
++     {
++ 	Py_DECREF(buffer);
++     }
++ }
++ 
++     static PyObject *
++ BufMapIterNext(PyObject **buffer)
++ {
++     PyObject	*next;
++     PyObject	*r;
++ 
++     if (!*buffer)
++ 	return NULL;
++ 
++     r = *buffer;
++ 
++     if (CheckBuffer((BufferObject *)(r)))
++     {
++ 	*buffer = NULL;
++ 	return NULL;
++     }
++ 
++     if (!((BufferObject *)(r))->buf->b_next)
++ 	next = NULL;
++     else if (!(next = BufferNew(((BufferObject *)(r))->buf->b_next)))
++ 	return NULL;
++     *buffer = next;
++     /* Do not increment reference: we no longer hold it (decref), but whoever on 
++      * other side will hold (incref). Decref+incref = nothing.
++      */
++     return r;
++ }
++ 
++     static PyObject *
++ BufMapIter(PyObject *self UNUSED)
++ {
++     PyObject *buffer;
++ 
++     buffer = BufferNew(firstbuf);
++     return IterNew(buffer,
++ 	    (destructorfun) BufMapIterDestruct, (nextfun) BufMapIterNext);
++ }
++ 
++ static PyMappingMethods BufMapAsMapping = {
++     (lenfunc)       BufMapLength,
++     (binaryfunc)    BufMapItem,
++     (objobjargproc) 0,
++ };
++ 
+  /* Current items object
+   */
+  
+***************
+*** 3383,3388 ****
+--- 3538,3551 ----
+      OutputType.tp_setattr = OutputSetattr;
+  #endif
+  
++     vim_memset(&IterType, 0, sizeof(IterType));
++     IterType.tp_name = "vim.iter";
++     IterType.tp_basicsize = sizeof(IterObject);
++     IterType.tp_flags = Py_TPFLAGS_DEFAULT;
++     IterType.tp_doc = "generic iterator object";
++     IterType.tp_iter = IterIter;
++     IterType.tp_iternext = IterNext;
++ 
+      vim_memset(&BufferType, 0, sizeof(BufferType));
+      BufferType.tp_name = "vim.buffer";
+      BufferType.tp_basicsize = sizeof(BufferType);
+***************
+*** 3426,3431 ****
+--- 3589,3595 ----
+      BufMapType.tp_basicsize = sizeof(BufMapObject);
+      BufMapType.tp_as_mapping = &BufMapAsMapping;
+      BufMapType.tp_flags = Py_TPFLAGS_DEFAULT;
++     BufMapType.tp_iter = BufMapIter;
+      BufferType.tp_doc = "vim buffer list";
+  
+      vim_memset(&WinListType, 0, sizeof(WinListType));
+***************
+*** 3492,3497 ****
+--- 3656,3662 ----
+      ListType.tp_flags = Py_TPFLAGS_DEFAULT;
+      ListType.tp_doc = "list pushing modifications to vim structure";
+      ListType.tp_methods = ListMethods;
++     ListType.tp_iter = ListIter;
+  #if PY_MAJOR_VERSION >= 3
+      ListType.tp_getattro = ListGetattro;
+      ListType.tp_setattro = ListSetattro;
+***************
+*** 3501,3507 ****
+  #endif
+  
+      vim_memset(&FunctionType, 0, sizeof(FunctionType));
+!     FunctionType.tp_name = "vim.list";
+      FunctionType.tp_basicsize = sizeof(FunctionObject);
+      FunctionType.tp_dealloc = FunctionDestructor;
+      FunctionType.tp_call = FunctionCall;
+--- 3666,3672 ----
+  #endif
+  
+      vim_memset(&FunctionType, 0, sizeof(FunctionType));
+!     FunctionType.tp_name = "vim.function";
+      FunctionType.tp_basicsize = sizeof(FunctionObject);
+      FunctionType.tp_dealloc = FunctionDestructor;
+      FunctionType.tp_call = FunctionCall;
+*** ../vim-7.3.946/src/if_python3.c	2013-05-15 13:38:41.000000000 +0200
+--- src/if_python3.c	2013-05-15 14:24:11.000000000 +0200
+***************
+*** 1519,1524 ****
+--- 1519,1525 ----
+      /* The special value is removed from sys.path in Python3_Init(). */
+      static wchar_t *(argv[2]) = {L"/must>not&exist/foo", NULL};
+  
++     PyType_Ready(&IterType);
+      PyType_Ready(&BufferType);
+      PyType_Ready(&RangeType);
+      PyType_Ready(&WindowType);
+*** ../vim-7.3.946/src/if_python.c	2013-05-15 13:38:41.000000000 +0200
+--- src/if_python.c	2013-05-15 14:24:11.000000000 +0200
+***************
+*** 1219,1224 ****
+--- 1219,1225 ----
+      static char *(argv[2]) = {"/must>not&exist/foo", NULL};
+  
+      /* Fixups... */
++     PyType_Ready(&IterType);
+      PyType_Ready(&BufferType);
+      PyType_Ready(&RangeType);
+      PyType_Ready(&WindowType);
+*** ../vim-7.3.946/src/proto/eval.pro	2013-05-06 03:52:44.000000000 +0200
+--- src/proto/eval.pro	2013-05-15 14:24:11.000000000 +0200
+***************
+*** 127,130 ****
+--- 127,132 ----
+  char_u *do_string_sub __ARGS((char_u *str, char_u *pat, char_u *sub, char_u *flags));
+  int switch_win __ARGS((win_T **, tabpage_T **, win_T *, tabpage_T *));
+  void restore_win __ARGS((win_T *, tabpage_T *));
++ void list_add_watch __ARGS((list_T *l, listwatch_T *lw));
++ void list_rem_watch __ARGS((list_T *l, listwatch_T *lwrem));
+  /* vim: set ft=c : */
+*** ../vim-7.3.946/src/testdir/test86.in	2013-05-12 21:16:17.000000000 +0200
+--- src/testdir/test86.in	2013-05-15 14:27:21.000000000 +0200
+***************
+*** 477,482 ****
+--- 477,485 ----
+  :   call RecVars(oname)
+  :endfor
+  :only
++ :for buf in g:bufs[1:]
++ :   execute 'bwipeout!' buf
++ :endfor
+  :"
+  :" Test buffer object
+  :vnew
+***************
+*** 519,524 ****
+--- 522,583 ----
+          # Should not happen in any case
+          cb.append('No exception for ' + expr)
+  EOF
++ :"
++ :" Test vim.buffers object
++ :set hidden
++ :edit a
++ :buffer #
++ :edit b
++ :buffer #
++ :edit c
++ :buffer #
++ py << EOF
++ # Check GCing iterator that was not fully exhausted
++ i = iter(vim.buffers)
++ cb.append('i:' + str(next(i)))
++ # and also check creating more then one iterator at a time
++ i2 = iter(vim.buffers)
++ cb.append('i2:' + str(next(i2)))
++ cb.append('i:' + str(next(i)))
++ # The following should trigger GC and not cause any problems
++ del i
++ del i2
++ i3 = iter(vim.buffers)
++ cb.append('i3:' + str(next(i3)))
++ del i3
++ 
++ prevnum = 0
++ for b in vim.buffers:
++     # Check buffer order
++     if prevnum >= b.number:
++         cb.append('!!! Buffer numbers not in strictly ascending order')
++     # Check indexing: vim.buffers[number].number == number
++     cb.append(str(b.number) + ':' + repr(vim.buffers[b.number]) + '=' + repr(b))
++     prevnum = b.number
++ 
++ cb.append(str(len(vim.buffers)))
++ 
++ bnums = list(map(lambda b: b.number, vim.buffers))[1:]
++ 
++ # Test wiping out buffer with existing iterator
++ i4 = iter(vim.buffers)
++ cb.append('i4:' + str(next(i4)))
++ vim.command('bwipeout! ' + str(bnums.pop(0)))
++ try:
++     next(i4)
++ except vim.error:
++     pass
++ else:
++     cb.append('!!!! No vim.error')
++ i4 = iter(vim.buffers)
++ vim.command('bwipeout! ' + str(bnums.pop(-1)))
++ vim.command('bwipeout! ' + str(bnums.pop(-1)))
++ cb.append('i4:' + str(next(i4)))
++ try:
++     next(i4)
++ except StopIteration:
++     cb.append('StopIteration')
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.946/src/testdir/test86.ok	2013-05-15 13:38:41.000000000 +0200
+--- src/testdir/test86.ok	2013-05-15 14:27:21.000000000 +0200
+***************
+*** 319,321 ****
+--- 319,333 ----
+  Second line
+  Third line
+  foo
++ i:<buffer test86.in>
++ i2:<buffer test86.in>
++ i:<buffer a>
++ i3:<buffer test86.in>
++ 1:<buffer test86.in>=<buffer test86.in>
++ 6:<buffer a>=<buffer a>
++ 7:<buffer b>=<buffer b>
++ 8:<buffer c>=<buffer c>
++ 4
++ i4:<buffer test86.in>
++ i4:<buffer test86.in>
++ StopIteration
+*** ../vim-7.3.946/src/testdir/test87.in	2013-05-12 21:16:17.000000000 +0200
+--- src/testdir/test87.in	2013-05-15 14:27:21.000000000 +0200
+***************
+*** 446,451 ****
+--- 446,454 ----
+  :   call RecVars(oname)
+  :endfor
+  :only
++ :for buf in g:bufs[1:]
++ :   execute 'bwipeout!' buf
++ :endfor
+  :"
+  :" Test buffer object
+  :vnew
+***************
+*** 488,493 ****
+--- 491,552 ----
+          # Should not happen in any case
+          cb.append('No exception for ' + expr)
+  EOF
++ :"
++ :" Test vim.buffers object
++ :set hidden
++ :edit a
++ :buffer #
++ :edit b
++ :buffer #
++ :edit c
++ :buffer #
++ py3 << EOF
++ # Check GCing iterator that was not fully exhausted
++ i = iter(vim.buffers)
++ cb.append('i:' + str(next(i)))
++ # and also check creating more then one iterator at a time
++ i2 = iter(vim.buffers)
++ cb.append('i2:' + str(next(i2)))
++ cb.append('i:' + str(next(i)))
++ # The following should trigger GC and not cause any problems
++ del i
++ del i2
++ i3 = iter(vim.buffers)
++ cb.append('i3:' + str(next(i3)))
++ del i3
++ 
++ prevnum = 0
++ for b in vim.buffers:
++     # Check buffer order
++     if prevnum >= b.number:
++         cb.append('!!! Buffer numbers not in strictly ascending order')
++     # Check indexing: vim.buffers[number].number == number
++     cb.append(str(b.number) + ':' + repr(vim.buffers[b.number]) + '=' + repr(b))
++     prevnum = b.number
++ 
++ cb.append(str(len(vim.buffers)))
++ 
++ bnums = list(map(lambda b: b.number, vim.buffers))[1:]
++ 
++ # Test wiping out buffer with existing iterator
++ i4 = iter(vim.buffers)
++ cb.append('i4:' + str(next(i4)))
++ vim.command('bwipeout! ' + str(bnums.pop(0)))
++ try:
++     next(i4)
++ except vim.error:
++     pass
++ else:
++     cb.append('!!!! No vim.error')
++ i4 = iter(vim.buffers)
++ vim.command('bwipeout! ' + str(bnums.pop(-1)))
++ vim.command('bwipeout! ' + str(bnums.pop(-1)))
++ cb.append('i4:' + str(next(i4)))
++ try:
++     next(i4)
++ except StopIteration:
++     cb.append('StopIteration')
++ EOF
+  :endfun
+  :"
+  :call Test()
+***************
+*** 496,501 ****
+--- 555,561 ----
+  :call garbagecollect(1)
+  :"
+  :/^start:/,$wq! test.out
++ :call getchar()
+  ENDTEST
+  
+  start:
+*** ../vim-7.3.946/src/testdir/test87.ok	2013-05-15 13:38:41.000000000 +0200
+--- src/testdir/test87.ok	2013-05-15 14:27:21.000000000 +0200
+***************
+*** 308,310 ****
+--- 308,322 ----
+  Second line
+  Third line
+  foo
++ i:<buffer test87.in>
++ i2:<buffer test87.in>
++ i:<buffer a>
++ i3:<buffer test87.in>
++ 1:<buffer test87.in>=<buffer test87.in>
++ 6:<buffer a>=<buffer a>
++ 7:<buffer b>=<buffer b>
++ 8:<buffer c>=<buffer c>
++ 4
++ i4:<buffer test87.in>
++ i4:<buffer test87.in>
++ StopIteration
+*** ../vim-7.3.946/src/version.c	2013-05-15 14:22:36.000000000 +0200
+--- src/version.c	2013-05-15 14:25:26.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     947,
+  /**/
+
+-- 
+"It's so simple to be wise.  Just think of something stupid to say
+and then don't say it."        -- Sam Levenson
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

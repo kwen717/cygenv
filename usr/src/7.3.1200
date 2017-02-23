@@ -1,0 +1,101 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1200
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1200
+Problem:    When calling setline() from Insert mode, using CTRL-R =, undo does
+	    not work properly. (Israel Chauca)
+Solution:   Sync undo after evaluating the expression. (Christian Brabandt)
+Files:	    src/edit.c, src/testdir/test61.in, src/testdir/test61.ok
+
+
+*** ../vim-7.3.1199/src/edit.c	2013-06-08 18:19:39.000000000 +0200
+--- src/edit.c	2013-06-15 17:31:18.000000000 +0200
+***************
+*** 8126,8135 ****
+      --no_mapping;
+  
+  #ifdef FEAT_EVAL
+!     /*
+!      * Don't call u_sync() while getting the expression,
+!      * evaluating it or giving an error message for it!
+!      */
+      ++no_u_sync;
+      if (regname == '=')
+      {
+--- 8126,8133 ----
+      --no_mapping;
+  
+  #ifdef FEAT_EVAL
+!     /* Don't call u_sync() while typing the expression or giving an error
+!      * message for it. Only call it explicitly. */
+      ++no_u_sync;
+      if (regname == '=')
+      {
+***************
+*** 8142,8147 ****
+--- 8140,8148 ----
+  	if (im_on)
+  	    im_set_active(TRUE);
+  # endif
++ 	if (regname == '=')
++ 	    /* sync undo, so the effect of e.g., setline() can be undone */
++ 	    u_sync(TRUE);
+      }
+      if (regname == NUL || !valid_yank_reg(regname, FALSE))
+      {
+*** ../vim-7.3.1199/src/testdir/test61.in	2010-09-14 12:47:30.000000000 +0200
+--- src/testdir/test61.in	2013-06-15 17:25:53.000000000 +0200
+***************
+*** 84,89 ****
+--- 84,99 ----
+  ggO---:0put b
+  ggO---:0put a
+  ggO---:w >>test.out
++ :so small.vim
++ :set nocp
++ :enew!
++ oa
++ :set ul=100
++ ob
++ :set ul=100
++ o1a2=setline('.','1234')
++ 
++ uu:%w >>test.out
+  :qa!
+  ENDTEST
+  
+*** ../vim-7.3.1199/src/testdir/test61.ok	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test61.ok	2013-06-15 17:25:53.000000000 +0200
+***************
+*** 41,43 ****
+--- 41,46 ----
+  two
+  two
+  three
++ 
++ a
++ b
+*** ../vim-7.3.1199/src/version.c	2013-06-15 17:06:31.000000000 +0200
+--- src/version.c	2013-06-15 17:39:37.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1200,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+217. Your sex life has drastically improved...so what if it's only cyber-sex!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,106 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1250
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1250
+Problem:    Python tests fail on MS-Windows.
+Solution:   Change backslashes to slashes. (Taro Muraoka)
+Files:	    src/testdir/test86.in, src/testdir/test87.in
+
+
+*** ../vim-7.3.1249/src/testdir/test86.in	2013-06-23 16:35:32.000000000 +0200
+--- src/testdir/test86.in	2013-06-26 21:43:04.000000000 +0200
+***************
+*** 1221,1232 ****
+  vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+  l = []
+  def callback(path):
+!     l.append(path[-len('/testdir'):])
+  vim.foreach_rtp(callback)
+  cb.append(repr(l))
+  del l
+  def callback(path):
+!     return path[-len('/testdir'):]
+  cb.append(repr(vim.foreach_rtp(callback)))
+  del callback
+  from module import dir as d
+--- 1221,1232 ----
+  vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+  l = []
+  def callback(path):
+!     l.append(path[-len('/testdir'):].replace(os.path.sep, '/'))
+  vim.foreach_rtp(callback)
+  cb.append(repr(l))
+  del l
+  def callback(path):
+!     return path[-len('/testdir'):].replace(os.path.sep, '/')
+  cb.append(repr(vim.foreach_rtp(callback)))
+  del callback
+  from module import dir as d
+***************
+*** 1239,1247 ****
+  import topmodule as tm
+  import topmodule.submodule as tms
+  import topmodule.submodule.subsubmodule.subsubsubmodule as tmsss
+! cb.append(tm.__file__.replace('.pyc', '.py')[-len('modulex/topmodule/__init__.py'):])
+! cb.append(tms.__file__.replace('.pyc', '.py')[-len('modulex/topmodule/submodule/__init__.py'):])
+! cb.append(tmsss.__file__.replace('.pyc', '.py')[-len('modulex/topmodule/submodule/subsubmodule/subsubsubmodule.py'):])
+  del before
+  del after
+  del d
+--- 1239,1247 ----
+  import topmodule as tm
+  import topmodule.submodule as tms
+  import topmodule.submodule.subsubmodule.subsubsubmodule as tmsss
+! cb.append(tm.__file__.replace('.pyc', '.py').replace(os.path.sep, '/')[-len('modulex/topmodule/__init__.py'):])
+! cb.append(tms.__file__.replace('.pyc', '.py').replace(os.path.sep, '/')[-len('modulex/topmodule/submodule/__init__.py'):])
+! cb.append(tmsss.__file__.replace('.pyc', '.py').replace(os.path.sep, '/')[-len('modulex/topmodule/submodule/subsubmodule/subsubsubmodule.py'):])
+  del before
+  del after
+  del d
+*** ../vim-7.3.1249/src/testdir/test87.in	2013-06-23 16:35:32.000000000 +0200
+--- src/testdir/test87.in	2013-06-26 21:44:25.000000000 +0200
+***************
+*** 1188,1196 ****
+  import topmodule as tm
+  import topmodule.submodule as tms
+  import topmodule.submodule.subsubmodule.subsubsubmodule as tmsss
+! cb.append(tm.__file__[-len('modulex/topmodule/__init__.py'):])
+! cb.append(tms.__file__[-len('modulex/topmodule/submodule/__init__.py'):])
+! cb.append(tmsss.__file__[-len('modulex/topmodule/submodule/subsubmodule/subsubsubmodule.py'):])
+  del before
+  del after
+  del d
+--- 1188,1196 ----
+  import topmodule as tm
+  import topmodule.submodule as tms
+  import topmodule.submodule.subsubmodule.subsubsubmodule as tmsss
+! cb.append(tm.__file__.replace(os.path.sep, '/')[-len('modulex/topmodule/__init__.py'):])
+! cb.append(tms.__file__.replace(os.path.sep, '/')[-len('modulex/topmodule/submodule/__init__.py'):])
+! cb.append(tmsss.__file__.replace(os.path.sep, '/')[-len('modulex/topmodule/submodule/subsubmodule/subsubsubmodule.py'):])
+  del before
+  del after
+  del d
+*** ../vim-7.3.1249/src/version.c	2013-06-26 20:04:28.000000000 +0200
+--- src/version.c	2013-06-26 21:44:00.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1250,
+  /**/
+
+-- 
+You were lucky to have a LAKE! There were a hundred and sixty of
+us living in a small shoebox in the middle of the road.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

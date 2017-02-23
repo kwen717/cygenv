@@ -1,0 +1,90 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.868
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.868
+Problem:    When at the hit-return prompt and using "k" while no text has
+	    scrolled off screen, then using "j", an empty line is displayed.
+Solution:   Only act on "k" when text scrolled off screen.  Also accept
+	    page-up and page-down.  (cptstubing)
+Files:	    src/message.c
+
+
+*** ../vim-7.3.867/src/message.c	2012-11-14 18:10:49.000000000 +0100
+--- src/message.c	2013-03-19 13:50:16.000000000 +0100
+***************
+*** 976,985 ****
+  	     */
+  	    if (p_more && !p_cp)
+  	    {
+! 		if (c == 'b' || c == 'k' || c == 'u' || c == 'g' || c == K_UP)
+  		{
+! 		    /* scroll back to show older messages */
+! 		    do_more_prompt(c);
+  		    if (quit_more)
+  		    {
+  			c = CAR;		/* just pretend CR was hit */
+--- 976,997 ----
+  	     */
+  	    if (p_more && !p_cp)
+  	    {
+! 		if (c == 'b' || c == 'k' || c == 'u' || c == 'g'
+! 						|| c == K_UP || c == K_PAGEUP)
+  		{
+! 		    if (msg_scrolled > Rows)
+! 			/* scroll back to show older messages */
+! 			do_more_prompt(c);
+! 		    else
+! 		    {
+! 			msg_didout = FALSE;
+! 			c = K_IGNORE;
+! 			msg_col =
+! #ifdef FEAT_RIGHTLEFT
+! 			    cmdmsg_rl ? Columns - 1 :
+! #endif
+! 			    0;
+! 		    }
+  		    if (quit_more)
+  		    {
+  			c = CAR;		/* just pretend CR was hit */
+***************
+*** 993,999 ****
+  		    }
+  		}
+  		else if (msg_scrolled > Rows - 2
+! 			 && (c == 'j' || c == K_DOWN || c == 'd' || c == 'f'))
+  		    c = K_IGNORE;
+  	    }
+  	} while ((had_got_int && c == Ctrl_C)
+--- 1005,1012 ----
+  		    }
+  		}
+  		else if (msg_scrolled > Rows - 2
+! 			 && (c == 'j' || c == 'd' || c == 'f'
+! 					   || c == K_DOWN || c == K_PAGEDOWN))
+  		    c = K_IGNORE;
+  	    }
+  	} while ((had_got_int && c == Ctrl_C)
+*** ../vim-7.3.867/src/version.c	2013-03-19 13:33:18.000000000 +0100
+--- src/version.c	2013-03-19 13:53:02.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     868,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+74. Your most erotic dreams are about cybersex
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

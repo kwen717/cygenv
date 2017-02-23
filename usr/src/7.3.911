@@ -1,0 +1,343 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.911
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.911
+Problem:    Python: Access to Vim variables is not so easy.
+Solution:   Define vim.vars and vim.vvars. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/eval.c, src/globals.h,
+	    src/if_py_both.h, src/if_python3.c, src/if_python.c,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.910/runtime/doc/if_pyth.txt	2012-09-21 14:00:05.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-04-24 13:54:23.000000000 +0200
+***************
+*** 54,61 ****
+  	EOF
+  	endfunction
+  <
+! Note: Python is very sensitive to the indenting.  Also make sure the "class"
+! line and "EOF" do not have any indent.
+  
+  							*:pyfile* *:pyf*
+  :[range]pyf[ile] {file}
+--- 54,61 ----
+  	EOF
+  	endfunction
+  <
+! Note: Python is very sensitive to the indenting.  Make sure the "class" line
+! and "EOF" do not have any indent.
+  
+  							*:pyfile* *:pyf*
+  :[range]pyf[ile] {file}
+***************
+*** 165,171 ****
+  	     Value           Meaning ~
+  	     zero            Variable is not locked
+  	     vim.VAR_LOCKED  Variable is locked, but can be unlocked
+! 	     vim.VAR_FIXED   Variable is locked and can’t be unlocked
+  	   integer constants. If variable is not fixed, you can do 
+  	   `var.locked=True` to lock it and `var.locked=False` to unlock. 
+  	   There is no recursive locking like |:lockvar|! does. There is also 
+--- 165,171 ----
+  	     Value           Meaning ~
+  	     zero            Variable is not locked
+  	     vim.VAR_LOCKED  Variable is locked, but can be unlocked
+! 	     vim.VAR_FIXED   Variable is locked and can't be unlocked
+  	   integer constants. If variable is not fixed, you can do 
+  	   `var.locked=True` to lock it and `var.locked=False` to unlock. 
+  	   There is no recursive locking like |:lockvar|! does. There is also 
+***************
+*** 237,242 ****
+--- 237,247 ----
+  	"current range".  A range is a bit like a buffer, but with all access
+  	restricted to a subset of lines.  See |python-range| for more details.
+  
++ vim.vars						*python-vars*
++ vim.vvars						*python-vvars*
++ 	Dictionary-like objects holding dictionaries with global (|g:|) and 
++ 	vim (|v:|) variables respectively. Identical to `vim.bindeval("g:")`, 
++ 	but faster.
+  
+  Output from Python					*python-output*
+  	Vim displays all Python code output in the Vim message area.  Normal
+***************
+*** 307,312 ****
+--- 312,318 ----
+  	:py n = len(b)			# number of lines
+  	:py (row,col) = b.mark('a')	# named mark
+  	:py r = b.range(1,5)		# a sub-range of the buffer
++ 	:py b.vars["foo"] = "bar"	# assign b:foo variable
+  
+  ==============================================================================
+  4. Range objects					*python-range*
+***************
+*** 354,359 ****
+--- 360,368 ----
+  				This is a tuple, (row,col).
+  	height (read-write)	The window height, in rows
+  	width (read-write)	The window width, in columns
++ 	vars (read-only)	The window |w:| variables. Attribute is 
++ 				unassignable, but you can change window 
++ 				variables this way
+  The height attribute is writable only if the screen is split horizontally.
+  The width attribute is writable only if the screen is split vertically.
+  
+***************
+*** 385,391 ****
+  
+  							*:py3* *:python3*
+  The |:py3| and |:python3| commands work similar to |:python|.  A simple check
+! if the `:py3` command is wrong: >
+  	:py3 print("Hello")
+  <							*:py3file*
+  The |:py3file| command works similar to |:pyfile|.
+--- 394,400 ----
+  
+  							*:py3* *:python3*
+  The |:py3| and |:python3| commands work similar to |:python|.  A simple check
+! if the `:py3` command is working: >
+  	:py3 print("Hello")
+  <							*:py3file*
+  The |:py3file| command works similar to |:pyfile|.
+*** ../vim-7.3.910/src/eval.c	2013-04-15 18:25:55.000000000 +0200
+--- src/eval.c	2013-04-24 14:02:45.000000000 +0200
+***************
+*** 113,124 ****
+  static char *e_nofunc = N_("E130: Unknown function: %s");
+  static char *e_illvar = N_("E461: Illegal variable name: %s");
+  
+! /*
+!  * All user-defined global variables are stored in dictionary "globvardict".
+!  * "globvars_var" is the variable that is used for "g:".
+!  */
+! static dict_T		globvardict;
+! static dictitem_T	globvars_var;
+  #define globvarht globvardict.dv_hashtab
+  
+  /*
+--- 113,119 ----
+  static char *e_nofunc = N_("E130: Unknown function: %s");
+  static char *e_illvar = N_("E461: Illegal variable name: %s");
+  
+! static dictitem_T	globvars_var;		/* variable used for g: */
+  #define globvarht globvardict.dv_hashtab
+  
+  /*
+***************
+*** 370,381 ****
+  #define vv_list		vv_di.di_tv.vval.v_list
+  #define vv_tv		vv_di.di_tv
+  
+! /*
+!  * The v: variables are stored in dictionary "vimvardict".
+!  * "vimvars_var" is the variable that is used for the "l:" scope.
+!  */
+! static dict_T		vimvardict;
+! static dictitem_T	vimvars_var;
+  #define vimvarht  vimvardict.dv_hashtab
+  
+  static void prepare_vimvar __ARGS((int idx, typval_T *save_tv));
+--- 365,371 ----
+  #define vv_list		vv_di.di_tv.vval.v_list
+  #define vv_tv		vv_di.di_tv
+  
+! static dictitem_T	vimvars_var;		/* variable used for v: */
+  #define vimvarht  vimvardict.dv_hashtab
+  
+  static void prepare_vimvar __ARGS((int idx, typval_T *save_tv));
+*** ../vim-7.3.910/src/globals.h	2013-03-19 13:33:18.000000000 +0100
+--- src/globals.h	2013-04-24 13:57:51.000000000 +0200
+***************
+*** 180,185 ****
+--- 180,187 ----
+  EXTERN int	emsg_severe INIT(= FALSE);   /* use message of next of several
+  					       emsg() calls for throw */
+  EXTERN int	did_endif INIT(= FALSE);    /* just had ":endif" */
++ EXTERN dict_T	vimvardict;		    /* Dictionary with v: variables */
++ EXTERN dict_T	globvardict;		    /* Dictionary with g: variables */
+  #endif
+  EXTERN int	did_emsg;		    /* set by emsg() when the message
+  					       is displayed or thrown */
+*** ../vim-7.3.910/src/if_py_both.h	2013-04-24 13:47:36.000000000 +0200
+--- src/if_py_both.h	2013-04-24 13:54:23.000000000 +0200
+***************
+*** 1532,1539 ****
+      else if (strcmp(name, "width") == 0)
+  	return Py_BuildValue("l", (long)(W_WIDTH(this->win)));
+  #endif
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sss]", "buffer", "cursor", "height");
+      else
+  	return NULL;
+  }
+--- 1532,1541 ----
+      else if (strcmp(name, "width") == 0)
+  	return Py_BuildValue("l", (long)(W_WIDTH(this->win)));
+  #endif
++     else if (strcmp(name, "vars") == 0)
++ 	return DictionaryNew(this->win->w_vars);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssss]", "buffer", "cursor", "height", "vars");
+      else
+  	return NULL;
+  }
+***************
+*** 2495,2502 ****
+  	return Py_BuildValue("s", this->buf->b_ffname);
+      else if (strcmp(name, "number") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, this->buf->b_fnum);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ss]", "name", "number");
+      else
+  	return NULL;
+  }
+--- 2497,2506 ----
+  	return Py_BuildValue("s", this->buf->b_ffname);
+      else if (strcmp(name, "number") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, this->buf->b_fnum);
++     else if (strcmp(name, "vars") == 0)
++ 	return DictionaryNew(this->buf->b_vars);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sss]", "name", "number", "vars");
+      else
+  	return NULL;
+  }
+*** ../vim-7.3.910/src/if_python3.c	2013-04-24 13:39:11.000000000 +0200
+--- src/if_python3.c	2013-04-24 13:54:23.000000000 +0200
+***************
+*** 1647,1652 ****
+--- 1647,1655 ----
+      Py_INCREF((PyObject *)(void *)&TheWindowList);
+      PyModule_AddObject(mod, "windows", (PyObject *)(void *)&TheWindowList);
+  
++     PyModule_AddObject(mod, "vars", DictionaryNew(&globvardict));
++     PyModule_AddObject(mod, "vvars", DictionaryNew(&vimvardict));
++ 
+  #define ADD_INT_CONSTANT(name, value) \
+      tmp = PyLong_FromLong(value); \
+      Py_INCREF(tmp); \
+*** ../vim-7.3.910/src/if_python.c	2013-04-24 13:47:36.000000000 +0200
+--- src/if_python.c	2013-04-24 13:54:33.000000000 +0200
+***************
+*** 1330,1335 ****
+--- 1330,1336 ----
+  {
+      PyObject *mod;
+      PyObject *dict;
++     PyObject *tmp;
+      /* The special value is removed from sys.path in Python_Init(). */
+      static char *(argv[2]) = {"/must>not&exist/foo", NULL};
+  
+***************
+*** 1353,1358 ****
+--- 1354,1365 ----
+      PyDict_SetItemString(dict, "buffers", (PyObject *)(void *)&TheBufferList);
+      PyDict_SetItemString(dict, "current", (PyObject *)(void *)&TheCurrent);
+      PyDict_SetItemString(dict, "windows", (PyObject *)(void *)&TheWindowList);
++     tmp = DictionaryNew(&globvardict);
++     PyDict_SetItemString(dict, "vars",    tmp);
++     Py_DECREF(tmp);
++     tmp = DictionaryNew(&vimvardict);
++     PyDict_SetItemString(dict, "vvars",   tmp);
++     Py_DECREF(tmp);
+      PyDict_SetItemString(dict, "VAR_LOCKED",    PyInt_FromLong(VAR_LOCKED));
+      PyDict_SetItemString(dict, "VAR_FIXED",     PyInt_FromLong(VAR_FIXED));
+      PyDict_SetItemString(dict, "VAR_SCOPE",     PyInt_FromLong(VAR_SCOPE));
+*** ../vim-7.3.910/src/testdir/test86.in	2013-04-05 19:32:30.000000000 +0200
+--- src/testdir/test86.in	2013-04-24 13:54:33.000000000 +0200
+***************
+*** 346,351 ****
+--- 346,364 ----
+  :$put =string(pyeval('l'))
+  :py l = ll[-10:10]
+  :$put =string(pyeval('l'))
++ :"
++ :" Vars
++ :let g:foo = 'bac'
++ :let w:abc = 'def'
++ :let b:baz = 'bar'
++ :try
++ :  throw "Abc"
++ :catch
++ :  put =pyeval('vim.vvars[''exception'']')
++ :endtry
++ :put =pyeval('vim.vars[''foo'']')
++ :put =pyeval('vim.current.window.vars[''abc'']')
++ :put =pyeval('vim.current.buffer.vars[''baz'']')
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.910/src/testdir/test86.ok	2013-04-24 13:04:21.000000000 +0200
+--- src/testdir/test86.ok	2013-04-24 13:54:33.000000000 +0200
+***************
+*** 76,78 ****
+--- 76,82 ----
+  [0, 1, 2, 3, 4, 5]
+  [0, 1, 2, 3, 4, 5]
+  [0, 1, 2, 3, 4, 5]
++ Abc
++ bac
++ def
++ bar
+*** ../vim-7.3.910/src/testdir/test87.in	2013-02-13 14:17:00.000000000 +0100
+--- src/testdir/test87.in	2013-04-24 13:54:33.000000000 +0200
+***************
+*** 315,320 ****
+--- 315,333 ----
+  :py3 trace_main()
+  :py3 sys.settrace(None)
+  :$put =string(l)
++ :"
++ :" Vars
++ :let g:foo = 'bac'
++ :let w:abc = 'def'
++ :let b:baz = 'bar'
++ :try
++ :  throw "Abc"
++ :catch
++ :  put =py3eval('vim.vvars[''exception'']')
++ :endtry
++ :put =py3eval('vim.vars[''foo'']')
++ :put =py3eval('vim.current.window.vars[''abc'']')
++ :put =py3eval('vim.current.buffer.vars[''baz'']')
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.910/src/testdir/test87.ok	2013-04-24 13:04:21.000000000 +0200
+--- src/testdir/test87.ok	2013-04-24 13:54:33.000000000 +0200
+***************
+*** 65,67 ****
+--- 65,71 ----
+  vim:	Vim(let):E861:
+  [1]
+  [1, 10, 11, 10, 11, 10, 11, 10, 11, 10, 11, 10, 1]
++ Abc
++ bac
++ def
++ bar
+*** ../vim-7.3.910/src/version.c	2013-04-24 13:47:36.000000000 +0200
+--- src/version.c	2013-04-24 13:54:00.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     911,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+222. You send more than 20 personal e-mails a day.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

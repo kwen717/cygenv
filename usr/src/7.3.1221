@@ -1,0 +1,220 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1221
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1221
+Problem:    When build flags change "make distclean" run into a configure
+	    error.
+Solution:   When CFLAGS changes delete auto/config.cache.  Also avoid adding
+	    duplicate text to flags.
+Files:	    src/Makefile, src/configure.in, src/auto/configure
+
+
+*** ../vim-7.3.1220/src/Makefile	2013-06-16 14:20:10.000000000 +0200
+--- src/Makefile	2013-06-18 23:04:56.000000000 +0200
+***************
+*** 1655,1660 ****
+--- 1656,1666 ----
+  # sure configure is run when it's needed.
+  #
+  config auto/config.mk: auto/configure config.mk.in config.h.in
++ 	if test -f auto/config.cache && \
++ 	    grep '^ac_cv_env_CFLAGS_value=' auto/config.cache > /dev/null && \
++ 	    ! grep -x -F 'ac_cv_env_CFLAGS_value=$(CFLAGS)' auto/config.cache > /dev/null; then \
++ 		rm auto/config.cache; \
++ 	fi
+  	GUI_INC_LOC="$(GUI_INC_LOC)" GUI_LIB_LOC="$(GUI_LIB_LOC)" \
+  		CC="$(CC)" CPPFLAGS="$(CPPFLAGS)" CFLAGS="$(CFLAGS)" \
+  		LDFLAGS="$(LDFLAGS)" $(CONF_SHELL) srcdir="$(srcdir)" \
+*** ../vim-7.3.1220/src/configure.in	2013-06-17 20:27:13.000000000 +0200
+--- src/configure.in	2013-06-18 23:04:56.000000000 +0200
+***************
+*** 776,781 ****
+--- 776,782 ----
+        ldflags_save=$LDFLAGS
+        CFLAGS="$CFLAGS $perlcppflags"
+        LIBS="$LIBS $perllibs"
++       perlldflags=`echo "$perlldflags" | sed -e 's/^ *//g'`
+        LDFLAGS="$perlldflags $LDFLAGS"
+        AC_TRY_LINK(,[ ],
+  	     AC_MSG_RESULT(yes); perl_ok=yes,
+***************
+*** 789,795 ****
+  	  PERL_CFLAGS=`echo "$perlcppflags" | sed -e 's/-pipe //' -e 's/-W[[^ ]]*//'`
+  	fi
+  	if test "X$perlldflags" != "X"; then
+! 	  LDFLAGS="$perlldflags $LDFLAGS"
+  	fi
+  	PERL_LIBS=$perllibs
+  	PERL_SRC="auto/if_perl.c if_perlsfio.c"
+--- 790,798 ----
+  	  PERL_CFLAGS=`echo "$perlcppflags" | sed -e 's/-pipe //' -e 's/-W[[^ ]]*//'`
+  	fi
+  	if test "X$perlldflags" != "X"; then
+! 	  if test "X`echo \"$LDFLAGS\" | grep -F -e \"$perlldflags\"`" = "X"; then
+! 	    LDFLAGS="$perlldflags $LDFLAGS"
+! 	  fi
+  	fi
+  	PERL_LIBS=$perllibs
+  	PERL_SRC="auto/if_perl.c if_perlsfio.c"
+***************
+*** 1546,1552 ****
+  	  dnl configure, so strip these flags first (if present)
+  	  rubyldflags=`echo "$rubyldflags" | sed -e 's/-arch\ ppc//' -e 's/-arch\ i386//' -e 's/-arch\ x86_64//'`
+  	  if test "X$rubyldflags" != "X"; then
+! 	    LDFLAGS="$rubyldflags $LDFLAGS"
+  	  fi
+  	fi
+  	RUBY_SRC="if_ruby.c"
+--- 1549,1557 ----
+  	  dnl configure, so strip these flags first (if present)
+  	  rubyldflags=`echo "$rubyldflags" | sed -e 's/-arch\ ppc//' -e 's/-arch\ i386//' -e 's/-arch\ x86_64//'`
+  	  if test "X$rubyldflags" != "X"; then
+! 	    if test "X`echo \"$LDFLAGS\" | grep -F -e \"$rubyldflags\"`" = "X"; then
+! 	      LDFLAGS="$rubyldflags $LDFLAGS"
+! 	    fi
+  	  fi
+  	fi
+  	RUBY_SRC="if_ruby.c"
+***************
+*** 3719,3725 ****
+    dnl And undefine it first to avoid a warning.
+    AC_MSG_CHECKING(whether we need -D_FORTIFY_SOURCE=1)
+    if test "$gccmajor" -gt "3"; then
+!     CFLAGS=`echo "$CFLAGS" | sed -e 's/-Wp,-D_FORTIFY_SOURCE=.//g' -e 's/-D_FORTIFY_SOURCE=.//g' -e 's/$/ -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1/'`
+      AC_MSG_RESULT(yes)
+    else
+      AC_MSG_RESULT(no)
+--- 3724,3730 ----
+    dnl And undefine it first to avoid a warning.
+    AC_MSG_CHECKING(whether we need -D_FORTIFY_SOURCE=1)
+    if test "$gccmajor" -gt "3"; then
+!     CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-Wp,-D_FORTIFY_SOURCE=.//g' -e 's/ *-D_FORTIFY_SOURCE=.//g' -e 's/ *-U_FORTIFY_SOURCE//g' -e 's/$/ -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1/'`
+      AC_MSG_RESULT(yes)
+    else
+      AC_MSG_RESULT(no)
+***************
+*** 3734,3740 ****
+  LINK_AS_NEEDED=
+  # Check if linker supports --as-needed and --no-as-needed options
+  if $CC -Wl,--help 2>/dev/null | grep as-needed > /dev/null; then
+!   LDFLAGS="$LDFLAGS -Wl,--as-needed"
+    LINK_AS_NEEDED=yes
+  fi
+  if test "$LINK_AS_NEEDED" = yes; then
+--- 3739,3745 ----
+  LINK_AS_NEEDED=
+  # Check if linker supports --as-needed and --no-as-needed options
+  if $CC -Wl,--help 2>/dev/null | grep as-needed > /dev/null; then
+!   LDFLAGS=`echo "$LDFLAGS" | sed -e 's/ *-Wl,--as-needed//g' | sed -e 's/$/ -Wl,--as-needed/'`
+    LINK_AS_NEEDED=yes
+  fi
+  if test "$LINK_AS_NEEDED" = yes; then
+*** ../vim-7.3.1220/src/auto/configure	2013-06-17 20:27:13.000000000 +0200
+--- src/auto/configure	2013-06-18 23:27:35.000000000 +0200
+***************
+*** 5133,5138 ****
+--- 5133,5139 ----
+        ldflags_save=$LDFLAGS
+        CFLAGS="$CFLAGS $perlcppflags"
+        LIBS="$LIBS $perllibs"
++       perlldflags=`echo "$perlldflags" | sed -e 's/^ *//g'`
+        LDFLAGS="$perlldflags $LDFLAGS"
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+  /* end confdefs.h.  */
+***************
+*** 5162,5168 ****
+  	  	  PERL_CFLAGS=`echo "$perlcppflags" | sed -e 's/-pipe //' -e 's/-W[^ ]*//'`
+  	fi
+  	if test "X$perlldflags" != "X"; then
+! 	  LDFLAGS="$perlldflags $LDFLAGS"
+  	fi
+  	PERL_LIBS=$perllibs
+  	PERL_SRC="auto/if_perl.c if_perlsfio.c"
+--- 5163,5171 ----
+  	  	  PERL_CFLAGS=`echo "$perlcppflags" | sed -e 's/-pipe //' -e 's/-W[^ ]*//'`
+  	fi
+  	if test "X$perlldflags" != "X"; then
+! 	  if test "X`echo \"$LDFLAGS\" | grep -F -e \"$perlldflags\"`" = "X"; then
+! 	    LDFLAGS="$perlldflags $LDFLAGS"
+! 	  fi
+  	fi
+  	PERL_LIBS=$perllibs
+  	PERL_SRC="auto/if_perl.c if_perlsfio.c"
+***************
+*** 6454,6460 ****
+  	if test "X$rubyldflags" != "X"; then
+  	  	  	  	  rubyldflags=`echo "$rubyldflags" | sed -e 's/-arch\ ppc//' -e 's/-arch\ i386//' -e 's/-arch\ x86_64//'`
+  	  if test "X$rubyldflags" != "X"; then
+! 	    LDFLAGS="$rubyldflags $LDFLAGS"
+  	  fi
+  	fi
+  	RUBY_SRC="if_ruby.c"
+--- 6457,6465 ----
+  	if test "X$rubyldflags" != "X"; then
+  	  	  	  	  rubyldflags=`echo "$rubyldflags" | sed -e 's/-arch\ ppc//' -e 's/-arch\ i386//' -e 's/-arch\ x86_64//'`
+  	  if test "X$rubyldflags" != "X"; then
+! 	    if test "X`echo \"$LDFLAGS\" | grep -F -e \"$rubyldflags\"`" = "X"; then
+! 	      LDFLAGS="$rubyldflags $LDFLAGS"
+! 	    fi
+  	  fi
+  	fi
+  	RUBY_SRC="if_ruby.c"
+***************
+*** 12690,12696 ****
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we need -D_FORTIFY_SOURCE=1" >&5
+  $as_echo_n "checking whether we need -D_FORTIFY_SOURCE=1... " >&6; }
+    if test "$gccmajor" -gt "3"; then
+!     CFLAGS=`echo "$CFLAGS" | sed -e 's/-Wp,-D_FORTIFY_SOURCE=.//g' -e 's/-D_FORTIFY_SOURCE=.//g' -e 's/$/ -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1/'`
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+  $as_echo "yes" >&6; }
+    else
+--- 12695,12701 ----
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether we need -D_FORTIFY_SOURCE=1" >&5
+  $as_echo_n "checking whether we need -D_FORTIFY_SOURCE=1... " >&6; }
+    if test "$gccmajor" -gt "3"; then
+!     CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-Wp,-D_FORTIFY_SOURCE=.//g' -e 's/ *-D_FORTIFY_SOURCE=.//g' -e 's/ *-U_FORTIFY_SOURCE//g' -e 's/$/ -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1/'`
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+  $as_echo "yes" >&6; }
+    else
+***************
+*** 12705,12711 ****
+  LINK_AS_NEEDED=
+  # Check if linker supports --as-needed and --no-as-needed options
+  if $CC -Wl,--help 2>/dev/null | grep as-needed > /dev/null; then
+!   LDFLAGS="$LDFLAGS -Wl,--as-needed"
+    LINK_AS_NEEDED=yes
+  fi
+  if test "$LINK_AS_NEEDED" = yes; then
+--- 12710,12716 ----
+  LINK_AS_NEEDED=
+  # Check if linker supports --as-needed and --no-as-needed options
+  if $CC -Wl,--help 2>/dev/null | grep as-needed > /dev/null; then
+!   LDFLAGS=`echo "$LDFLAGS" | sed -e 's/ *-Wl,--as-needed//g' | sed -e 's/$/ -Wl,--as-needed/'`
+    LINK_AS_NEEDED=yes
+  fi
+  if test "$LINK_AS_NEEDED" = yes; then
+*** ../vim-7.3.1220/src/version.c	2013-06-17 22:43:18.000000000 +0200
+--- src/version.c	2013-06-18 23:18:45.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1221,
+  /**/
+
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+251. You've never seen your closest friends who usually live WAY too far away.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

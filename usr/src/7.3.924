@@ -1,0 +1,1628 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.924
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.924
+Problem:    Python interface can't easily access options.
+Solution:   Add vim.options, vim.window.options and vim.buffer.options. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/eval.c, src/if_py_both.h,
+	    src/if_python.c, src/if_python3.c, src/option.c,
+	    src/proto/eval.pro, src/proto/option.pro, src/testdir/test86.in,
+	    src/testdir/test86.ok, src/testdir/test87.in,
+	    src/testdir/test87.ok, src/vim.h
+
+
+*** ../vim-7.3.923/runtime/doc/if_pyth.txt	2013-04-24 14:06:42.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-06 03:39:13.000000000 +0200
+***************
+*** 243,248 ****
+--- 243,260 ----
+  	vim (|v:|) variables respectively. Identical to `vim.bindeval("g:")`, 
+  	but faster.
+  
++ vim.options						*python-options*
++ 	Object partly supporting mapping protocol (supports setting and 
++ 	getting items) providing a read-write access to global options.
++ 	Note: unlike |:set| this provides access only to global options. You
++ 	cannot use this object to obtain or set local options' values or
++ 	access local-only options in any fashion. Raises KeyError if no global
++ 	option with such name exists (i.e. does not raise KeyError for
++ 	|global-local| options and global only options, but does for window-
++ 	and buffer-local ones).  Use |python-buffer| objects to access to
++ 	buffer-local options and |python-window| objects to access to
++ 	window-local options.
++ 
+  Output from Python					*python-output*
+  	Vim displays all Python code output in the Vim message area.  Normal
+  	output appears as information messages, and error output appears as
+***************
+*** 283,288 ****
+--- 295,311 ----
+  line numbers, which start from 1.  This is particularly relevant when dealing
+  with marks (see below) which use vim line numbers.
+  
++ The buffer object attributes are:
++ 	b.vars		Dictionary-like object used to access 
++ 			|buffer-variable|s.
++ 	b.options	Mapping object (supports item getting, setting and 
++ 			deleting) that provides access to buffer-local options 
++ 			and buffer-local values of |global-local| options. Use 
++ 			|python-window|.options if option is window-local, 
++ 			this object will raise KeyError. If option is 
++ 			|global-local| and local value is missing getting it 
++ 			will return None.
++ 
+  The buffer object methods are:
+  	b.append(str)	Append a line to the buffer
+  	b.append(str, nr)  Idem, below line "nr"
+***************
+*** 313,318 ****
+--- 336,343 ----
+  	:py (row,col) = b.mark('a')	# named mark
+  	:py r = b.range(1,5)		# a sub-range of the buffer
+  	:py b.vars["foo"] = "bar"	# assign b:foo variable
++ 	:py b.options["ff"] = "dos"	# set fileformat
++ 	:py del b.options["ar"]		# same as :set autoread<
+  
+  ==============================================================================
+  4. Range objects					*python-range*
+***************
+*** 363,368 ****
+--- 388,401 ----
+  	vars (read-only)	The window |w:| variables. Attribute is 
+  				unassignable, but you can change window 
+  				variables this way
++ 	options (read-only)	The window-local options. Attribute is 
++ 				unassignable, but you can change window 
++ 				options this way. Provides access only to 
++ 				window-local options, for buffer-local use 
++ 				|python-buffer| and for global ones use 
++ 				|python-options|. If option is |global-local| 
++ 				and local value is missing getting it will 
++ 				return None.
+  The height attribute is writable only if the screen is split horizontally.
+  The width attribute is writable only if the screen is split vertically.
+  
+*** ../vim-7.3.923/src/eval.c	2013-04-24 14:06:42.000000000 +0200
+--- src/eval.c	2013-05-06 03:42:00.000000000 +0200
+***************
+*** 16643,16651 ****
+--- 16643,16690 ----
+      setwinvar(argvars, rettv, 0);
+  }
+  
++     int
++ switch_win(save_curwin, save_curtab, win, tp)
++     win_T	**save_curwin;
++     tabpage_T	**save_curtab;
++     win_T	*win;
++     tabpage_T	*tp;
++ {
++ #ifdef FEAT_WINDOWS
++     /* set curwin to be our win, temporarily */
++     *save_curwin = curwin;
++     *save_curtab = curtab;
++     goto_tabpage_tp(tp, TRUE);
++     if (!win_valid(win))
++ 	return FAIL;
++     curwin = win;
++     curbuf = curwin->w_buffer;
++ #endif
++     return OK;
++ }
++ 
++     void
++ restore_win(save_curwin, save_curtab)
++     win_T	*save_curwin;
++     tabpage_T	*save_curtab;
++ {
++ #ifdef FEAT_WINDOWS
++     /* Restore current tabpage and window, if still valid (autocomands can
++      * make them invalid). */
++     if (valid_tabpage(save_curtab))
++ 	goto_tabpage_tp(save_curtab, TRUE);
++     if (win_valid(save_curwin))
++     {
++ 	curwin = save_curwin;
++ 	curbuf = curwin->w_buffer;
++     }
++ #endif
++ }
++ 
+  /*
+   * "setwinvar()" and "settabwinvar()" functions
+   */
++ 
+      static void
+  setwinvar(argvars, rettv, off)
+      typval_T	*argvars;
+***************
+*** 16678,16691 ****
+      if (win != NULL && varname != NULL && varp != NULL)
+      {
+  #ifdef FEAT_WINDOWS
+! 	/* set curwin to be our win, temporarily */
+! 	save_curwin = curwin;
+! 	save_curtab = curtab;
+! 	goto_tabpage_tp(tp, TRUE);
+! 	if (!win_valid(win))
+  	    return;
+- 	curwin = win;
+- 	curbuf = curwin->w_buffer;
+  #endif
+  
+  	if (*varname == '&')
+--- 16717,16724 ----
+      if (win != NULL && varname != NULL && varp != NULL)
+      {
+  #ifdef FEAT_WINDOWS
+! 	if (switch_win(&save_curwin, &save_curtab, win, tp) == FAIL)
+  	    return;
+  #endif
+  
+  	if (*varname == '&')
+***************
+*** 16713,16727 ****
+  	}
+  
+  #ifdef FEAT_WINDOWS
+! 	/* Restore current tabpage and window, if still valid (autocomands can
+! 	 * make them invalid). */
+! 	if (valid_tabpage(save_curtab))
+! 	    goto_tabpage_tp(save_curtab, TRUE);
+! 	if (win_valid(save_curwin))
+! 	{
+! 	    curwin = save_curwin;
+! 	    curbuf = curwin->w_buffer;
+! 	}
+  #endif
+      }
+  }
+--- 16746,16752 ----
+  	}
+  
+  #ifdef FEAT_WINDOWS
+! 	restore_win(save_curwin, save_curtab);
+  #endif
+      }
+  }
+*** ../vim-7.3.923/src/if_py_both.h	2013-04-24 14:06:42.000000000 +0200
+--- src/if_py_both.h	2013-05-06 03:47:38.000000000 +0200
+***************
+*** 1497,1502 ****
+--- 1497,1775 ----
+      { NULL,	    NULL,		0,	    NULL }
+  };
+  
++ /*
++  * Options object
++  */
++ 
++ static PyTypeObject OptionsType;
++ 
++ typedef int (*checkfun)(void *);
++ 
++ typedef struct
++ {
++     PyObject_HEAD
++     int opt_type;
++     void *from;
++     checkfun Check;
++     PyObject *fromObj;
++ } OptionsObject;
++ 
++     static PyObject *
++ OptionsItem(OptionsObject *this, PyObject *keyObject)
++ {
++     char_u	*key;
++     int		flags;
++     long	numval;
++     char_u	*stringval;
++ 
++     if (this->Check(this->from))
++ 	return NULL;
++ 
++     DICTKEY_DECL
++ 
++     DICTKEY_GET_NOTEMPTY(NULL)
++ 
++     flags = get_option_value_strict(key, &numval, &stringval,
++ 				    this->opt_type, this->from);
++ 
++     DICTKEY_UNREF
++ 
++     if (flags == 0)
++     {
++ 	PyErr_SetString(PyExc_KeyError, "Option does not exist in given scope");
++ 	return NULL;
++     }
++ 
++     if (flags & SOPT_UNSET)
++     {
++ 	Py_INCREF(Py_None);
++ 	return Py_None;
++     }
++     else if (flags & SOPT_BOOL)
++     {
++ 	PyObject *r;
++ 	r = numval ? Py_True : Py_False;
++ 	Py_INCREF(r);
++ 	return r;
++     }
++     else if (flags & SOPT_NUM)
++ 	return PyInt_FromLong(numval);
++     else if (flags & SOPT_STRING)
++     {
++ 	if (stringval)
++ 	    return PyBytes_FromString((char *) stringval);
++ 	else
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError, "Unable to get option value");
++ 	    return NULL;
++ 	}
++     }
++     else
++     {
++ 	PyErr_SetVim("Internal error: unknown option type. Should not happen");
++ 	return NULL;
++     }
++ }
++ 
++     static int
++ set_option_value_for(key, numval, stringval, opt_flags, opt_type, from)
++     char_u	*key;
++     int		numval;
++     char_u	*stringval;
++     int		opt_flags;
++     int		opt_type;
++     void	*from;
++ {
++     win_T	*save_curwin;
++     tabpage_T	*save_curtab;
++     aco_save_T	aco;
++     int		r = 0;
++ 
++     switch (opt_type)
++     {
++ 	case SREQ_WIN:
++ 	    if (switch_win(&save_curwin, &save_curtab, (win_T *) from, curtab)
++ 								      == FAIL)
++ 	    {
++ 		PyErr_SetVim("Problem while switching windows.");
++ 		return -1;
++ 	    }
++ 	    set_option_value(key, numval, stringval, opt_flags);
++ 	    restore_win(save_curwin, save_curtab);
++ 	    break;
++ 	case SREQ_BUF:
++ 	    aucmd_prepbuf(&aco, (buf_T *) from);
++ 	    set_option_value(key, numval, stringval, opt_flags);
++ 	    aucmd_restbuf(&aco);
++ 	    break;
++ 	case SREQ_GLOBAL:
++ 	    set_option_value(key, numval, stringval, opt_flags);
++ 	    break;
++     }
++     return r;
++ }
++ 
++     static int
++ OptionsAssItem(OptionsObject *this, PyObject *keyObject, PyObject *valObject)
++ {
++     char_u	*key;
++     int		flags;
++     int		opt_flags;
++     int		r = 0;
++ 
++     if (this->Check(this->from))
++ 	return -1;
++ 
++     DICTKEY_DECL
++ 
++     DICTKEY_GET_NOTEMPTY(-1)
++ 
++     flags = get_option_value_strict(key, NULL, NULL,
++ 				    this->opt_type, this->from);
++ 
++     DICTKEY_UNREF
++ 
++     if (flags == 0)
++     {
++ 	PyErr_SetString(PyExc_KeyError, "Option does not exist in given scope");
++ 	return -1;
++     }
++ 
++     if (valObject == NULL)
++     {
++ 	if (this->opt_type == SREQ_GLOBAL)
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError, "Unable to unset global option");
++ 	    return -1;
++ 	}
++ 	else if (!(flags & SOPT_GLOBAL))
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError, "Unable to unset option without "
++ 						"global value");
++ 	    return -1;
++ 	}
++ 	else
++ 	{
++ 	    unset_global_local_option(key, this->from);
++ 	    return 0;
++ 	}
++     }
++ 
++     opt_flags = (this->opt_type ? OPT_LOCAL : OPT_GLOBAL);
++ 
++     if (flags & SOPT_BOOL)
++     {
++ 	if (!PyBool_Check(valObject))
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError, "Object must be boolean");
++ 	    return -1;
++ 	}
++ 
++ 	r = set_option_value_for(key, (valObject == Py_True), NULL, opt_flags,
++ 				this->opt_type, this->from);
++     }
++     else if (flags & SOPT_NUM)
++     {
++ 	int val;
++ 
++ #if PY_MAJOR_VERSION < 3
++ 	if (PyInt_Check(valObject))
++ 	    val = PyInt_AsLong(valObject);
++ 	else
++ #endif
++ 	if (PyLong_Check(valObject))
++ 	    val = PyLong_AsLong(valObject);
++ 	else
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError, "Object must be integer");
++ 	    return -1;
++ 	}
++ 
++ 	r = set_option_value_for(key, val, NULL, opt_flags,
++ 				this->opt_type, this->from);
++     }
++     else
++     {
++ 	char_u	*val;
++ 	if (PyBytes_Check(valObject))
++ 	{
++ 
++ 	    if (PyString_AsStringAndSize(valObject, (char **) &val, NULL) == -1)
++ 		return -1;
++ 	    if (val == NULL)
++ 		return -1;
++ 
++ 	    val = vim_strsave(val);
++ 	}
++ 	else if (PyUnicode_Check(valObject))
++ 	{
++ 	    PyObject	*bytes;
++ 
++ 	    bytes = PyUnicode_AsEncodedString(valObject, (char *)ENC_OPT, NULL);
++ 	    if (bytes == NULL)
++ 		return -1;
++ 
++ 	    if(PyString_AsStringAndSize(bytes, (char **) &val, NULL) == -1)
++ 		return -1;
++ 	    if (val == NULL)
++ 		return -1;
++ 
++ 	    val = vim_strsave(val);
++ 	    Py_XDECREF(bytes);
++ 	}
++ 	else
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError, "Object must be string");
++ 	    return -1;
++ 	}
++ 
++ 	r = set_option_value_for(key, 0, val, opt_flags,
++ 				this->opt_type, this->from);
++ 	vim_free(val);
++     }
++ 
++     return r;
++ }
++ 
++     static int
++ dummy_check(void *arg UNUSED)
++ {
++     return 0;
++ }
++ 
++     static PyObject *
++ OptionsNew(int opt_type, void *from, checkfun Check, PyObject *fromObj)
++ {
++     OptionsObject	*self;
++ 
++     self = PyObject_NEW(OptionsObject, &OptionsType);
++     if (self == NULL)
++ 	return NULL;
++ 
++     self->opt_type = opt_type;
++     self->from = from;
++     self->Check = Check;
++     self->fromObj = fromObj;
++     if (fromObj)
++ 	Py_INCREF(fromObj);
++ 
++     return (PyObject *)(self);
++ }
++ 
++     static void
++ OptionsDestructor(PyObject *self)
++ {
++     if (((OptionsObject *)(self))->fromObj)
++ 	Py_DECREF(((OptionsObject *)(self))->fromObj);
++     DESTRUCTOR_FINISH(self);
++ }
++ 
++ static PyMappingMethods OptionsAsMapping = {
++     (lenfunc)       NULL,
++     (binaryfunc)    OptionsItem,
++     (objobjargproc) OptionsAssItem,
++ };
++ 
+  #define INVALID_WINDOW_VALUE ((win_T *)(-1))
+  
+      static int
+***************
+*** 1534,1541 ****
+  #endif
+      else if (strcmp(name, "vars") == 0)
+  	return DictionaryNew(this->win->w_vars);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssss]", "buffer", "cursor", "height", "vars");
+      else
+  	return NULL;
+  }
+--- 1807,1818 ----
+  #endif
+      else if (strcmp(name, "vars") == 0)
+  	return DictionaryNew(this->win->w_vars);
++     else if (strcmp(name, "options") == 0)
++ 	return OptionsNew(SREQ_WIN, this->win, (checkfun) CheckWindow,
++ 			(PyObject *) this);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sssss]", "buffer", "cursor", "height", "vars",
+! 		"options");
+      else
+  	return NULL;
+  }
+***************
+*** 2499,2506 ****
+  	return Py_BuildValue(Py_ssize_t_fmt, this->buf->b_fnum);
+      else if (strcmp(name, "vars") == 0)
+  	return DictionaryNew(this->buf->b_vars);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sss]", "name", "number", "vars");
+      else
+  	return NULL;
+  }
+--- 2776,2786 ----
+  	return Py_BuildValue(Py_ssize_t_fmt, this->buf->b_fnum);
+      else if (strcmp(name, "vars") == 0)
+  	return DictionaryNew(this->buf->b_vars);
++     else if (strcmp(name, "options") == 0)
++ 	return OptionsNew(SREQ_BUF, this->buf, (checkfun) CheckBuffer,
++ 			(PyObject *) this);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssss]", "name", "number", "vars", "options");
+      else
+  	return NULL;
+  }
+***************
+*** 3121,3126 ****
+--- 3401,3414 ----
+      FunctionType.tp_getattr = FunctionGetattr;
+  #endif
+  
++     vim_memset(&OptionsType, 0, sizeof(OptionsType));
++     OptionsType.tp_name = "vim.options";
++     OptionsType.tp_basicsize = sizeof(OptionsObject);
++     OptionsType.tp_flags = Py_TPFLAGS_DEFAULT;
++     OptionsType.tp_doc = "object for manipulating options";
++     OptionsType.tp_as_mapping = &OptionsAsMapping;
++     OptionsType.tp_dealloc = OptionsDestructor;
++ 
+  #if PY_MAJOR_VERSION >= 3
+      vim_memset(&vimmodule, 0, sizeof(vimmodule));
+      vimmodule.m_name = "vim";
+*** ../vim-7.3.923/src/if_python.c	2013-04-24 14:06:42.000000000 +0200
+--- src/if_python.c	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 1341,1346 ****
+--- 1341,1347 ----
+      PyType_Ready(&BufListType);
+      PyType_Ready(&WinListType);
+      PyType_Ready(&CurrentType);
++     PyType_Ready(&OptionsType);
+  
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+***************
+*** 1360,1365 ****
+--- 1361,1369 ----
+      tmp = DictionaryNew(&vimvardict);
+      PyDict_SetItemString(dict, "vvars",   tmp);
+      Py_DECREF(tmp);
++     tmp = OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL);
++     PyDict_SetItemString(dict, "options", tmp);
++     Py_DECREF(tmp);
+      PyDict_SetItemString(dict, "VAR_LOCKED",    PyInt_FromLong(VAR_LOCKED));
+      PyDict_SetItemString(dict, "VAR_FIXED",     PyInt_FromLong(VAR_FIXED));
+      PyDict_SetItemString(dict, "VAR_SCOPE",     PyInt_FromLong(VAR_SCOPE));
+*** ../vim-7.3.923/src/if_python3.c	2013-04-24 14:06:42.000000000 +0200
+--- src/if_python3.c	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 1628,1633 ****
+--- 1628,1634 ----
+      PyType_Ready(&DictionaryType);
+      PyType_Ready(&ListType);
+      PyType_Ready(&FunctionType);
++     PyType_Ready(&OptionsType);
+  
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+***************
+*** 1649,1654 ****
+--- 1650,1657 ----
+  
+      PyModule_AddObject(mod, "vars", DictionaryNew(&globvardict));
+      PyModule_AddObject(mod, "vvars", DictionaryNew(&vimvardict));
++     PyModule_AddObject(mod, "options",
++ 	    OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL));
+  
+  #define ADD_INT_CONSTANT(name, value) \
+      tmp = PyLong_FromLong(value); \
+*** ../vim-7.3.923/src/option.c	2013-03-19 16:46:59.000000000 +0100
+--- src/option.c	2013-05-06 03:47:31.000000000 +0200
+***************
+*** 8820,8825 ****
+--- 8820,8963 ----
+  }
+  #endif
+  
++ #if defined(FEAT_PYTHON) || defined(FEAT_PYTHON3)
++ /*
++  * Returns the option attributes and its value. Unlike the above function it
++  * will return either global value or local value of the option depending on
++  * what was requested, but it will never return global value if it was
++  * requested to return local one and vice versa. Neither it will return
++  * buffer-local value if it was requested to return window-local one.
++  *
++  * Pretends that option is absent if it is not present in the requested scope
++  * (i.e. has no global, window-local or buffer-local value depending on
++  * opt_type). Uses
++  *
++  * Returned flags:
++  *       0 hidden or unknown option
++  *  see SOPT_* in vim.h for other flags
++  *
++  * Possible opt_type values: see SREQ_* in vim.h
++  */
++     int
++ get_option_value_strict(name, numval, stringval, opt_type, from)
++     char_u	*name;
++     long	*numval;
++     char_u	**stringval;	    /* NULL when only obtaining attributes */
++     int		opt_type;
++     void	*from;
++ {
++     int		opt_idx;
++     char_u	*varp;
++     struct vimoption *p;
++     int		r = 0;
++ 
++     opt_idx = findoption(name);
++     if (opt_idx < 0)
++ 	return 0;
++ 
++     p = &(options[opt_idx]);
++ 
++     /* Hidden option */
++     if (p->var == NULL)
++ 	return 0;
++ 
++     if (p->flags & P_BOOL)
++ 	r |= SOPT_BOOL;
++     else if (p->flags & P_NUM)
++ 	r |= SOPT_NUM;
++     else if (p->flags & P_STRING)
++ 	r |= SOPT_STRING;
++ 
++     if (p->indir == PV_NONE)
++     {
++ 	if (opt_type == SREQ_GLOBAL)
++ 	    r |= SOPT_GLOBAL;
++ 	else
++ 	    return 0; /* Did not request global-only option */
++     }
++     else
++     {
++ 	if (p->indir & PV_BOTH)
++ 	    r |= SOPT_GLOBAL;
++ 	else if (opt_type == SREQ_GLOBAL)
++ 	    return 0; /* Requested global option */
++ 
++ 	if (p->indir & PV_WIN)
++ 	{
++ 	    if (opt_type == SREQ_BUF)
++ 		return 0; /* Did not request window-local option */
++ 	    else
++ 		r |= SOPT_WIN;
++ 	}
++ 	else if (p->indir & PV_BUF)
++ 	{
++ 	    if (opt_type == SREQ_WIN)
++ 		return 0; /* Did not request buffer-local option */
++ 	    else
++ 		r |= SOPT_BUF;
++ 	}
++     }
++ 
++     if (stringval == NULL)
++ 	return r;
++ 
++     if (opt_type == SREQ_GLOBAL)
++ 	varp = p->var;
++     else
++     {
++ 	if (opt_type == SREQ_BUF)
++ 	{
++ 	    /* Special case: 'modified' is b_changed, but we also want to
++ 	     * consider it set when 'ff' or 'fenc' changed. */
++ 	    if (p->indir == PV_MOD)
++ 	    {
++ 		*numval = bufIsChanged((buf_T *) from);
++ 		varp = NULL;
++ 	    }
++ #ifdef FEAT_CRYPT
++ 	    else if (p->indir == PV_KEY)
++ 	    {
++ 		/* never return the value of the crypt key */
++ 		*stringval = NULL;
++ 		varp = NULL;
++ 	    }
++ #endif
++ 	    else
++ 	    {
++ 		aco_save_T	aco;
++ 		aucmd_prepbuf(&aco, (buf_T *) from);
++ 		varp = get_varp(p);
++ 		aucmd_restbuf(&aco);
++ 	    }
++ 	}
++ 	else if (opt_type == SREQ_WIN)
++ 	{
++ 	    win_T	*save_curwin;
++ 	    save_curwin = curwin;
++ 	    curwin = (win_T *) from;
++ 	    curbuf = curwin->w_buffer;
++ 	    varp = get_varp(p);
++ 	    curwin = save_curwin;
++ 	    curbuf = curwin->w_buffer;
++ 	}
++ 	if (varp == p->var)
++ 	    return (r | SOPT_UNSET);
++     }
++ 
++     if (varp != NULL)
++     {
++ 	if (p->flags & P_STRING)
++ 	    *stringval = vim_strsave(*(char_u **)(varp));
++ 	else if (p->flags & P_NUM)
++ 	    *numval = *(long *) varp;
++ 	else
++ 	    *numval = *(int *)varp;
++     }
++ 
++     return r;
++ }
++ #endif
++ 
+  /*
+   * Set the value of option "name".
+   * Use "string" for string options, use "number" for other options.
+***************
+*** 9557,9562 ****
+--- 9695,9781 ----
+  }
+  
+  /*
++  * Unset local option value, similar to ":set opt<".
++  */
++ 
++     void
++ unset_global_local_option(name, from)
++     char_u	*name;
++     void	*from;
++ {
++     struct vimoption *p;
++     int		opt_idx;
++ 
++     buf_T *buf = (buf_T *) from;
++     win_T *win = (win_T *) from;
++ 
++     opt_idx = findoption(name);
++     p = &(options[opt_idx]);
++ 
++     switch ((int)p->indir)
++     {
++ 	/* global option with local value: use local value if it's been set */
++ 	case PV_EP:
++ 	    *buf->b_p_ep = NUL;
++ 	    break;
++ 	case PV_KP:
++ 	    *buf->b_p_kp = NUL;
++ 	    break;
++ 	case PV_PATH:
++ 	    *buf->b_p_path = NUL;
++ 	    break;
++ 	case PV_AR:
++ 	    buf->b_p_ar = -1;
++ 	    break;
++ 	case PV_TAGS:
++ 	    *buf->b_p_tags = NUL;
++ 	    break;
++ #ifdef FEAT_FIND_ID
++ 	case PV_DEF:
++ 	    *buf->b_p_def = NUL;
++ 	    break;
++ 	case PV_INC:
++ 	    *buf->b_p_inc = NUL;
++ 	    break;
++ #endif
++ #ifdef FEAT_INS_EXPAND
++ 	case PV_DICT:
++ 	    *buf->b_p_dict = NUL;
++ 	    break;
++ 	case PV_TSR:
++ 	    *buf->b_p_tsr = NUL;
++ 	    break;
++ #endif
++ #ifdef FEAT_QUICKFIX
++ 	case PV_EFM:
++ 	    *buf->b_p_efm = NUL;
++ 	    break;
++ 	case PV_GP:
++ 	    *buf->b_p_gp = NUL;
++ 	    break;
++ 	case PV_MP:
++ 	    *buf->b_p_mp = NUL;
++ 	    break;
++ #endif
++ #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
++ 	case PV_BEXPR:
++ 	    *buf->b_p_bexpr = NUL;
++ 	    break;
++ #endif
++ #if defined(FEAT_CRYPT)
++ 	case PV_CM:
++ 	    *buf->b_p_cm = NUL;
++ 	    break;
++ #endif
++ #ifdef FEAT_STL_OPT
++ 	case PV_STL:
++ 	    *win->w_p_stl = NUL;
++ 	    break;
++ #endif
++     }
++ }
++ 
++ /*
+   * Get pointer to option variable, depending on local or global scope.
+   */
+      static char_u *
+*** ../vim-7.3.923/src/proto/eval.pro	2013-04-15 12:27:30.000000000 +0200
+--- src/proto/eval.pro	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 125,128 ****
+--- 125,130 ----
+  void ex_oldfiles __ARGS((exarg_T *eap));
+  int modify_fname __ARGS((char_u *src, int *usedlen, char_u **fnamep, char_u **bufp, int *fnamelen));
+  char_u *do_string_sub __ARGS((char_u *str, char_u *pat, char_u *sub, char_u *flags));
++ int switch_win __ARGS((win_T **, tabpage_T **, win_T *, tabpage_T *));
++ void restore_win __ARGS((win_T *, tabpage_T *));
+  /* vim: set ft=c : */
+*** ../vim-7.3.923/src/proto/option.pro	2013-01-17 17:01:57.000000000 +0100
+--- src/proto/option.pro	2013-05-06 03:47:07.000000000 +0200
+***************
+*** 22,27 ****
+--- 22,28 ----
+  char_u *check_colorcolumn __ARGS((win_T *wp));
+  char_u *check_stl_option __ARGS((char_u *s));
+  int get_option_value __ARGS((char_u *name, long *numval, char_u **stringval, int opt_flags));
++ int get_option_value_strict __ARGS((char_u *name, long *numval, char_u **stringval, int opt_type, void *from));
+  void set_option_value __ARGS((char_u *name, long number, char_u *string, int opt_flags));
+  char_u *get_term_code __ARGS((char_u *tname));
+  char_u *get_highlight_default __ARGS((void));
+***************
+*** 33,38 ****
+--- 34,40 ----
+  void free_one_termoption __ARGS((char_u *var));
+  void set_term_defaults __ARGS((void));
+  void comp_col __ARGS((void));
++ void unset_global_local_option __ARGS((char_u *name, void *from));
+  char_u *get_equalprg __ARGS((void));
+  void win_copy_options __ARGS((win_T *wp_from, win_T *wp_to));
+  void copy_winopt __ARGS((winopt_T *from, winopt_T *to));
+*** ../vim-7.3.923/src/testdir/test86.in	2013-04-24 14:06:42.000000000 +0200
+--- src/testdir/test86.in	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 359,364 ****
+--- 359,483 ----
+  :put =pyeval('vim.vars[''foo'']')
+  :put =pyeval('vim.current.window.vars[''abc'']')
+  :put =pyeval('vim.current.buffer.vars[''baz'']')
++ :"
++ :" Options
++ :" paste:          boolean, global
++ :" previewheight   number,  global
++ :" operatorfunc:   string,  global
++ :" number:         boolean, window-local
++ :" numberwidth:    number,  window-local
++ :" colorcolumn:    string,  window-local
++ :" statusline:     string,  window-local/global
++ :" autoindent:     boolean, buffer-local
++ :" iminsert:       number,  buffer-local
++ :" omnifunc:       string,  buffer-local
++ :" preserveindent: boolean, buffer-local/global
++ :" path:           string,  buffer-local/global
++ :let g:bufs=[bufnr('%')]
++ :new
++ :let g:bufs+=[bufnr('%')]
++ :vnew
++ :let g:bufs+=[bufnr('%')]
++ :wincmd j
++ :vnew
++ :let g:bufs+=[bufnr('%')]
++ :wincmd l
++ :fun RecVars(opt)
++ :  let gval =string(eval('&g:'.a:opt))
++ :  let wvals=join(map(range(1, 4),  'v:val.":".string(getwinvar(v:val, "&".a:opt))'))
++ :  let bvals=join(map(copy(g:bufs), 'v:val.":".string(getbufvar(v:val, "&".a:opt))'))
++ :  put ='  G: '.gval
++ :  put ='  W: '.wvals
++ :  put ='  B: '.wvals
++ :endfun
++ py << EOF
++ def e(s, g=globals(), l=locals()):
++     try:
++         exec(s, g, l)
++     except Exception as e:
++         vim.command('throw ' + repr(e.__class__.__name__))
++ 
++ def ev(s, g=globals(), l=locals()):
++     try:
++         return eval(s, g, l)
++     except Exception as e:
++         vim.command('throw ' + repr(e.__class__.__name__))
++         return 0
++ EOF
++ :function E(s)
++ :   python e(vim.eval('a:s'))
++ :endfunction
++ :function Ev(s)
++ :   return pyeval('ev(vim.eval("a:s"))')
++ :endfunction
++ :py gopts1=vim.options
++ :py wopts1=vim.windows[2].options
++ :py wopts2=vim.windows[0].options
++ :py wopts3=vim.windows[1].options
++ :py bopts1=vim.buffers[vim.bindeval("g:bufs")[2]].options
++ :py bopts2=vim.buffers[vim.bindeval("g:bufs")[1]].options
++ :py bopts3=vim.buffers[vim.bindeval("g:bufs")[0]].options
++ :let lst=[]
++ :let lst+=[['paste',          1,     0,     1,     2,      1,    1,      0    ]]
++ :let lst+=[['previewheight',  5,     1,     6,     'a',    0,    1,      0    ]]
++ :let lst+=[['operatorfunc',   'A',   'B',   'C',   2,      0,    1,      0    ]]
++ :let lst+=[['number',         0,     1,     1,     0,      1,    0,      1    ]]
++ :let lst+=[['numberwidth',    2,     3,     5,     -100,   0,    0,      1    ]]
++ :let lst+=[['colorcolumn',    '+1',  '+2',  '+3',  'abc',  0,    0,      1    ]]
++ :let lst+=[['statusline',     '1',   '2',   '4',   0,      0,    1,      1    ]]
++ :let lst+=[['autoindent',     0,     1,     1,     2,      1,    0,      2    ]]
++ :let lst+=[['iminsert',       0,     2,     1,     3,      0,    0,      2    ]]
++ :let lst+=[['omnifunc',       'A',   'B',   'C',   1,      0,    0,      2    ]]
++ :let lst+=[['preserveindent', 0,     1,     1,     2,      1,    1,      2    ]]
++ :let lst+=[['path',           '.,,', ',,',  '.',   0,      0,    1,      2    ]]
++ :for       [oname,            oval1, oval2, oval3, invval, bool, global, local] in lst
++ :   py oname=vim.eval('oname')
++ :   py oval1=vim.bindeval('oval1')
++ :   py oval2=vim.bindeval('oval2')
++ :   py oval3=vim.bindeval('oval3')
++ :   if invval is 0 || invval is 1
++ :       py invval=bool(vim.bindeval('invval'))
++ :   else
++ :       py invval=vim.bindeval('invval')
++ :   endif
++ :   if bool
++ :       py oval1=bool(oval1)
++ :       py oval2=bool(oval2)
++ :       py oval3=bool(oval3)
++ :   endif
++ :   put ='>>> '.oname
++ :   for v in ['gopts1', 'wopts1', 'bopts1']
++ :       try
++ :           put ='  p/'.v.': '.Ev('repr('.v.'['''.oname.'''])')
++ :       catch
++ :           put ='  p/'.v.'! '.v:exception
++ :       endtry
++ :       try
++ :           call E(v.'["'.oname.'"]=invval')
++ :       catch
++ :           put ='  inv: '.string(invval).'! '.v:exception
++ :       endtry
++ :       for vv in (v is# 'gopts1' ? [v] : [v, v[:-2].'2', v[:-2].'3'])
++ :           let val=substitute(vv, '^.opts', 'oval', '')
++ :           try
++ :               call E(vv.'["'.oname.'"]='.val)
++ :           catch
++ :               put ='  '.vv.'! '.v:exception
++ :           endtry
++ :       endfor
++ :   endfor
++ :   call RecVars(oname)
++ :   for v in ['wopts3', 'bopts3']
++ :       try
++ :           call E('del '.v.'["'.oname.'"]')
++ :       catch
++ :           put ='  del '.v.'! '.v:exception
++ :       endtry
++ :   endfor
++ :   call RecVars(oname)
++ endtry
++ :endfor
++ :only
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.923/src/testdir/test86.ok	2013-04-24 14:06:42.000000000 +0200
+--- src/testdir/test86.ok	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 80,82 ****
+--- 80,308 ----
+  bac
+  def
+  bar
++ >>> paste
++   p/gopts1: False
++   inv: 2! ValueError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1! KeyError
++   inv: 2! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 1
++   W: 1:1 2:1 3:1 4:1
++   B: 1:1 2:1 3:1 4:1
++   del wopts3! KeyError
++   del bopts3! KeyError
++   G: 1
++   W: 1:1 2:1 3:1 4:1
++   B: 1:1 2:1 3:1 4:1
++ >>> previewheight
++   p/gopts1: 12
++   inv: 'a'! ValueError
++   p/wopts1! KeyError
++   inv: 'a'! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1! KeyError
++   inv: 'a'! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 5
++   W: 1:5 2:5 3:5 4:5
++   B: 1:5 2:5 3:5 4:5
++   del wopts3! KeyError
++   del bopts3! KeyError
++   G: 5
++   W: 1:5 2:5 3:5 4:5
++   B: 1:5 2:5 3:5 4:5
++ >>> operatorfunc
++   p/gopts1: ''
++   inv: 2! ValueError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1! KeyError
++   inv: 2! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 'A'
++   W: 1:'A' 2:'A' 3:'A' 4:'A'
++   B: 1:'A' 2:'A' 3:'A' 4:'A'
++   del wopts3! KeyError
++   del bopts3! KeyError
++   G: 'A'
++   W: 1:'A' 2:'A' 3:'A' 4:'A'
++   B: 1:'A' 2:'A' 3:'A' 4:'A'
++ >>> number
++   p/gopts1! KeyError
++   inv: 0! KeyError
++   gopts1! KeyError
++   p/wopts1: False
++   p/bopts1! KeyError
++   inv: 0! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++   del wopts3! ValueError
++   del bopts3! KeyError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++ >>> numberwidth
++   p/gopts1! KeyError
++   inv: -100! KeyError
++   gopts1! KeyError
++   p/wopts1: 8
++   p/bopts1! KeyError
++   inv: -100! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 8
++   W: 1:3 2:5 3:2 4:8
++   B: 1:3 2:5 3:2 4:8
++   del wopts3! ValueError
++   del bopts3! KeyError
++   G: 8
++   W: 1:3 2:5 3:2 4:8
++   B: 1:3 2:5 3:2 4:8
++ >>> colorcolumn
++   p/gopts1! KeyError
++   inv: 'abc'! KeyError
++   gopts1! KeyError
++   p/wopts1: ''
++   p/bopts1! KeyError
++   inv: 'abc'! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: ''
++   W: 1:'+2' 2:'+3' 3:'+1' 4:''
++   B: 1:'+2' 2:'+3' 3:'+1' 4:''
++   del wopts3! ValueError
++   del bopts3! KeyError
++   G: ''
++   W: 1:'+2' 2:'+3' 3:'+1' 4:''
++   B: 1:'+2' 2:'+3' 3:'+1' 4:''
++ >>> statusline
++   p/gopts1: ''
++   inv: 0! ValueError
++   p/wopts1: None
++   inv: 0! ValueError
++   p/bopts1! KeyError
++   inv: 0! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: '1'
++   W: 1:'2' 2:'4' 3:'1' 4:'1'
++   B: 1:'2' 2:'4' 3:'1' 4:'1'
++   del bopts3! KeyError
++   G: '1'
++   W: 1:'2' 2:'1' 3:'1' 4:'1'
++   B: 1:'2' 2:'1' 3:'1' 4:'1'
++ >>> autoindent
++   p/gopts1! KeyError
++   inv: 2! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: False
++   inv: 2! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++ >>> iminsert
++   p/gopts1! KeyError
++   inv: 3! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 3! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: 2
++   G: 1
++   W: 1:2 2:1 3:0 4:2
++   B: 1:2 2:1 3:0 4:2
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: 1
++   W: 1:2 2:1 3:0 4:2
++   B: 1:2 2:1 3:0 4:2
++ >>> omnifunc
++   p/gopts1! KeyError
++   inv: 1! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 1! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: ''
++   inv: 1! ValueError
++   G: ''
++   W: 1:'B' 2:'C' 3:'A' 4:''
++   B: 1:'B' 2:'C' 3:'A' 4:''
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: ''
++   W: 1:'B' 2:'C' 3:'A' 4:''
++   B: 1:'B' 2:'C' 3:'A' 4:''
++ >>> preserveindent
++   p/gopts1! KeyError
++   inv: 2! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: False
++   inv: 2! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++ >>> path
++   p/gopts1: '.,/usr/include,,'
++   inv: 0! ValueError
++   p/wopts1! KeyError
++   inv: 0! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: None
++   inv: 0! ValueError
++   G: '.,,'
++   W: 1:',,' 2:'.' 3:'.,,' 4:'.,,'
++   B: 1:',,' 2:'.' 3:'.,,' 4:'.,,'
++   del wopts3! KeyError
++   G: '.,,'
++   W: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
++   B: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
+*** ../vim-7.3.923/src/testdir/test87.in	2013-04-24 14:06:42.000000000 +0200
+--- src/testdir/test87.in	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 328,333 ****
+--- 328,452 ----
+  :put =py3eval('vim.vars[''foo'']')
+  :put =py3eval('vim.current.window.vars[''abc'']')
+  :put =py3eval('vim.current.buffer.vars[''baz'']')
++ :"
++ :" Options
++ :" paste:          boolean, global
++ :" previewheight   number,  global
++ :" operatorfunc:   string,  global
++ :" number:         boolean, window-local
++ :" numberwidth:    number,  window-local
++ :" colorcolumn:    string,  window-local
++ :" statusline:     string,  window-local/global
++ :" autoindent:     boolean, buffer-local
++ :" iminsert:       number,  buffer-local
++ :" omnifunc:       string,  buffer-local
++ :" preserveindent: boolean, buffer-local/global
++ :" path:           string,  buffer-local/global
++ :let g:bufs=[bufnr('%')]
++ :new
++ :let g:bufs+=[bufnr('%')]
++ :vnew
++ :let g:bufs+=[bufnr('%')]
++ :wincmd j
++ :vnew
++ :let g:bufs+=[bufnr('%')]
++ :wincmd l
++ :fun RecVars(opt)
++ :  let gval =string(eval('&g:'.a:opt))
++ :  let wvals=join(map(range(1, 4),  'v:val.":".string(getwinvar(v:val, "&".a:opt))'))
++ :  let bvals=join(map(copy(g:bufs), 'v:val.":".string(getbufvar(v:val, "&".a:opt))'))
++ :  put ='  G: '.gval
++ :  put ='  W: '.wvals
++ :  put ='  B: '.wvals
++ :endfun
++ py3 << EOF
++ def e(s, g=globals(), l=locals()):
++     try:
++         exec(s, g, l)
++     except Exception as e:
++         vim.command('throw ' + repr(e.__class__.__name__))
++ 
++ def ev(s, g=globals(), l=locals()):
++     try:
++         return eval(s, g, l)
++     except Exception as e:
++         vim.command('throw ' + repr(e.__class__.__name__))
++         return 0
++ EOF
++ :function E(s)
++ :   python3 e(vim.eval('a:s'))
++ :endfunction
++ :function Ev(s)
++ :   return py3eval('ev(vim.eval("a:s"))')
++ :endfunction
++ :py3 gopts1=vim.options
++ :py3 wopts1=vim.windows[2].options
++ :py3 wopts2=vim.windows[0].options
++ :py3 wopts3=vim.windows[1].options
++ :py3 bopts1=vim.buffers[vim.bindeval("g:bufs")[2]].options
++ :py3 bopts2=vim.buffers[vim.bindeval("g:bufs")[1]].options
++ :py3 bopts3=vim.buffers[vim.bindeval("g:bufs")[0]].options
++ :let lst=[]
++ :let lst+=[['paste',          1,     0,     1,     2,      1,    1,      0    ]]
++ :let lst+=[['previewheight',  5,     1,     6,     'a',    0,    1,      0    ]]
++ :let lst+=[['operatorfunc',   'A',   'B',   'C',   2,      0,    1,      0    ]]
++ :let lst+=[['number',         0,     1,     1,     0,      1,    0,      1    ]]
++ :let lst+=[['numberwidth',    2,     3,     5,     -100,   0,    0,      1    ]]
++ :let lst+=[['colorcolumn',    '+1',  '+2',  '+3',  'abc',  0,    0,      1    ]]
++ :let lst+=[['statusline',     '1',   '2',   '4',   0,      0,    1,      1    ]]
++ :let lst+=[['autoindent',     0,     1,     1,     2,      1,    0,      2    ]]
++ :let lst+=[['iminsert',       0,     2,     1,     3,      0,    0,      2    ]]
++ :let lst+=[['omnifunc',       'A',   'B',   'C',   1,      0,    0,      2    ]]
++ :let lst+=[['preserveindent', 0,     1,     1,     2,      1,    1,      2    ]]
++ :let lst+=[['path',           '.,,', ',,',  '.',   0,      0,    1,      2    ]]
++ :for       [oname,            oval1, oval2, oval3, invval, bool, global, local] in lst
++ :   py3 oname=vim.eval('oname')
++ :   py3 oval1=vim.bindeval('oval1')
++ :   py3 oval2=vim.bindeval('oval2')
++ :   py3 oval3=vim.bindeval('oval3')
++ :   if invval is 0 || invval is 1
++ :       py3 invval=bool(vim.bindeval('invval'))
++ :   else
++ :       py3 invval=vim.bindeval('invval')
++ :   endif
++ :   if bool
++ :       py3 oval1=bool(oval1)
++ :       py3 oval2=bool(oval2)
++ :       py3 oval3=bool(oval3)
++ :   endif
++ :   put ='>>> '.oname
++ :   for v in ['gopts1', 'wopts1', 'bopts1']
++ :       try
++ :           put ='  p/'.v.': '.Ev('repr('.v.'['''.oname.'''])')
++ :       catch
++ :           put ='  p/'.v.'! '.v:exception
++ :       endtry
++ :       try
++ :           call E(v.'["'.oname.'"]=invval')
++ :       catch
++ :           put ='  inv: '.string(invval).'! '.v:exception
++ :       endtry
++ :       for vv in (v is# 'gopts1' ? [v] : [v, v[:-2].'2', v[:-2].'3'])
++ :           let val=substitute(vv, '^.opts', 'oval', '')
++ :           try
++ :               call E(vv.'["'.oname.'"]='.val)
++ :           catch
++ :               put ='  '.vv.'! '.v:exception
++ :           endtry
++ :       endfor
++ :   endfor
++ :   call RecVars(oname)
++ :   for v in ['wopts3', 'bopts3']
++ :       try
++ :           call E('del '.v.'["'.oname.'"]')
++ :       catch
++ :           put ='  del '.v.'! '.v:exception
++ :       endtry
++ :   endfor
++ :   call RecVars(oname)
++ endtry
++ :endfor
++ :only
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.923/src/testdir/test87.ok	2013-04-24 14:06:42.000000000 +0200
+--- src/testdir/test87.ok	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 69,71 ****
+--- 69,297 ----
+  bac
+  def
+  bar
++ >>> paste
++   p/gopts1: False
++   inv: 2! ValueError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1! KeyError
++   inv: 2! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 1
++   W: 1:1 2:1 3:1 4:1
++   B: 1:1 2:1 3:1 4:1
++   del wopts3! KeyError
++   del bopts3! KeyError
++   G: 1
++   W: 1:1 2:1 3:1 4:1
++   B: 1:1 2:1 3:1 4:1
++ >>> previewheight
++   p/gopts1: 12
++   inv: 'a'! ValueError
++   p/wopts1! KeyError
++   inv: 'a'! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1! KeyError
++   inv: 'a'! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 5
++   W: 1:5 2:5 3:5 4:5
++   B: 1:5 2:5 3:5 4:5
++   del wopts3! KeyError
++   del bopts3! KeyError
++   G: 5
++   W: 1:5 2:5 3:5 4:5
++   B: 1:5 2:5 3:5 4:5
++ >>> operatorfunc
++   p/gopts1: b''
++   inv: 2! ValueError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1! KeyError
++   inv: 2! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 'A'
++   W: 1:'A' 2:'A' 3:'A' 4:'A'
++   B: 1:'A' 2:'A' 3:'A' 4:'A'
++   del wopts3! KeyError
++   del bopts3! KeyError
++   G: 'A'
++   W: 1:'A' 2:'A' 3:'A' 4:'A'
++   B: 1:'A' 2:'A' 3:'A' 4:'A'
++ >>> number
++   p/gopts1! KeyError
++   inv: 0! KeyError
++   gopts1! KeyError
++   p/wopts1: False
++   p/bopts1! KeyError
++   inv: 0! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++   del wopts3! ValueError
++   del bopts3! KeyError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++ >>> numberwidth
++   p/gopts1! KeyError
++   inv: -100! KeyError
++   gopts1! KeyError
++   p/wopts1: 8
++   p/bopts1! KeyError
++   inv: -100! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: 8
++   W: 1:3 2:5 3:2 4:8
++   B: 1:3 2:5 3:2 4:8
++   del wopts3! ValueError
++   del bopts3! KeyError
++   G: 8
++   W: 1:3 2:5 3:2 4:8
++   B: 1:3 2:5 3:2 4:8
++ >>> colorcolumn
++   p/gopts1! KeyError
++   inv: 'abc'! KeyError
++   gopts1! KeyError
++   p/wopts1: b''
++   p/bopts1! KeyError
++   inv: 'abc'! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: ''
++   W: 1:'+2' 2:'+3' 3:'+1' 4:''
++   B: 1:'+2' 2:'+3' 3:'+1' 4:''
++   del wopts3! ValueError
++   del bopts3! KeyError
++   G: ''
++   W: 1:'+2' 2:'+3' 3:'+1' 4:''
++   B: 1:'+2' 2:'+3' 3:'+1' 4:''
++ >>> statusline
++   p/gopts1: b''
++   inv: 0! ValueError
++   p/wopts1: None
++   inv: 0! ValueError
++   p/bopts1! KeyError
++   inv: 0! KeyError
++   bopts1! KeyError
++   bopts2! KeyError
++   bopts3! KeyError
++   G: '1'
++   W: 1:'2' 2:'4' 3:'1' 4:'1'
++   B: 1:'2' 2:'4' 3:'1' 4:'1'
++   del bopts3! KeyError
++   G: '1'
++   W: 1:'2' 2:'1' 3:'1' 4:'1'
++   B: 1:'2' 2:'1' 3:'1' 4:'1'
++ >>> autoindent
++   p/gopts1! KeyError
++   inv: 2! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: False
++   inv: 2! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++ >>> iminsert
++   p/gopts1! KeyError
++   inv: 3! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 3! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: 2
++   G: 1
++   W: 1:2 2:1 3:0 4:2
++   B: 1:2 2:1 3:0 4:2
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: 1
++   W: 1:2 2:1 3:0 4:2
++   B: 1:2 2:1 3:0 4:2
++ >>> omnifunc
++   p/gopts1! KeyError
++   inv: 1! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 1! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: b''
++   inv: 1! ValueError
++   G: ''
++   W: 1:'B' 2:'C' 3:'A' 4:''
++   B: 1:'B' 2:'C' 3:'A' 4:''
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: ''
++   W: 1:'B' 2:'C' 3:'A' 4:''
++   B: 1:'B' 2:'C' 3:'A' 4:''
++ >>> preserveindent
++   p/gopts1! KeyError
++   inv: 2! KeyError
++   gopts1! KeyError
++   p/wopts1! KeyError
++   inv: 2! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: False
++   inv: 2! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++   del wopts3! KeyError
++   del bopts3! ValueError
++   G: 0
++   W: 1:1 2:1 3:0 4:0
++   B: 1:1 2:1 3:0 4:0
++ >>> path
++   p/gopts1: b'.,/usr/include,,'
++   inv: 0! ValueError
++   p/wopts1! KeyError
++   inv: 0! KeyError
++   wopts1! KeyError
++   wopts2! KeyError
++   wopts3! KeyError
++   p/bopts1: None
++   inv: 0! ValueError
++   G: '.,,'
++   W: 1:',,' 2:'.' 3:'.,,' 4:'.,,'
++   B: 1:',,' 2:'.' 3:'.,,' 4:'.,,'
++   del wopts3! KeyError
++   G: '.,,'
++   W: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
++   B: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
+*** ../vim-7.3.923/src/vim.h	2013-03-19 16:46:59.000000000 +0100
+--- src/vim.h	2013-05-06 03:36:46.000000000 +0200
+***************
+*** 2230,2233 ****
+--- 2230,2246 ----
+  #define FILEINFO_READ_FAIL   2	/* CreateFile() failed */
+  #define FILEINFO_INFO_FAIL   3	/* GetFileInformationByHandle() failed */
+  
++ /* Return value from get_option_value_strict */
++ #define SOPT_BOOL	0x01	/* Boolean option */
++ #define SOPT_NUM	0x02	/* Number option */
++ #define SOPT_STRING	0x04	/* String option */
++ #define SOPT_GLOBAL	0x08	/* Option has global value */
++ #define SOPT_WIN	0x10	/* Option has window-local value */
++ #define SOPT_BUF	0x20	/* Option has buffer-local value */
++ #define SOPT_UNSET	0x40	/* Option does not have local value set */
++ 
++ #define SREQ_GLOBAL	0	/* Request global option */
++ #define SREQ_WIN	1	/* Request window-local option */
++ #define SREQ_BUF	2	/* Request buffer-local option */
++ 
+  #endif /* VIM__H */
+*** ../vim-7.3.923/src/version.c	2013-05-04 04:40:06.000000000 +0200
+--- src/version.c	2013-05-06 03:38:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     924,
+  /**/
+
+-- 
+ARTHUR: (as the MAN next to him is squashed by a sheep) Knights!  Run away!
+   Midst echoing shouts of "run away" the KNIGHTS retreat to cover with the odd
+   cow or goose hitting them still.  The KNIGHTS crouch down under cover.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

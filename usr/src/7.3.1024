@@ -1,0 +1,457 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1024
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1024
+Problem:    New regexp: End of matching pattern not set correctly. (Cesar
+	    Romani)
+Solution:   Quit the loop after finding the match.  Store nfa_has_zend in the
+	    program.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok,
+	    src/regexp.h
+
+
+*** ../vim-7.3.1023/src/regexp_nfa.c	2013-05-26 15:14:49.000000000 +0200
+--- src/regexp_nfa.c	2013-05-26 16:51:44.000000000 +0200
+***************
+*** 2651,2657 ****
+  	    break;
+  
+  	case NFA_MCLOSE + 0:
+! 	    if (nfa_has_zend == TRUE)
+  	    {
+  		addstate(l, state->out, m, off, lid, match);
+  		break;
+--- 2651,2657 ----
+  	    break;
+  
+  	case NFA_MCLOSE + 0:
+! 	    if (nfa_has_zend)
+  	    {
+  		addstate(l, state->out, m, off, lid, match);
+  		break;
+***************
+*** 3109,3115 ****
+  		fprintf(log_fd, "\n");
+  #endif
+  		/* Found the left-most longest match, do not look at any other
+! 		 * states at this position. */
+  		goto nextchar;
+  
+  	    case NFA_END_INVISIBLE:
+--- 3109,3119 ----
+  		fprintf(log_fd, "\n");
+  #endif
+  		/* Found the left-most longest match, do not look at any other
+! 		 * states at this position.  When the list of states is going
+! 		 * to be empty quit without advancing, so that "reginput" is
+! 		 * correct. */
+! 		if (nextlist->n == 0 && neglist->n == 0)
+! 		    clen = 0;
+  		goto nextchar;
+  
+  	    case NFA_END_INVISIBLE:
+***************
+*** 3783,3790 ****
+      regline = line;
+      reglnum = 0;    /* relative to line */
+  
+!     nstate = prog->nstate;
+  
+      for (i = 0; i < nstate; ++i)
+      {
+  	prog->state[i].id = i;
+--- 3787,3795 ----
+      regline = line;
+      reglnum = 0;    /* relative to line */
+  
+!     nfa_has_zend = prog->has_zend;
+  
++     nstate = prog->nstate;
+      for (i = 0; i < nstate; ++i)
+      {
+  	prog->state[i].id = i;
+***************
+*** 3871,3876 ****
+--- 3876,3882 ----
+      prog->regflags = regflags;
+      prog->engine = &nfa_regengine;
+      prog->nstate = nstate;
++     prog->has_zend = nfa_has_zend;
+  #ifdef ENABLE_LOG
+      nfa_postfix_dump(expr, OK);
+      nfa_dump(prog);
+*** ../vim-7.3.1023/src/testdir/test64.in	2013-05-25 23:15:21.000000000 +0200
+--- src/testdir/test64.in	2013-05-26 16:50:38.000000000 +0200
+***************
+*** 15,25 ****
+  :"    etc.
+  :"  When there is no match use only the first two items.
+  :let tl = []
+! 
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  :"""" Previously written tests """"""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+! 
+  :call add(tl, [2, 'ab', 'aab', 'ab'])
+  :call add(tl, [2, 'b', 'abcdef', 'b'])
+  :call add(tl, [2, 'bc*', 'abccccdef', 'bcccc'])
+--- 15,25 ----
+  :"    etc.
+  :"  When there is no match use only the first two items.
+  :let tl = []
+! :"
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  :"""" Previously written tests """"""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+! :"
+  :call add(tl, [2, 'ab', 'aab', 'ab'])
+  :call add(tl, [2, 'b', 'abcdef', 'b'])
+  :call add(tl, [2, 'bc*', 'abccccdef', 'bcccc'])
+***************
+*** 138,153 ****
+  :"
+  :call add(tl, [2, '\v(a*)+', 'aaaa', 'aaaa', ''])
+  :call add(tl, [2, 'x', 'abcdef'])
+! 
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  :""""" Simple tests """""""""""""""""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+! 
+  :" Search single groups
+  :call add(tl, [2, 'ab', 'aab', 'ab'])
+  :call add(tl, [2, 'ab', 'baced'])
+  :call add(tl, [2, 'ab', '                    ab           ', 'ab'])
+! 
+  :" Search multi-modifiers
+  :call add(tl, [2, 'x*', 'xcd', 'x'])
+  :call add(tl, [2, 'x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+--- 138,153 ----
+  :"
+  :call add(tl, [2, '\v(a*)+', 'aaaa', 'aaaa', ''])
+  :call add(tl, [2, 'x', 'abcdef'])
+! :"
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+  :""""" Simple tests """""""""""""""""""""""""""""""""""""""""""
+  :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+! :"
+  :" Search single groups
+  :call add(tl, [2, 'ab', 'aab', 'ab'])
+  :call add(tl, [2, 'ab', 'baced'])
+  :call add(tl, [2, 'ab', '                    ab           ', 'ab'])
+! :"
+  :" Search multi-modifiers
+  :call add(tl, [2, 'x*', 'xcd', 'x'])
+  :call add(tl, [2, 'x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+***************
+*** 162,168 ****
+  :call add(tl, [2, 'x\?', 'x sdfoij', 'x'])
+  :call add(tl, [2, 'x\?', 'abc sfoij', ''])                 " empty match is good
+  :call add(tl, [2, 'x\?', 'xxxxxxxxxx c', 'x'])
+! 
+  :call add(tl, [2, 'a\{0,0}', 'abcdfdoij', ''])
+  :call add(tl, [2, 'a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+  :call add(tl, [2, 'a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}'
+--- 162,168 ----
+  :call add(tl, [2, 'x\?', 'x sdfoij', 'x'])
+  :call add(tl, [2, 'x\?', 'abc sfoij', ''])                 " empty match is good
+  :call add(tl, [2, 'x\?', 'xxxxxxxxxx c', 'x'])
+! :"
+  :call add(tl, [2, 'a\{0,0}', 'abcdfdoij', ''])
+  :call add(tl, [2, 'a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+  :call add(tl, [2, 'a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}'
+***************
+*** 182,188 ****
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+  :call add(tl, [2, 'a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+  :call add(tl, [2, 'a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+! 
+  :call add(tl, [2, 'a\{-0,0}', 'abcdfdoij', ''])
+  :call add(tl, [2, 'a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+  :call add(tl, [2, 'a\{-3,6}', 'aa siofuh'])
+--- 182,188 ----
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+  :call add(tl, [2, 'a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+  :call add(tl, [2, 'a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+! :"
+  :call add(tl, [2, 'a\{-0,0}', 'abcdfdoij', ''])
+  :call add(tl, [2, 'a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+  :call add(tl, [2, 'a\{-3,6}', 'aa siofuh'])
+***************
+*** 200,206 ****
+  :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+  :call add(tl, [0, 'a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
+  :call add(tl, [0, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+! 
+  :" Test groups of characters and submatches
+  :call add(tl, [2, '\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+  :call add(tl, [2, '\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+--- 200,206 ----
+  :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+  :call add(tl, [0, 'a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
+  :call add(tl, [0, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+! :"
+  :" Test groups of characters and submatches
+  :call add(tl, [2, '\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+  :call add(tl, [2, '\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+***************
+*** 213,219 ****
+  :call add(tl, [2, '\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+  :call add(tl, [2, '\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
+  :call add(tl, [2, '\v(a|b*)+', 'aaaa', 'aaaa', ''])
+! 
+  :" Test greedy-ness and lazy-ness
+  :call add(tl, [2, 'a\{-2,7}','aaaaaaaaaaaaa', 'aa'])
+  :call add(tl, [2, 'a\{2,7}','aaaaaaaaaaaaaaaaaaaa', 'aaaaaaa'])
+--- 213,219 ----
+  :call add(tl, [2, '\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+  :call add(tl, [2, '\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
+  :call add(tl, [2, '\v(a|b*)+', 'aaaa', 'aaaa', ''])
+! :"
+  :" Test greedy-ness and lazy-ness
+  :call add(tl, [2, 'a\{-2,7}','aaaaaaaaaaaaa', 'aa'])
+  :call add(tl, [2, 'a\{2,7}','aaaaaaaaaaaaaaaaaaaa', 'aaaaaaa'])
+***************
+*** 221,230 ****
+  :call add(tl, [2, '\vx(.*)yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz', 'ayxayzxayzxa',''])
+  :call add(tl, [2, '\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
+  :call add(tl, [2, '\v(a{-1,3})+','aa','aa','a'])
+! 
+  :" Test Character classes
+  :call add(tl, [2, '\d\+e\d\d','test 10e23 fd','10e23'])
+! 
+  :" Test collections and character range []
+  :call add(tl, [2, '\v[a]', 'abcd', 'a'])
+  :call add(tl, [2, 'a[bcd]', 'abcd', 'ab'])
+--- 221,230 ----
+  :call add(tl, [2, '\vx(.*)yz(.*)','xayxayzxayzxayz','xayxayzxayzxayz', 'ayxayzxayzxa',''])
+  :call add(tl, [2, '\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
+  :call add(tl, [2, '\v(a{-1,3})+','aa','aa','a'])
+! :"
+  :" Test Character classes
+  :call add(tl, [2, '\d\+e\d\d','test 10e23 fd','10e23'])
+! :"
+  :" Test collections and character range []
+  :call add(tl, [2, '\v[a]', 'abcd', 'a'])
+  :call add(tl, [2, 'a[bcd]', 'abcd', 'ab'])
+***************
+*** 250,257 ****
+  :call add(tl, [2, 'abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+  :call add(tl, [2, '\_[0-9]\+', 'asfi9888u', '9888'])
+  :call add(tl, [2, '[0-9\n]\+', 'asfi9888u', '9888'])
+! 
+! 
+  :"""" Test recognition of some character classes
+  :call add(tl, [2, '[0-9]', '8', '8'])
+  :call add(tl, [2, '[^0-9]', '8'])
+--- 250,257 ----
+  :call add(tl, [2, 'abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+  :call add(tl, [2, '\_[0-9]\+', 'asfi9888u', '9888'])
+  :call add(tl, [2, '[0-9\n]\+', 'asfi9888u', '9888'])
+! :"
+! :"
+  :"""" Test recognition of some character classes
+  :call add(tl, [2, '[0-9]', '8', '8'])
+  :call add(tl, [2, '[^0-9]', '8'])
+***************
+*** 262,268 ****
+  :call add(tl, [2, '[a-zA-Z]', 'a', 'a'])
+  :call add(tl, [2, '[A-Z]', 'a'])
+  :call add(tl, [2, '\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
+! 
+  :"""" Tests for \z features
+  :call add(tl, [2, 'xx \ze test', 'xx '])					" must match after \ze
+  :call add(tl, [0, 'abc\zeend', 'oij abcend', 'abc'])
+--- 262,268 ----
+  :call add(tl, [2, '[a-zA-Z]', 'a', 'a'])
+  :call add(tl, [2, '[A-Z]', 'a'])
+  :call add(tl, [2, '\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
+! :"
+  :"""" Tests for \z features
+  :call add(tl, [2, 'xx \ze test', 'xx '])					" must match after \ze
+  :call add(tl, [0, 'abc\zeend', 'oij abcend', 'abc'])
+***************
+*** 271,277 ****
+  :call add(tl, [0, 'abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+  :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+  :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+! 
+  :"""" Tests for \@ features
+  :call add(tl, [0, 'abc\@=', 'abc', 'ab'])
+  :call add(tl, [0, 'abc\@=cd', 'abcd', 'abcd'])
+--- 271,277 ----
+  :call add(tl, [0, 'abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+  :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+  :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+! :"
+  :"""" Tests for \@ features
+  :call add(tl, [0, 'abc\@=', 'abc', 'ab'])
+  :call add(tl, [0, 'abc\@=cd', 'abcd', 'abcd'])
+***************
+*** 284,290 ****
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])	" no match
+  :call add(tl, [0, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [0, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+! 
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+  :call add(tl, [2, '', 'abcd', ''])
+--- 284,290 ----
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])	" no match
+  :call add(tl, [0, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [0, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+! :"
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+  :call add(tl, [2, '', 'abcd', ''])
+***************
+*** 292,313 ****
+  :call add(tl, [2, '\v%(ab(xyz)c)', '   abxyzc ', 'abxyzc', 'xyz'])
+  :call add(tl, [2, '\v(test|)empty', 'tesempty', 'empty', ''])
+  :call add(tl, [2, '\v(a|aa)(a|aa)', 'aaa', 'aa', 'a', 'a'])
+! 
+  :"""" \%u and friends
+  :call add(tl, [2, '\%d32', 'yes no', ' '])
+  :call add(tl, [2, '\%o40', 'yes no', ' '])
+  :call add(tl, [2, '\%x20', 'yes no', ' '])
+  :call add(tl, [2, '\%u0020', 'yes no', ' '])
+  :call add(tl, [2, '\%U00000020', 'yes no', ' '])
+! 
+  :"""" Alternatives, must use first longest match
+  :call add(tl, [2, 'goo\|go', 'google', 'goo'])
+  :call add(tl, [2, '\<goo\|\<go', 'google', 'goo'])
+  :call add(tl, [2, '\<goo\|go', 'google', 'goo'])
+! 
+! 
+  :"""" Run the tests
+! 
+  :"
+  :for t in tl
+  :  let re = t[0]
+--- 292,313 ----
+  :call add(tl, [2, '\v%(ab(xyz)c)', '   abxyzc ', 'abxyzc', 'xyz'])
+  :call add(tl, [2, '\v(test|)empty', 'tesempty', 'empty', ''])
+  :call add(tl, [2, '\v(a|aa)(a|aa)', 'aaa', 'aa', 'a', 'a'])
+! :"
+  :"""" \%u and friends
+  :call add(tl, [2, '\%d32', 'yes no', ' '])
+  :call add(tl, [2, '\%o40', 'yes no', ' '])
+  :call add(tl, [2, '\%x20', 'yes no', ' '])
+  :call add(tl, [2, '\%u0020', 'yes no', ' '])
+  :call add(tl, [2, '\%U00000020', 'yes no', ' '])
+! :"
+  :"""" Alternatives, must use first longest match
+  :call add(tl, [2, 'goo\|go', 'google', 'goo'])
+  :call add(tl, [2, '\<goo\|\<go', 'google', 'goo'])
+  :call add(tl, [2, '\<goo\|go', 'google', 'goo'])
+! :"
+! :"
+  :"""" Run the tests
+! :"
+  :"
+  :for t in tl
+  :  let re = t[0]
+***************
+*** 347,353 ****
+  :  endfor
+  :endfor
+  :unlet t tl e l
+! 
+  :" Check that \_[0-9] matching EOL does not break a following \>
+  :" This only works on a buffer line, not with expression evaluation
+  /^Find this
+--- 347,353 ----
+  :  endfor
+  :endfor
+  :unlet t tl e l
+! :"
+  :" Check that \_[0-9] matching EOL does not break a following \>
+  :" This only works on a buffer line, not with expression evaluation
+  /^Find this
+***************
+*** 359,369 ****
+  /^Find this
+  /\%#=2\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+  y$Gop:"
+! 
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+  Find this:
+  localnet/192.168.0.1
+  
+  Results of test64:
+--- 359,383 ----
+  /^Find this
+  /\%#=2\<\(\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\.\)\{3\}\(25\_[0-5]\|2\_[0-4]\_[0-9]\|\_[01]\?\_[0-9]\_[0-9]\?\)\>
+  y$Gop:"
+! :"
+! :" Check that using a pattern on two lines doesn't get messed up by using
+! :" matchstr() with \ze in between.
+! :set re=0
+! /^Substitute here
+! :.+1,.+2s/""/\='"'.matchstr(getline("."), '\d\+\ze<').'"'
+! /^Substitute here
+! :.+1,.+2yank
+! Gop:"
+! :"
+! :"
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+  Find this:
+  localnet/192.168.0.1
+  
++ Substitute here:
++ <T="">Ta 5</Title>
++ <T="">Ac 7</Title>
++ 
+  Results of test64:
+*** ../vim-7.3.1023/src/testdir/test64.ok	2013-05-25 23:15:21.000000000 +0200
+--- src/testdir/test64.ok	2013-05-26 16:42:18.000000000 +0200
+***************
+*** 693,695 ****
+--- 693,698 ----
+  192.168.0.1
+  192.168.0.1
+  192.168.0.1
++ 
++ <T="5">Ta 5</Title>
++ <T="7">Ac 7</Title>
+*** ../vim-7.3.1023/src/regexp.h	2013-05-25 20:19:45.000000000 +0200
+--- src/regexp.h	2013-05-26 16:30:50.000000000 +0200
+***************
+*** 86,91 ****
+--- 86,92 ----
+  
+      regprog_T		regprog;
+      nfa_state_T		*start;
++     int			has_zend;	/* pattern contains \ze */
+      int			nstate;
+      nfa_state_T		state[0];	/* actually longer.. */
+  } nfa_regprog_T;
+*** ../vim-7.3.1023/src/version.c	2013-05-26 15:14:49.000000000 +0200
+--- src/version.c	2013-05-26 16:55:29.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1024,
+  /**/
+
+-- 
+An alien life briefly visits earth.  Just before departing it leaves a
+message in the dust on the back of a white van.  The world is shocked
+and wants to know what it means.  After months of studies the worlds
+best linguistic scientists are able to decipher the message: "Wash me!".
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,96 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.853
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.853
+Problem:    Using "ra" in multiple lines on multi-byte characters leaves a few
+	    characters not replaced.
+Solution:   Adjust the end column only in the last line. (Yasuhiro Matsumoto)
+Files:      src/testdir/test69.in, src/testdir/test69.ok, src/ops.c
+
+
+*** ../vim-7.3.852/src/testdir/test69.in	2013-01-17 17:01:57.000000000 +0100
+--- src/testdir/test69.in	2013-03-07 18:30:50.000000000 +0100
+***************
+*** 1,5 ****
+--- 1,6 ----
+  Test for multi-byte text formatting.
+  Also test, that 'mps' with multibyte chars works.
++ And test "ra" on multi-byte characters.
+  
+  STARTTEST
+  :so mbyte.vim
+***************
+*** 144,149 ****
+--- 145,159 ----
+  ‘ two three ’ four
+  }
+  STARTTEST
++ /^ra test
++ jVjra
++ ENDTEST
++ 
++ ra test
++ ａbbａ
++ ａａb
++ 
++ STARTTEST
+  :g/^STARTTEST/.,/^ENDTEST/d
+  :1;/^Results/,$wq! test.out
+  ENDTEST
+*** ../vim-7.3.852/src/testdir/test69.ok	2013-01-17 17:01:57.000000000 +0100
+--- src/testdir/test69.ok	2013-03-07 18:31:32.000000000 +0100
+***************
+*** 144,146 ****
+--- 144,151 ----
+  {
+   four
+  }
++ 
++ ra test
++ aaaa
++ aaa
++ 
+*** ../vim-7.3.852/src/ops.c	2013-03-07 18:02:27.000000000 +0100
+--- src/ops.c	2013-03-07 18:35:01.000000000 +0100
+***************
+*** 2194,2200 ****
+  		{
+  		    /* This is slow, but it handles replacing a single-byte
+  		     * with a multi-byte and the other way around. */
+! 		    oap->end.col += (*mb_char2len)(c) - (*mb_char2len)(n);
+  		    n = State;
+  		    State = REPLACE;
+  		    ins_char(c);
+--- 2194,2201 ----
+  		{
+  		    /* This is slow, but it handles replacing a single-byte
+  		     * with a multi-byte and the other way around. */
+! 		    if (curwin->w_cursor.lnum == oap->end.lnum)
+! 			oap->end.col += (*mb_char2len)(c) - (*mb_char2len)(n);
+  		    n = State;
+  		    State = REPLACE;
+  		    ins_char(c);
+*** ../vim-7.3.852/src/version.c	2013-03-07 18:02:27.000000000 +0100
+--- src/version.c	2013-03-07 18:36:46.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     853,
+  /**/
+
+-- 
+What a wonderfully exciting cough!  Do you mind if I join you?
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

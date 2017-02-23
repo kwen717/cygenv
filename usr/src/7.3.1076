@@ -1,0 +1,397 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1076
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1076
+Problem:    New regexp engine: \@= and \& don't work.
+Solution:   Make these items work.  Add column info to logging.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1075/src/regexp_nfa.c	2013-05-30 19:18:27.000000000 +0200
+--- src/regexp_nfa.c	2013-05-30 21:41:51.000000000 +0200
+***************
+*** 1740,1747 ****
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
+  	case NFA_PREV_ATOM_NO_WIDTH_NEG:
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH_NEG"); break;
+! 	case NFA_NOPEN:		    STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
+! 	case NFA_NCLOSE:	    STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
+  	case NFA_START_INVISIBLE:   STRCPY(code, "NFA_START_INVISIBLE"); break;
+  	case NFA_END_INVISIBLE:	    STRCPY(code, "NFA_END_INVISIBLE"); break;
+  
+--- 1740,1747 ----
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
+  	case NFA_PREV_ATOM_NO_WIDTH_NEG:
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH_NEG"); break;
+! 	case NFA_NOPEN:		    STRCPY(code, "NFA_NOPEN"); break;
+! 	case NFA_NCLOSE:	    STRCPY(code, "NFA_NCLOSE"); break;
+  	case NFA_START_INVISIBLE:   STRCPY(code, "NFA_START_INVISIBLE"); break;
+  	case NFA_END_INVISIBLE:	    STRCPY(code, "NFA_END_INVISIBLE"); break;
+  
+***************
+*** 2373,2384 ****
+  	    break;
+  
+  	case NFA_PREV_ATOM_NO_WIDTH:
+! 	    /* The \@= operator: match the preceding atom with 0 width.
+  	     * Surrounds the preceding atom with START_INVISIBLE and
+! 	     * END_INVISIBLE, similarly to MOPEN.
+! 	     */
+! 	    /* TODO: Maybe this drops the speed? */
+! 	    goto theend;
+  
+  	    if (nfa_calc_size == TRUE)
+  	    {
+--- 2373,2381 ----
+  	    break;
+  
+  	case NFA_PREV_ATOM_NO_WIDTH:
+! 	    /* The \@= operator: match the preceding atom with zero width.
+  	     * Surrounds the preceding atom with START_INVISIBLE and
+! 	     * END_INVISIBLE, similarly to MOPEN. */
+  
+  	    if (nfa_calc_size == TRUE)
+  	    {
+***************
+*** 2745,2750 ****
+--- 2742,2750 ----
+      int			save_in_use;
+      char_u		*save_ptr;
+      int			i;
++ #ifdef ENABLE_LOG
++     int			did_print = FALSE;
++ #endif
+  
+      if (l == NULL || state == NULL)
+  	return;
+***************
+*** 2782,2788 ****
+  	    /* These nodes do not need to be added, but we need to bail out
+  	     * when it was tried to be added to this list before. */
+  	    if (state->lastlist == l->id)
+! 		return;
+  	    state->lastlist = l->id;
+  	    break;
+  
+--- 2782,2788 ----
+  	    /* These nodes do not need to be added, but we need to bail out
+  	     * when it was tried to be added to this list before. */
+  	    if (state->lastlist == l->id)
+! 		goto skip_add;
+  	    state->lastlist = l->id;
+  	    break;
+  
+***************
+*** 2792,2798 ****
+--- 2792,2806 ----
+  		/* This state is already in the list, don't add it again,
+  		 * unless it is an MOPEN that is used for a backreference. */
+  		if (!nfa_has_backref)
++ 		{
++ skip_add:
++ #ifdef ENABLE_LOG
++ 		    nfa_set_code(state->c);
++ 		    fprintf(log_fd, "> Not adding state %d to list %d. char %d: %s\n",
++ 			    abs(state->id), l->id, state->c, code);
++ #endif
+  		    return;
++ 		}
+  
+  		/* See if the same state is already in the list with the same
+  		 * positions. */
+***************
+*** 2801,2807 ****
+  		    thread = &l->t[i];
+  		    if (thread->state->id == state->id
+  					  && sub_equal(&thread->sub, sub))
+! 			return;
+  		}
+  	    }
+  
+--- 2809,2815 ----
+  		    thread = &l->t[i];
+  		    if (thread->state->id == state->id
+  					  && sub_equal(&thread->sub, sub))
+! 			goto skip_add;
+  		}
+  	    }
+  
+***************
+*** 2832,2843 ****
+  				&sub->list.line[0],
+  				sizeof(struct linepos) * sub->in_use);
+  	    }
+      }
+  
+  #ifdef ENABLE_LOG
+!     nfa_set_code(state->c);
+!     fprintf(log_fd, "> Adding state %d to list. Character %d: %s\n",
+! 	abs(state->id), state->c, code);
+  #endif
+      switch (state->c)
+      {
+--- 2840,2878 ----
+  				&sub->list.line[0],
+  				sizeof(struct linepos) * sub->in_use);
+  	    }
++ #ifdef ENABLE_LOG
++ 	    {
++ 		int col;
++ 
++ 		if (thread->sub.in_use <= 0)
++ 		    col = -1;
++ 		else if (REG_MULTI)
++ 		    col = thread->sub.list.multi[0].start.col;
++ 		else
++ 		    col = (int)(thread->sub.list.line[0].start - regline);
++ 		nfa_set_code(state->c);
++ 		fprintf(log_fd, "> Adding state %d to list %d. char %d: %s (start col %d)\n",
++ 		        abs(state->id), l->id, state->c, code, col);
++ 		did_print = TRUE;
++ 	    }
++ #endif
+      }
+  
+  #ifdef ENABLE_LOG
+!     if (!did_print)
+!     {
+! 	int col;
+! 
+! 	if (sub->in_use <= 0)
+! 	    col = -1;
+! 	else if (REG_MULTI)
+! 	    col = sub->list.multi[0].start.col;
+! 	else
+! 	    col = (int)(sub->list.line[0].start - regline);
+! 	nfa_set_code(state->c);
+! 	fprintf(log_fd, "> Processing state %d for list %d. char %d: %s (start col %d)\n",
+! 		abs(state->id), l->id, state->c, code, col);
+!     }
+  #endif
+      switch (state->c)
+      {
+***************
+*** 2873,2886 ****
+  	    addstate(l, state->out, sub, off);
+  	    break;
+  
+- 	/* If this state is reached, then a recursive call of nfa_regmatch()
+- 	 * succeeded. the next call saves the found submatches in the
+- 	 * first state after the "invisible" branch. */
+- #if 0
+- 	case NFA_END_INVISIBLE:
+- 	    break;
+- #endif
+- 
+  	case NFA_MOPEN + 0:
+  	case NFA_MOPEN + 1:
+  	case NFA_MOPEN + 2:
+--- 2908,2913 ----
+***************
+*** 3450,3458 ****
+  	    fprintf(debug, "%s, ", code);
+  #endif
+  #ifdef ENABLE_LOG
+! 	    nfa_set_code(t->state->c);
+! 	    fprintf(log_fd, "(%d) %s, code %d ... \n", abs(t->state->id),
+! 						      code, (int)t->state->c);
+  #endif
+  
+  	    /*
+--- 3477,3495 ----
+  	    fprintf(debug, "%s, ", code);
+  #endif
+  #ifdef ENABLE_LOG
+! 	    {
+! 		int col;
+! 
+! 		if (t->sub.in_use <= 0)
+! 		    col = -1;
+! 		else if (REG_MULTI)
+! 		    col = t->sub.list.multi[0].start.col;
+! 		else
+! 		    col = (int)(t->sub.list.line[0].start - regline);
+! 		nfa_set_code(t->state->c);
+! 		fprintf(log_fd, "(%d) char %d %s (start col %d) ... \n",
+! 			abs(t->state->id), (int)t->state->c, code, col);
+! 	    }
+  #endif
+  
+  	    /*
+***************
+*** 3504,3509 ****
+--- 3541,3547 ----
+  		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		else
+  		{
++ 		    /* TODO: only copy positions in use. */
+  		    *m = t->sub;
+  		    nfa_match = TRUE;
+  		}
+***************
+*** 3538,3543 ****
+--- 3576,3582 ----
+  		result = nfa_regmatch(t->state->out, submatch, m);
+  		nfa_set_neg_listids(start);
+  		nfa_restore_listids(start, listids);
++ 		nfa_match = FALSE;
+  
+  #ifdef ENABLE_LOG
+  		log_fd = fopen(NFA_REGEXP_RUN_LOG, "a");
+***************
+*** 3575,3583 ****
+  			    t->sub.list.line[j].start = m->list.line[j].start;
+  			    t->sub.list.line[j].end = m->list.line[j].end;
+  			}
+! 		    t->sub.in_use = m->in_use;
+  
+! 		    /* t->state->out1 is the corresponding END_INVISIBLE node */
+  		    addstate_here(thislist, t->state->out1->out, &t->sub,
+  								    &listidx);
+  		}
+--- 3614,3624 ----
+  			    t->sub.list.line[j].start = m->list.line[j].start;
+  			    t->sub.list.line[j].end = m->list.line[j].end;
+  			}
+! 		    if (m->in_use > t->sub.in_use)
+! 			t->sub.in_use = m->in_use;
+  
+! 		    /* t->state->out1 is the corresponding END_INVISIBLE node;
+! 		     * Add it to the current list (zero-width match). */
+  		    addstate_here(thislist, t->state->out1->out, &t->sub,
+  								    &listidx);
+  		}
+***************
+*** 4146,4152 ****
+  	fprintf(f, "\tRegexp is \"%s\"\n", nfa_regengine.expr);
+  #endif
+  	fprintf(f, "\tInput text is \"%s\" \n", reginput);
+! 	fprintf(f, "		=======================================================\n\n\n\n\n\n\n");
+  	nfa_print_state(f, start);
+  	fprintf(f, "\n\n");
+  	fclose(f);
+--- 4187,4193 ----
+  	fprintf(f, "\tRegexp is \"%s\"\n", nfa_regengine.expr);
+  #endif
+  	fprintf(f, "\tInput text is \"%s\" \n", reginput);
+! 	fprintf(f, "		=======================================================\n\n");
+  	nfa_print_state(f, start);
+  	fprintf(f, "\n\n");
+  	fclose(f);
+*** ../vim-7.3.1075/src/testdir/test64.in	2013-05-30 18:45:20.000000000 +0200
+--- src/testdir/test64.in	2013-05-30 21:28:06.000000000 +0200
+***************
+*** 294,315 ****
+  :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+  :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+  :"
+! :"""" Tests for \@ features
+! :call add(tl, [0, 'abc\@=', 'abc', 'ab'])
+! :call add(tl, [0, 'abc\@=cd', 'abcd', 'abcd'])
+! :call add(tl, [0, 'abc\@=', 'ababc', 'ab'])
+  :" will never match, no matter the input text
+  :call add(tl, [2, 'abcd\@=e', 'abcd'])
+  :" will never match
+  :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])
+! :call add(tl, [0, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+  :" no match
+  :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])
+! :call add(tl, [0, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+  :" no match
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])
+! :call add(tl, [0, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+! :call add(tl, [0, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  :"
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+--- 294,315 ----
+  :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+  :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+  :"
+! :"""" Tests for \@= and \& features
+! :call add(tl, [2, 'abc\@=', 'abc', 'ab'])
+! :call add(tl, [2, 'abc\@=cd', 'abcd', 'abcd'])
+! :call add(tl, [2, 'abc\@=', 'ababc', 'ab'])
+  :" will never match, no matter the input text
+  :call add(tl, [2, 'abcd\@=e', 'abcd'])
+  :" will never match
+  :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])
+! :call add(tl, [2, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+  :" no match
+  :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])
+! :call add(tl, [2, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+  :" no match
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])
+! :call add(tl, [2, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+! :call add(tl, [2, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  :"
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+*** ../vim-7.3.1075/src/testdir/test64.ok	2013-05-30 18:45:20.000000000 +0200
+--- src/testdir/test64.ok	2013-05-30 21:29:06.000000000 +0200
+***************
+*** 647,656 ****
+--- 647,659 ----
+  OK 2 - \>\zs.
+  OK 0 - abc\@=
+  OK 1 - abc\@=
++ OK 2 - abc\@=
+  OK 0 - abc\@=cd
+  OK 1 - abc\@=cd
++ OK 2 - abc\@=cd
+  OK 0 - abc\@=
+  OK 1 - abc\@=
++ OK 2 - abc\@=
+  OK 0 - abcd\@=e
+  OK 1 - abcd\@=e
+  OK 2 - abcd\@=e
+***************
+*** 659,676 ****
+--- 662,683 ----
+  OK 2 - abcd\@=e
+  OK 0 - \v(abc)@=..
+  OK 1 - \v(abc)@=..
++ OK 2 - \v(abc)@=..
+  OK 0 - \(.*John\)\@=.*Bob
+  OK 1 - \(.*John\)\@=.*Bob
+  OK 2 - \(.*John\)\@=.*Bob
+  OK 0 - \(John.*\)\@=.*Bob
+  OK 1 - \(John.*\)\@=.*Bob
++ OK 2 - \(John.*\)\@=.*Bob
+  OK 0 - .*John\&.*Bob
+  OK 1 - .*John\&.*Bob
+  OK 2 - .*John\&.*Bob
+  OK 0 - .*John\&.*Bob
+  OK 1 - .*John\&.*Bob
++ OK 2 - .*John\&.*Bob
+  OK 0 - \v(test1)@=.*yep
+  OK 1 - \v(test1)@=.*yep
++ OK 2 - \v(test1)@=.*yep
+  OK 0 - [[:alpha:]]\{-2,6}
+  OK 1 - [[:alpha:]]\{-2,6}
+  OK 2 - [[:alpha:]]\{-2,6}
+*** ../vim-7.3.1075/src/version.c	2013-05-30 19:18:27.000000000 +0200
+--- src/version.c	2013-05-30 21:34:53.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1076,
+  /**/
+
+-- 
+I'm not familiar with this proof, but I'm aware of a significant
+following of toddlers who believe that peanut butter is the solution
+to all of life's problems... 		-- Tim Hammerquist
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

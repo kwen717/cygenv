@@ -1,0 +1,505 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1099
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1099
+Problem:    Python: Changing directory with os.chdir() causes problems for
+	    Vim's notion of directories.
+Solution:   Add vim.chdir() and vim.fchdir(). (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/ex_docmd.c, src/if_py_both.h,
+	    src/if_python3.c, src/if_python.c, src/proto/ex_docmd.pro,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1098/runtime/doc/if_pyth.txt	2013-06-02 17:46:37.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 180,185 ****
+--- 180,192 ----
+  	Like |strwidth()|: returns number of display cells str occupies, tab 
+  	is counted as one cell.
+  
++ vim.chdir(*args, **kwargs)				*python-chdir*
++ vim.fchdir(*args, **kwargs)				*python-fchdir*
++ 	Run os.chdir or os.fchdir, then all appropriate vim stuff.
++ 	Note: you should not use these functions directly, use os.chdir and 
++ 	      os.fchdir instead. Behavior of vim.fchdir is undefined in case 
++ 	      os.fchdir does not exist.
++ 
+  Error object of the "vim" module
+  
+  vim.error						*python-error*
+*** ../vim-7.3.1098/src/ex_docmd.c	2013-05-17 16:39:59.000000000 +0200
+--- src/ex_docmd.c	2013-06-02 18:20:05.000000000 +0200
+***************
+*** 8182,8187 ****
+--- 8182,8218 ----
+  }
+  #endif
+  
++ /*
++  * Deal with the side effects of changing the current directory.
++  * When "local" is TRUE then this was after an ":lcd" command.
++  */
++     void
++ post_chdir(local)
++     int		local;
++ {
++     vim_free(curwin->w_localdir);
++     if (local)
++     {
++ 	/* If still in global directory, need to remember current
++ 	 * directory as global directory. */
++ 	if (globaldir == NULL && prev_dir != NULL)
++ 	    globaldir = vim_strsave(prev_dir);
++ 	/* Remember this local directory for the window. */
++ 	if (mch_dirname(NameBuff, MAXPATHL) == OK)
++ 	    curwin->w_localdir = vim_strsave(NameBuff);
++     }
++     else
++     {
++ 	/* We are now in the global directory, no need to remember its
++ 	 * name. */
++ 	vim_free(globaldir);
++ 	globaldir = NULL;
++ 	curwin->w_localdir = NULL;
++     }
++ 
++     shorten_fnames(TRUE);
++ }
++ 
+  
+  /*
+   * ":cd", ":lcd", ":chdir" and ":lchdir".
+***************
+*** 8253,8279 ****
+  	    EMSG(_(e_failed));
+  	else
+  	{
+! 	    vim_free(curwin->w_localdir);
+! 	    if (eap->cmdidx == CMD_lcd || eap->cmdidx == CMD_lchdir)
+! 	    {
+! 		/* If still in global directory, need to remember current
+! 		 * directory as global directory. */
+! 		if (globaldir == NULL && prev_dir != NULL)
+! 		    globaldir = vim_strsave(prev_dir);
+! 		/* Remember this local directory for the window. */
+! 		if (mch_dirname(NameBuff, MAXPATHL) == OK)
+! 		    curwin->w_localdir = vim_strsave(NameBuff);
+! 	    }
+! 	    else
+! 	    {
+! 		/* We are now in the global directory, no need to remember its
+! 		 * name. */
+! 		vim_free(globaldir);
+! 		globaldir = NULL;
+! 		curwin->w_localdir = NULL;
+! 	    }
+! 
+! 	    shorten_fnames(TRUE);
+  
+  	    /* Echo the new current directory if the command was typed. */
+  	    if (KeyTyped || p_verbose >= 5)
+--- 8284,8290 ----
+  	    EMSG(_(e_failed));
+  	else
+  	{
+! 	    post_chdir(eap->cmdidx == CMD_lcd || eap->cmdidx == CMD_lchdir);
+  
+  	    /* Echo the new current directory if the command was typed. */
+  	    if (KeyTyped || p_verbose >= 5)
+*** ../vim-7.3.1098/src/if_py_both.h	2013-06-02 18:07:33.000000000 +0200
+--- src/if_py_both.h	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 52,57 ****
+--- 52,61 ----
+  
+  static PyObject *globals;
+  
++ static PyObject *py_chdir;
++ static PyObject *py_fchdir;
++ static PyObject *py_getcwd;
++ 
+  /*
+   * obtain a lock on the Vim data structures
+   */
+***************
+*** 706,722 ****
+  	    );
+  }
+  
+  /*
+   * Vim module - Definitions
+   */
+  
+  static struct PyMethodDef VimMethods[] = {
+!     /* name,	     function,		calling,	documentation */
+!     {"command",	     VimCommand,	METH_VARARGS,	"Execute a Vim ex-mode command" },
+!     {"eval",	     VimEval,		METH_VARARGS,	"Evaluate an expression using Vim evaluator" },
+!     {"bindeval",     VimEvalPy,		METH_VARARGS,	"Like eval(), but returns objects attached to vim ones"},
+!     {"strwidth",     VimStrwidth,	METH_VARARGS,	"Screen string width, counts <Tab> as having width 1"},
+!     { NULL,	     NULL,		0,		NULL }
+  };
+  
+  /*
+--- 710,793 ----
+  	    );
+  }
+  
++     static PyObject *
++ _VimChdir(PyObject *_chdir, PyObject *args, PyObject *kwargs)
++ {
++     PyObject	*r;
++     PyObject	*newwd;
++     PyObject	*todecref;
++     char_u	*new_dir;
++ 
++     if (!(r = PyObject_Call(_chdir, args, kwargs)))
++ 	return NULL;
++ 
++     if (!(newwd = PyObject_CallFunctionObjArgs(py_getcwd, NULL)))
++     {
++ 	Py_DECREF(r);
++ 	return NULL;
++     }
++ 
++     if (!(new_dir = StringToChars(newwd, &todecref)))
++     {
++ 	Py_DECREF(r);
++ 	Py_DECREF(newwd);
++ 	return NULL;
++     }
++ 
++     VimTryStart();
++ 
++     if (vim_chdir(new_dir))
++     {
++ 	Py_DECREF(r);
++ 	Py_DECREF(newwd);
++ 	Py_XDECREF(todecref);
++ 
++ 	if (VimTryEnd())
++ 	    return NULL;
++ 
++ 	PyErr_SetVim(_("failed to change directory"));
++ 	return NULL;
++     }
++ 
++     Py_DECREF(newwd);
++     Py_XDECREF(todecref);
++ 
++     post_chdir(FALSE);
++ 
++     if (VimTryEnd())
++     {
++ 	Py_DECREF(r);
++ 	return NULL;
++     }
++ 
++     return r;
++ }
++ 
++     static PyObject *
++ VimChdir(PyObject *self UNUSED, PyObject *args, PyObject *kwargs)
++ {
++     return _VimChdir(py_chdir, args, kwargs);
++ }
++ 
++     static PyObject *
++ VimFchdir(PyObject *self UNUSED, PyObject *args, PyObject *kwargs)
++ {
++     return _VimChdir(py_fchdir, args, kwargs);
++ }
++ 
+  /*
+   * Vim module - Definitions
+   */
+  
+  static struct PyMethodDef VimMethods[] = {
+!     /* name,	     function,			calling,			documentation */
+!     {"command",	     VimCommand,		METH_VARARGS,			"Execute a Vim ex-mode command" },
+!     {"eval",	     VimEval,			METH_VARARGS,			"Evaluate an expression using Vim evaluator" },
+!     {"bindeval",     VimEvalPy,			METH_VARARGS,			"Like eval(), but returns objects attached to vim ones"},
+!     {"strwidth",     VimStrwidth,		METH_VARARGS,			"Screen string width, counts <Tab> as having width 1"},
+!     {"chdir",	     (PyCFunction)VimChdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     {"fchdir",	     (PyCFunction)VimFchdir,	METH_VARARGS|METH_KEYWORDS,	"Change directory"},
+!     { NULL,	     NULL,			0,				NULL }
+  };
+  
+  /*
+***************
+*** 5274,5279 ****
+--- 5345,5351 ----
+  };
+  
+  typedef int (*object_adder)(PyObject *, const char *, PyObject *);
++ typedef PyObject *(*attr_getter)(PyObject *, const char *);
+  
+  #define ADD_OBJECT(m, name, obj) \
+      if (add_object(m, name, obj)) \
+***************
+*** 5288,5296 ****
+      }
+  
+      static int
+! populate_module(PyObject *m, object_adder add_object)
+  {
+      int i;
+  
+      for (i = 0; i < (int)(sizeof(numeric_constants)
+  					   / sizeof(struct numeric_constant));
+--- 5360,5369 ----
+      }
+  
+      static int
+! populate_module(PyObject *m, object_adder add_object, attr_getter get_attr)
+  {
+      int i;
++     PyObject	*os;
+  
+      for (i = 0; i < (int)(sizeof(numeric_constants)
+  					   / sizeof(struct numeric_constant));
+***************
+*** 5317,5321 ****
+--- 5390,5416 ----
+      ADD_CHECKED_OBJECT(m, "vvars", NEW_DICTIONARY(&vimvardict));
+      ADD_CHECKED_OBJECT(m, "options",
+  	    OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL));
++ 
++     if (!(os = PyImport_ImportModule("os")))
++ 	return -1;
++     ADD_OBJECT(m, "os", os);
++ 
++     if (!(py_getcwd = PyObject_GetAttrString(os, "getcwd")))
++ 	return -1;
++     ADD_OBJECT(m, "_getcwd", py_getcwd)
++ 
++     if (!(py_chdir = PyObject_GetAttrString(os, "chdir")))
++ 	return -1;
++     ADD_OBJECT(m, "_chdir", py_chdir);
++     if (PyObject_SetAttrString(os, "chdir", get_attr(m, "chdir")))
++ 	return -1;
++ 
++     if ((py_fchdir = PyObject_GetAttrString(os, "fchdir")))
++     {
++ 	ADD_OBJECT(m, "_fchdir", py_fchdir);
++ 	if (PyObject_SetAttrString(os, "fchdir", get_attr(m, "fchdir")))
++ 	    return -1;
++     }
++ 
+      return 0;
+  }
+*** ../vim-7.3.1098/src/if_python3.c	2013-05-30 13:22:07.000000000 +0200
+--- src/if_python3.c	2013-06-02 18:14:51.000000000 +0200
+***************
+*** 174,179 ****
+--- 174,180 ----
+  # define PyObject_HasAttrString py3_PyObject_HasAttrString
+  # define PyObject_SetAttrString py3_PyObject_SetAttrString
+  # define PyObject_CallFunctionObjArgs py3_PyObject_CallFunctionObjArgs
++ # define PyObject_Call py3_PyObject_Call
+  # define PyEval_GetLocals py3_PyEval_GetLocals
+  # define PyEval_GetGlobals py3_PyEval_GetGlobals
+  # define PySys_SetObject py3_PySys_SetObject
+***************
+*** 290,295 ****
+--- 291,297 ----
+  static int (*py3_PyObject_HasAttrString)(PyObject *, const char *);
+  static PyObject* (*py3_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
+  static PyObject* (*py3_PyObject_CallFunctionObjArgs)(PyObject *, ...);
++ static PyObject* (*py3_PyObject_Call)(PyObject *, PyObject *, PyObject *);
+  static PyObject* (*py3_PyEval_GetGlobals)();
+  static PyObject* (*py3_PyEval_GetLocals)();
+  static PyObject* (*py3_PyList_GetItem)(PyObject *, Py_ssize_t);
+***************
+*** 446,451 ****
+--- 448,454 ----
+      {"PyObject_HasAttrString", (PYTHON_PROC*)&py3_PyObject_HasAttrString},
+      {"PyObject_SetAttrString", (PYTHON_PROC*)&py3_PyObject_SetAttrString},
+      {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&py3_PyObject_CallFunctionObjArgs},
++     {"PyObject_Call", (PYTHON_PROC*)&py3_PyObject_Call},
+      {"PyEval_GetGlobals", (PYTHON_PROC*)&py3_PyEval_GetGlobals},
+      {"PyEval_GetLocals", (PYTHON_PROC*)&py3_PyEval_GetLocals},
+      {"PyList_GetItem", (PYTHON_PROC*)&py3_PyList_GetItem},
+***************
+*** 1600,1606 ****
+      if (mod == NULL)
+  	return NULL;
+  
+!     if (populate_module(mod, PyModule_AddObject))
+  	return NULL;
+  
+      return mod;
+--- 1603,1609 ----
+      if (mod == NULL)
+  	return NULL;
+  
+!     if (populate_module(mod, PyModule_AddObject, PyObject_GetAttrString))
+  	return NULL;
+  
+      return mod;
+*** ../vim-7.3.1098/src/if_python.c	2013-05-30 15:38:20.000000000 +0200
+--- src/if_python.c	2013-06-02 18:14:46.000000000 +0200
+***************
+*** 213,218 ****
+--- 213,219 ----
+  # define PyObject_HasAttrString dll_PyObject_HasAttrString
+  # define PyObject_SetAttrString dll_PyObject_SetAttrString
+  # define PyObject_CallFunctionObjArgs dll_PyObject_CallFunctionObjArgs
++ # define PyObject_Call dll_PyObject_Call
+  # define PyString_AsString dll_PyString_AsString
+  # define PyString_AsStringAndSize dll_PyString_AsStringAndSize
+  # define PyString_FromString dll_PyString_FromString
+***************
+*** 346,351 ****
+--- 347,353 ----
+  static int (*dll_PyObject_HasAttrString)(PyObject *, const char *);
+  static PyObject* (*dll_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
+  static PyObject* (*dll_PyObject_CallFunctionObjArgs)(PyObject *, ...);
++ static PyObject* (*dll_PyObject_Call)(PyObject *, PyObject *, PyObject *);
+  static char*(*dll_PyString_AsString)(PyObject *);
+  static int(*dll_PyString_AsStringAndSize)(PyObject *, char **, int *);
+  static PyObject*(*dll_PyString_FromString)(const char *);
+***************
+*** 510,515 ****
+--- 512,518 ----
+      {"PyObject_HasAttrString", (PYTHON_PROC*)&dll_PyObject_HasAttrString},
+      {"PyObject_SetAttrString", (PYTHON_PROC*)&dll_PyObject_SetAttrString},
+      {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&dll_PyObject_CallFunctionObjArgs},
++     {"PyObject_Call", (PYTHON_PROC*)&dll_PyObject_Call},
+      {"PyString_AsString", (PYTHON_PROC*)&dll_PyString_AsString},
+      {"PyString_AsStringAndSize", (PYTHON_PROC*)&dll_PyString_AsStringAndSize},
+      {"PyString_FromString", (PYTHON_PROC*)&dll_PyString_FromString},
+***************
+*** 1374,1383 ****
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+  
+!     mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL, PYTHON_API_VERSION);
+      dict = PyModule_GetDict(mod);
+  
+!     return populate_module(dict, add_object);
+  }
+  
+  /*************************************************************************
+--- 1377,1387 ----
+      /* Set sys.argv[] to avoid a crash in warn(). */
+      PySys_SetArgv(1, argv);
+  
+!     mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL,
+! 			    PYTHON_API_VERSION);
+      dict = PyModule_GetDict(mod);
+  
+!     return populate_module(dict, add_object, PyDict_GetItemString);
+  }
+  
+  /*************************************************************************
+*** ../vim-7.3.1098/src/proto/ex_docmd.pro	2012-02-04 21:57:44.000000000 +0100
+--- src/proto/ex_docmd.pro	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 53,56 ****
+--- 53,57 ----
+  int put_line __ARGS((FILE *fd, char *s));
+  void dialog_msg __ARGS((char_u *buff, char *format, char_u *fname));
+  char_u *get_behave_arg __ARGS((expand_T *xp, int idx));
++ void post_chdir __ARGS((int local));
+  /* vim: set ft=c : */
+*** ../vim-7.3.1098/src/testdir/test86.in	2013-06-02 17:41:50.000000000 +0200
+--- src/testdir/test86.in	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 788,793 ****
+--- 788,807 ----
+  :$put =string(pyeval('dl2'))
+  :$put =string(pyeval('df(2)'))
+  :"
++ :" Test chdir
++ py << EOF
++ import os
++ fnamemodify = vim.Function('fnamemodify')
++ cb.append(fnamemodify('.', ':p:h:t'))
++ cb.append(vim.eval('@%'))
++ os.chdir('..')
++ cb.append(fnamemodify('.', ':p:h:t'))
++ cb.append(vim.eval('@%').replace(os.path.sep, '/'))
++ os.chdir('testdir')
++ cb.append(fnamemodify('.', ':p:h:t'))
++ cb.append(vim.eval('@%'))
++ EOF
++ :"
+  :" Test errors
+  :fun F() dict
+  :endfun
+*** ../vim-7.3.1098/src/testdir/test86.ok	2013-06-02 17:41:50.000000000 +0200
+--- src/testdir/test86.ok	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 429,434 ****
+--- 429,440 ----
+  ['a', 'b', 'c']
+  [2, 2]
+  [2, 2]
++ testdir
++ test86.in
++ src
++ testdir/test86.in
++ testdir
++ test86.in
+  > Output
+  >> OutputSetattr
+  del sys.stdout.softspace:(<type 'exceptions.AttributeError'>, AttributeError("can't delete OutputObject attributes",))
+*** ../vim-7.3.1098/src/testdir/test87.in	2013-06-02 17:41:50.000000000 +0200
+--- src/testdir/test87.in	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 748,753 ****
+--- 748,767 ----
+  :$put =string(py3eval('dl2'))
+  :$put =string(py3eval('df(2)'))
+  :"
++ :" Test chdir
++ py3 << EOF
++ import os
++ fnamemodify = vim.Function('fnamemodify')
++ cb.append(str(fnamemodify('.', ':p:h:t')))
++ cb.append(vim.eval('@%'))
++ os.chdir('..')
++ cb.append(str(fnamemodify('.', ':p:h:t')))
++ cb.append(vim.eval('@%').replace(os.path.sep, '/'))
++ os.chdir('testdir')
++ cb.append(str(fnamemodify('.', ':p:h:t')))
++ cb.append(vim.eval('@%'))
++ EOF
++ :"
+  :" Test errors
+  :fun F() dict
+  :endfun
+*** ../vim-7.3.1098/src/testdir/test87.ok	2013-06-02 17:41:50.000000000 +0200
+--- src/testdir/test87.ok	2013-06-02 18:11:13.000000000 +0200
+***************
+*** 418,423 ****
+--- 418,429 ----
+  ['a', 'b', 'c']
+  [2, 2]
+  [2, 2]
++ b'testdir'
++ test87.in
++ b'src'
++ testdir/test87.in
++ b'testdir'
++ test87.in
+  > Output
+  >> OutputSetattr
+  del sys.stdout.softspace:(<class 'AttributeError'>, AttributeError("can't delete OutputObject attributes",))
+*** ../vim-7.3.1098/src/version.c	2013-06-02 18:07:33.000000000 +0200
+--- src/version.c	2013-06-02 18:12:58.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1099,
+  /**/

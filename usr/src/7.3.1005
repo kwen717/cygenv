@@ -1,0 +1,265 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1005
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1005
+Problem:    Get stuck on regexp "\n*" and on "%s/^\n\+/\r".
+Solution:   Fix handling of matching a line break. (idea by Hirohito Higashi)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1004/src/regexp_nfa.c	2013-05-21 22:00:42.000000000 +0200
+--- src/regexp_nfa.c	2013-05-22 22:53:08.000000000 +0200
+***************
+*** 2462,2468 ****
+      List		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+      regsub_T		*m;	/* pointers to subexpressions */
+!     int			off;
+      int			lid;
+      int			*match;	/* found match? */
+  {
+--- 2462,2468 ----
+      List		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+      regsub_T		*m;	/* pointers to subexpressions */
+!     int			off;	/* byte offset, when -1 go to next line */
+      int			lid;
+      int			*match;	/* found match? */
+  {
+***************
+*** 2585,2592 ****
+  	    {
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+! 		m->startpos[subidx].lnum = reglnum;
+! 		m->startpos[subidx].col = (colnr_T)(reginput - regline + off);
+  	    }
+  	    else
+  	    {
+--- 2585,2601 ----
+  	    {
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+! 		if (off == -1)
+! 		{
+! 		    m->startpos[subidx].lnum = reglnum + 1;
+! 		    m->startpos[subidx].col = 0;
+! 		}
+! 		else
+! 		{
+! 		    m->startpos[subidx].lnum = reglnum;
+! 		    m->startpos[subidx].col =
+! 					  (colnr_T)(reginput - regline + off);
+! 		}
+  	    }
+  	    else
+  	    {
+***************
+*** 2633,2640 ****
+  	    {
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+! 		m->endpos[subidx].lnum = reglnum;
+! 		m->endpos[subidx].col = (colnr_T)(reginput - regline + off);
+  	    }
+  	    else
+  	    {
+--- 2642,2657 ----
+  	    {
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+! 		if (off == -1)
+! 		{
+! 		    m->endpos[subidx].lnum = reglnum + 1;
+! 		    m->endpos[subidx].col = 0;
+! 		}
+! 		else
+! 		{
+! 		    m->endpos[subidx].lnum = reglnum;
+! 		    m->endpos[subidx].col = (colnr_T)(reginput - regline + off);
+! 		}
+  	    }
+  	    else
+  	    {
+***************
+*** 2834,2840 ****
+      int		match = FALSE;
+      int		flag = 0;
+      int		old_reglnum = -1;
+!     int		reginput_updated = FALSE;
+      thread_T	*t;
+      char_u	*old_reginput = NULL;
+      char_u	*old_regline = NULL;
+--- 2851,2857 ----
+      int		match = FALSE;
+      int		flag = 0;
+      int		old_reglnum = -1;
+!     int		go_to_nextline;
+      thread_T	*t;
+      char_u	*old_reginput = NULL;
+      char_u	*old_regline = NULL;
+***************
+*** 2917,2924 ****
+      /*
+       * Run for each character.
+       */
+!     do {
+! again:
+  #ifdef FEAT_MBYTE
+  	if (has_mbyte)
+  	{
+--- 2934,2941 ----
+      /*
+       * Run for each character.
+       */
+!     for (;;)
+!     {
+  #ifdef FEAT_MBYTE
+  	if (has_mbyte)
+  	{
+***************
+*** 2932,2938 ****
+--- 2949,2958 ----
+  	    n = 1;
+  	}
+  	if (c == NUL)
++ 	{
+  	    n = 0;
++ 	    go_to_nextline = FALSE;
++ 	}
+  
+  	/* swap lists */
+  	thislist = &list[flag];
+***************
+*** 3007,3013 ****
+  				(char *)t->sub.end[j]);
+  		fprintf(log_fd, "\n");
+  #endif
+! 		goto nextchar;		/* found the left-most longest match */
+  
+  	    case NFA_END_INVISIBLE:
+  		/* This is only encountered after a NFA_START_INVISIBLE node.
+--- 3027,3035 ----
+  				(char *)t->sub.end[j]);
+  		fprintf(log_fd, "\n");
+  #endif
+! 		/* Found the left-most longest match, do not look at any other
+! 		 * states at this position. */
+! 		goto nextchar;
+  
+  	    case NFA_END_INVISIBLE:
+  		/* This is only encountered after a NFA_START_INVISIBLE node.
+***************
+*** 3206,3220 ****
+  
+  	    case NFA_NEWL:
+  		if (!reg_line_lbr && REG_MULTI
+! 				&& c == NUL && reglnum <= reg_maxline)
+  		{
+! 		    if (reginput_updated == FALSE)
+! 		    {
+! 			reg_nextline();
+! 			reginput_updated = TRUE;
+! 		    }
+! 		    addstate(nextlist, t->state->out, &t->sub, n, listid + 1,
+! 								    &match);
+  		}
+  		break;
+  
+--- 3228,3240 ----
+  
+  	    case NFA_NEWL:
+  		if (!reg_line_lbr && REG_MULTI
+! 					&& c == NUL && reglnum <= reg_maxline)
+  		{
+! 		    go_to_nextline = TRUE;
+! 		    /* Pass -1 for the offset, which means taking the position
+! 		     * at the start of the next line. */
+! 		    addstate(nextlist, t->state->out, &t->sub, -1,
+! 							  listid + 1, &match);
+  		}
+  		break;
+  
+***************
+*** 3247,3254 ****
+  		break;
+  
+  	    case NFA_ANY:
+! 		/* Any printable char, not just any char. '\0' (end of input)
+! 		 * must not match */
+  		if (c > 0)
+  		    addstate(nextlist, t->state->out, &t->sub, n, listid + 1,
+  								    &match);
+--- 3267,3273 ----
+  		break;
+  
+  	    case NFA_ANY:
+! 		/* Any char except '\0', (end of input) does not match. */
+  		if (c > 0)
+  		    addstate(nextlist, t->state->out, &t->sub, n, listid + 1,
+  								    &match);
+***************
+*** 3433,3444 ****
+  	    addstate(nextlist, start, m, n, listid + 1, &match);
+  	}
+  
+- 	if (reginput_updated)
+- 	{
+- 	    reginput_updated = FALSE;
+- 	    goto again;
+- 	}
+- 
+  #ifdef ENABLE_LOG
+  	fprintf(log_fd, ">>> Thislist had %d states available: ", thislist->n);
+  	for (i = 0; i< thislist->n; i++)
+--- 3452,3457 ----
+***************
+*** 3447,3454 ****
+  #endif
+  
+  nextchar:
+! 	reginput += n;
+!     } while (c || reginput_updated);
+  
+  #ifdef ENABLE_LOG
+      if (log_fd != stderr)
+--- 3460,3474 ----
+  #endif
+  
+  nextchar:
+! 	/* Advance to the next character, or advance to the next line, or
+! 	 * finish. */
+! 	if (n != 0)
+! 	    reginput += n;
+! 	else if (go_to_nextline)
+! 	    reg_nextline();
+! 	else
+! 	    break;
+!     }
+  
+  #ifdef ENABLE_LOG
+      if (log_fd != stderr)
+*** ../vim-7.3.1004/src/version.c	2013-05-21 22:38:14.000000000 +0200
+--- src/version.c	2013-05-22 22:57:59.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1005,
+  /**/
+
+-- 
+"Lisp has all the visual appeal of oatmeal with nail clippings thrown in."
+                                                         -- Larry Wall
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

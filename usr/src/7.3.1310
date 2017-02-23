@@ -1,0 +1,86 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1310
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1310
+Problem:    Typos in nsis script. Can use better compression.
+Solution:   Fix typos.  Use lzma compression. (Ken Takata)
+Files:	    nsis/gvim.nsi
+
+
+*** ../vim-7.3.1309/nsis/gvim.nsi	2013-07-04 22:34:56.000000000 +0200
+--- nsis/gvim.nsi	2013-07-05 19:56:34.000000000 +0200
+***************
+*** 40,46 ****
+  ComponentText "This will install Vim ${VER_MAJOR}.${VER_MINOR} on your computer."
+  DirText "Choose a directory to install Vim (must end in 'vim')"
+  Icon icons\vim_16c.ico
+! # NSIS2 uses a different strategy with six diferent images in a strip...
+  #EnabledBitmap icons\enabled.bmp
+  #DisabledBitmap icons\disabled.bmp
+  UninstallText "This will uninstall Vim ${VER_MAJOR}.${VER_MINOR} from your system."
+--- 40,46 ----
+  ComponentText "This will install Vim ${VER_MAJOR}.${VER_MINOR} on your computer."
+  DirText "Choose a directory to install Vim (must end in 'vim')"
+  Icon icons\vim_16c.ico
+! # NSIS2 uses a different strategy with six different images in a strip...
+  #EnabledBitmap icons\enabled.bmp
+  #DisabledBitmap icons\disabled.bmp
+  UninstallText "This will uninstall Vim ${VER_MAJOR}.${VER_MINOR} from your system."
+***************
+*** 56,61 ****
+--- 56,64 ----
+    !packhdr temp.dat "upx --best --compress-icons=1 temp.dat"
+  !endif
+  
++ SetCompressor /SOLID lzma
++ XPStyle on
++ 
+  # This adds '\vim' to the user choice automagically.  The actual value is
+  # obtained below with ReadINIStr.
+  InstallDir "$PROGRAMFILES\Vim"
+***************
+*** 250,256 ****
+  	    # Windows 95/98/ME: not supported
+  	    Goto lbl_done
+  	lbl_winnt:
+! 	    # Windows NT/2000/XT and later
+  	    File /oname=vim.exe ${VIMSRC}\vimw32.exe
+  	lbl_done:
+  	StrCpy $2 "$2 vim view vimdiff"
+--- 253,259 ----
+  	    # Windows 95/98/ME: not supported
+  	    Goto lbl_done
+  	lbl_winnt:
+! 	    # Windows NT/2000/XP and later
+  	    File /oname=vim.exe ${VIMSRC}\vimw32.exe
+  	lbl_done:
+  	StrCpy $2 "$2 vim view vimdiff"
+*** ../vim-7.3.1309/src/version.c	2013-07-05 18:29:38.000000000 +0200
+--- src/version.c	2013-07-05 19:50:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1310,
+  /**/
+
+-- 
+ARTHUR:          What does it say?
+BROTHER MAYNARD: It reads ... "Here may be found the last words of Joseph of
+                 Aramathea." "He who is valorous and pure of heart may find
+                 the Holy Grail in the aaaaarrrrrrggghhh..."
+ARTHUR:          What?
+BROTHER MAYNARD: "The Aaaaarrrrrrggghhh..."
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

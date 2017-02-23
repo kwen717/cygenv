@@ -1,0 +1,113 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1158
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1158
+Problem:    Crash when running test 86. (Jun Takimoto)
+Solution:   Define PY_SSIZE_T_CLEAN early. (Elimar Riesebieter)
+Files:	    src/if_python.c, src/if_python3.c
+
+
+*** ../vim-7.3.1157/src/if_python.c	2013-06-02 18:20:12.000000000 +0200
+--- src/if_python.c	2013-06-10 18:19:52.000000000 +0200
+***************
+*** 53,59 ****
+--- 53,66 ----
+  # undef _XOPEN_SOURCE	/* pyconfig.h defines it as well. */
+  #endif
+  
++ #define PY_SSIZE_T_CLEAN
++ 
+  #include <Python.h>
++ 
++ #if !defined(PY_VERSION_HEX) || PY_VERSION_HEX < 0x02050000
++ # undef PY_SSIZE_T_CLEAN
++ #endif
++ 
+  #if defined(MACOS) && !defined(MACOS_X_UNIX)
+  # include "macglue.h"
+  # include <CodeFragments.h>
+***************
+*** 61,70 ****
+  #undef main /* Defined in python.h - aargh */
+  #undef HAVE_FCNTL_H /* Clash with os_win32.h */
+  
+- #if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02050000
+- # define PY_SSIZE_T_CLEAN
+- #endif
+- 
+  #define PyBytes_FromString PyString_FromString
+  #define PyBytes_Check PyString_Check
+  
+--- 68,73 ----
+*** ../vim-7.3.1157/src/if_python3.c	2013-06-02 18:20:12.000000000 +0200
+--- src/if_python3.c	2013-06-10 18:24:36.000000000 +0200
+***************
+*** 24,32 ****
+  
+  /* uncomment this if used with the debug version of python */
+  /* #define Py_DEBUG */
+! /* Note: most of time you can add -DPy_DEBUG to CFLAGS in place of uncommenting 
+   */
+! /* uncomment this if used with the debug version of python, but without its 
+   * allocator */
+  /* #define Py_DEBUG_NO_PYMALLOC */
+  
+--- 24,32 ----
+  
+  /* uncomment this if used with the debug version of python */
+  /* #define Py_DEBUG */
+! /* Note: most of time you can add -DPy_DEBUG to CFLAGS in place of uncommenting
+   */
+! /* uncomment this if used with the debug version of python, but without its
+   * allocator */
+  /* #define Py_DEBUG_NO_PYMALLOC */
+  
+***************
+*** 61,67 ****
+--- 61,70 ----
+  # undef _XOPEN_SOURCE	/* pyconfig.h defines it as well. */
+  #endif
+  
++ #define PY_SSIZE_T_CLEAN
++ 
+  #include <Python.h>
++ 
+  #if defined(MACOS) && !defined(MACOS_X_UNIX)
+  # include "macglue.h"
+  # include <CodeFragments.h>
+***************
+*** 69,78 ****
+  #undef main /* Defined in python.h - aargh */
+  #undef HAVE_FCNTL_H /* Clash with os_win32.h */
+  
+- #if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02050000
+- # define PY_SSIZE_T_CLEAN
+- #endif
+- 
+  /* The "surrogateescape" error handler is new in Python 3.1 */
+  #if PY_VERSION_HEX >= 0x030100f0
+  # define CODEC_ERROR_HANDLER "surrogateescape"
+--- 72,77 ----
+*** ../vim-7.3.1157/src/version.c	2013-06-10 16:35:11.000000000 +0200
+--- src/version.c	2013-06-10 18:25:01.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1158,
+  /**/
+
+-- 
+Never eat yellow snow.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

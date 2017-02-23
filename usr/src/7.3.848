@@ -1,0 +1,153 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.848
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.848
+Problem:    Can't build with Ruby 2.0 when using MinGW x64 or MSVC10.
+Solution:   Fix it. Also detect RUBY_PLATFORM and RUBY_INSTALL_NAME for x64.
+	    (Ken Takata)
+Files:	    src/Make_cyg.mak, src/Make_ming.mak, src/if_ruby.c
+
+
+*** ../vim-7.3.847/src/Make_cyg.mak	2013-02-26 14:56:24.000000000 +0100
+--- src/Make_cyg.mak	2013-03-07 14:56:29.000000000 +0100
+***************
+*** 229,246 ****
+--- 229,254 ----
+  ifneq ($(wildcard $(RUBY)/lib/ruby/$(RUBY_VER_LONG)/i386-mingw32),)
+  RUBY_PLATFORM = i386-mingw32
+  else
++ ifneq ($(wildcard $(RUBY)/lib/ruby/$(RUBY_VER_LONG)/x64-mingw32),)
++ RUBY_PLATFORM = x64-mingw32
++ else
+  RUBY_PLATFORM = i386-mswin32
+  endif
+  endif
+  endif
++ endif
+  
+  ifndef RUBY_INSTALL_NAME
+  ifeq ($(RUBY_VER), 16)
+  RUBY_INSTALL_NAME = mswin32-ruby$(RUBY_API_VER)
+  else
++ ifeq ($(ARCH),x86-64)
++ RUBY_INSTALL_NAME = x64-msvcrt-ruby$(RUBY_API_VER)
++ else
+  RUBY_INSTALL_NAME = msvcrt-ruby$(RUBY_API_VER)
+  endif
+  endif
++ endif
+  
+  ifeq (19, $(word 1,$(sort 19 $(RUBY_VER))))
+  RUBY_19_OR_LATER = 1
+*** ../vim-7.3.847/src/Make_ming.mak	2013-02-26 14:56:24.000000000 +0100
+--- src/Make_ming.mak	2013-03-07 14:56:29.000000000 +0100
+***************
+*** 288,305 ****
+--- 288,313 ----
+  ifneq ($(wildcard $(RUBY)/lib/ruby/$(RUBY_VER_LONG)/i386-mingw32),)
+  RUBY_PLATFORM = i386-mingw32
+  else
++ ifneq ($(wildcard $(RUBY)/lib/ruby/$(RUBY_VER_LONG)/x64-mingw32),)
++ RUBY_PLATFORM = x64-mingw32
++ else
+  RUBY_PLATFORM = i386-mswin32
+  endif
+  endif
+  endif
++ endif
+  
+  ifndef RUBY_INSTALL_NAME
+  ifeq ($(RUBY_VER), 16)
+  RUBY_INSTALL_NAME = mswin32-ruby$(RUBY_API_VER)
+  else
++ ifeq ($(ARCH),x86-64)
++ RUBY_INSTALL_NAME = x64-msvcrt-ruby$(RUBY_API_VER)
++ else
+  RUBY_INSTALL_NAME = msvcrt-ruby$(RUBY_API_VER)
+  endif
+  endif
++ endif
+  
+  ifeq (19, $(word 1,$(sort 19 $(RUBY_VER))))
+  RUBY_19_OR_LATER = 1
+*** ../vim-7.3.847/src/if_ruby.c	2013-02-26 13:41:31.000000000 +0100
+--- src/if_ruby.c	2013-03-07 14:56:29.000000000 +0100
+***************
+*** 39,44 ****
+--- 39,47 ----
+   */
+  # define rb_cFalseClass		(*dll_rb_cFalseClass)
+  # define rb_cFixnum		(*dll_rb_cFixnum)
++ # if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20
++ #  define rb_cFloat		(*dll_rb_cFloat)
++ # endif
+  # define rb_cNilClass		(*dll_rb_cNilClass)
+  # define rb_cSymbol		(*dll_rb_cSymbol)
+  # define rb_cTrueClass		(*dll_rb_cTrueClass)
+***************
+*** 249,254 ****
+--- 252,260 ----
+  static VALUE (*dll_rb_assoc_new) (VALUE, VALUE);
+  VALUE *dll_rb_cFalseClass;
+  VALUE *dll_rb_cFixnum;
++ #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20
++ VALUE *dll_rb_cFloat;
++ #endif
+  VALUE *dll_rb_cNilClass;
+  static VALUE *dll_rb_cObject;
+  VALUE *dll_rb_cSymbol;
+***************
+*** 352,358 ****
+  {
+      return dll_rb_float_new(d);
+  }
+! unsigned long rb_num2ulong(VALUE x)
+  {
+      return (long)RSHIFT((SIGNED_VALUE)(x),1);
+  }
+--- 358,364 ----
+  {
+      return dll_rb_float_new(d);
+  }
+! VALUE rb_num2ulong(VALUE x)
+  {
+      return (long)RSHIFT((SIGNED_VALUE)(x),1);
+  }
+***************
+*** 373,378 ****
+--- 379,387 ----
+      {"rb_assoc_new", (RUBY_PROC*)&dll_rb_assoc_new},
+      {"rb_cFalseClass", (RUBY_PROC*)&dll_rb_cFalseClass},
+      {"rb_cFixnum", (RUBY_PROC*)&dll_rb_cFixnum},
++ #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20
++     {"rb_cFloat", (RUBY_PROC*)&dll_rb_cFloat},
++ #endif
+      {"rb_cNilClass", (RUBY_PROC*)&dll_rb_cNilClass},
+      {"rb_cObject", (RUBY_PROC*)&dll_rb_cObject},
+      {"rb_cSymbol", (RUBY_PROC*)&dll_rb_cSymbol},
+*** ../vim-7.3.847/src/version.c	2013-03-07 14:50:30.000000000 +0100
+--- src/version.c	2013-03-07 14:57:03.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     848,
+  /**/
+
+-- 
+`The Guide says there is an art to flying,' said Ford, `or at least a
+knack. The knack lies in learning how to throw yourself at the ground
+and miss.' He smiled weakly.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

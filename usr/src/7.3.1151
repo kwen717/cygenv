@@ -1,0 +1,187 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1151
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1151
+Problem:    New regexp engine: Slow when a look-behind match is followed by a
+	    zero-width match.
+Solution:   Postpone the look-behind match more often.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1150/src/regexp_nfa.c	2013-06-08 22:29:59.000000000 +0200
+--- src/regexp_nfa.c	2013-06-08 23:11:19.000000000 +0200
+***************
+*** 2794,2799 ****
+--- 2794,2800 ----
+      /* unrecognized */
+      return -1;
+  }
++ 
+  /*
+   * Convert a postfix form into its equivalent NFA.
+   * Return the NFA start state on success, NULL otherwise.
+***************
+*** 3433,3438 ****
+--- 3434,3440 ----
+  static void copy_sub_off __ARGS((regsub_T *to, regsub_T *from));
+  static int sub_equal __ARGS((regsub_T *sub1, regsub_T *sub2));
+  static int has_state_with_pos __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
++ static int match_follows __ARGS((nfa_state_T *startstate, int depth));
+  static int state_in_list __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+  static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, int off));
+  static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, nfa_pim_T *pim, int *ip));
+***************
+*** 3626,3631 ****
+--- 3628,3715 ----
+  }
+  
+  /*
++  * Return TRUE if "state" leads to a NFA_MATCH without advancing the input.
++  */
++     static int
++ match_follows(startstate, depth)
++     nfa_state_T *startstate;
++     int		depth;
++ {
++     nfa_state_T	    *state = startstate;
++ 
++     /* avoid too much recursion */
++     if (depth > 10)
++ 	return FALSE;
++ 
++     for (;;)
++     {
++ 	switch (state->c)
++ 	{
++ 	    case NFA_MATCH:
++ 		return TRUE;
++ 
++ 	    case NFA_SPLIT:
++ 		return match_follows(state->out, depth + 1)
++ 				     || match_follows(state->out1, depth + 1);
++ 
++ 	    case NFA_START_INVISIBLE:
++ 	    case NFA_START_INVISIBLE_BEFORE:
++ 	    case NFA_START_INVISIBLE_NEG:
++ 	    case NFA_START_INVISIBLE_BEFORE_NEG:
++ 	    case NFA_COMPOSING:
++ 		/* skip ahead to next state */
++ 		state = state->out1->out;
++ 		break;
++ 
++ 	    case NFA_ANY:
++ 	    case NFA_IDENT:
++ 	    case NFA_SIDENT:
++ 	    case NFA_KWORD:
++ 	    case NFA_SKWORD:
++ 	    case NFA_FNAME:
++ 	    case NFA_SFNAME:
++ 	    case NFA_PRINT:
++ 	    case NFA_SPRINT:
++ 	    case NFA_WHITE:
++ 	    case NFA_NWHITE:
++ 	    case NFA_DIGIT:
++ 	    case NFA_NDIGIT:
++ 	    case NFA_HEX:
++ 	    case NFA_NHEX:
++ 	    case NFA_OCTAL:
++ 	    case NFA_NOCTAL:
++ 	    case NFA_WORD:
++ 	    case NFA_NWORD:
++ 	    case NFA_HEAD:
++ 	    case NFA_NHEAD:
++ 	    case NFA_ALPHA:
++ 	    case NFA_NALPHA:
++ 	    case NFA_LOWER:
++ 	    case NFA_NLOWER:
++ 	    case NFA_UPPER:
++ 	    case NFA_NUPPER:
++ 	    case NFA_START_COLL:
++ 	    case NFA_START_NEG_COLL:
++ 	    case NFA_NEWL:
++ 		/* state will advance input */
++ 		return FALSE;
++ 
++ 	    default:
++ 		if (state->c > 0)
++ 		    /* state will advance input */
++ 		    return FALSE;
++ 
++ 		/* Others: zero-width or possibly zero-width, might still find
++ 		 * a match at the same position, keep looking. */
++ 		break;
++ 	}
++ 	state = state->out;
++     }
++     return FALSE;
++ }
++ 
++ 
++ /*
+   * Return TRUE if "state" is already in list "l".
+   */
+      static int
+***************
+*** 5714,5722 ****
+  
+  	    if (add_state != NULL)
+  	    {
+! 		if (t->pim != NULL)
+  		{
+- 		    /* postponed invisible match */
+  		    if (t->pim->result == NFA_PIM_TODO)
+  		    {
+  #ifdef ENABLE_LOG
+--- 5798,5808 ----
+  
+  	    if (add_state != NULL)
+  	    {
+! 		/* Handle the postponed invisible match before advancing to
+! 		 * the next character and for a zero-width match if the match
+! 		 * might end without advancing. */
+! 		if (t->pim != NULL && (!add_here || match_follows(add_state, 0)))
+  		{
+  		    if (t->pim->result == NFA_PIM_TODO)
+  		    {
+  #ifdef ENABLE_LOG
+***************
+*** 5773,5779 ****
+  		}
+  
+  		if (add_here)
+! 		    addstate_here(thislist, add_state, &t->subs, NULL, &listidx);
+  		else
+  		{
+  		    addstate(nextlist, add_state, &t->subs, add_off);
+--- 5859,5865 ----
+  		}
+  
+  		if (add_here)
+! 		    addstate_here(thislist, add_state, &t->subs, t->pim, &listidx);
+  		else
+  		{
+  		    addstate(nextlist, add_state, &t->subs, add_off);
+*** ../vim-7.3.1150/src/version.c	2013-06-08 22:29:59.000000000 +0200
+--- src/version.c	2013-06-08 23:23:53.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1151,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+117. You are more comfortable typing in html.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

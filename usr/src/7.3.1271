@@ -1,0 +1,63 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1271
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1271 (after 7.3.1260)
+Problem:    Command line completion does not work.
+Solution:   Move setting xp_line down. (Daniel Thau)
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.1270/src/ex_getln.c	2013-06-29 12:58:27.000000000 +0200
+--- src/ex_getln.c	2013-06-30 12:15:19.000000000 +0200
+***************
+*** 4379,4389 ****
+      int		old_char = NUL;
+      char_u	*nextcomm;
+  
+-     /* Store the string here so that call_user_expand_func() can get to them
+-      * easily. */
+-     xp->xp_line = str;
+-     xp->xp_col = col;
+- 
+      /*
+       * Avoid a UMR warning from Purify, only save the character if it has been
+       * written before.
+--- 4379,4384 ----
+***************
+*** 4414,4419 ****
+--- 4409,4419 ----
+  	while (nextcomm != NULL)
+  	    nextcomm = set_one_cmd_context(xp, nextcomm);
+  
++     /* Store the string here so that call_user_expand_func() can get to them
++      * easily. */
++     xp->xp_line = str;
++     xp->xp_col = col;
++ 
+      str[col] = old_char;
+  }
+  
+*** ../vim-7.3.1270/src/version.c	2013-06-29 17:19:20.000000000 +0200
+--- src/version.c	2013-06-30 12:21:13.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1271,
+  /**/
+
+-- 
+Q: Is selling software the same as selling hardware?
+A: No, good hardware is sold new, good software has already been used by many.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

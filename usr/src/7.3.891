@@ -1,0 +1,142 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.891
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.891
+Problem:    Merging viminfo history doesn't work well.
+Solution:   Don't stop when one type of history is empty. Don't merge history
+	    when writing viminfo.
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.890/src/ex_getln.c	2013-04-06 14:28:56.000000000 +0200
+--- src/ex_getln.c	2013-04-14 16:25:28.000000000 +0200
+***************
+*** 6130,6136 ****
+      for (type = 0; type < HIST_COUNT; ++type)
+      {
+  	if (history[type] == NULL)
+! 	    return;
+  	idx = hisidx[type] + viminfo_hisidx[type];
+  	if (idx >= hislen)
+  	    idx -= hislen;
+--- 6130,6136 ----
+      for (type = 0; type < HIST_COUNT; ++type)
+      {
+  	if (history[type] == NULL)
+! 	    continue;
+  	idx = hisidx[type] + viminfo_hisidx[type];
+  	if (idx >= hislen)
+  	    idx -= hislen;
+***************
+*** 6182,6187 ****
+--- 6182,6188 ----
+      int	    num_saved;
+      char_u  *p;
+      int	    c;
++     int     round;
+  
+      init_history();
+      if (hislen == 0)
+***************
+*** 6200,6225 ****
+  					_("Input Line"));
+  	if (num_saved > hislen)
+  	    num_saved = hislen;
+! 	i = hisidx[type];
+! 	if (i >= 0)
+! 	    while (num_saved--)
+! 	    {
+! 		p = history[type][i].hisstr;
+! 		if (p != NULL)
+  		{
+! 		    fputc(hist_type2char(type, TRUE), fp);
+! 		    /* For the search history: put the separator in the second
+! 		     * column; use a space if there isn't one. */
+! 		    if (type == HIST_SEARCH)
+  		    {
+! 			c = p[STRLEN(p) + 1];
+! 			putc(c == NUL ? ' ' : c, fp);
+  		    }
+- 		    viminfo_writestring(fp, p);
+  		}
+! 		if (--i < 0)
+! 		    i = hislen - 1;
+! 	    }
+      }
+  }
+  #endif /* FEAT_VIMINFO */
+--- 6201,6250 ----
+  					_("Input Line"));
+  	if (num_saved > hislen)
+  	    num_saved = hislen;
+! 
+! 	/*
+! 	 * Merge typed and viminfo history:
+! 	 * round 1: history of typed commands.
+! 	 * round 2: history from recently read viminfo.
+! 	 */
+! 	for (round = 1; round <= 2; ++round)
+! 	{
+! 	    i = round == 1 ? hisidx[type] : 0;
+! 	    if (i >= 0)
+! 		while (num_saved > 0
+! 			&& !(round == 2 && i >= viminfo_hisidx[type]))
+  		{
+! 		    p = round == 1 ? history[type][i].hisstr
+! 						   : viminfo_history[type][i];
+! 		    if (p != NULL)
+  		    {
+! 			--num_saved;
+! 			fputc(hist_type2char(type, TRUE), fp);
+! 			/* For the search history: put the separator in the
+! 			 * second column; use a space if there isn't one. */
+! 			if (type == HIST_SEARCH)
+! 			{
+! 			    c = p[STRLEN(p) + 1];
+! 			    putc(c == NUL ? ' ' : c, fp);
+! 			}
+! 			viminfo_writestring(fp, p);
+! 		    }
+! 		    if (round == 1)
+! 		    {
+! 			/* Decrement index, loop around and stop when back at
+! 			 * the start. */
+! 			if (--i < 0)
+! 			    i = hislen - 1;
+! 			if (i == hisidx[type])
+! 			    break;
+! 		    }
+! 		    else
+! 		    {
+! 			/* Increment index. Stop at the end in the while. */
+! 			++i;
+  		    }
+  		}
+! 	}
+      }
+  }
+  #endif /* FEAT_VIMINFO */
+*** ../vim-7.3.890/src/version.c	2013-04-14 16:21:30.000000000 +0200
+--- src/version.c	2013-04-14 16:23:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     891,
+  /**/
+
+-- 
+"The question of whether computers can think is just like the question
+of whether submarines can swim."      -- Edsger W. Dijkstra
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

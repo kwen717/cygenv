@@ -1,0 +1,408 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1037
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1037
+Problem:    Look-behind matching is very slow on long lines.
+Solution:   Add a byte limit to how far back an attempt is made.
+Files:	    src/regexp.c, src/regexp_nfa.c, src/testdir/test64.in,
+	    src/testdir/test64.ok
+
+
+*** ../vim-7.3.1036/src/regexp.c	2013-05-21 21:37:01.000000000 +0200
+--- src/regexp.c	2013-05-29 14:34:51.000000000 +0200
+***************
+*** 701,706 ****
+--- 701,707 ----
+  # define CASEMBC(x)
+  #endif
+  static void	reginsert __ARGS((int, char_u *));
++ static void	reginsert_nr __ARGS((int op, long val, char_u *opnd));
+  static void	reginsert_limits __ARGS((int, long, long, char_u *));
+  static char_u	*re_put_long __ARGS((char_u *pr, long_u val));
+  static int	read_limits __ARGS((long *, long *));
+***************
+*** 1781,1787 ****
+--- 1782,1790 ----
+  	case Magic('@'):
+  	    {
+  		int	lop = END;
++ 		int	nr;
+  
++ 		nr = getdecchrs();
+  		switch (no_Magic(getchr()))
+  		{
+  		    case '=': lop = MATCH; break;		  /* \@= */
+***************
+*** 1803,1809 ****
+  		    *flagp |= HASLOOKBH;
+  		}
+  		regtail(ret, regnode(END)); /* operand ends */
+! 		reginsert(lop, ret);
+  		break;
+  	    }
+  
+--- 1806,1819 ----
+  		    *flagp |= HASLOOKBH;
+  		}
+  		regtail(ret, regnode(END)); /* operand ends */
+! 		if (lop == BEHIND || lop == NOBEHIND)
+! 		{
+! 		    if (nr < 0)
+! 			nr = 0; /* no limit is same as zero limit */
+! 		    reginsert_nr(lop, nr, ret);
+! 		}
+! 		else
+! 		    reginsert(lop, ret);
+  		break;
+  	    }
+  
+***************
+*** 2780,2785 ****
+--- 2790,2827 ----
+  
+  /*
+   * Insert an operator in front of already-emitted operand.
++  * Add a number to the operator.
++  */
++     static void
++ reginsert_nr(op, val, opnd)
++     int		op;
++     long	val;
++     char_u	*opnd;
++ {
++     char_u	*src;
++     char_u	*dst;
++     char_u	*place;
++ 
++     if (regcode == JUST_CALC_SIZE)
++     {
++ 	regsize += 7;
++ 	return;
++     }
++     src = regcode;
++     regcode += 7;
++     dst = regcode;
++     while (src > opnd)
++ 	*--dst = *--src;
++ 
++     place = opnd;		/* Op node, where operand used to be. */
++     *place++ = op;
++     *place++ = NUL;
++     *place++ = NUL;
++     place = re_put_long(place, (long_u)val);
++ }
++ 
++ /*
++  * Insert an operator in front of already-emitted operand.
+   * The operator has the given limit values as operands.  Also set next pointer.
+   *
+   * Means relocating the operand.
+***************
+*** 3182,3188 ****
+  }
+  
+  /*
+!  * get and return the value of the decimal string immediately after the
+   * current position. Return -1 for invalid.  Consumes all digits.
+   */
+      static int
+--- 3224,3230 ----
+  }
+  
+  /*
+!  * Get and return the value of the decimal string immediately after the
+   * current position. Return -1 for invalid.  Consumes all digits.
+   */
+      static int
+***************
+*** 3200,3205 ****
+--- 3242,3248 ----
+  	nr *= 10;
+  	nr += c - '0';
+  	++regparse;
++ 	curchr = -1; /* no longer valid */
+      }
+  
+      if (i == 0)
+***************
+*** 5432,5438 ****
+  		/* save the position after the found match for next */
+  		reg_save(&(((regbehind_T *)rp) - 1)->save_after, &backpos);
+  
+! 		/* start looking for a match with operand at the current
+  		 * position.  Go back one character until we find the
+  		 * result, hitting the start of the line or the previous
+  		 * line (for multi-line matching).
+--- 5475,5481 ----
+  		/* save the position after the found match for next */
+  		reg_save(&(((regbehind_T *)rp) - 1)->save_after, &backpos);
+  
+! 		/* Start looking for a match with operand at the current
+  		 * position.  Go back one character until we find the
+  		 * result, hitting the start of the line or the previous
+  		 * line (for multi-line matching).
+***************
+*** 5444,5450 ****
+  		rp->rs_state = RS_BEHIND2;
+  
+  		reg_restore(&rp->rs_un.regsave, &backpos);
+! 		scan = OPERAND(rp->rs_scan);
+  	    }
+  	    break;
+  
+--- 5487,5493 ----
+  		rp->rs_state = RS_BEHIND2;
+  
+  		reg_restore(&rp->rs_un.regsave, &backpos);
+! 		scan = OPERAND(rp->rs_scan) + 4;
+  	    }
+  	    break;
+  
+***************
+*** 5472,5480 ****
+--- 5515,5526 ----
+  	    }
+  	    else
+  	    {
++ 		long limit;
++ 
+  		/* No match or a match that doesn't end where we want it: Go
+  		 * back one character.  May go to previous line once. */
+  		no = OK;
++ 		limit = OPERAND_MIN(rp->rs_scan);
+  		if (REG_MULTI)
+  		{
+  		    if (rp->rs_un.regsave.rs_u.pos.col == 0)
+***************
+*** 5493,5519 ****
+  			}
+  		    }
+  		    else
+  #ifdef FEAT_MBYTE
+! 		    if (has_mbyte)
+! 			rp->rs_un.regsave.rs_u.pos.col -=
+! 			    (*mb_head_off)(regline, regline
+  				    + rp->rs_un.regsave.rs_u.pos.col - 1) + 1;
+! 		    else
+  #endif
+! 			--rp->rs_un.regsave.rs_u.pos.col;
+  		}
+  		else
+  		{
+  		    if (rp->rs_un.regsave.rs_u.ptr == regline)
+  			no = FAIL;
+  		    else
+! 			--rp->rs_un.regsave.rs_u.ptr;
+  		}
+  		if (no == OK)
+  		{
+  		    /* Advanced, prepare for finding match again. */
+  		    reg_restore(&rp->rs_un.regsave, &backpos);
+! 		    scan = OPERAND(rp->rs_scan);
+  		    if (status == RA_MATCH)
+  		    {
+  			/* We did match, so subexpr may have been changed,
+--- 5539,5579 ----
+  			}
+  		    }
+  		    else
++ 		    {
+  #ifdef FEAT_MBYTE
+! 			if (has_mbyte)
+! 			    rp->rs_un.regsave.rs_u.pos.col -=
+! 				(*mb_head_off)(regline, regline
+  				    + rp->rs_un.regsave.rs_u.pos.col - 1) + 1;
+! 			else
+  #endif
+! 			    --rp->rs_un.regsave.rs_u.pos.col;
+! 			if (limit > 0
+! 				&& ((rp->rs_un.regsave.rs_u.pos.lnum
+! 						    < behind_pos.rs_u.pos.lnum
+! 					? (colnr_T)STRLEN(regline)
+! 					: behind_pos.rs_u.pos.col)
+! 				    - rp->rs_un.regsave.rs_u.pos.col > limit))
+! 			    no = FAIL;
+! 		    }
+  		}
+  		else
+  		{
+  		    if (rp->rs_un.regsave.rs_u.ptr == regline)
+  			no = FAIL;
+  		    else
+! 		    {
+! 			mb_ptr_back(regline, rp->rs_un.regsave.rs_u.ptr);
+! 			if (limit > 0 && (long)(behind_pos.rs_u.ptr
+! 				     - rp->rs_un.regsave.rs_u.ptr) > limit)
+! 			    no = FAIL;
+! 		    }
+  		}
+  		if (no == OK)
+  		{
+  		    /* Advanced, prepare for finding match again. */
+  		    reg_restore(&rp->rs_un.regsave, &backpos);
+! 		    scan = OPERAND(rp->rs_scan) + 4;
+  		    if (status == RA_MATCH)
+  		    {
+  			/* We did match, so subexpr may have been changed,
+***************
+*** 7773,7779 ****
+  #ifdef DEBUG
+  static char_u regname[][30] = {
+  		    "AUTOMATIC Regexp Engine",
+! 		    "BACKTACKING Regexp Engine",
+  		    "NFA Regexp Engine"
+  			    };
+  #endif
+--- 7833,7839 ----
+  #ifdef DEBUG
+  static char_u regname[][30] = {
+  		    "AUTOMATIC Regexp Engine",
+! 		    "BACKTRACKING Regexp Engine",
+  		    "NFA Regexp Engine"
+  			    };
+  #endif
+*** ../vim-7.3.1036/src/regexp_nfa.c	2013-05-28 22:52:11.000000000 +0200
+--- src/regexp_nfa.c	2013-05-29 16:31:13.000000000 +0200
+***************
+*** 1331,1336 ****
+--- 1331,1346 ----
+  		case '=':
+  		    EMIT(NFA_PREV_ATOM_NO_WIDTH);
+  		    break;
++ 		case '0':
++ 		case '1':
++ 		case '2':
++ 		case '3':
++ 		case '4':
++ 		case '5':
++ 		case '6':
++ 		case '7':
++ 		case '8':
++ 		case '9':
+  		case '!':
+  		case '<':
+  		case '>':
+***************
+*** 3817,3823 ****
+  	 * because recursive calls should only start in the first position.
+  	 * Also don't start a match past the first line. */
+  	if (nfa_match == FALSE && start->c == NFA_MOPEN + 0
+! 						 && reglnum == 0 && clen != 0)
+  	{
+  #ifdef ENABLE_LOG
+  	    fprintf(log_fd, "(---) STARTSTATE\n");
+--- 3827,3835 ----
+  	 * because recursive calls should only start in the first position.
+  	 * Also don't start a match past the first line. */
+  	if (nfa_match == FALSE && start->c == NFA_MOPEN + 0
+! 		&& reglnum == 0 && clen != 0
+! 		&& (ireg_maxcol == 0
+! 			      || (colnr_T)(reginput - regline) < ireg_maxcol))
+  	{
+  #ifdef ENABLE_LOG
+  	    fprintf(log_fd, "(---) STARTSTATE\n");
+*** ../vim-7.3.1036/src/testdir/test64.in	2013-05-28 22:03:13.000000000 +0200
+--- src/testdir/test64.in	2013-05-29 14:56:44.000000000 +0200
+***************
+*** 336,341 ****
+--- 336,349 ----
+  :"call add(tl, [2, '\(\i\+\) \1', 'xgoo goox', 'goo goo', 'goo'])
+  :call add(tl, [2, '\(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9', 'xabcddefghiabcddefghix', 'abcddefghiabcddefghi', 'a', 'b', 'c', 'dd', 'e', 'f', 'g', 'h', 'i'])
+  :"
++ :"""" Look-behind with limit
++ :call add(tl, [0, '<\@<=span.', 'xxspanxx<spanyyy', 'spany'])
++ :call add(tl, [0, '<\@1<=span.', 'xxspanxx<spanyyy', 'spany'])
++ :call add(tl, [0, '<\@2<=span.', 'xxspanxx<spanyyy', 'spany'])
++ :call add(tl, [0, '\(<<\)\@<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
++ :call add(tl, [0, '\(<<\)\@1<=span.', 'xxspanxxxx<spanxx<<spanyyy'])
++ :call add(tl, [0, '\(<<\)\@2<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
++ :"
+  :"""" Run the tests
+  :"
+  :"
+***************
+*** 406,411 ****
+--- 414,425 ----
+  y$Gop:"
+  :"
+  :"
++ :" Check a pattern with a look beind crossing a line boundary
++ /^Behind:
++ /\(<\_[xy]\+\)\@3<=start
++ :.yank
++ Gop:"
++ :"
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+***************
+*** 423,426 ****
+--- 437,448 ----
+  xjk
+  lmn
+  
++ Behind:
++ asdfasd<yyy
++ xxstart1
++ asdfasd<yy
++ xxxxstart2
++ asdfasd<yy
++ xxxstart3
++ 
+  Results of test64:
+*** ../vim-7.3.1036/src/testdir/test64.ok	2013-05-28 22:03:13.000000000 +0200
+--- src/testdir/test64.ok	2013-05-29 14:59:37.000000000 +0200
+***************
+*** 719,724 ****
+--- 719,736 ----
+  OK 0 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
+  OK 1 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
+  OK 2 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
++ OK 0 - <\@<=span.
++ OK 1 - <\@<=span.
++ OK 0 - <\@1<=span.
++ OK 1 - <\@1<=span.
++ OK 0 - <\@2<=span.
++ OK 1 - <\@2<=span.
++ OK 0 - \(<<\)\@<=span.
++ OK 1 - \(<<\)\@<=span.
++ OK 0 - \(<<\)\@1<=span.
++ OK 1 - \(<<\)\@1<=span.
++ OK 0 - \(<<\)\@2<=span.
++ OK 1 - \(<<\)\@2<=span.
+  192.168.0.1
+  192.168.0.1
+  192.168.0.1
+***************
+*** 726,728 ****
+--- 738,742 ----
+  <T="5">Ta 5</Title>
+  <T="7">Ac 7</Title>
+  ghi
++ 
++ xxxstart3
+*** ../vim-7.3.1036/src/version.c	2013-05-28 22:52:11.000000000 +0200
+--- src/version.c	2013-05-29 13:20:48.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1037,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+11. You find yourself typing "com" after every period when using a word
+    processor.com
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

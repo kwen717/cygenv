@@ -1,0 +1,89 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1176
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1176
+Problem:    Compiler warnings on 64 bit system.
+Solution:   Add type casts. (Mike Williams)
+Files:	    src/eval.c, src/if_py_both.h
+
+
+*** ../vim-7.3.1175/src/eval.c	2013-06-12 13:37:36.000000000 +0200
+--- src/eval.c	2013-06-12 18:06:33.000000000 +0200
+***************
+*** 10980,10986 ****
+  	     * also work, but some plugins depend on the name being printable
+  	     * text. */
+  	    sprintf(sid_buf, "<SNR>%ld_", (long)current_SID);
+! 	    rettv->vval.v_string = alloc(STRLEN(sid_buf) + STRLEN(s + 2) + 1);
+  	    if (rettv->vval.v_string != NULL)
+  	    {
+  		STRCPY(rettv->vval.v_string, sid_buf);
+--- 10980,10987 ----
+  	     * also work, but some plugins depend on the name being printable
+  	     * text. */
+  	    sprintf(sid_buf, "<SNR>%ld_", (long)current_SID);
+! 	    rettv->vval.v_string =
+! 			    alloc((int)(STRLEN(sid_buf) + STRLEN(s + 2) + 1));
+  	    if (rettv->vval.v_string != NULL)
+  	    {
+  		STRCPY(rettv->vval.v_string, sid_buf);
+*** ../vim-7.3.1175/src/if_py_both.h	2013-06-12 14:40:58.000000000 +0200
+--- src/if_py_both.h	2013-06-12 18:10:27.000000000 +0200
+***************
+*** 992,998 ****
+      if ((dot = (char *) vim_strchr((char_u *) tail, '.')))
+      {
+  	/*
+! 	 * There is a dot in the name: call find_module recursively without the 
+  	 * first component
+  	 */
+  	PyObject	*newest_path;
+--- 992,998 ----
+      if ((dot = (char *) vim_strchr((char_u *) tail, '.')))
+      {
+  	/*
+! 	 * There is a dot in the name: call find_module recursively without the
+  	 * first component
+  	 */
+  	PyObject	*newest_path;
+***************
+*** 1035,1041 ****
+  
+  	if (!(module = call_load_module(
+  			fullname,
+! 			STRLEN(fullname),
+  			find_module_result)))
+  	{
+  	    Py_DECREF(find_module_result);
+--- 1035,1041 ----
+  
+  	if (!(module = call_load_module(
+  			fullname,
+! 			(int)STRLEN(fullname),
+  			find_module_result)))
+  	{
+  	    Py_DECREF(find_module_result);
+*** ../vim-7.3.1175/src/version.c	2013-06-12 17:12:19.000000000 +0200
+--- src/version.c	2013-06-12 18:07:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1176,
+  /**/
+
+-- 
+Living in Hollywood is like living in a bowl of granola.  What ain't
+fruits and nuts is flakes.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

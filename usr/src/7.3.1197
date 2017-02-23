@@ -1,0 +1,192 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1197
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1197
+Problem:    ":wviminfo!" does not write history previously read from a viminfo
+	    file.  (Roland Eggner)
+Solution:   When not merging history write all entries.
+Files:	    src/ex_cmds.c, src/ex_getln.c, src/proto/ex_getln.pro
+
+
+*** ../vim-7.3.1196/src/ex_cmds.c	2013-06-08 18:19:39.000000000 +0200
+--- src/ex_cmds.c	2013-06-15 16:16:33.000000000 +0200
+***************
+*** 1722,1732 ****
+  }
+  
+  /*
+!  * write_viminfo() -- Write the viminfo file.  The old one is read in first so
+!  * that effectively a merge of current info and old info is done.  This allows
+!  * multiple vims to run simultaneously, without losing any marks etc.  If
+!  * forceit is TRUE, then the old file is not read in, and only internal info is
+!  * written to the file. -- webb
+   */
+      void
+  write_viminfo(file, forceit)
+--- 1722,1732 ----
+  }
+  
+  /*
+!  * Write the viminfo file.  The old one is read in first so that effectively a
+!  * merge of current info and old info is done.  This allows multiple vims to
+!  * run simultaneously, without losing any marks etc.
+!  * If "forceit" is TRUE, then the old file is not read in, and only internal
+!  * info is written to the file.
+   */
+      void
+  write_viminfo(file, forceit)
+***************
+*** 2047,2052 ****
+--- 2047,2053 ----
+      int		count = 0;
+      int		eof = FALSE;
+      vir_T	vir;
++     int		merge = FALSE;
+  
+      if ((vir.vir_line = alloc(LSIZE)) == NULL)
+  	return;
+***************
+*** 2058,2066 ****
+      if (fp_in != NULL)
+      {
+  	if (flags & VIF_WANT_INFO)
+  	    eof = read_viminfo_up_to_marks(&vir,
+  					 flags & VIF_FORCEIT, fp_out != NULL);
+! 	else
+  	    /* Skip info, find start of marks */
+  	    while (!(eof = viminfo_readline(&vir))
+  		    && vir.vir_line[0] != '>')
+--- 2059,2070 ----
+      if (fp_in != NULL)
+      {
+  	if (flags & VIF_WANT_INFO)
++ 	{
+  	    eof = read_viminfo_up_to_marks(&vir,
+  					 flags & VIF_FORCEIT, fp_out != NULL);
+! 	    merge = TRUE;
+! 	}
+! 	else if (flags != 0)
+  	    /* Skip info, find start of marks */
+  	    while (!(eof = viminfo_readline(&vir))
+  		    && vir.vir_line[0] != '>')
+***************
+*** 2079,2085 ****
+  	write_viminfo_search_pattern(fp_out);
+  	write_viminfo_sub_string(fp_out);
+  #ifdef FEAT_CMDHIST
+! 	write_viminfo_history(fp_out);
+  #endif
+  	write_viminfo_registers(fp_out);
+  #ifdef FEAT_EVAL
+--- 2083,2089 ----
+  	write_viminfo_search_pattern(fp_out);
+  	write_viminfo_sub_string(fp_out);
+  #ifdef FEAT_CMDHIST
+! 	write_viminfo_history(fp_out, merge);
+  #endif
+  	write_viminfo_registers(fp_out);
+  #ifdef FEAT_EVAL
+*** ../vim-7.3.1196/src/ex_getln.c	2013-06-08 18:19:39.000000000 +0200
+--- src/ex_getln.c	2013-06-15 16:23:57.000000000 +0200
+***************
+*** 6003,6008 ****
+--- 6003,6011 ----
+  #endif
+  
+  #if (defined(FEAT_VIMINFO) && defined(FEAT_CMDHIST)) || defined(PROTO)
++ /*
++  * Buffers for history read from a viminfo file.  Only valid while reading.
++  */
+  static char_u **viminfo_history[HIST_COUNT] = {NULL, NULL, NULL, NULL};
+  static int	viminfo_hisidx[HIST_COUNT] = {0, 0, 0, 0};
+  static int	viminfo_hislen[HIST_COUNT] = {0, 0, 0, 0};
+***************
+*** 6184,6192 ****
+      }
+  }
+  
+      void
+! write_viminfo_history(fp)
+      FILE    *fp;
+  {
+      int	    i;
+      int	    type;
+--- 6187,6202 ----
+      }
+  }
+  
++ /*
++  * Write history to viminfo file in "fp".
++  * When "merge" is TRUE merge history lines with a previously read viminfo
++  * file, data is in viminfo_history[].
++  * When "merge" is FALSE just write all history lines.  Used for ":wviminfo!".
++  */
+      void
+! write_viminfo_history(fp, merge)
+      FILE    *fp;
++     int	    merge;
+  {
+      int	    i;
+      int	    type;
+***************
+*** 6236,6242 ****
+  		    p = round == 1 ? history[type][i].hisstr
+  				   : viminfo_history[type] == NULL ? NULL
+  						   : viminfo_history[type][i];
+! 		    if (p != NULL && (round == 2 || !history[type][i].viminfo))
+  		    {
+  			--num_saved;
+  			fputc(hist_type2char(type, TRUE), fp);
+--- 6246,6254 ----
+  		    p = round == 1 ? history[type][i].hisstr
+  				   : viminfo_history[type] == NULL ? NULL
+  						   : viminfo_history[type][i];
+! 		    if (p != NULL && (round == 2
+! 				       || !merge
+! 				       || !history[type][i].viminfo))
+  		    {
+  			--num_saved;
+  			fputc(hist_type2char(type, TRUE), fp);
+*** ../vim-7.3.1196/src/proto/ex_getln.pro	2013-04-14 23:19:32.000000000 +0200
+--- src/proto/ex_getln.pro	2013-06-15 16:20:46.000000000 +0200
+***************
+*** 51,57 ****
+  void prepare_viminfo_history __ARGS((int asklen, int writing));
+  int read_viminfo_history __ARGS((vir_T *virp, int writing));
+  void finish_viminfo_history __ARGS((void));
+! void write_viminfo_history __ARGS((FILE *fp));
+  void cmd_pchar __ARGS((int c, int offset));
+  int cmd_gchar __ARGS((int offset));
+  char_u *script_get __ARGS((exarg_T *eap, char_u *cmd));
+--- 51,57 ----
+  void prepare_viminfo_history __ARGS((int asklen, int writing));
+  int read_viminfo_history __ARGS((vir_T *virp, int writing));
+  void finish_viminfo_history __ARGS((void));
+! void write_viminfo_history __ARGS((FILE *fp, int merge));
+  void cmd_pchar __ARGS((int c, int offset));
+  int cmd_gchar __ARGS((int offset));
+  char_u *script_get __ARGS((exarg_T *eap, char_u *cmd));
+*** ../vim-7.3.1196/src/version.c	2013-06-15 15:09:44.000000000 +0200
+--- src/version.c	2013-06-15 16:13:55.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1197,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+216. Your pet rock leaves home.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

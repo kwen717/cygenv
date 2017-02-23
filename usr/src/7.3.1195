@@ -1,0 +1,53 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1195
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1195
+Problem:    Compiler warning for unitialized variable. (Tony Mechelynck)
+Solution:   Set the length to the matching backref.
+Files:	    src/regexp.c
+
+
+*** ../vim-7.3.1194/src/regexp.c	2013-06-14 20:31:20.000000000 +0200
+--- src/regexp.c	2013-06-14 22:46:22.000000000 +0200
+***************
+*** 5026,5032 ****
+  					    reg_startpos[no].col,
+  					    reg_endpos[no].lnum,
+  					    reg_endpos[no].col,
+! 					    NULL);
+  			}
+  		    }
+  		}
+--- 5026,5032 ----
+  					    reg_startpos[no].col,
+  					    reg_endpos[no].lnum,
+  					    reg_endpos[no].col,
+! 					    &len);
+  			}
+  		    }
+  		}
+*** ../vim-7.3.1194/src/version.c	2013-06-14 22:33:47.000000000 +0200
+--- src/version.c	2013-06-14 22:42:13.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1195,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+208. Your goals for the future are obtaining an T1 connection and
+     a 130 gig hard drive.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

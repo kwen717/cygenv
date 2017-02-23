@@ -1,0 +1,53 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1143
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1143
+Problem:    When mapping NUL it is displayed as an X.
+Solution:   Check for KS_ZERO instead of K_ZERO. (Yasuhiro Matsumoto)
+Files:	    src/message.c
+
+
+*** ../vim-7.3.1142/src/message.c	2013-04-24 15:12:27.000000000 +0200
+--- src/message.c	2013-06-07 19:47:23.000000000 +0200
+***************
+*** 1577,1583 ****
+  	{
+  	    c = TO_SPECIAL(str[1], str[2]);
+  	    str += 2;
+! 	    if (c == K_ZERO)	/* display <Nul> as ^@ */
+  		c = NUL;
+  	}
+  	if (IS_SPECIAL(c) || modifiers)	/* special key */
+--- 1577,1583 ----
+  	{
+  	    c = TO_SPECIAL(str[1], str[2]);
+  	    str += 2;
+! 	    if (c == KS_ZERO)	/* display <Nul> as ^@ or <Nul> */
+  		c = NUL;
+  	}
+  	if (IS_SPECIAL(c) || modifiers)	/* special key */
+*** ../vim-7.3.1142/src/version.c	2013-06-07 19:48:29.000000000 +0200
+--- src/version.c	2013-06-07 19:50:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1143,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+100. The most exciting sporting events you noticed during summer 1996
+    was Netscape vs. Microsoft.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

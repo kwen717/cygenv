@@ -1,0 +1,73 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.10
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1081
+Problem:    Compiler warnings on 64-bit Windows.
+Solution:   Change variable types. (Mike Williams)
+Files:	    src/if_py_both.h, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1080/src/if_py_both.h	2013-05-30 22:06:28.000000000 +0200
+--- src/if_py_both.h	2013-05-31 20:39:37.000000000 +0200
+***************
+*** 1100,1106 ****
+      long_u	ht_used;
+      hashtab_T	*ht;
+      hashitem_T	*hi;
+!     int		todo;
+  } dictiterinfo_T;
+  
+      static PyObject *
+--- 1100,1106 ----
+      long_u	ht_used;
+      hashtab_T	*ht;
+      hashitem_T	*hi;
+!     long_u	todo;
+  } dictiterinfo_T;
+  
+      static PyObject *
+*** ../vim-7.3.1080/src/regexp_nfa.c	2013-05-30 22:43:57.000000000 +0200
+--- src/regexp_nfa.c	2013-05-31 20:45:03.000000000 +0200
+***************
+*** 283,289 ****
+      static int
+  realloc_post_list()
+  {
+!     int   nstate_max = post_end - post_start;
+      int   new_max = nstate_max + 1000;
+      int   *new_start;
+      int	  *old_start;
+--- 283,289 ----
+      static int
+  realloc_post_list()
+  {
+!     int   nstate_max = (int)(post_end - post_start);
+      int   new_max = nstate_max + 1000;
+      int   *new_start;
+      int	  *old_start;
+*** ../vim-7.3.1080/src/version.c	2013-05-31 19:01:13.000000000 +0200
+--- src/version.c	2013-05-31 20:40:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1081,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+32. You don't know what sex three of your closest friends are, because they
+    have neutral nicknames and you never bothered to ask.
+  normal GA<CR><Esc>
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

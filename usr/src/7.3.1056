@@ -1,0 +1,630 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1056
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1056
+Problem:    Python: possible memory leaks.
+Solution:   Python patch 15. (ZyX) Fix will follow later.
+Files:	    src/eval.c, src/if_py_both.h, src/proto/eval.pro
+
+
+*** ../vim-7.3.1055/src/eval.c	2013-05-17 16:03:53.000000000 +0200
+--- src/eval.c	2013-05-30 12:11:40.000000000 +0200
+***************
+*** 412,418 ****
+  static int get_lit_string_tv __ARGS((char_u **arg, typval_T *rettv, int evaluate));
+  static int get_list_tv __ARGS((char_u **arg, typval_T *rettv, int evaluate));
+  static int rettv_list_alloc __ARGS((typval_T *rettv));
+- static void listitem_free __ARGS((listitem_T *item));
+  static long list_len __ARGS((list_T *l));
+  static int list_equal __ARGS((list_T *l1, list_T *l2, int ic, int recursive));
+  static int dict_equal __ARGS((dict_T *d1, dict_T *d2, int ic, int recursive));
+--- 412,417 ----
+***************
+*** 428,434 ****
+  static int list_join __ARGS((garray_T *gap, list_T *l, char_u *sep, int echo, int copyID));
+  static int free_unref_items __ARGS((int copyID));
+  static int rettv_dict_alloc __ARGS((typval_T *rettv));
+- static void dict_free __ARGS((dict_T *d, int recurse));
+  static dictitem_T *dictitem_copy __ARGS((dictitem_T *org));
+  static void dictitem_remove __ARGS((dict_T *dict, dictitem_T *item));
+  static dict_T *dict_copy __ARGS((dict_T *orig, int deep, int copyID));
+--- 427,432 ----
+***************
+*** 5955,5961 ****
+  /*
+   * Free a list item.  Also clears the value.  Does not notify watchers.
+   */
+!     static void
+  listitem_free(item)
+      listitem_T *item;
+  {
+--- 5953,5959 ----
+  /*
+   * Free a list item.  Also clears the value.  Does not notify watchers.
+   */
+!     void
+  listitem_free(item)
+      listitem_T *item;
+  {
+***************
+*** 7031,7037 ****
+   * Free a Dictionary, including all items it contains.
+   * Ignores the reference count.
+   */
+!     static void
+  dict_free(d, recurse)
+      dict_T  *d;
+      int	    recurse;	/* Free Lists and Dictionaries recursively. */
+--- 7029,7035 ----
+   * Free a Dictionary, including all items it contains.
+   * Ignores the reference count.
+   */
+!     void
+  dict_free(d, recurse)
+      dict_T  *d;
+      int	    recurse;	/* Free Lists and Dictionaries recursively. */
+***************
+*** 8353,8359 ****
+  
+  /*
+   * Call a function with its resolved parameters
+!  * Return OK when the function can't be called,  FAIL otherwise.
+   * Also returns OK when an error was encountered while executing the function.
+   */
+      static int
+--- 8351,8357 ----
+  
+  /*
+   * Call a function with its resolved parameters
+!  * Return FAIL when the function can't be called,  OK otherwise.
+   * Also returns OK when an error was encountered while executing the function.
+   */
+      static int
+*** ../vim-7.3.1055/src/if_py_both.h	2013-05-29 22:58:28.000000000 +0200
+--- src/if_py_both.h	2013-05-30 12:13:37.000000000 +0200
+***************
+*** 32,39 ****
+  
+  #define DICTKEY_DECL \
+      PyObject	*dictkey_todecref;
+  #define DICTKEY_GET(err, decref) \
+!     if (!(key = StringToChars(keyObject, &dictkey_todecref))) \
+      { \
+  	if (decref) \
+  	{ \
+--- 32,46 ----
+  
+  #define DICTKEY_DECL \
+      PyObject	*dictkey_todecref;
++ #define DICTKEY_CHECK_EMPTY(err) \
++     if (*key == NUL) \
++     { \
++ 	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
++ 	return err; \
++     }
++ #define DICTKEY_SET_KEY (key = StringToChars(keyObject, &dictkey_todecref))
+  #define DICTKEY_GET(err, decref) \
+!     if (!DICTKEY_SET_KEY) \
+      { \
+  	if (decref) \
+  	{ \
+***************
+*** 43,53 ****
+      } \
+      if (decref && !dictkey_todecref) \
+  	dictkey_todecref = keyObject; \
+!     if (*key == NUL) \
+!     { \
+! 	PyErr_SetString(PyExc_ValueError, _("empty keys are not allowed")); \
+! 	return err; \
+!     }
+  #define DICTKEY_UNREF \
+      Py_XDECREF(dictkey_todecref);
+  
+--- 50,56 ----
+      } \
+      if (decref && !dictkey_todecref) \
+  	dictkey_todecref = keyObject; \
+!     DICTKEY_CHECK_EMPTY(err)
+  #define DICTKEY_UNREF \
+      Py_XDECREF(dictkey_todecref);
+  
+***************
+*** 651,659 ****
+  
+      /* Convert the Vim type into a Python type.  Create a dictionary that's
+       * used to check for recursive loops. */
+!     lookup_dict = PyDict_New();
+!     result = VimToPython(our_tv, 1, lookup_dict);
+!     Py_DECREF(lookup_dict);
+  
+  
+      Py_BEGIN_ALLOW_THREADS
+--- 654,666 ----
+  
+      /* Convert the Vim type into a Python type.  Create a dictionary that's
+       * used to check for recursive loops. */
+!     if (!(lookup_dict = PyDict_New()))
+! 	result = NULL;
+!     else
+!     {
+! 	result = VimToPython(our_tv, 1, lookup_dict);
+! 	Py_DECREF(lookup_dict);
+!     }
+  
+  
+      Py_BEGIN_ALLOW_THREADS
+***************
+*** 1401,1407 ****
+  	return NULL;
+      }
+  
+!     lookup_dict = PyDict_New();
+      if (list_py_concat(l, obj, lookup_dict) == -1)
+      {
+  	Py_DECREF(lookup_dict);
+--- 1408,1416 ----
+  	return NULL;
+      }
+  
+!     if (!(lookup_dict = PyDict_New()))
+! 	return NULL;
+! 
+      if (list_py_concat(l, obj, lookup_dict) == -1)
+      {
+  	Py_DECREF(lookup_dict);
+***************
+*** 4023,4034 ****
+      PyObject	*valObject;
+      Py_ssize_t	iter = 0;
+  
+!     dict = dict_alloc();
+!     if (dict == NULL)
+!     {
+! 	PyErr_NoMemory();
+  	return -1;
+-     }
+  
+      tv->v_type = VAR_DICT;
+      tv->vval.v_dict = dict;
+--- 4032,4039 ----
+      PyObject	*valObject;
+      Py_ssize_t	iter = 0;
+  
+!     if (!(dict = dict_alloc()))
+  	return -1;
+  
+      tv->v_type = VAR_DICT;
+      tv->vval.v_dict = dict;
+***************
+*** 4038,4046 ****
+  	DICTKEY_DECL
+  
+  	if (keyObject == NULL || valObject == NULL)
+  	    return -1;
+  
+! 	DICTKEY_GET(-1, 0)
+  
+  	di = dictitem_alloc(key);
+  
+--- 4043,4059 ----
+  	DICTKEY_DECL
+  
+  	if (keyObject == NULL || valObject == NULL)
++ 	{
++ 	    dict_unref(dict);
+  	    return -1;
++ 	}
+  
+! 	if (!DICTKEY_SET_KEY)
+! 	{
+! 	    dict_unref(dict);
+! 	    return -1;
+! 	}
+! 	DICTKEY_CHECK_EMPTY(-1)
+  
+  	di = dictitem_alloc(key);
+  
+***************
+*** 4049,4054 ****
+--- 4062,4068 ----
+  	if (di == NULL)
+  	{
+  	    PyErr_NoMemory();
++ 	    dict_unref(dict);
+  	    return -1;
+  	}
+  	di->di_tv.v_lock = 0;
+***************
+*** 4056,4061 ****
+--- 4070,4076 ----
+  	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
+  	    vim_free(di);
++ 	    dict_unref(dict);
+  	    return -1;
+  	}
+  
+***************
+*** 4063,4072 ****
+--- 4078,4090 ----
+  	{
+  	    clear_tv(&di->di_tv);
+  	    vim_free(di);
++ 	    dict_unref(dict);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+      }
++ 
++     --dict->dv_refcount;
+      return 0;
+  }
+  
+***************
+*** 4082,4100 ****
+      PyObject	*valObject;
+      Py_ssize_t	lsize;
+  
+!     dict = dict_alloc();
+!     if (dict == NULL)
+!     {
+! 	PyErr_NoMemory();
+  	return -1;
+-     }
+  
+      tv->v_type = VAR_DICT;
+      tv->vval.v_dict = dict;
+  
+      list = PyMapping_Items(obj);
+      if (list == NULL)
+  	return -1;
+      lsize = PyList_Size(list);
+      while (lsize--)
+      {
+--- 4100,4117 ----
+      PyObject	*valObject;
+      Py_ssize_t	lsize;
+  
+!     if (!(dict = dict_alloc()))
+  	return -1;
+  
+      tv->v_type = VAR_DICT;
+      tv->vval.v_dict = dict;
+  
+      list = PyMapping_Items(obj);
+      if (list == NULL)
++     {
++ 	dict_unref(dict);
+  	return -1;
++     }
+      lsize = PyList_Size(list);
+      while (lsize--)
+      {
+***************
+*** 4104,4109 ****
+--- 4121,4127 ----
+  	if (litem == NULL)
+  	{
+  	    Py_DECREF(list);
++ 	    dict_unref(dict);
+  	    return -1;
+  	}
+  
+***************
+*** 4111,4125 ****
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    return -1;
+  	}
+  
+! 	DICTKEY_GET(-1, 1)
+  
+  	if (!(valObject = PyTuple_GetItem(litem, 1)))
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    DICTKEY_UNREF
+  	    return -1;
+  	}
+--- 4129,4153 ----
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
++ 	    dict_unref(dict);
+  	    return -1;
+  	}
+  
+! 	if (!DICTKEY_SET_KEY)
+! 	{
+! 	    dict_unref(dict);
+! 	    Py_DECREF(list);
+! 	    Py_DECREF(litem);
+! 	    DICTKEY_UNREF
+! 	    return -1;
+! 	}
+! 	DICTKEY_CHECK_EMPTY(-1)
+  
+  	if (!(valObject = PyTuple_GetItem(litem, 1)))
+  	{
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
++ 	    dict_unref(dict);
+  	    DICTKEY_UNREF
+  	    return -1;
+  	}
+***************
+*** 4133,4139 ****
+  	if (di == NULL)
+  	{
+  	    Py_DECREF(list);
+! 	    Py_DECREF(valObject);
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+--- 4161,4167 ----
+  	if (di == NULL)
+  	{
+  	    Py_DECREF(list);
+! 	    dict_unref(dict);
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+***************
+*** 4142,4216 ****
+  	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+- 	    Py_DECREF(valObject);
+  	    return -1;
+  	}
+  
+- 	Py_DECREF(valObject);
+- 
+  	if (dict_add(dict, di) == FAIL)
+  	{
+! 	    clear_tv(&di->di_tv);
+! 	    vim_free(di);
+  	    Py_DECREF(list);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+      }
+      Py_DECREF(list);
+      return 0;
+  }
+  
+      static int
+  pyseq_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+      list_T	*l;
+  
+!     l = list_alloc();
+!     if (l == NULL)
+!     {
+! 	PyErr_NoMemory();
+  	return -1;
+-     }
+  
+      tv->v_type = VAR_LIST;
+      tv->vval.v_list = l;
+  
+      if (list_py_concat(l, obj, lookup_dict) == -1)
+  	return -1;
+  
+      return 0;
+  }
+  
+      static int
+  pyiter_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+!     PyObject	*iterator = PyObject_GetIter(obj);
+      PyObject	*item;
+      list_T	*l;
+      listitem_T	*li;
+  
+!     l = list_alloc();
+! 
+!     if (l == NULL)
+!     {
+! 	PyErr_NoMemory();
+  	return -1;
+-     }
+  
+      tv->vval.v_list = l;
+      tv->v_type = VAR_LIST;
+  
+! 
+!     if (iterator == NULL)
+  	return -1;
+  
+      while ((item = PyIter_Next(iterator)))
+      {
+  	li = listitem_alloc();
+  	if (li == NULL)
+  	{
+  	    Py_DECREF(iterator);
+  	    PyErr_NoMemory();
+  	    return -1;
+--- 4170,4256 ----
+  	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
+  	    vim_free(di);
++ 	    dict_unref(dict);
+  	    Py_DECREF(list);
+  	    return -1;
+  	}
+  
+  	if (dict_add(dict, di) == FAIL)
+  	{
+! 	    dictitem_free(di);
+! 	    dict_unref(dict);
+  	    Py_DECREF(list);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+      }
++     --dict->dv_refcount;
+      Py_DECREF(list);
+      return 0;
+  }
+  
++     static list_T *
++ py_list_alloc()
++ {
++     list_T	*r;
++ 
++     if (!(r = list_alloc()))
++     {
++ 	PyErr_NoMemory();
++ 	return NULL;
++     }
++     ++r->lv_refcount;
++ 
++     return r;
++ }
++ 
+      static int
+  pyseq_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+      list_T	*l;
+  
+!     if (!(l = py_list_alloc()))
+  	return -1;
+  
+      tv->v_type = VAR_LIST;
+      tv->vval.v_list = l;
+  
+      if (list_py_concat(l, obj, lookup_dict) == -1)
++     {
++ 	list_unref(l);
+  	return -1;
++     }
+  
++     --l->lv_refcount;
+      return 0;
+  }
+  
+      static int
+  pyiter_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+!     PyObject	*iterator;
+      PyObject	*item;
+      list_T	*l;
+      listitem_T	*li;
+  
+!     if (!(l = py_list_alloc()))
+  	return -1;
+  
+      tv->vval.v_list = l;
+      tv->v_type = VAR_LIST;
+  
+!     if (!(iterator = PyObject_GetIter(obj)))
+!     {
+! 	list_unref(l);
+  	return -1;
++     }
+  
+      while ((item = PyIter_Next(iterator)))
+      {
+  	li = listitem_alloc();
+  	if (li == NULL)
+  	{
++ 	    list_unref(l);
+  	    Py_DECREF(iterator);
+  	    PyErr_NoMemory();
+  	    return -1;
+***************
+*** 4219,4224 ****
+--- 4259,4266 ----
+  
+  	if (_ConvertFromPyObject(item, &li->li_tv, lookup_dict) == -1)
+  	{
++ 	    list_unref(l);
++ 	    listitem_free(li);
+  	    Py_DECREF(item);
+  	    Py_DECREF(iterator);
+  	    return -1;
+***************
+*** 4230,4235 ****
+--- 4272,4286 ----
+      }
+  
+      Py_DECREF(iterator);
++ 
++     /* Iterator may have finished due to an exception */
++     if (PyErr_Occurred())
++     {
++ 	list_unref(l);
++ 	return -1;
++     }
++ 
++     --l->lv_refcount;
+      return 0;
+  }
+  
+***************
+*** 4295,4301 ****
+      PyObject	*lookup_dict;
+      int		r;
+  
+!     lookup_dict = PyDict_New();
+      r = _ConvertFromPyObject(obj, tv, lookup_dict);
+      Py_DECREF(lookup_dict);
+      return r;
+--- 4346,4353 ----
+      PyObject	*lookup_dict;
+      int		r;
+  
+!     if (!(lookup_dict = PyDict_New()))
+! 	return -1;
+      r = _ConvertFromPyObject(obj, tv, lookup_dict);
+      Py_DECREF(lookup_dict);
+      return r;
+*** ../vim-7.3.1055/src/proto/eval.pro	2013-05-17 16:03:53.000000000 +0200
+--- src/proto/eval.pro	2013-05-30 12:11:40.000000000 +0200
+***************
+*** 49,54 ****
+--- 49,55 ----
+  void list_unref __ARGS((list_T *l));
+  void list_free __ARGS((list_T *l, int recurse));
+  listitem_T *listitem_alloc __ARGS((void));
++ void listitem_free __ARGS((listitem_T *item));
+  void listitem_remove __ARGS((list_T *l, listitem_T *item));
+  dictitem_T *dict_lookup __ARGS((hashitem_T *hi));
+  listitem_T *list_find __ARGS((list_T *l, long n));
+***************
+*** 65,70 ****
+--- 66,72 ----
+  void set_ref_in_item __ARGS((typval_T *tv, int copyID));
+  dict_T *dict_alloc __ARGS((void));
+  void dict_unref __ARGS((dict_T *d));
++ void dict_free __ARGS((dict_T *d, int recurse));
+  dictitem_T *dictitem_alloc __ARGS((char_u *key));
+  void dictitem_free __ARGS((dictitem_T *item));
+  int dict_add __ARGS((dict_T *d, dictitem_T *item));
+*** ../vim-7.3.1055/src/version.c	2013-05-30 11:51:04.000000000 +0200
+--- src/version.c	2013-05-30 12:13:57.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1056,
+  /**/
+
+-- 
+I have a drinking problem -- I can't afford it.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

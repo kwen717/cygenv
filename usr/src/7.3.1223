@@ -1,0 +1,262 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1223
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1223
+Problem:    Tests fail on MS-Windows.
+Solution:   Avoid depending on OS version. Use DOS commands instead of Unix
+	    commands. (Taro Muraoka, Ken Takata)
+Files:	    src/testdir/test17.in, src/testdir/test50.in,
+	    src/testdir/test71.in, src/testdir/test77.in
+
+
+*** ../vim-7.3.1222/src/testdir/test17.in	2012-07-25 13:46:25.000000000 +0200
+--- src/testdir/test17.in	2013-06-19 21:01:57.000000000 +0200
+***************
+*** 9,14 ****
+--- 9,21 ----
+  :else
+  : set isfname=@,48-57,/,.,-,_,+,,,$,:,~,{,}
+  :endif
++ :function! DeleteDirectory(dir)
++ : if has("win16") || has("win32") || has("win64") || has("dos16") || has("dos32")
++ :  exec "silent !rmdir /Q /S " . a:dir
++ : else
++ :  exec "silent !rm -rf " . a:dir
++ : endif
++ :endfun
+  :if has("unix")
+  :let $CDIR = "."
+  /CDIR
+***************
+*** 20,25 ****
+--- 27,37 ----
+  :endif
+  /TDIR
+  :endif
++ :" Dummy writing for making that sure gf doesn't fail even if the current
++ :" file is modified. It can be occurred when executing the following command
++ :" directly on Windows without fixing the 'fileformat':
++ :"  > nmake -f Make_dos.mak test17.out
++ :w! test.out
+  gf
+  :w! test.out
+  :brewind
+***************
+*** 31,40 ****
+  STARTTEST
+  :" check for 'include' without \zs or \ze
+  :lang C
+! :!rm -f ./Xbase.a
+! :!rm -rf ./Xdir1
+! :!mkdir -p Xdir1/dir2
+! :e Xdir1/dir2/foo.a
+  i#include   "bar.a"
+  :w
+  :e Xdir1/dir2/bar.a
+--- 43,53 ----
+  STARTTEST
+  :" check for 'include' without \zs or \ze
+  :lang C
+! :call delete("./Xbase.a")
+! :call DeleteDirectory("Xdir1")
+! :!mkdir Xdir1
+! :!mkdir "Xdir1/dir2"
+! :e! Xdir1/dir2/foo.a
+  i#include   "bar.a"
+  :w
+  :e Xdir1/dir2/bar.a
+***************
+*** 55,69 ****
+  
+  STARTTEST
+  :" check for 'include' with \zs and \ze
+! :!rm -f ./Xbase.b
+! :!rm -rf ./Xdir1
+! :!mkdir -p Xdir1/dir2
+  :let &include='^\s*%inc\s*/\zs[^/]\+\ze'
+  :function! DotsToSlashes()
+  :  return substitute(v:fname, '\.', '/', 'g') . '.b'
+  :endfunction
+  :let &includeexpr='DotsToSlashes()'
+! :e Xdir1/dir2/foo.b
+  i%inc   /bar/
+  :w
+  :e Xdir1/dir2/bar.b
+--- 68,83 ----
+  
+  STARTTEST
+  :" check for 'include' with \zs and \ze
+! :call delete("./Xbase.b")
+! :call DeleteDirectory("Xdir1")
+! :!mkdir Xdir1
+! :!mkdir "Xdir1/dir2"
+  :let &include='^\s*%inc\s*/\zs[^/]\+\ze'
+  :function! DotsToSlashes()
+  :  return substitute(v:fname, '\.', '/', 'g') . '.b'
+  :endfunction
+  :let &includeexpr='DotsToSlashes()'
+! :e! Xdir1/dir2/foo.b
+  i%inc   /bar/
+  :w
+  :e Xdir1/dir2/bar.b
+***************
+*** 84,92 ****
+  
+  STARTTEST
+  :" check for 'include' with \zs and no \ze
+! :!rm -f ./Xbase.c
+! :!rm -rf ./Xdir1
+! :!mkdir -p Xdir1/dir2
+  :let &include='^\s*%inc\s*\%([[:upper:]][^[:space:]]*\s\+\)\?\zs\S\+\ze'
+  :function! StripNewlineChar()
+  :  if v:fname =~ '\n$'
+--- 98,107 ----
+  
+  STARTTEST
+  :" check for 'include' with \zs and no \ze
+! :call delete("./Xbase.c")
+! :call DeleteDirectory("Xdir1")
+! :!mkdir Xdir1
+! :!mkdir "Xdir1/dir2"
+  :let &include='^\s*%inc\s*\%([[:upper:]][^[:space:]]*\s\+\)\?\zs\S\+\ze'
+  :function! StripNewlineChar()
+  :  if v:fname =~ '\n$'
+***************
+*** 95,101 ****
+  :  return v:fname
+  :endfunction
+  :let &includeexpr='StripNewlineChar()'
+! :e Xdir1/dir2/foo.c
+  i%inc   bar.c
+  :w
+  :e Xdir1/dir2/bar.c
+--- 110,116 ----
+  :  return v:fname
+  :endfunction
+  :let &includeexpr='StripNewlineChar()'
+! :e! Xdir1/dir2/foo.c
+  i%inc   bar.c
+  :w
+  :e Xdir1/dir2/bar.c
+***************
+*** 115,120 ****
+--- 130,139 ----
+  :checkpath!
+  :redir END
+  :brewind
++ :" replace "\" to "/" for Windows
++ :e test.out
++ :%s#\\#/#g
++ :w
+  :q
+  ENDTEST
+  
+*** ../vim-7.3.1222/src/testdir/test50.in	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test50.in	2013-06-19 20:03:18.000000000 +0200
+***************
+*** 33,39 ****
+  	" This could change for CygWin to //cygdrive/c
+  	let dir1='c:/x.x.y'
+  	if filereadable(dir1) || isdirectory(dir1)
+! 		call confirm( "'".dir1."' exists, cannot run test" )
+  		return
+  	endif
+  	let file1=dir1.'/zz.y.txt'
+--- 33,39 ----
+  	" This could change for CygWin to //cygdrive/c
+  	let dir1='c:/x.x.y'
+  	if filereadable(dir1) || isdirectory(dir1)
+! 		echo "FATAL: '".dir1."' exists, cannot run test"
+  		return
+  	endif
+  	let file1=dir1.'/zz.y.txt'
+***************
+*** 41,53 ****
+  	let dir2=dir1.'/VimIsTheGreatestSinceSlicedBread'
+  	let file2=dir2.'/z.txt'
+  	let nofile2=dir2.'/zz.txt'
+! 	let resdir1='c:/XX2235~1.Y'
+  	let resfile1=resdir1.'/ZZY~1.TXT'
+  	let resnofile1=resdir1.'/z.y.txt'
+  	let resdir2=resdir1.'/VIMIST~1'
+  	let resfile2=resdir2.'/z.txt'
+  	let resnofile2=resdir2.'/zz.txt'
+- 	call MakeDir( dir1 )
+  	call MakeDir( dir2 )
+  	call MakeFile( file1 )
+  	call MakeFile( file2 )
+--- 41,58 ----
+  	let dir2=dir1.'/VimIsTheGreatestSinceSlicedBread'
+  	let file2=dir2.'/z.txt'
+  	let nofile2=dir2.'/zz.txt'
+! 	call MakeDir( dir1 )
+! 	let resdir1 = substitute(fnamemodify(dir1, ':p:8'), '\\$', '', '')
+! 	if resdir1 !~ '\V\^c:/XX\x\x\x\x~1.Y\$'
+! 		echo "FATAL: unexpected short name: " . resdir1
+! 		echo "INFO: please report your OS to vim-dev"
+! 		return
+! 	endif
+  	let resfile1=resdir1.'/ZZY~1.TXT'
+  	let resnofile1=resdir1.'/z.y.txt'
+  	let resdir2=resdir1.'/VIMIST~1'
+  	let resfile2=resdir2.'/z.txt'
+  	let resnofile2=resdir2.'/zz.txt'
+  	call MakeDir( dir2 )
+  	call MakeFile( file1 )
+  	call MakeFile( file2 )
+*** ../vim-7.3.1222/src/testdir/test71.in	2010-08-15 21:57:29.000000000 +0200
+--- src/testdir/test71.in	2013-06-19 20:09:12.000000000 +0200
+***************
+*** 8,14 ****
+  :let cm0_bytes = getline('.', '.')
+  :/^start of cm=blowfish bytes/+1
+  :let cm1_bytes = getline('.', '.')
+! :bwipe
+  :call append(0, text_lines)
+  :$d
+  :X
+--- 8,14 ----
+  :let cm0_bytes = getline('.', '.')
+  :/^start of cm=blowfish bytes/+1
+  :let cm1_bytes = getline('.', '.')
+! :bwipe!
+  :call append(0, text_lines)
+  :$d
+  :X
+*** ../vim-7.3.1222/src/testdir/test77.in	2012-04-30 11:34:20.000000000 +0200
+--- src/testdir/test77.in	2013-06-19 20:03:54.000000000 +0200
+***************
+*** 23,28 ****
+--- 23,29 ----
+  :w! Xtest
+  :r !cksum Xtest
+  :s/\s/ /g
++ :set fileformat&
+  :.w! test.out
+  :qa!
+  ENDTEST
+*** ../vim-7.3.1222/src/version.c	2013-06-19 20:11:44.000000000 +0200
+--- src/version.c	2013-06-19 21:03:21.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1223,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+255. You work for a newspaper and your editor asks you to write an
+     article about Internet addiction...in the "first person."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

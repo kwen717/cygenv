@@ -1,0 +1,122 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1179
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1179
+Problem:    When a global mapping starts with the same characters as a
+	    buffer-local mapping Vim waits for a character to be typed to find
+	    out whether the global mapping is to be used. (Andy Wokula)
+Solution:   Use the local mapping without waiting. (Michael Henry)
+Files:	    runtime/doc/map.txt, src/getchar.c
+
+
+*** ../vim-7.3.1178/runtime/doc/map.txt	2013-06-08 15:24:41.000000000 +0200
+--- runtime/doc/map.txt	2013-06-12 20:50:01.000000000 +0200
+***************
+*** 107,112 ****
+--- 107,114 ----
+  :cmapc[lear]			|mapmode-c|		*:cmapc*  *:cmapclear*
+  			Remove ALL mappings for the modes where the map
+  			command applies.  {not in Vi}
++ 			Use the <buffer> argument to remove buffer-local
++ 			mappings |:map-<buffer>|
+  			Warning: This also removes the default mappings.
+  
+  :map				|mapmode-nvo|
+***************
+*** 173,178 ****
+--- 175,181 ----
+  	:mapclear <buffer>
+  Local mappings are also cleared when a buffer is deleted, but not when it is
+  unloaded.  Just like local option values.
++ Also see |map-precedence|.
+  
+  						*:map-<silent>* *:map-silent*
+  To define a mapping which will not be echoed on the command line, add
+***************
+*** 644,649 ****
+--- 655,672 ----
+  you type slowly, or your system is slow, reset the 'timeout' option.  Then you
+  might want to set the 'ttimeout' option.
+  
++                             				*map-precedence*
++ Buffer-local mappings (defined using |:map-<buffer>|) take precedence over
++ global mappings.  When a buffer-local mapping is the same as a global mapping,
++ Vim will use the buffer-local mapping.  In addition, Vim will use a complete
++ buffer-local mapping immediately, even if a longer global mapping has the
++ buffer-local mapping as a prefix.  For example, given the following two
++ mappings: >
++     :map <buffer> \a   :echo "Local \a"<CR>
++     :map          \abc :echo "Global \abc"<CR>
++ The buffer-local mapping \a will be used immediately.  Vim will not wait for
++ more characters to see if the user might be typing \abc.
++ 
+  							*map-keys-fails*
+  There are situations where key codes might not be recognized:
+  - Vim can only read part of the key code.  Mostly this is only the first
+*** ../vim-7.3.1178/src/getchar.c	2013-05-06 05:50:22.000000000 +0200
+--- src/getchar.c	2013-06-12 20:52:49.000000000 +0200
+***************
+*** 1924,1929 ****
+--- 1924,1930 ----
+      mapblock_T	*mp;
+  #ifdef FEAT_LOCALMAP
+      mapblock_T	*mp2;
++     int		expecting_global_mappings;
+  #endif
+      mapblock_T	*mp_match;
+      int		mp_match_len = 0;
+***************
+*** 2105,2110 ****
+--- 2106,2112 ----
+  			/* First try buffer-local mappings. */
+  			mp = curbuf->b_maphash[MAP_HASH(local_State, c1)];
+  			mp2 = maphash[MAP_HASH(local_State, c1)];
++ 			expecting_global_mappings = (mp && mp2);
+  			if (mp == NULL)
+  			{
+  			    mp = mp2;
+***************
+*** 2128,2133 ****
+--- 2130,2145 ----
+  #endif
+  				(mp = mp->m_next))
+  			{
++ #ifdef FEAT_LOCALMAP
++ 			    if (expecting_global_mappings && mp2 == NULL)
++ 			    {
++ 				/* This is the first global mapping. If we've
++ 				 * got a complete buffer-local match, use it. */
++ 				if (mp_match)
++ 				    break;
++ 				expecting_global_mappings = FALSE;
++ 			    }
++ #endif
+  			    /*
+  			     * Only consider an entry if the first character
+  			     * matches and it is for the current state.
+*** ../vim-7.3.1178/src/version.c	2013-06-12 20:35:46.000000000 +0200
+--- src/version.c	2013-06-12 20:56:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1179,
+  /**/
+
+-- 
+If Apple would build a car...
+... it would be powered by the sun, be reliable, five times
+as fast and twice as easy to drive; but would only run on
+five percent of the roads.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

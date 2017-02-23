@@ -1,0 +1,51 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.932
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.932
+Problem:    Compiler warning for uninitialized variable. (Tony Mechelynck)
+Solution:   Initialize the variable.
+Files:	    src/option.c
+
+
+*** ../vim-7.3.931/src/option.c	2013-05-06 06:45:42.000000000 +0200
+--- src/option.c	2013-05-08 01:32:25.000000000 +0200
+***************
+*** 8847,8853 ****
+      void	*from;
+  {
+      int		opt_idx;
+!     char_u	*varp;
+      struct vimoption *p;
+      int		r = 0;
+  
+--- 8847,8853 ----
+      void	*from;
+  {
+      int		opt_idx;
+!     char_u	*varp = NULL;
+      struct vimoption *p;
+      int		r = 0;
+  
+*** ../vim-7.3.931/src/version.c	2013-05-07 05:18:15.000000000 +0200
+--- src/version.c	2013-05-11 13:44:04.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     932,
+  /**/
+
+-- 
+Proverb: A nightingale that forgets the lyrics is a hummingbird.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

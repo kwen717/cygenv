@@ -1,0 +1,134 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1038
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1038
+Problem:    Crash when using Cscope.
+Solution:   Avoid negative argument to vim_strncpy(). (Narendran
+	    Gopalakrishnan)
+Files:	    src/if_cscope.c
+
+
+*** ../vim-7.3.1037/src/if_cscope.c	2013-05-06 04:21:35.000000000 +0200
+--- src/if_cscope.c	2013-05-29 19:12:55.000000000 +0200
+***************
+*** 2460,2472 ****
+  /*
+   * PRIVATE: cs_resolve_file
+   *
+!  * construct the full pathname to a file found in the cscope database.
+   * (Prepends ppath, if there is one and if it's not already prepended,
+   * otherwise just uses the name found.)
+   *
+!  * we need to prepend the prefix because on some cscope's (e.g., the one that
+   * ships with Solaris 2.6), the output never has the prefix prepended.
+!  * contrast this with my development system (Digital Unix), which does.
+   */
+      static char *
+  cs_resolve_file(i, name)
+--- 2460,2472 ----
+  /*
+   * PRIVATE: cs_resolve_file
+   *
+!  * Construct the full pathname to a file found in the cscope database.
+   * (Prepends ppath, if there is one and if it's not already prepended,
+   * otherwise just uses the name found.)
+   *
+!  * We need to prepend the prefix because on some cscope's (e.g., the one that
+   * ships with Solaris 2.6), the output never has the prefix prepended.
+!  * Contrast this with my development system (Digital Unix), which does.
+   */
+      static char *
+  cs_resolve_file(i, name)
+***************
+*** 2493,2506 ****
+  	if (csdir != NULL)
+  	{
+  	    vim_strncpy(csdir, (char_u *)csinfo[i].fname,
+! 		    gettail((char_u *)csinfo[i].fname) - 1 - (char_u *)csinfo[i].fname);
+  	    len += (int)STRLEN(csdir);
+  	}
+      }
+  
+-     if ((fullname = (char *)alloc(len)) == NULL)
+- 	return NULL;
+- 
+      /* Note/example: this won't work if the cscope output already starts
+       * "../.." and the prefix path is also "../..".  if something like this
+       * happens, you are screwed up and need to fix how you're using cscope. */
+--- 2493,2504 ----
+  	if (csdir != NULL)
+  	{
+  	    vim_strncpy(csdir, (char_u *)csinfo[i].fname,
+! 		                       gettail((char_u *)csinfo[i].fname)
+! 						 - (char_u *)csinfo[i].fname);
+  	    len += (int)STRLEN(csdir);
+  	}
+      }
+  
+      /* Note/example: this won't work if the cscope output already starts
+       * "../.." and the prefix path is also "../..".  if something like this
+       * happens, you are screwed up and need to fix how you're using cscope. */
+***************
+*** 2511,2526 ****
+  	    && name[0] != '\\' && name[1] != ':'
+  #endif
+         )
+! 	(void)sprintf(fullname, "%s/%s", csinfo[i].ppath, name);
+!     else if (csdir != NULL && csinfo[i].fname != NULL && STRLEN(csdir) > 0)
+      {
+  	/* Check for csdir to be non empty to avoid empty path concatenated to
+! 	 * cscope output. TODO: avoid the unnecessary alloc/free of fullname. */
+! 	vim_free(fullname);
+  	fullname = (char *)concat_fnames(csdir, (char_u *)name, TRUE);
+      }
+      else
+! 	(void)sprintf(fullname, "%s", name);
+  
+      vim_free(csdir);
+      return fullname;
+--- 2509,2528 ----
+  	    && name[0] != '\\' && name[1] != ':'
+  #endif
+         )
+!     {
+! 	if ((fullname = (char *)alloc(len)) != NULL)
+! 	    (void)sprintf(fullname, "%s/%s", csinfo[i].ppath, name);
+!     }
+!     else if (csdir != NULL && csinfo[i].fname != NULL && *csdir != NUL)
+      {
+  	/* Check for csdir to be non empty to avoid empty path concatenated to
+! 	 * cscope output. */
+  	fullname = (char *)concat_fnames(csdir, (char_u *)name, TRUE);
+      }
+      else
+!     {
+! 	fullname = (char *)vim_strsave((char_u *)name);
+!     }
+  
+      vim_free(csdir);
+      return fullname;
+*** ../vim-7.3.1037/src/version.c	2013-05-29 18:45:07.000000000 +0200
+--- src/version.c	2013-05-29 19:17:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1038,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+12. You turn off your modem and get this awful empty feeling, like you just
+    pulled the plug on a loved one.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

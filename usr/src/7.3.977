@@ -1,0 +1,294 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.977
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.977
+Problem:    Compiler warnings on 64 bit Windows.
+Solution:   Add type casts. (Mike Williams)  Also fix some white space and
+	    uncomment what was commented-out for testing.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.976/src/regexp_nfa.c	2013-05-20 13:55:17.000000000 +0200
+--- src/regexp_nfa.c	2013-05-20 14:24:44.000000000 +0200
+***************
+*** 224,239 ****
+      char_u	*expr;
+      int		re_flags;	    /* see vim_regcomp() */
+  {
+!     int		postfix_size;
+  
+      nstate = 0;
+      istate = 0;
+      /* A reasonable estimation for size */
+!     nstate_max = (STRLEN(expr) + 1) * NFA_POSTFIX_MULTIPLIER;
+  
+      /* Some items blow up in size, such as [A-z].  Add more space for that.
+       * TODO: some patterns may still fail. */
+! //    nstate_max += 1000;
+  
+      /* Size for postfix representation of expr. */
+      postfix_size = sizeof(*post_start) * nstate_max;
+--- 224,239 ----
+      char_u	*expr;
+      int		re_flags;	    /* see vim_regcomp() */
+  {
+!     size_t	postfix_size;
+  
+      nstate = 0;
+      istate = 0;
+      /* A reasonable estimation for size */
+!     nstate_max = (int)(STRLEN(expr) + 1) * NFA_POSTFIX_MULTIPLIER;
+  
+      /* Some items blow up in size, such as [A-z].  Add more space for that.
+       * TODO: some patterns may still fail. */
+!     nstate_max += 1000;
+  
+      /* Size for postfix representation of expr. */
+      postfix_size = sizeof(*post_start) * nstate_max;
+***************
+*** 2177,2183 ****
+  	     * No new state added here. */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate += 0;
+  		break;
+  	    }
+  	    e2 = POP();
+--- 2177,2183 ----
+  	     * No new state added here. */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		/* nstate += 0; */
+  		break;
+  	    }
+  	    e2 = POP();
+***************
+*** 2190,2196 ****
+  	    /* Negation of a character */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate += 0;
+  		break;
+  	    }
+  	    e1 = POP();
+--- 2190,2196 ----
+  	    /* Negation of a character */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		/* nstate += 0; */
+  		break;
+  	    }
+  	    e1 = POP();
+***************
+*** 2204,2210 ****
+  	    /* Alternation */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    e2 = POP();
+--- 2204,2210 ----
+  	    /* Alternation */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    e2 = POP();
+***************
+*** 2219,2225 ****
+  	    /* Zero or more */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    e = POP();
+--- 2219,2225 ----
+  	    /* Zero or more */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    e = POP();
+***************
+*** 2234,2240 ****
+  	    /* one or zero atoms=> greedy match */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    e = POP();
+--- 2234,2240 ----
+  	    /* one or zero atoms=> greedy match */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    e = POP();
+***************
+*** 2248,2254 ****
+  	    /* zero or one atoms => non-greedy match */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    e = POP();
+--- 2248,2254 ----
+  	    /* zero or one atoms => non-greedy match */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    e = POP();
+***************
+*** 2262,2268 ****
+  	    /* One or more */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    e = POP();
+--- 2262,2268 ----
+  	    /* One or more */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    e = POP();
+***************
+*** 2278,2284 ****
+  	     * with max/min count of 0 */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    s = new_state(NFA_SKIP_CHAR, NULL, NULL);
+--- 2278,2284 ----
+  	     * with max/min count of 0 */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    s = new_state(NFA_SKIP_CHAR, NULL, NULL);
+***************
+*** 2392,2398 ****
+  	    /* Operands */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate ++;
+  		break;
+  	    }
+  	    s = new_state(*p, NULL, NULL);
+--- 2392,2398 ----
+  	    /* Operands */
+  	    if (nfa_calc_size == TRUE)
+  	    {
+! 		nstate++;
+  		break;
+  	    }
+  	    s = new_state(*p, NULL, NULL);
+***************
+*** 2407,2413 ****
+  
+      if (nfa_calc_size == TRUE)
+      {
+! 	nstate ++;
+  	return NULL;	/* Return value when counting size is ignored anyway */
+      }
+  
+--- 2407,2413 ----
+  
+      if (nfa_calc_size == TRUE)
+      {
+! 	nstate++;
+  	return NULL;	/* Return value when counting size is ignored anyway */
+      }
+  
+***************
+*** 2583,2589 ****
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+  		m->startpos[subidx].lnum = reglnum;
+! 		m->startpos[subidx].col = reginput - regline + off;
+  	    }
+  	    else
+  	    {
+--- 2583,2589 ----
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+  		m->startpos[subidx].lnum = reglnum;
+! 		m->startpos[subidx].col = (colnr_T)(reginput - regline + off);
+  	    }
+  	    else
+  	    {
+***************
+*** 2631,2637 ****
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+  		m->endpos[subidx].lnum = reglnum;
+! 		m->endpos[subidx].col = reginput - regline + off;
+  	    }
+  	    else
+  	    {
+--- 2631,2637 ----
+  		save.startpos[subidx] = m->startpos[subidx];
+  		save.endpos[subidx] = m->endpos[subidx];
+  		m->endpos[subidx].lnum = reglnum;
+! 		m->endpos[subidx].col = (colnr_T)(reginput - regline + off);
+  	    }
+  	    else
+  	    {
+***************
+*** 3620,3626 ****
+      int		re_flags;
+  {
+      nfa_regprog_T	*prog;
+!     int			prog_size;
+      int			*postfix;
+  
+      if (expr == NULL)
+--- 3620,3626 ----
+      int		re_flags;
+  {
+      nfa_regprog_T	*prog;
+!     size_t		prog_size;
+      int			*postfix;
+  
+      if (expr == NULL)
+*** ../vim-7.3.976/src/version.c	2013-05-20 13:55:17.000000000 +0200
+--- src/version.c	2013-05-20 21:24:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     977,
+  /**/
+
+-- 
+A law to reduce crime states: "It is mandatory for a motorist with criminal
+intentions to stop at the city limits and telephone the chief of police as he
+is entering the town.
+		[real standing law in Washington, United States of America]
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

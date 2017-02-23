@@ -1,0 +1,103 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.953
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.953
+Problem:    Python: string exceptions are deprecated.
+Solution:   Make vim.error an Exception subclass. (ZyX)
+Files:	    src/if_python.c, src/if_python3.c
+
+
+*** ../vim-7.3.952/src/if_python.c	2013-05-15 15:44:24.000000000 +0200
+--- src/if_python.c	2013-05-15 16:02:20.000000000 +0200
+***************
+*** 149,154 ****
+--- 149,155 ----
+  # define PyMem_Malloc dll_PyMem_Malloc
+  # define PyDict_SetItemString dll_PyDict_SetItemString
+  # define PyErr_BadArgument dll_PyErr_BadArgument
++ # define PyErr_NewException dll_PyErr_NewException
+  # define PyErr_Clear dll_PyErr_Clear
+  # define PyErr_PrintEx dll_PyErr_PrintEx
+  # define PyErr_NoMemory dll_PyErr_NoMemory
+***************
+*** 255,260 ****
+--- 256,262 ----
+  static void* (*dll_PyMem_Malloc)(size_t);
+  static int(*dll_PyDict_SetItemString)(PyObject *dp, char *key, PyObject *item);
+  static int(*dll_PyErr_BadArgument)(void);
++ static PyObject *(*dll_PyErr_NewException)(char *, PyObject *, PyObject *);
+  static void(*dll_PyErr_Clear)(void);
+  static void(*dll_PyErr_PrintEx)(int);
+  static PyObject*(*dll_PyErr_NoMemory)(void);
+***************
+*** 391,396 ****
+--- 393,399 ----
+      {"PyMem_Malloc", (PYTHON_PROC*)&dll_PyMem_Malloc},
+      {"PyDict_SetItemString", (PYTHON_PROC*)&dll_PyDict_SetItemString},
+      {"PyErr_BadArgument", (PYTHON_PROC*)&dll_PyErr_BadArgument},
++     {"PyErr_NewException", (PYTHON_PROC*)&dll_PyErr_NewException},
+      {"PyErr_Clear", (PYTHON_PROC*)&dll_PyErr_Clear},
+      {"PyErr_PrintEx", (PYTHON_PROC*)&dll_PyErr_PrintEx},
+      {"PyErr_NoMemory", (PYTHON_PROC*)&dll_PyErr_NoMemory},
+***************
+*** 1304,1310 ****
+      mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL, PYTHON_API_VERSION);
+      dict = PyModule_GetDict(mod);
+  
+!     VimError = Py_BuildValue("s", "vim.error");
+  
+      PyDict_SetItemString(dict, "error", VimError);
+      PyDict_SetItemString(dict, "buffers", (PyObject *)(void *)&TheBufferMap);
+--- 1307,1313 ----
+      mod = Py_InitModule4("vim", VimMethods, (char *)NULL, (PyObject *)NULL, PYTHON_API_VERSION);
+      dict = PyModule_GetDict(mod);
+  
+!     VimError = PyErr_NewException("vim.error", NULL, NULL);
+  
+      PyDict_SetItemString(dict, "error", VimError);
+      PyDict_SetItemString(dict, "buffers", (PyObject *)(void *)&TheBufferMap);
+*** ../vim-7.3.952/src/if_python3.c	2013-05-15 15:44:24.000000000 +0200
+--- src/if_python3.c	2013-05-15 16:02:20.000000000 +0200
+***************
+*** 1606,1613 ****
+  	return NULL;
+  
+      VimError = PyErr_NewException("vim.error", NULL, NULL);
+-     Py_INCREF(VimError);
+  
+      PyModule_AddObject(mod, "error", VimError);
+      Py_INCREF((PyObject *)(void *)&TheBufferMap);
+      PyModule_AddObject(mod, "buffers", (PyObject *)(void *)&TheBufferMap);
+--- 1606,1613 ----
+  	return NULL;
+  
+      VimError = PyErr_NewException("vim.error", NULL, NULL);
+  
++     Py_INCREF(VimError);
+      PyModule_AddObject(mod, "error", VimError);
+      Py_INCREF((PyObject *)(void *)&TheBufferMap);
+      PyModule_AddObject(mod, "buffers", (PyObject *)(void *)&TheBufferMap);
+*** ../vim-7.3.952/src/version.c	2013-05-15 15:51:03.000000000 +0200
+--- src/version.c	2013-05-15 16:02:43.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     953,
+  /**/
+
+-- 
+The early bird gets the worm. If you want something else for
+breakfast, get up later.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,75 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1189
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1189 (after 7.3.1185)
+Problem:    Highlighting is still wrong sometimes. (Dominique Pelle)
+Solution:   Also restore reginput properly.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1188/src/regexp_nfa.c	2013-06-13 20:19:35.000000000 +0200
+--- src/regexp_nfa.c	2013-06-13 22:52:38.000000000 +0200
+***************
+*** 4495,4501 ****
+      regsubs_T	    *m;
+      int		    **listids;
+  {
+!     char_u	*save_reginput = reginput;
+      int		save_reglnum = reglnum;
+      int		save_nfa_match = nfa_match;
+      int		save_nfa_listid = nfa_listid;
+--- 4495,4501 ----
+      regsubs_T	    *m;
+      int		    **listids;
+  {
+!     int		save_reginput_col = (int)(reginput - regline);
+      int		save_reglnum = reglnum;
+      int		save_nfa_match = nfa_match;
+      int		save_nfa_listid = nfa_listid;
+***************
+*** 4632,4641 ****
+      }
+  
+      /* restore position in input text */
+-     reginput = save_reginput;
+      reglnum = save_reglnum;
+      if (REG_MULTI)
+  	regline = reg_getline(reglnum);
+      nfa_match = save_nfa_match;
+      nfa_endp = save_nfa_endp;
+      nfa_listid = save_nfa_listid;
+--- 4632,4641 ----
+      }
+  
+      /* restore position in input text */
+      reglnum = save_reglnum;
+      if (REG_MULTI)
+  	regline = reg_getline(reglnum);
++     reginput = regline + save_reginput_col;
+      nfa_match = save_nfa_match;
+      nfa_endp = save_nfa_endp;
+      nfa_listid = save_nfa_listid;
+*** ../vim-7.3.1188/src/version.c	2013-06-13 21:57:16.000000000 +0200
+--- src/version.c	2013-06-13 22:53:34.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1189,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+194. Your business cards contain your e-mail and home page address.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

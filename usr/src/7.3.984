@@ -1,0 +1,49 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.984
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.984
+Problem:    A Visual mapping that uses CTRL-G works differently when started
+	    from Insert mode. (Ein Brown)
+Solution:   Reset old_mapped_len when handling typed text in Select mode.
+Files:	    src/normal.c
+
+
+*** ../vim-7.3.983/src/normal.c	2013-05-06 04:21:35.000000000 +0200
+--- src/normal.c	2013-05-20 21:11:55.000000000 +0200
+***************
+*** 701,706 ****
+--- 701,707 ----
+  	else
+  	    c = 'c';
+  	msg_nowait = TRUE;	/* don't delay going to insert mode */
++ 	old_mapped_len = 0;	/* do go to Insert mode */
+      }
+  #endif
+  
+*** ../vim-7.3.983/src/version.c	2013-05-21 12:43:52.000000000 +0200
+--- src/version.c	2013-05-21 12:45:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     984,
+  /**/
+
+-- 
+MICHAEL PALIN PLAYED: 1ST SOLDIER WITH A KEEN INTEREST IN BIRDS, DENNIS, MR
+                      DUCK (A VILLAGE CARPENTER WHO IS ALMOST KEENER THAN
+                      ANYONE ELSE TO BURN WITCHES), THREE-HEADED KNIGHT, SIR
+                      GALAHAD, KING OF SWAMP CASTLE, BROTHER MAYNARD'S ROOMATE
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,134 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1109
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1109
+Problem:    Building on MS-Windows doesn't see changes in if_py_both.h.
+Solution:   Add a dependency. (Ken Takata)
+Files:	    src/Make_bc5.mak, src/Make_cyg.mak, src/Make_ming.mak,
+	    src/Make_mvc.mak
+
+
+*** ../vim-7.3.1108/src/Make_bc5.mak	2013-02-26 14:56:24.000000000 +0100
+--- src/Make_bc5.mak	2013-06-03 20:09:58.000000000 +0200
+***************
+*** 1006,1015 ****
+  	$(PERL)\bin\perl.exe $(PERL)\lib\ExtUtils\xsubpp -prototypes -typemap \
+  	    $(PERL)\lib\ExtUtils\typemap if_perl.xs > $@
+  
+! $(OBJDIR)\if_python.obj: if_python.c python.lib
+  	$(CC) -I$(PYTHON)\include $(CCARG) $(CC1) $(CC2)$@ -pc if_python.c
+  
+! $(OBJDIR)\if_python3.obj: if_python3.c python3.lib
+  	$(CC) -I$(PYTHON3)\include $(CCARG) $(CC1) $(CC2)$@ -pc if_python3.c
+  
+  $(OBJDIR)\if_ruby.obj: if_ruby.c ruby.lib
+--- 1006,1015 ----
+  	$(PERL)\bin\perl.exe $(PERL)\lib\ExtUtils\xsubpp -prototypes -typemap \
+  	    $(PERL)\lib\ExtUtils\typemap if_perl.xs > $@
+  
+! $(OBJDIR)\if_python.obj: if_python.c if_py_both.h python.lib
+  	$(CC) -I$(PYTHON)\include $(CCARG) $(CC1) $(CC2)$@ -pc if_python.c
+  
+! $(OBJDIR)\if_python3.obj: if_python3.c if_py_both.h python3.lib
+  	$(CC) -I$(PYTHON3)\include $(CCARG) $(CC1) $(CC2)$@ -pc if_python3.c
+  
+  $(OBJDIR)\if_ruby.obj: if_ruby.c ruby.lib
+*** ../vim-7.3.1108/src/Make_cyg.mak	2013-05-19 19:16:25.000000000 +0200
+--- src/Make_cyg.mak	2013-06-03 20:09:58.000000000 +0200
+***************
+*** 648,657 ****
+  $(OUTDIR)/if_ole.o:	if_ole.cpp $(INCL)
+  	$(CC) -c $(CFLAGS) if_ole.cpp -o $(OUTDIR)/if_ole.o
+  
+! $(OUTDIR)/if_python.o : if_python.c $(INCL)
+  	$(CC) -c $(CFLAGS) -I$(PYTHON)/include $< -o $@
+  
+! $(OUTDIR)/if_python3.o : if_python3.c $(INCL)
+  	$(CC) -c $(CFLAGS) -I$(PYTHON3)/include $< -o $@
+  
+  if_perl.c: if_perl.xs typemap
+--- 648,657 ----
+  $(OUTDIR)/if_ole.o:	if_ole.cpp $(INCL)
+  	$(CC) -c $(CFLAGS) if_ole.cpp -o $(OUTDIR)/if_ole.o
+  
+! $(OUTDIR)/if_python.o : if_python.c if_py_both.h $(INCL)
+  	$(CC) -c $(CFLAGS) -I$(PYTHON)/include $< -o $@
+  
+! $(OUTDIR)/if_python3.o : if_python3.c if_py_both.h $(INCL)
+  	$(CC) -c $(CFLAGS) -I$(PYTHON3)/include $< -o $@
+  
+  if_perl.c: if_perl.xs typemap
+*** ../vim-7.3.1108/src/Make_ming.mak	2013-05-19 19:16:25.000000000 +0200
+--- src/Make_ming.mak	2013-06-03 20:09:58.000000000 +0200
+***************
+*** 721,730 ****
+  	structs.h regexp.h option.h ex_cmds.h proto.h globals.h farsi.h \
+  	gui.h
+  
+! $(OUTDIR)/if_python.o : if_python.c $(INCL)
+  	$(CC) -c $(CFLAGS) $(PYTHONINC) -DDYNAMIC_PYTHON_DLL=\"python$(PYTHON_VER).dll\" $< -o $@
+  
+! $(OUTDIR)/if_python3.o : if_python3.c $(INCL)
+  	$(CC) -c $(CFLAGS) $(PYTHON3INC) -DDYNAMIC_PYTHON3_DLL=\"PYTHON$(PYTHON3_VER).dll\" $< -o $@
+  
+  $(OUTDIR)/%.o : %.c $(INCL)
+--- 721,730 ----
+  	structs.h regexp.h option.h ex_cmds.h proto.h globals.h farsi.h \
+  	gui.h
+  
+! $(OUTDIR)/if_python.o : if_python.c if_py_both.h $(INCL)
+  	$(CC) -c $(CFLAGS) $(PYTHONINC) -DDYNAMIC_PYTHON_DLL=\"python$(PYTHON_VER).dll\" $< -o $@
+  
+! $(OUTDIR)/if_python3.o : if_python3.c if_py_both.h $(INCL)
+  	$(CC) -c $(CFLAGS) $(PYTHON3INC) -DDYNAMIC_PYTHON3_DLL=\"PYTHON$(PYTHON3_VER).dll\" $< -o $@
+  
+  $(OUTDIR)/%.o : %.c $(INCL)
+*** ../vim-7.3.1108/src/Make_mvc.mak	2013-05-19 21:03:50.000000000 +0200
+--- src/Make_mvc.mak	2013-06-03 20:09:58.000000000 +0200
+***************
+*** 1113,1122 ****
+  mzscheme_base.c:
+  	$(MZSCHEME)\mzc --c-mods mzscheme_base.c ++lib scheme/base
+  
+! $(OUTDIR)/if_python.obj: $(OUTDIR) if_python.c  $(INCL)
+  	$(CC) $(CFLAGS) $(PYTHON_INC) if_python.c
+  
+! $(OUTDIR)/if_python3.obj: $(OUTDIR) if_python3.c  $(INCL)
+  	$(CC) $(CFLAGS) $(PYTHON3_INC) if_python3.c
+  
+  $(OUTDIR)/if_ole.obj: $(OUTDIR) if_ole.cpp  $(INCL) if_ole.h
+--- 1113,1122 ----
+  mzscheme_base.c:
+  	$(MZSCHEME)\mzc --c-mods mzscheme_base.c ++lib scheme/base
+  
+! $(OUTDIR)/if_python.obj: $(OUTDIR) if_python.c if_py_both.h $(INCL)
+  	$(CC) $(CFLAGS) $(PYTHON_INC) if_python.c
+  
+! $(OUTDIR)/if_python3.obj: $(OUTDIR) if_python3.c if_py_both.h $(INCL)
+  	$(CC) $(CFLAGS) $(PYTHON3_INC) if_python3.c
+  
+  $(OUTDIR)/if_ole.obj: $(OUTDIR) if_ole.cpp  $(INCL) if_ole.h
+*** ../vim-7.3.1108/src/version.c	2013-06-03 20:04:43.000000000 +0200
+--- src/version.c	2013-06-03 20:10:22.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1109,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+74. Your most erotic dreams are about cybersex
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

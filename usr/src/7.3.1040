@@ -1,0 +1,298 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1040
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1040
+Problem:    Python: Problems with debugging dynamic build.
+Solution:   Python patch 1. (ZyX)
+Files:      src/if_python.c, src/if_python3.c
+
+
+*** ../vim-7.3.1039/src/if_python.c	2013-05-21 22:23:51.000000000 +0200
+--- src/if_python.c	2013-05-29 21:32:46.000000000 +0200
+***************
+*** 21,26 ****
+--- 21,35 ----
+  
+  #include <limits.h>
+  
++ /* uncomment this if used with the debug version of python.
++  * Checked on 2.7.4. */
++ /* #define Py_DEBUG */
++ /* Note: most of time you can add -DPy_DEBUG to CFLAGS in place of uncommenting 
++  */
++ /* uncomment this if used with the debug version of python, but without its 
++  * allocator */
++ /* #define Py_DEBUG_NO_PYMALLOC */
++ 
+  /* Python.h defines _POSIX_THREADS itself (if needed) */
+  #ifdef _POSIX_THREADS
+  # undef _POSIX_THREADS
+***************
+*** 240,247 ****
+  #  define PyType_IsSubtype dll_PyType_IsSubtype
+  # endif
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+! #  define PyObject_Malloc dll_PyObject_Malloc
+! #  define PyObject_Free dll_PyObject_Free
+  # endif
+  # ifdef PY_USE_CAPSULE
+  #  define PyCapsule_New dll_PyCapsule_New
+--- 249,266 ----
+  #  define PyType_IsSubtype dll_PyType_IsSubtype
+  # endif
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
+! #  ifdef Py_DEBUG
+! #   define _Py_NegativeRefcount dll__Py_NegativeRefcount
+! #   define _Py_RefTotal (*dll__Py_RefTotal)
+! #   define _Py_Dealloc dll__Py_Dealloc
+! #  endif
+! #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+! #   define _PyObject_DebugMalloc dll__PyObject_DebugMalloc
+! #   define _PyObject_DebugFree dll__PyObject_DebugFree
+! #  else
+! #   define PyObject_Malloc dll_PyObject_Malloc
+! #   define PyObject_Free dll_PyObject_Free
+! #  endif
+  # endif
+  # ifdef PY_USE_CAPSULE
+  #  define PyCapsule_New dll_PyCapsule_New
+***************
+*** 350,357 ****
+--- 369,386 ----
+  static int (*dll_PyType_IsSubtype)(PyTypeObject *, PyTypeObject *);
+  # endif
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
++ #  ifdef Py_DEBUG
++ static void (*dll__Py_NegativeRefcount)(const char *fname, int lineno, PyObject *op);
++ static Py_ssize_t* dll__Py_RefTotal;
++ static void (*dll__Py_Dealloc)(PyObject *obj);
++ #  endif
++ #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
++ static void (*dll__PyObject_DebugFree)(void*);
++ static void* (*dll__PyObject_DebugMalloc)(size_t);
++ #  else
+  static void* (*dll_PyObject_Malloc)(size_t);
+  static void (*dll_PyObject_Free)(void*);
++ #  endif
+  # endif
+  # ifdef PY_USE_CAPSULE
+  static PyObject* (*dll_PyCapsule_New)(void *, char *, PyCapsule_Destructor);
+***************
+*** 469,480 ****
+      {"PyType_Type", (PYTHON_PROC*)&dll_PyType_Type},
+      {"PyType_Ready", (PYTHON_PROC*)&dll_PyType_Ready},
+      {"Py_FindMethod", (PYTHON_PROC*)&dll_Py_FindMethod},
+- # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02050000 \
+- 	&& SIZEOF_SIZE_T != SIZEOF_INT
+-     {"Py_InitModule4_64", (PYTHON_PROC*)&dll_Py_InitModule4},
+- # else
+-     {"Py_InitModule4", (PYTHON_PROC*)&dll_Py_InitModule4},
+- # endif
+      {"Py_SetPythonHome", (PYTHON_PROC*)&dll_Py_SetPythonHome},
+      {"Py_Initialize", (PYTHON_PROC*)&dll_Py_Initialize},
+      {"Py_Finalize", (PYTHON_PROC*)&dll_Py_Finalize},
+--- 498,503 ----
+***************
+*** 496,503 ****
+--- 519,550 ----
+      {"PyType_IsSubtype", (PYTHON_PROC*)&dll_PyType_IsSubtype},
+  # endif
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02030000
++ #  ifdef Py_DEBUG
++     {"_Py_NegativeRefcount", (PYTHON_PROC*)&dll__Py_NegativeRefcount},
++     {"_Py_RefTotal", (PYTHON_PROC*)&dll__Py_RefTotal},
++     {"_Py_Dealloc", (PYTHON_PROC*)&dll__Py_Dealloc},
++ #  endif
++ #  if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
++     {"_PyObject_DebugFree", (PYTHON_PROC*)&dll__PyObject_DebugFree},
++     {"_PyObject_DebugMalloc", (PYTHON_PROC*)&dll__PyObject_DebugMalloc},
++ #  else
+      {"PyObject_Malloc", (PYTHON_PROC*)&dll_PyObject_Malloc},
+      {"PyObject_Free", (PYTHON_PROC*)&dll_PyObject_Free},
++ #  endif
++ # endif
++ # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02050000 \
++ 	&& SIZEOF_SIZE_T != SIZEOF_INT
++ #  ifdef Py_DEBUG
++     {"Py_InitModule4TraceRefs_64", (PYTHON_PROC*)&dll_Py_InitModule4},
++ #  else
++     {"Py_InitModule4_64", (PYTHON_PROC*)&dll_Py_InitModule4},
++ #  endif
++ # else
++ #  ifdef Py_DEBUG
++     {"Py_InitModule4TraceRefs", (PYTHON_PROC*)&dll_Py_InitModule4},
++ #  else
++     {"Py_InitModule4", (PYTHON_PROC*)&dll_Py_InitModule4},
++ #  endif
+  # endif
+  # ifdef PY_USE_CAPSULE
+      {"PyCapsule_New", (PYTHON_PROC*)&dll_PyCapsule_New},
+*** ../vim-7.3.1039/src/if_python3.c	2013-05-21 22:23:51.000000000 +0200
+--- src/if_python3.c	2013-05-29 21:32:46.000000000 +0200
+***************
+*** 24,29 ****
+--- 24,34 ----
+  
+  /* uncomment this if used with the debug version of python */
+  /* #define Py_DEBUG */
++ /* Note: most of time you can add -DPy_DEBUG to CFLAGS in place of uncommenting 
++  */
++ /* uncomment this if used with the debug version of python, but without its 
++  * allocator */
++ /* #define Py_DEBUG_NO_PYMALLOC */
+  
+  #include "vim.h"
+  
+***************
+*** 207,212 ****
+--- 212,222 ----
+  #  define _Py_NegativeRefcount py3__Py_NegativeRefcount
+  #  define _Py_RefTotal (*py3__Py_RefTotal)
+  #  define _Py_Dealloc py3__Py_Dealloc
++ #  define PyModule_Create2TraceRefs py3_PyModule_Create2TraceRefs
++ # else
++ #  define PyModule_Create2 py3_PyModule_Create2
++ # endif
++ # if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+  #  define _PyObject_DebugMalloc py3__PyObject_DebugMalloc
+  #  define _PyObject_DebugFree py3__PyObject_DebugFree
+  # else
+***************
+*** 218,224 ****
+  # define PyObject_GC_UnTrack py3_PyObject_GC_UnTrack
+  # define PyType_GenericAlloc py3_PyType_GenericAlloc
+  # define PyType_GenericNew py3_PyType_GenericNew
+- # define PyModule_Create2 py3_PyModule_Create2
+  # undef PyUnicode_FromString
+  # define PyUnicode_FromString py3_PyUnicode_FromString
+  # undef PyUnicode_Decode
+--- 228,233 ----
+***************
+*** 227,233 ****
+  # define PyCapsule_New py3_PyCapsule_New
+  # define PyCapsule_GetPointer py3_PyCapsule_GetPointer
+  
+! # ifdef Py_DEBUG
+  #  undef PyObject_NEW
+  #  define PyObject_NEW(type, typeobj) \
+  ( (type *) PyObject_Init( \
+--- 236,242 ----
+  # define PyCapsule_New py3_PyCapsule_New
+  # define PyCapsule_GetPointer py3_PyCapsule_GetPointer
+  
+! # if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+  #  undef PyObject_NEW
+  #  define PyObject_NEW(type, typeobj) \
+  ( (type *) PyObject_Init( \
+***************
+*** 317,323 ****
+  static PyObject* (*py3_PyFloat_FromDouble)(double num);
+  static double (*py3_PyFloat_AsDouble)(PyObject *);
+  static PyObject* (*py3_PyObject_GenericGetAttr)(PyObject *obj, PyObject *name);
+- static PyObject* (*py3_PyModule_Create2)(struct PyModuleDef* module, int module_api_version);
+  static PyObject* (*py3_PyType_GenericAlloc)(PyTypeObject *type, Py_ssize_t nitems);
+  static PyObject* (*py3_PyType_GenericNew)(PyTypeObject *type, PyObject *args, PyObject *kwds);
+  static PyTypeObject* py3_PyType_Type;
+--- 326,331 ----
+***************
+*** 328,341 ****
+  static PyObject* (*py3_PyCapsule_New)(void *, char *, PyCapsule_Destructor);
+  static void* (*py3_PyCapsule_GetPointer)(PyObject *, char *);
+  # ifdef Py_DEBUG
+!     static void (*py3__Py_NegativeRefcount)(const char *fname, int lineno, PyObject *op);
+!     static Py_ssize_t* py3__Py_RefTotal;
+!     static void (*py3__Py_Dealloc)(PyObject *obj);
+!     static void (*py3__PyObject_DebugFree)(void*);
+!     static void* (*py3__PyObject_DebugMalloc)(size_t);
+  # else
+!     static void (*py3_PyObject_Free)(void*);
+!     static void* (*py3_PyObject_Malloc)(size_t);
+  # endif
+  static PyObject*(*py3__PyObject_GC_New)(PyTypeObject *);
+  static void(*py3_PyObject_GC_Del)(void *);
+--- 336,354 ----
+  static PyObject* (*py3_PyCapsule_New)(void *, char *, PyCapsule_Destructor);
+  static void* (*py3_PyCapsule_GetPointer)(PyObject *, char *);
+  # ifdef Py_DEBUG
+! static void (*py3__Py_NegativeRefcount)(const char *fname, int lineno, PyObject *op);
+! static Py_ssize_t* py3__Py_RefTotal;
+! static void (*py3__Py_Dealloc)(PyObject *obj);
+! static PyObject* (*py3_PyModule_Create2TraceRefs)(struct PyModuleDef* module, int module_api_version);
+! # else
+! static PyObject* (*py3_PyModule_Create2)(struct PyModuleDef* module, int module_api_version);
+! # endif
+! # if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+! static void (*py3__PyObject_DebugFree)(void*);
+! static void* (*py3__PyObject_DebugMalloc)(size_t);
+  # else
+! static void (*py3_PyObject_Free)(void*);
+! static void* (*py3_PyObject_Malloc)(size_t);
+  # endif
+  static PyObject*(*py3__PyObject_GC_New)(PyTypeObject *);
+  static void(*py3_PyObject_GC_Del)(void *);
+***************
+*** 451,457 ****
+      {"PyFloat_FromDouble", (PYTHON_PROC*)&py3_PyFloat_FromDouble},
+      {"PyFloat_AsDouble", (PYTHON_PROC*)&py3_PyFloat_AsDouble},
+      {"PyObject_GenericGetAttr", (PYTHON_PROC*)&py3_PyObject_GenericGetAttr},
+-     {"PyModule_Create2", (PYTHON_PROC*)&py3_PyModule_Create2},
+      {"PyType_GenericAlloc", (PYTHON_PROC*)&py3_PyType_GenericAlloc},
+      {"PyType_GenericNew", (PYTHON_PROC*)&py3_PyType_GenericNew},
+      {"PyType_Type", (PYTHON_PROC*)&py3_PyType_Type},
+--- 464,469 ----
+***************
+*** 463,468 ****
+--- 475,485 ----
+      {"_Py_NegativeRefcount", (PYTHON_PROC*)&py3__Py_NegativeRefcount},
+      {"_Py_RefTotal", (PYTHON_PROC*)&py3__Py_RefTotal},
+      {"_Py_Dealloc", (PYTHON_PROC*)&py3__Py_Dealloc},
++     {"PyModule_Create2TraceRefs", (PYTHON_PROC*)&py3_PyModule_Create2TraceRefs},
++ # else
++     {"PyModule_Create2", (PYTHON_PROC*)&py3_PyModule_Create2},
++ # endif
++ # if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+      {"_PyObject_DebugFree", (PYTHON_PROC*)&py3__PyObject_DebugFree},
+      {"_PyObject_DebugMalloc", (PYTHON_PROC*)&py3__PyObject_DebugMalloc},
+  # else
+***************
+*** 656,662 ****
+      static void
+  call_PyObject_Free(void *p)
+  {
+! #ifdef Py_DEBUG
+      _PyObject_DebugFree(p);
+  #else
+      PyObject_Free(p);
+--- 673,679 ----
+      static void
+  call_PyObject_Free(void *p)
+  {
+! #if defined(Py_DEBUG) && !defined(Py_DEBUG_NO_PYMALLOC)
+      _PyObject_DebugFree(p);
+  #else
+      PyObject_Free(p);
+*** ../vim-7.3.1039/src/version.c	2013-05-29 21:14:37.000000000 +0200
+--- src/version.c	2013-05-29 21:32:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1040,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+17. You turn on your intercom when leaving the room so you can hear if new
+    e-mail arrives.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

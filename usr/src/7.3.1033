@@ -1,0 +1,1346 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1033
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1033
+Problem:    "\1" .. "\9" are not supported in the new regexp engine.
+Solution:   Implement them.  Add a few more tests.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok,
+	    src/regexp.h
+
+
+*** ../vim-7.3.1032/src/regexp_nfa.c	2013-05-27 20:10:40.000000000 +0200
+--- src/regexp_nfa.c	2013-05-28 21:57:24.000000000 +0200
+***************
+*** 73,78 ****
+--- 73,89 ----
+      NFA_PREV_ATOM_JUST_BEFORE_NEG,  /* Used for \@<! */
+      NFA_PREV_ATOM_LIKE_PATTERN,	    /* Used for \@> */
+  
++     NFA_BACKREF1,		    /* \1 */
++     NFA_BACKREF2,		    /* \2 */
++     NFA_BACKREF3,		    /* \3 */
++     NFA_BACKREF4,		    /* \4 */
++     NFA_BACKREF5,		    /* \5 */
++     NFA_BACKREF6,		    /* \6 */
++     NFA_BACKREF7,		    /* \7 */
++     NFA_BACKREF8,		    /* \8 */
++     NFA_BACKREF9,		    /* \9 */
++     NFA_SKIP,			    /* Skip characters */
++ 
+      NFA_MOPEN,
+      NFA_MCLOSE = NFA_MOPEN + NSUBEXP,
+  
+***************
+*** 709,715 ****
+  	    p = vim_strchr(classchars, no_Magic(c));
+  	    if (p == NULL)
+  	    {
+! 		return FAIL;	    /* runtime error */
+  	    }
+  #ifdef FEAT_MBYTE
+  	    /* When '.' is followed by a composing char ignore the dot, so that
+--- 720,727 ----
+  	    p = vim_strchr(classchars, no_Magic(c));
+  	    if (p == NULL)
+  	    {
+! 		EMSGN("INTERNAL: Unknown character class char: %ld", c);
+! 		return FAIL;
+  	    }
+  #ifdef FEAT_MBYTE
+  	    /* When '.' is followed by a composing char ignore the dot, so that
+***************
+*** 766,785 ****
+  	    return FAIL;
+  
+  	case Magic('~'):		/* previous substitute pattern */
+! 	    /* Not supported yet */
+  	    return FAIL;
+  
+! 	case Magic('1'):
+! 	case Magic('2'):
+! 	case Magic('3'):
+! 	case Magic('4'):
+! 	case Magic('5'):
+! 	case Magic('6'):
+! 	case Magic('7'):
+! 	case Magic('8'):
+! 	case Magic('9'):
+! 	    /* not supported yet */
+! 	    return FAIL;
+  
+  	case Magic('z'):
+  	    c = no_Magic(getchr());
+--- 778,795 ----
+  	    return FAIL;
+  
+  	case Magic('~'):		/* previous substitute pattern */
+! 	    /* TODO: Not supported yet */
+  	    return FAIL;
+  
+! 	case Magic('1'): EMIT(NFA_BACKREF1); break;
+! 	case Magic('2'): EMIT(NFA_BACKREF2); break;
+! 	case Magic('3'): EMIT(NFA_BACKREF3); break;
+! 	case Magic('4'): EMIT(NFA_BACKREF4); break;
+! 	case Magic('5'): EMIT(NFA_BACKREF5); break;
+! 	case Magic('6'): EMIT(NFA_BACKREF6); break;
+! 	case Magic('7'): EMIT(NFA_BACKREF7); break;
+! 	case Magic('8'): EMIT(NFA_BACKREF8); break;
+! 	case Magic('9'): EMIT(NFA_BACKREF9); break;
+  
+  	case Magic('z'):
+  	    c = no_Magic(getchr());
+***************
+*** 802,808 ****
+  		case '8':
+  		case '9':
+  		case '(':
+! 		    /* \z1...\z9 and \z( not yet supported */
+  		    return FAIL;
+  		default:
+  		    syntax_error = TRUE;
+--- 812,818 ----
+  		case '8':
+  		case '9':
+  		case '(':
+! 		    /* TODO: \z1...\z9 and \z( not yet supported */
+  		    return FAIL;
+  		default:
+  		    syntax_error = TRUE;
+***************
+*** 854,885 ****
+  		 * pattern -- regardless of whether or not it makes sense. */
+  		case '^':
+  		    EMIT(NFA_BOF);
+! 		    /* Not yet supported */
+  		    return FAIL;
+  		    break;
+  
+  		case '$':
+  		    EMIT(NFA_EOF);
+! 		    /* Not yet supported */
+  		    return FAIL;
+  		    break;
+  
+  		case '#':
+! 		    /* not supported yet */
+  		    return FAIL;
+  		    break;
+  
+  		case 'V':
+! 		    /* not supported yet */
+  		    return FAIL;
+  		    break;
+  
+  		case '[':
+! 		    /* \%[abc] not supported yet */
+  		    return FAIL;
+  
+  		default:
+! 		    /* not supported yet */
+  		    return FAIL;
+  	    }
+  	    break;
+--- 864,913 ----
+  		 * pattern -- regardless of whether or not it makes sense. */
+  		case '^':
+  		    EMIT(NFA_BOF);
+! 		    /* TODO: Not yet supported */
+  		    return FAIL;
+  		    break;
+  
+  		case '$':
+  		    EMIT(NFA_EOF);
+! 		    /* TODO: Not yet supported */
+  		    return FAIL;
+  		    break;
+  
+  		case '#':
+! 		    /* TODO: not supported yet */
+  		    return FAIL;
+  		    break;
+  
+  		case 'V':
+! 		    /* TODO: not supported yet */
+  		    return FAIL;
+  		    break;
+  
+  		case '[':
+! 		    /* TODO: \%[abc] not supported yet */
+! 		    return FAIL;
+! 
+! 		case '0':
+! 		case '1':
+! 		case '2':
+! 		case '3':
+! 		case '4':
+! 		case '5':
+! 		case '6':
+! 		case '7':
+! 		case '8':
+! 		case '9':
+! 		case '<':
+! 		case '>':
+! 		case '\'':
+! 		    /* TODO: not supported yet */
+  		    return FAIL;
+  
+  		default:
+! 		    syntax_error = TRUE;
+! 		    EMSGN(_("E867: (NFA) Unknown operator '\\%%%c'"),
+! 								 no_Magic(c));
+  		    return FAIL;
+  	    }
+  	    break;
+***************
+*** 1672,1677 ****
+--- 1700,1716 ----
+  	case NFA_ZSTART:    STRCPY(code, "NFA_ZSTART"); break;
+  	case NFA_ZEND:	    STRCPY(code, "NFA_ZEND"); break;
+  
++ 	case NFA_BACKREF1:  STRCPY(code, "NFA_BACKREF1"); break;
++ 	case NFA_BACKREF2:  STRCPY(code, "NFA_BACKREF2"); break;
++ 	case NFA_BACKREF3:  STRCPY(code, "NFA_BACKREF3"); break;
++ 	case NFA_BACKREF4:  STRCPY(code, "NFA_BACKREF4"); break;
++ 	case NFA_BACKREF5:  STRCPY(code, "NFA_BACKREF5"); break;
++ 	case NFA_BACKREF6:  STRCPY(code, "NFA_BACKREF6"); break;
++ 	case NFA_BACKREF7:  STRCPY(code, "NFA_BACKREF7"); break;
++ 	case NFA_BACKREF8:  STRCPY(code, "NFA_BACKREF8"); break;
++ 	case NFA_BACKREF9:  STRCPY(code, "NFA_BACKREF9"); break;
++ 	case NFA_SKIP:	    STRCPY(code, "NFA_SKIP"); break;
++ 
+  	case NFA_PREV_ATOM_NO_WIDTH:
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
+  	case NFA_NOPEN:		    STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
+***************
+*** 1949,1955 ****
+  
+      s->id   = istate;
+      s->lastlist = 0;
+-     s->visits = 0;
+      s->negated = FALSE;
+  
+      return s;
+--- 1988,1993 ----
+***************
+*** 2416,2421 ****
+--- 2454,2483 ----
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+  
++ 	case NFA_BACKREF1:
++ 	case NFA_BACKREF2:
++ 	case NFA_BACKREF3:
++ 	case NFA_BACKREF4:
++ 	case NFA_BACKREF5:
++ 	case NFA_BACKREF6:
++ 	case NFA_BACKREF7:
++ 	case NFA_BACKREF8:
++ 	case NFA_BACKREF9:
++ 	    if (nfa_calc_size == TRUE)
++ 	    {
++ 		nstate += 2;
++ 		break;
++ 	    }
++ 	    s = new_state(*p, NULL, NULL);
++ 	    if (s == NULL)
++ 		goto theend;
++ 	    s1 = new_state(NFA_SKIP, NULL, NULL);
++ 	    if (s1 == NULL)
++ 		goto theend;
++ 	    patch(list1(&s->out), s1);
++ 	    PUSH(frag(s, list1(&s1->out)));
++ 	    break;
++ 
+  	case NFA_ZSTART:
+  	case NFA_ZEND:
+  	default:
+***************
+*** 2495,2523 ****
+  typedef struct
+  {
+      nfa_state_T	*state;
+      regsub_T	sub;		/* submatch info, only party used */
+  } nfa_thread_T;
+  
+  /* nfa_list_T contains the alternative NFA execution states. */
+  typedef struct
+  {
+!     nfa_thread_T    *t;
+!     int		    n;
+  } nfa_list_T;
+  
+  /* Used during execution: whether a match has been found. */
+  static int nfa_match;
+  
+! static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsub_T *m, int off, int lid));
+! static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsub_T *m, int lid, int *ip));
+  
+      static void
+! addstate(l, state, m, off, lid)
+      nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+!     regsub_T		*m;	/* pointers to subexpressions */
+      int			off;	/* byte offset, when -1 go to next line */
+-     int			lid;
+  {
+      int			subidx;
+      nfa_thread_T	*lastthread;
+--- 2557,2610 ----
+  typedef struct
+  {
+      nfa_state_T	*state;
++     int		count;
+      regsub_T	sub;		/* submatch info, only party used */
+  } nfa_thread_T;
+  
+  /* nfa_list_T contains the alternative NFA execution states. */
+  typedef struct
+  {
+!     nfa_thread_T    *t;		/* allocated array of states */
+!     int		    n;		/* nr of states in "t" */
+!     int		    id;		/* ID of the list */
+  } nfa_list_T;
+  
++ #ifdef ENABLE_LOG
++     static void
++ log_subexpr(sub)
++     regsub_T *sub;
++ {
++     int j;
++ 
++     for (j = 0; j < sub->in_use; j++)
++ 	if (REG_MULTI)
++ 	    fprintf(log_fd, "\n *** group %d, start: c=%d, l=%d, end: c=%d, l=%d",
++ 		    j,
++ 		    sub->multilist[j].start.col,
++ 		    (int)sub->multilist[j].start.lnum,
++ 		    sub->multilist[j].end.col,
++ 		    (int)sub->multilist[j].end.lnum);
++ 	else
++ 	    fprintf(log_fd, "\n *** group %d, start: \"%s\", end: \"%s\"",
++ 		    j,
++ 		    (char *)sub->linelist[j].start,
++ 		    (char *)sub->linelist[j].end);
++     fprintf(log_fd, "\n");
++ }
++ #endif
++ 
+  /* Used during execution: whether a match has been found. */
+  static int nfa_match;
+  
+! static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsub_T *sub, int off));
+! static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsub_T *sub, int *ip));
+  
+      static void
+! addstate(l, state, sub, off)
+      nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+!     regsub_T		*sub;	/* pointers to subexpressions */
+      int			off;	/* byte offset, when -1 go to next line */
+  {
+      int			subidx;
+      nfa_thread_T	*lastthread;
+***************
+*** 2545,2585 ****
+  	case NFA_MCLOSE + 7:
+  	case NFA_MCLOSE + 8:
+  	case NFA_MCLOSE + 9:
+! 	    /* Do not remember these nodes in list "thislist" or "nextlist" */
+  	    break;
+  
+  	default:
+! 	    if (state->lastlist == lid)
+  	    {
+! 		if (++state->visits > 2)
+! 		    return;
+  	    }
+! 	    else
+  	    {
+! 		/* add the state to the list */
+! 		state->lastlist = lid;
+! 		lastthread = &l->t[l->n++];
+! 		lastthread->state = state;
+! 		lastthread->sub.in_use = m->in_use;
+! 		if (m->in_use > 0)
+! 		{
+! 		    /* Copy the match start and end positions. */
+! 		    if (REG_MULTI)
+! 			mch_memmove(&lastthread->sub.multilist[0],
+! 				    &m->multilist[0],
+! 				    sizeof(struct multipos) * m->in_use);
+! 		    else
+! 			mch_memmove(&lastthread->sub.linelist[0],
+! 				    &m->linelist[0],
+! 				    sizeof(struct linepos) * m->in_use);
+! 		}
+  	    }
+      }
+  
+  #ifdef ENABLE_LOG
+      nfa_set_code(state->c);
+!     fprintf(log_fd, "> Adding state %d to list. Character %s, code %d\n",
+! 	abs(state->id), code, state->c);
+  #endif
+      switch (state->c)
+      {
+--- 2632,2689 ----
+  	case NFA_MCLOSE + 7:
+  	case NFA_MCLOSE + 8:
+  	case NFA_MCLOSE + 9:
+! 	    /* These nodes are not added themselves but their "out" and/or
+! 	     * "out1" may be added below.  */
+! 	    break;
+! 
+! 	case NFA_MOPEN:
+! 	case NFA_MOPEN + 1:
+! 	case NFA_MOPEN + 2:
+! 	case NFA_MOPEN + 3:
+! 	case NFA_MOPEN + 4:
+! 	case NFA_MOPEN + 5:
+! 	case NFA_MOPEN + 6:
+! 	case NFA_MOPEN + 7:
+! 	case NFA_MOPEN + 8:
+! 	case NFA_MOPEN + 9:
+! 	    /* These nodes do not need to be added, but we need to bail out
+! 	     * when it was tried to be added to this list before. */
+! 	    if (state->lastlist == l->id)
+! 		return;
+! 	    state->lastlist = l->id;
+  	    break;
+  
+  	default:
+! 	    if (state->lastlist == l->id)
+  	    {
+! 		/* This state is already in the list, don't add it again,
+! 		 * unless it is an MOPEN that is used for a backreference. */
+! 		return;
+  	    }
+! 
+! 	    /* add the state to the list */
+! 	    state->lastlist = l->id;
+! 	    lastthread = &l->t[l->n++];
+! 	    lastthread->state = state;
+! 	    lastthread->sub.in_use = sub->in_use;
+! 	    if (sub->in_use > 0)
+  	    {
+! 		/* Copy the match start and end positions. */
+! 		if (REG_MULTI)
+! 		    mch_memmove(&lastthread->sub.multilist[0],
+! 				&sub->multilist[0],
+! 				sizeof(struct multipos) * sub->in_use);
+! 		else
+! 		    mch_memmove(&lastthread->sub.linelist[0],
+! 				&sub->linelist[0],
+! 				sizeof(struct linepos) * sub->in_use);
+  	    }
+      }
+  
+  #ifdef ENABLE_LOG
+      nfa_set_code(state->c);
+!     fprintf(log_fd, "> Adding state %d to list. Character %d: %s\n",
+! 	abs(state->id), state->c, code);
+  #endif
+      switch (state->c)
+      {
+***************
+*** 2588,2599 ****
+  	    break;
+  
+  	case NFA_SPLIT:
+! 	    addstate(l, state->out, m, off, lid);
+! 	    addstate(l, state->out1, m, off, lid);
+! 	    break;
+! 
+! 	case NFA_SKIP_CHAR:
+! 	    addstate(l, state->out, m, off, lid);
+  	    break;
+  
+  #if 0
+--- 2692,2699 ----
+  	    break;
+  
+  	case NFA_SPLIT:
+! 	    addstate(l, state->out, sub, off);
+! 	    addstate(l, state->out1, sub, off);
+  	    break;
+  
+  #if 0
+***************
+*** 2613,2621 ****
+  	    break;
+  #endif
+  
+  	case NFA_NOPEN:
+  	case NFA_NCLOSE:
+! 	    addstate(l, state->out, m, off, lid);
+  	    break;
+  
+  	/* If this state is reached, then a recursive call of nfa_regmatch()
+--- 2713,2722 ----
+  	    break;
+  #endif
+  
++ 	case NFA_SKIP_CHAR:
+  	case NFA_NOPEN:
+  	case NFA_NCLOSE:
+! 	    addstate(l, state->out, sub, off);
+  	    break;
+  
+  	/* If this state is reached, then a recursive call of nfa_regmatch()
+***************
+*** 2646,2709 ****
+  	     * restore it when it was in use.  Otherwise fill any gap. */
+  	    if (REG_MULTI)
+  	    {
+! 		if (subidx < m->in_use)
+  		{
+! 		    save_lpos = m->multilist[subidx].start;
+  		    save_in_use = -1;
+  		}
+  		else
+  		{
+! 		    save_in_use = m->in_use;
+! 		    for (i = m->in_use; i < subidx; ++i)
+  		    {
+! 			m->multilist[i].start.lnum = -1;
+! 			m->multilist[i].end.lnum = -1;
+  		    }
+! 		    m->in_use = subidx + 1;
+  		}
+  		if (off == -1)
+  		{
+! 		    m->multilist[subidx].start.lnum = reglnum + 1;
+! 		    m->multilist[subidx].start.col = 0;
+  		}
+  		else
+  		{
+! 		    m->multilist[subidx].start.lnum = reglnum;
+! 		    m->multilist[subidx].start.col =
+  					  (colnr_T)(reginput - regline + off);
+  		}
+  	    }
+  	    else
+  	    {
+! 		if (subidx < m->in_use)
+  		{
+! 		    save_ptr = m->linelist[subidx].start;
+  		    save_in_use = -1;
+  		}
+  		else
+  		{
+! 		    save_in_use = m->in_use;
+! 		    for (i = m->in_use; i < subidx; ++i)
+  		    {
+! 			m->linelist[i].start = NULL;
+! 			m->linelist[i].end = NULL;
+  		    }
+! 		    m->in_use = subidx + 1;
+  		}
+! 		m->linelist[subidx].start = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, m, off, lid);
+  
+  	    if (save_in_use == -1)
+  	    {
+  		if (REG_MULTI)
+! 		    m->multilist[subidx].start = save_lpos;
+  		else
+! 		    m->linelist[subidx].start = save_ptr;
+  	    }
+  	    else
+! 		m->in_use = save_in_use;
+  	    break;
+  
+  	case NFA_MCLOSE + 0:
+--- 2747,2810 ----
+  	     * restore it when it was in use.  Otherwise fill any gap. */
+  	    if (REG_MULTI)
+  	    {
+! 		if (subidx < sub->in_use)
+  		{
+! 		    save_lpos = sub->multilist[subidx].start;
+  		    save_in_use = -1;
+  		}
+  		else
+  		{
+! 		    save_in_use = sub->in_use;
+! 		    for (i = sub->in_use; i < subidx; ++i)
+  		    {
+! 			sub->multilist[i].start.lnum = -1;
+! 			sub->multilist[i].end.lnum = -1;
+  		    }
+! 		    sub->in_use = subidx + 1;
+  		}
+  		if (off == -1)
+  		{
+! 		    sub->multilist[subidx].start.lnum = reglnum + 1;
+! 		    sub->multilist[subidx].start.col = 0;
+  		}
+  		else
+  		{
+! 		    sub->multilist[subidx].start.lnum = reglnum;
+! 		    sub->multilist[subidx].start.col =
+  					  (colnr_T)(reginput - regline + off);
+  		}
+  	    }
+  	    else
+  	    {
+! 		if (subidx < sub->in_use)
+  		{
+! 		    save_ptr = sub->linelist[subidx].start;
+  		    save_in_use = -1;
+  		}
+  		else
+  		{
+! 		    save_in_use = sub->in_use;
+! 		    for (i = sub->in_use; i < subidx; ++i)
+  		    {
+! 			sub->linelist[i].start = NULL;
+! 			sub->linelist[i].end = NULL;
+  		    }
+! 		    sub->in_use = subidx + 1;
+  		}
+! 		sub->linelist[subidx].start = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, sub, off);
+  
+  	    if (save_in_use == -1)
+  	    {
+  		if (REG_MULTI)
+! 		    sub->multilist[subidx].start = save_lpos;
+  		else
+! 		    sub->linelist[subidx].start = save_ptr;
+  	    }
+  	    else
+! 		sub->in_use = save_in_use;
+  	    break;
+  
+  	case NFA_MCLOSE + 0:
+***************
+*** 2711,2717 ****
+  	    {
+  		/* Do not overwrite the position set by \ze. If no \ze
+  		 * encountered end will be set in nfa_regtry(). */
+! 		addstate(l, state->out, m, off, lid);
+  		break;
+  	    }
+  	case NFA_MCLOSE + 1:
+--- 2812,2818 ----
+  	    {
+  		/* Do not overwrite the position set by \ze. If no \ze
+  		 * encountered end will be set in nfa_regtry(). */
+! 		addstate(l, state->out, sub, off);
+  		break;
+  	    }
+  	case NFA_MCLOSE + 1:
+***************
+*** 2731,2767 ****
+  
+  	    /* We don't fill in gaps here, there must have been an MOPEN that
+  	     * has done that. */
+! 	    save_in_use = m->in_use;
+! 	    if (m->in_use <= subidx)
+! 		m->in_use = subidx + 1;
+  	    if (REG_MULTI)
+  	    {
+! 		save_lpos = m->multilist[subidx].end;
+  		if (off == -1)
+  		{
+! 		    m->multilist[subidx].end.lnum = reglnum + 1;
+! 		    m->multilist[subidx].end.col = 0;
+  		}
+  		else
+  		{
+! 		    m->multilist[subidx].end.lnum = reglnum;
+! 		    m->multilist[subidx].end.col =
+  					  (colnr_T)(reginput - regline + off);
+  		}
+  	    }
+  	    else
+  	    {
+! 		save_ptr = m->linelist[subidx].end;
+! 		m->linelist[subidx].end = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, m, off, lid);
+  
+  	    if (REG_MULTI)
+! 		m->multilist[subidx].end = save_lpos;
+  	    else
+! 		m->linelist[subidx].end = save_ptr;
+! 	    m->in_use = save_in_use;
+  	    break;
+      }
+  }
+--- 2832,2868 ----
+  
+  	    /* We don't fill in gaps here, there must have been an MOPEN that
+  	     * has done that. */
+! 	    save_in_use = sub->in_use;
+! 	    if (sub->in_use <= subidx)
+! 		sub->in_use = subidx + 1;
+  	    if (REG_MULTI)
+  	    {
+! 		save_lpos = sub->multilist[subidx].end;
+  		if (off == -1)
+  		{
+! 		    sub->multilist[subidx].end.lnum = reglnum + 1;
+! 		    sub->multilist[subidx].end.col = 0;
+  		}
+  		else
+  		{
+! 		    sub->multilist[subidx].end.lnum = reglnum;
+! 		    sub->multilist[subidx].end.col =
+  					  (colnr_T)(reginput - regline + off);
+  		}
+  	    }
+  	    else
+  	    {
+! 		save_ptr = sub->linelist[subidx].end;
+! 		sub->linelist[subidx].end = reginput + off;
+  	    }
+  
+! 	    addstate(l, state->out, sub, off);
+  
+  	    if (REG_MULTI)
+! 		sub->multilist[subidx].end = save_lpos;
+  	    else
+! 		sub->linelist[subidx].end = save_ptr;
+! 	    sub->in_use = save_in_use;
+  	    break;
+      }
+  }
+***************
+*** 2773,2783 ****
+   * matters for alternatives.
+   */
+      static void
+! addstate_here(l, state, m, lid, ip)
+      nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+!     regsub_T		*m;	/* pointers to subexpressions */
+!     int			lid;
+      int			*ip;
+  {
+      int tlen = l->n;
+--- 2874,2883 ----
+   * matters for alternatives.
+   */
+      static void
+! addstate_here(l, state, sub, ip)
+      nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+!     regsub_T		*sub;	/* pointers to subexpressions */
+      int			*ip;
+  {
+      int tlen = l->n;
+***************
+*** 2785,2791 ****
+      int i = *ip;
+  
+      /* first add the state(s) at the end, so that we know how many there are */
+!     addstate(l, state, m, 0, lid);
+  
+      /* when "*ip" was at the end of the list, nothing to do */
+      if (i + 1 == tlen)
+--- 2885,2891 ----
+      int i = *ip;
+  
+      /* first add the state(s) at the end, so that we know how many there are */
+!     addstate(l, state, sub, 0);
+  
+      /* when "*ip" was at the end of the list, nothing to do */
+      if (i + 1 == tlen)
+***************
+*** 2895,2900 ****
+--- 2995,3052 ----
+      return FAIL;
+  }
+  
++ static int match_backref __ARGS((regsub_T *sub, int subidx, int *bytelen));
++ 
++ /*
++  * Check for a match with subexpression "subidx".
++  * return TRUE if it matches.
++  */
++     static int
++ match_backref(sub, subidx, bytelen)
++     regsub_T	*sub;	    /* pointers to subexpressions */
++     int		subidx;
++     int		*bytelen;   /* out: length of match in bytes */
++ {
++     int		len;
++ 
++     if (sub->in_use <= subidx)
++     {
++ retempty:
++ 	/* backref was not set, match an empty string */
++ 	*bytelen = 0;
++ 	return TRUE;
++     }
++ 
++     if (REG_MULTI)
++     {
++ 	if (sub->multilist[subidx].start.lnum < 0
++ 				       || sub->multilist[subidx].end.lnum < 0)
++ 	    goto retempty;
++ 	/* TODO: line breaks */
++ 	len = sub->multilist[subidx].end.col
++ 					 - sub->multilist[subidx].start.col;
++ 	if (cstrncmp(regline + sub->multilist[subidx].start.col,
++ 							reginput, &len) == 0)
++ 	{
++ 	    *bytelen = len;
++ 	    return TRUE;
++ 	}
++     }
++     else
++     {
++ 	if (sub->linelist[subidx].start == NULL
++ 					 || sub->linelist[subidx].end == NULL)
++ 	    goto retempty;
++ 	len = (int)(sub->linelist[subidx].end - sub->linelist[subidx].start);
++ 	if (cstrncmp(sub->linelist[subidx].start, reginput, &len) == 0)
++ 	{
++ 	    *bytelen = len;
++ 	    return TRUE;
++ 	}
++     }
++     return FALSE;
++ }
++ 
+  /*
+   * Set all NFA nodes' list ID equal to -1.
+   */
+***************
+*** 2902,2910 ****
+  nfa_set_neg_listids(start)
+      nfa_state_T	    *start;
+  {
+!     if (start == NULL)
+! 	return;
+!     if (start->lastlist >= 0)
+      {
+  	start->lastlist = -1;
+  	nfa_set_neg_listids(start->out);
+--- 3054,3060 ----
+  nfa_set_neg_listids(start)
+      nfa_state_T	    *start;
+  {
+!     if (start != NULL && start->lastlist >= 0)
+      {
+  	start->lastlist = -1;
+  	nfa_set_neg_listids(start->out);
+***************
+*** 2919,2927 ****
+  nfa_set_null_listids(start)
+      nfa_state_T	    *start;
+  {
+!     if (start == NULL)
+! 	return;
+!     if (start->lastlist == -1)
+      {
+  	start->lastlist = 0;
+  	nfa_set_null_listids(start->out);
+--- 3069,3075 ----
+  nfa_set_null_listids(start)
+      nfa_state_T	    *start;
+  {
+!     if (start != NULL && start->lastlist == -1)
+      {
+  	start->lastlist = 0;
+  	nfa_set_null_listids(start->out);
+***************
+*** 2937,2945 ****
+      nfa_state_T	    *start;
+      int		    *list;
+  {
+!     if (start == NULL)
+! 	return;
+!     if (start->lastlist != -1)
+      {
+  	list[abs(start->id)] = start->lastlist;
+  	start->lastlist = -1;
+--- 3085,3091 ----
+      nfa_state_T	    *start;
+      int		    *list;
+  {
+!     if (start != NULL && start->lastlist != -1)
+      {
+  	list[abs(start->id)] = start->lastlist;
+  	start->lastlist = -1;
+***************
+*** 2956,2964 ****
+      nfa_state_T	    *start;
+      int		    *list;
+  {
+!     if (start == NULL)
+! 	return;
+!     if (start->lastlist == -1)
+      {
+  	start->lastlist = list[abs(start->id)];
+  	nfa_restore_listids(start->out, list);
+--- 3102,3108 ----
+      nfa_state_T	    *start;
+      int		    *list;
+  {
+!     if (start != NULL && start->lastlist == -1)
+      {
+  	start->lastlist = list[abs(start->id)];
+  	nfa_restore_listids(start->out, list);
+***************
+*** 3047,3053 ****
+  #ifdef ENABLE_LOG
+      fprintf(log_fd, "(---) STARTSTATE\n");
+  #endif
+!     addstate(thislist, start, m, 0, listid);
+  
+      /* There are two cases when the NFA advances: 1. input char matches the
+       * NFA node and 2. input char does not match the NFA node, but the next
+--- 3191,3198 ----
+  #ifdef ENABLE_LOG
+      fprintf(log_fd, "(---) STARTSTATE\n");
+  #endif
+!     thislist->id = listid;
+!     addstate(thislist, start, m, 0);
+  
+      /* There are two cases when the NFA advances: 1. input char matches the
+       * NFA node and 2. input char does not match the NFA node, but the next
+***************
+*** 3060,3066 ****
+  #define	ADD_POS_NEG_STATE(node)						    \
+      ll = listtbl[result ? 1 : 0][node->negated];			    \
+      if (ll != NULL)							    \
+! 	addstate(ll, node->out , &t->sub, clen, listid + 1);
+  
+  
+      /*
+--- 3205,3211 ----
+  #define	ADD_POS_NEG_STATE(node)						    \
+      ll = listtbl[result ? 1 : 0][node->negated];			    \
+      if (ll != NULL)							    \
+! 	addstate(ll, node->out , &t->sub, clen);
+  
+  
+      /*
+***************
+*** 3092,3100 ****
+  	/* swap lists */
+  	thislist = &list[flag];
+  	nextlist = &list[flag ^= 1];
+! 	nextlist->n = 0;	    /* `clear' nextlist */
+  	listtbl[1][0] = nextlist;
+  	++listid;
+  
+  #ifdef ENABLE_LOG
+  	fprintf(log_fd, "------------------------------------------\n");
+--- 3237,3248 ----
+  	/* swap lists */
+  	thislist = &list[flag];
+  	nextlist = &list[flag ^= 1];
+! 	nextlist->n = 0;	    /* clear nextlist */
+  	listtbl[1][0] = nextlist;
+  	++listid;
++ 	thislist->id = listid;
++ 	nextlist->id = listid + 1;
++ 	neglist->id = listid + 1;
+  
+  #ifdef ENABLE_LOG
+  	fprintf(log_fd, "------------------------------------------\n");
+***************
+*** 3156,3162 ****
+  		if (REG_MULTI)
+  		    for (j = 0; j < submatch->in_use; j++)
+  		    {
+! 			submatch->multilist[j].start = t->sub.multilist[j].start;
+  			submatch->multilist[j].end = t->sub.multilist[j].end;
+  		    }
+  		else
+--- 3304,3311 ----
+  		if (REG_MULTI)
+  		    for (j = 0; j < submatch->in_use; j++)
+  		    {
+! 			submatch->multilist[j].start =
+! 						    t->sub.multilist[j].start;
+  			submatch->multilist[j].end = t->sub.multilist[j].end;
+  		    }
+  		else
+***************
+*** 3166,3185 ****
+  			submatch->linelist[j].end = t->sub.linelist[j].end;
+  		    }
+  #ifdef ENABLE_LOG
+! 		for (j = 0; j < t->sub.in_use; j++)
+! 		    if (REG_MULTI)
+! 			fprintf(log_fd, "\n *** group %d, start: c=%d, l=%d, end: c=%d, l=%d",
+! 				j,
+! 				t->sub.multilist[j].start.col,
+! 				(int)t->sub.multilist[j].start.lnum,
+! 				t->sub.multilist[j].end.col,
+! 				(int)t->sub.multilist[j].end.lnum);
+! 		    else
+! 			fprintf(log_fd, "\n *** group %d, start: \"%s\", end: \"%s\"",
+! 				j,
+! 				(char *)t->sub.linelist[j].start,
+! 				(char *)t->sub.linelist[j].end);
+! 		fprintf(log_fd, "\n");
+  #endif
+  		/* Found the left-most longest match, do not look at any other
+  		 * states at this position.  When the list of states is going
+--- 3315,3321 ----
+  			submatch->linelist[j].end = t->sub.linelist[j].end;
+  		    }
+  #ifdef ENABLE_LOG
+! 		log_subexpr(&t->sub);
+  #endif
+  		/* Found the left-most longest match, do not look at any other
+  		 * states at this position.  When the list of states is going
+***************
+*** 3198,3205 ****
+  		 * nfa_regmatch().  Submatches are stored in *m, and used in
+  		 * the parent call. */
+  		if (start->c == NFA_MOPEN + 0)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								    &listidx);
+  		else
+  		{
+  		    *m = t->sub;
+--- 3334,3340 ----
+  		 * nfa_regmatch().  Submatches are stored in *m, and used in
+  		 * the parent call. */
+  		if (start->c == NFA_MOPEN + 0)
+! 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		else
+  		{
+  		    *m = t->sub;
+***************
+*** 3277,3283 ****
+  
+  		    /* t->state->out1 is the corresponding END_INVISIBLE node */
+  		    addstate_here(thislist, t->state->out1->out, &t->sub,
+! 							    listid, &listidx);
+  		}
+  		else
+  		{
+--- 3412,3418 ----
+  
+  		    /* t->state->out1 is the corresponding END_INVISIBLE node */
+  		    addstate_here(thislist, t->state->out1->out, &t->sub,
+! 								    &listidx);
+  		}
+  		else
+  		{
+***************
+*** 3288,3301 ****
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								    &listidx);
+  		break;
+  
+  	    case NFA_EOL:
+  		if (curc == NUL)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								    &listidx);
+  		break;
+  
+  	    case NFA_BOW:
+--- 3423,3434 ----
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+! 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		break;
+  
+  	    case NFA_EOL:
+  		if (curc == NUL)
+! 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		break;
+  
+  	    case NFA_BOW:
+***************
+*** 3322,3329 ****
+  				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    bow = FALSE;
+  		if (bow)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								    &listidx);
+  		break;
+  	    }
+  
+--- 3455,3461 ----
+  				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    bow = FALSE;
+  		if (bow)
+! 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		break;
+  	    }
+  
+***************
+*** 3351,3358 ****
+  					   && vim_iswordc_buf(curc, reg_buf)))
+  		    eow = FALSE;
+  		if (eow)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								    &listidx);
+  		break;
+  	    }
+  
+--- 3483,3489 ----
+  					   && vim_iswordc_buf(curc, reg_buf)))
+  		    eow = FALSE;
+  		if (eow)
+! 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		break;
+  	    }
+  
+***************
+*** 3442,3453 ****
+  		    go_to_nextline = TRUE;
+  		    /* Pass -1 for the offset, which means taking the position
+  		     * at the start of the next line. */
+! 		    addstate(nextlist, t->state->out, &t->sub, -1, listid + 1);
+  		}
+  		else if (curc == '\n' && reg_line_lbr)
+  		{
+  		    /* match \n as if it is an ordinary character */
+! 		    addstate(nextlist, t->state->out, &t->sub, 1, listid + 1);
+  		}
+  		break;
+  
+--- 3573,3584 ----
+  		    go_to_nextline = TRUE;
+  		    /* Pass -1 for the offset, which means taking the position
+  		     * at the start of the next line. */
+! 		    addstate(nextlist, t->state->out, &t->sub, -1);
+  		}
+  		else if (curc == '\n' && reg_line_lbr)
+  		{
+  		    /* match \n as if it is an ordinary character */
+! 		    addstate(nextlist, t->state->out, &t->sub, 1);
+  		}
+  		break;
+  
+***************
+*** 3475,3489 ****
+  		/* This follows a series of negated nodes, like:
+  		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc. */
+  		if (curc > 0)
+! 		    addstate(nextlist, t->state->out, &t->sub, clen,
+! 								  listid + 1);
+  		break;
+  
+  	    case NFA_ANY:
+  		/* Any char except '\0', (end of input) does not match. */
+  		if (curc > 0)
+! 		    addstate(nextlist, t->state->out, &t->sub, clen,
+! 								  listid + 1);
+  		break;
+  
+  	    /*
+--- 3606,3618 ----
+  		/* This follows a series of negated nodes, like:
+  		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc. */
+  		if (curc > 0)
+! 		    addstate(nextlist, t->state->out, &t->sub, clen);
+  		break;
+  
+  	    case NFA_ANY:
+  		/* Any char except '\0', (end of input) does not match. */
+  		if (curc > 0)
+! 		    addstate(nextlist, t->state->out, &t->sub, clen);
+  		break;
+  
+  	    /*
+***************
+*** 3620,3637 ****
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+! 	    case NFA_MOPEN + 0:
+! 	    case NFA_MOPEN + 1:
+! 	    case NFA_MOPEN + 2:
+! 	    case NFA_MOPEN + 3:
+! 	    case NFA_MOPEN + 4:
+! 	    case NFA_MOPEN + 5:
+! 	    case NFA_MOPEN + 6:
+! 	    case NFA_MOPEN + 7:
+! 	    case NFA_MOPEN + 8:
+! 	    case NFA_MOPEN + 9:
+! 		/* handled below */
+  		break;
+  
+  	    case NFA_SKIP_CHAR:
+  	    case NFA_ZSTART:
+--- 3749,3822 ----
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+! 	    case NFA_BACKREF1:
+! 	    case NFA_BACKREF2:
+! 	    case NFA_BACKREF3:
+! 	    case NFA_BACKREF4:
+! 	    case NFA_BACKREF5:
+! 	    case NFA_BACKREF6:
+! 	    case NFA_BACKREF7:
+! 	    case NFA_BACKREF8:
+! 	    case NFA_BACKREF9:
+! 		/* \1 .. \9 */
+! 	      {
+! 		int subidx = t->state->c - NFA_BACKREF1 + 1;
+! 		int bytelen;
+! 
+! 		result = match_backref(&t->sub, subidx, &bytelen);
+! 		if (result)
+! 		{
+! 		    if (bytelen == 0)
+! 		    {
+! 			/* empty match always works, add NFA_SKIP with zero to
+! 			 * be used next */
+! 			addstate_here(thislist, t->state->out, &t->sub,
+! 								    &listidx);
+! 			thislist->t[listidx + 1].count = 0;
+! 		    }
+! 		    else if (bytelen <= clen)
+! 		    {
+! 			/* match current character, jump ahead to out of
+! 			 * NFA_SKIP */
+! 			addstate(nextlist, t->state->out->out, &t->sub, clen);
+! #ifdef ENABLE_LOG
+! 			log_subexpr(&nextlist->t[nextlist->n - 1].sub);
+! #endif
+! 		    }
+! 		    else
+! 		    {
+! 			/* skip ofer the matched characters, set character
+! 			 * count in NFA_SKIP */
+! 			addstate(nextlist, t->state->out, &t->sub, bytelen);
+! 			nextlist->t[nextlist->n - 1].count = bytelen - clen;
+! #ifdef ENABLE_LOG
+! 			log_subexpr(&nextlist->t[nextlist->n - 1].sub);
+! #endif
+! 		    }
+! 
+! 		}
+  		break;
++ 	      }
++ 	    case NFA_SKIP:
++ 	      /* charater of previous matching \1 .. \9 */
++ 	      if (t->count - clen <= 0)
++ 	      {
++ 		  /* end of match, go to what follows */
++ 		  addstate(nextlist, t->state->out, &t->sub, clen);
++ #ifdef ENABLE_LOG
++ 		  log_subexpr(&nextlist->t[nextlist->n - 1].sub);
++ #endif
++ 	      }
++ 	      else
++ 	      {
++ 		  /* add state again with decremented count */
++ 		  addstate(nextlist, t->state, &t->sub, 0);
++ 		  nextlist->t[nextlist->n - 1].count = t->count - clen;
++ #ifdef ENABLE_LOG
++ 		  log_subexpr(&nextlist->t[nextlist->n - 1].sub);
++ #endif
++ 	      }
++ 	      break;
+  
+  	    case NFA_SKIP_CHAR:
+  	    case NFA_ZSTART:
+***************
+*** 3680,3686 ****
+  #ifdef ENABLE_LOG
+  	    fprintf(log_fd, "(---) STARTSTATE\n");
+  #endif
+! 	    addstate(nextlist, start, m, clen, listid + 1);
+  	}
+  
+  #ifdef ENABLE_LOG
+--- 3865,3871 ----
+  #ifdef ENABLE_LOG
+  	    fprintf(log_fd, "(---) STARTSTATE\n");
+  #endif
+! 	    addstate(nextlist, start, m, clen);
+  	}
+  
+  #ifdef ENABLE_LOG
+***************
+*** 3884,3890 ****
+      {
+  	prog->state[i].id = i;
+  	prog->state[i].lastlist = 0;
+- 	prog->state[i].visits = 0;
+      }
+  
+      retval = nfa_regtry(prog->start, col);
+--- 4069,4074 ----
+*** ../vim-7.3.1032/src/testdir/test64.in	2013-05-27 20:10:40.000000000 +0200
+--- src/testdir/test64.in	2013-05-28 20:24:11.000000000 +0200
+***************
+*** 331,336 ****
+--- 331,340 ----
+  :call add(tl, [2, '\<goo\|\<go', 'google', 'goo'])
+  :call add(tl, [2, '\<goo\|go', 'google', 'goo'])
+  :"
++ :"""" Back references
++ :call add(tl, [2, '\(\i\+\) \1', ' abc abc', 'abc abc', 'abc'])
++ :"call add(tl, [2, '\(\i\+\) \1', 'xgoo goox', 'goo goo', 'goo'])
++ :call add(tl, [2, '\(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9', 'xabcddefghiabcddefghix', 'abcddefghiabcddefghi', 'a', 'b', 'c', 'dd', 'e', 'f', 'g', 'h', 'i'])
+  :"
+  :"""" Run the tests
+  :"
+*** ../vim-7.3.1032/src/testdir/test64.ok	2013-05-27 20:10:40.000000000 +0200
+--- src/testdir/test64.ok	2013-05-28 20:24:19.000000000 +0200
+***************
+*** 713,718 ****
+--- 713,724 ----
+  OK 0 - \<goo\|go
+  OK 1 - \<goo\|go
+  OK 2 - \<goo\|go
++ OK 0 - \(\i\+\) \1
++ OK 1 - \(\i\+\) \1
++ OK 2 - \(\i\+\) \1
++ OK 0 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
++ OK 1 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
++ OK 2 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
+  192.168.0.1
+  192.168.0.1
+  192.168.0.1
+*** ../vim-7.3.1032/src/regexp.h	2013-05-26 21:47:22.000000000 +0200
+--- src/regexp.h	2013-05-28 21:50:56.000000000 +0200
+***************
+*** 71,77 ****
+      nfa_state_T		*out1;
+      int			id;
+      int			lastlist;
+-     int			visits;
+      int			negated;
+  };
+  
+--- 71,76 ----
+*** ../vim-7.3.1032/src/version.c	2013-05-27 20:10:40.000000000 +0200
+--- src/version.c	2013-05-28 22:01:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1033,
+  /**/
+
+-- 
+Everybody wants to go to heaven, but nobody wants to die.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

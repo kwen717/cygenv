@@ -1,0 +1,63 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1291
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1291 (after 7.3.1288)
+Problem:    Compiler warnings for uninitialized variables. (Tony Mechelynck)
+Solution:   Initialize the variables.
+Files:	    src/screen.c
+
+
+*** ../vim-7.3.1290/src/screen.c	2013-07-03 12:45:25.000000000 +0200
+--- src/screen.c	2013-07-03 13:27:05.000000000 +0200
+***************
+*** 279,291 ****
+      int		rows;
+      int		r;
+      int		ret = 0;
+!     schar_T	*screenline;		/* copy from ScreenLines[] */
+!     sattr_T	*screenattr;		/* copy from ScreenAttrs[] */
+  #ifdef FEAT_MBYTE
+      int		i;
+!     u8char_T	*screenlineUC;		/* copy from ScreenLinesUC[] */
+      u8char_T	*screenlineC[MAX_MCO];	/* copy from ScreenLinesC[][] */
+!     schar_T	*screenline2;		/* copy from ScreenLines2[] */
+  #endif
+  
+      redraw_later(type);
+--- 279,291 ----
+      int		rows;
+      int		r;
+      int		ret = 0;
+!     schar_T	*screenline;	/* copy from ScreenLines[] */
+!     sattr_T	*screenattr;	/* copy from ScreenAttrs[] */
+  #ifdef FEAT_MBYTE
+      int		i;
+!     u8char_T	*screenlineUC = NULL;	/* copy from ScreenLinesUC[] */
+      u8char_T	*screenlineC[MAX_MCO];	/* copy from ScreenLinesC[][] */
+!     schar_T	*screenline2 = NULL;	/* copy from ScreenLines2[] */
+  #endif
+  
+      redraw_later(type);
+*** ../vim-7.3.1290/src/version.c	2013-07-03 13:16:18.000000000 +0200
+--- src/version.c	2013-07-03 13:27:50.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1291,
+  /**/
+
+-- 
+Mental Floss prevents moral decay!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,179 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1041
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1041
+Problem:    Python: Invalid read valgrind errors.
+Solution:   Python patch 2: defer DICTKEY_UNREF until key is no longer needed.
+	    (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1040/src/if_py_both.h	2013-05-28 22:31:43.000000000 +0200
+--- src/if_py_both.h	2013-05-29 21:36:29.000000000 +0200
+***************
+*** 1603,1613 ****
+      flags = get_option_value_strict(key, NULL, NULL,
+  				    self->opt_type, self->from);
+  
+-     DICTKEY_UNREF
+- 
+      if (flags == 0)
+      {
+  	PyErr_SetObject(PyExc_KeyError, keyObject);
+  	return -1;
+      }
+  
+--- 1603,1612 ----
+      flags = get_option_value_strict(key, NULL, NULL,
+  				    self->opt_type, self->from);
+  
+      if (flags == 0)
+      {
+  	PyErr_SetObject(PyExc_KeyError, keyObject);
++ 	DICTKEY_UNREF
+  	return -1;
+      }
+  
+***************
+*** 1617,1633 ****
+--- 1616,1635 ----
+  	{
+  	    PyErr_SetString(PyExc_ValueError,
+  		    _("unable to unset global option"));
++ 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  	else if (!(flags & SOPT_GLOBAL))
+  	{
+  	    PyErr_SetString(PyExc_ValueError, _("unable to unset option "
+  						"without global value"));
++ 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  	else
+  	{
+  	    unset_global_local_option(key, self->from);
++ 	    DICTKEY_UNREF
+  	    return 0;
+  	}
+      }
+***************
+*** 1639,1647 ****
+  	int	istrue = PyObject_IsTrue(valObject);
+  
+  	if (istrue == -1)
+! 	    return -1;
+! 	r = set_option_value_for(key, istrue, NULL,
+! 				opt_flags, self->opt_type, self->from);
+      }
+      else if (flags & SOPT_NUM)
+      {
+--- 1641,1650 ----
+  	int	istrue = PyObject_IsTrue(valObject);
+  
+  	if (istrue == -1)
+! 	    r = -1;
+! 	else
+! 	    r = set_option_value_for(key, istrue, NULL,
+! 				    opt_flags, self->opt_type, self->from);
+      }
+      else if (flags & SOPT_NUM)
+      {
+***************
+*** 1657,1662 ****
+--- 1660,1666 ----
+  	else
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("object must be integer"));
++ 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  
+***************
+*** 1670,1678 ****
+--- 1674,1688 ----
+  	{
+  
+  	    if (PyString_AsStringAndSize(valObject, (char **) &val, NULL) == -1)
++ 	    {
++ 		DICTKEY_UNREF
+  		return -1;
++ 	    }
+  	    if (val == NULL)
++ 	    {
++ 		DICTKEY_UNREF
+  		return -1;
++ 	    }
+  
+  	    val = vim_strsave(val);
+  	}
+***************
+*** 1682,1693 ****
+--- 1692,1712 ----
+  
+  	    bytes = PyUnicode_AsEncodedString(valObject, (char *)ENC_OPT, NULL);
+  	    if (bytes == NULL)
++ 	    {
++ 		DICTKEY_UNREF
+  		return -1;
++ 	    }
+  
+  	    if(PyString_AsStringAndSize(bytes, (char **) &val, NULL) == -1)
++ 	    {
++ 		DICTKEY_UNREF
+  		return -1;
++ 	    }
+  	    if (val == NULL)
++ 	    {
++ 		DICTKEY_UNREF
+  		return -1;
++ 	    }
+  
+  	    val = vim_strsave(val);
+  	    Py_XDECREF(bytes);
+***************
+*** 1695,1700 ****
+--- 1714,1720 ----
+  	else
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("object must be string"));
++ 	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  
+***************
+*** 1703,1708 ****
+--- 1723,1730 ----
+  	vim_free(val);
+      }
+  
++     DICTKEY_UNREF
++ 
+      return r;
+  }
+  
+*** ../vim-7.3.1040/src/version.c	2013-05-29 21:33:34.000000000 +0200
+--- src/version.c	2013-05-29 21:36:47.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1041,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+18. Your wife drapes a blond wig over your monitor to remind you of what she
+    looks like.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

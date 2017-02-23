@@ -1,0 +1,203 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.870
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.870
+Problem:    Compiler warnings when using MingW 4.5.3.
+Solution:   Do not use MAKEINTRESOURCE. Adjust #if. (Ken Takata)
+Files:	    src/gui_w32.c, src/gui_w48.c, src/os_mswin.c, src/os_win32.c,
+	    src/os_win32.h
+
+
+*** ../vim-7.3.869/src/gui_w32.c	2012-11-20 16:53:34.000000000 +0100
+--- src/gui_w32.c	2013-03-19 14:45:24.000000000 +0100
+***************
+*** 1614,1620 ****
+  #endif
+  
+  #ifdef FEAT_EVAL
+! # if _MSC_VER < 1400
+  /* HandleToLong() only exists in compilers that can do 64 bit builds */
+  #  define HandleToLong(h) ((long)(h))
+  # endif
+--- 1614,1620 ----
+  #endif
+  
+  #ifdef FEAT_EVAL
+! # ifndef HandleToLong
+  /* HandleToLong() only exists in compilers that can do 64 bit builds */
+  #  define HandleToLong(h) ((long)(h))
+  # endif
+*** ../vim-7.3.869/src/gui_w48.c	2013-01-25 19:28:34.000000000 +0100
+--- src/gui_w48.c	2013-03-19 14:46:35.000000000 +0100
+***************
+*** 3265,3291 ****
+   * misc2.c! */
+  static LPCSTR mshape_idcs[] =
+  {
+!     MAKEINTRESOURCE(IDC_ARROW),		/* arrow */
+!     MAKEINTRESOURCE(0),			/* blank */
+!     MAKEINTRESOURCE(IDC_IBEAM),		/* beam */
+!     MAKEINTRESOURCE(IDC_SIZENS),	/* updown */
+!     MAKEINTRESOURCE(IDC_SIZENS),	/* udsizing */
+!     MAKEINTRESOURCE(IDC_SIZEWE),	/* leftright */
+!     MAKEINTRESOURCE(IDC_SIZEWE),	/* lrsizing */
+!     MAKEINTRESOURCE(IDC_WAIT),		/* busy */
+  #ifdef WIN3264
+!     MAKEINTRESOURCE(IDC_NO),		/* no */
+  #else
+!     MAKEINTRESOURCE(IDC_ICON),		/* no */
+  #endif
+!     MAKEINTRESOURCE(IDC_ARROW),		/* crosshair */
+!     MAKEINTRESOURCE(IDC_ARROW),		/* hand1 */
+!     MAKEINTRESOURCE(IDC_ARROW),		/* hand2 */
+!     MAKEINTRESOURCE(IDC_ARROW),		/* pencil */
+!     MAKEINTRESOURCE(IDC_ARROW),		/* question */
+!     MAKEINTRESOURCE(IDC_ARROW),		/* right-arrow */
+!     MAKEINTRESOURCE(IDC_UPARROW),	/* up-arrow */
+!     MAKEINTRESOURCE(IDC_ARROW)		/* last one */
+  };
+  
+      void
+--- 3265,3291 ----
+   * misc2.c! */
+  static LPCSTR mshape_idcs[] =
+  {
+!     IDC_ARROW,			/* arrow */
+!     MAKEINTRESOURCE(0),		/* blank */
+!     IDC_IBEAM,			/* beam */
+!     IDC_SIZENS,			/* updown */
+!     IDC_SIZENS,			/* udsizing */
+!     IDC_SIZEWE,			/* leftright */
+!     IDC_SIZEWE,			/* lrsizing */
+!     IDC_WAIT,			/* busy */
+  #ifdef WIN3264
+!     IDC_NO,			/* no */
+  #else
+!     IDC_ICON,			/* no */
+  #endif
+!     IDC_ARROW,			/* crosshair */
+!     IDC_ARROW,			/* hand1 */
+!     IDC_ARROW,			/* hand2 */
+!     IDC_ARROW,			/* pencil */
+!     IDC_ARROW,			/* question */
+!     IDC_ARROW,			/* right-arrow */
+!     IDC_UPARROW,		/* up-arrow */
+!     IDC_ARROW			/* last one */
+  };
+  
+      void
+***************
+*** 3298,3304 ****
+      else
+      {
+  	if (shape >= MSHAPE_NUMBERED)
+! 	    idc = MAKEINTRESOURCE(IDC_ARROW);
+  	else
+  	    idc = mshape_idcs[shape];
+  #ifdef SetClassLongPtr
+--- 3298,3304 ----
+      else
+      {
+  	if (shape >= MSHAPE_NUMBERED)
+! 	    idc = IDC_ARROW;
+  	else
+  	    idc = mshape_idcs[shape];
+  #ifdef SetClassLongPtr
+*** ../vim-7.3.869/src/os_mswin.c	2013-02-26 14:56:24.000000000 +0100
+--- src/os_mswin.c	2013-03-19 14:45:24.000000000 +0100
+***************
+*** 184,195 ****
+--- 184,197 ----
+  }
+  # endif
+  
++ # if !defined(__MINGW32__) || (__GNUC__ < 4)
+  int _chdrive(int drive)
+  {
+      char temp [3] = "-:";
+      temp[0] = drive + 'A' - 1;
+      return !SetCurrentDirectory(temp);
+  }
++ # endif
+  #else
+  # ifdef __BORLANDC__
+  /* being a more ANSI compliant compiler, BorlandC doesn't define _stricoll:
+*** ../vim-7.3.869/src/os_win32.c	2013-02-26 14:56:24.000000000 +0100
+--- src/os_win32.c	2013-03-19 14:45:24.000000000 +0100
+***************
+*** 163,169 ****
+  
+  /* Enable common dialogs input unicode from IME if posible. */
+  #ifdef FEAT_MBYTE
+! LRESULT (WINAPI *pDispatchMessage)(LPMSG) = DispatchMessage;
+  BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT) = GetMessage;
+  BOOL (WINAPI *pIsDialogMessage)(HWND, LPMSG) = IsDialogMessage;
+  BOOL (WINAPI *pPeekMessage)(LPMSG, HWND, UINT, UINT, UINT) = PeekMessage;
+--- 163,169 ----
+  
+  /* Enable common dialogs input unicode from IME if posible. */
+  #ifdef FEAT_MBYTE
+! LRESULT (WINAPI *pDispatchMessage)(CONST MSG *) = DispatchMessage;
+  BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT) = GetMessage;
+  BOOL (WINAPI *pIsDialogMessage)(HWND, LPMSG) = IsDialogMessage;
+  BOOL (WINAPI *pPeekMessage)(LPMSG, HWND, UINT, UINT, UINT) = PeekMessage;
+***************
+*** 3464,3470 ****
+  		    && (lnum != curbuf->b_ml.ml_line_count
+  			|| curbuf->b_p_eol)))
+  	    {
+! 		WriteFile(g_hChildStd_IN_Wr, "\n", 1, &ignored, NULL);
+  	    }
+  
+  	    ++lnum;
+--- 3464,3470 ----
+  		    && (lnum != curbuf->b_ml.ml_line_count
+  			|| curbuf->b_p_eol)))
+  	    {
+! 		WriteFile(g_hChildStd_IN_Wr, "\n", 1, (LPDWORD)&ignored, NULL);
+  	    }
+  
+  	    ++lnum;
+*** ../vim-7.3.869/src/os_win32.h	2012-11-20 16:53:34.000000000 +0100
+--- src/os_win32.h	2013-03-19 14:45:24.000000000 +0100
+***************
+*** 204,210 ****
+  /* Enable common dialogs input unicode from IME if posible. */
+  #ifdef FEAT_MBYTE
+      /* The variables are defined in os_win32.c. */
+! extern LRESULT (WINAPI *pDispatchMessage)(LPMSG);
+  extern BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT);
+  extern BOOL (WINAPI *pIsDialogMessage)(HWND, LPMSG);
+  extern BOOL (WINAPI *pPeekMessage)(LPMSG, HWND, UINT, UINT, UINT);
+--- 204,210 ----
+  /* Enable common dialogs input unicode from IME if posible. */
+  #ifdef FEAT_MBYTE
+      /* The variables are defined in os_win32.c. */
+! extern LRESULT (WINAPI *pDispatchMessage)(CONST MSG *);
+  extern BOOL (WINAPI *pGetMessage)(LPMSG, HWND, UINT, UINT);
+  extern BOOL (WINAPI *pIsDialogMessage)(HWND, LPMSG);
+  extern BOOL (WINAPI *pPeekMessage)(LPMSG, HWND, UINT, UINT, UINT);
+*** ../vim-7.3.869/src/version.c	2013-03-19 14:25:50.000000000 +0100
+--- src/version.c	2013-03-19 14:45:42.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     870,
+  /**/
+
+-- 
+Q: How many legs does a giraffe have?
+A: Eight: two in front, two behind, two on the left and two on the right
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

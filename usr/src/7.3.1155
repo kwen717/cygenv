@@ -1,0 +1,48 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1155
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1155
+Problem:    MS-DOS: "make test" uses external rmdir command.
+Solution:   Rename "rmdir" to "rd". (Taro Muraoka)
+Files:	    src/testdir/Make_dos.mak
+
+
+*** ../vim-7.3.1154/src/testdir/Make_dos.mak	2013-05-19 19:16:25.000000000 +0200
+--- src/testdir/Make_dos.mak	2013-06-09 17:49:47.000000000 +0200
+***************
+*** 77,81 ****
+  	-del X*
+  	-del X*.*
+  	-del test.ok
+! 	-rmdir /s /q Xfind
+  	-if exist viminfo del viminfo
+--- 77,81 ----
+  	-del X*
+  	-del X*.*
+  	-del test.ok
+! 	-rd /s /q Xfind
+  	-if exist viminfo del viminfo
+*** ../vim-7.3.1154/src/version.c	2013-06-09 17:25:29.000000000 +0200
+--- src/version.c	2013-06-09 17:50:49.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1155,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+124. You begin conversations with, "Who is your internet service provider?"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

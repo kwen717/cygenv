@@ -1,0 +1,101 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1185
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1185
+Problem:    New regexp engine: no match with ^ after \n. (SungHyun Nam)
+Solution:   Fix it, add a test.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1184/src/regexp_nfa.c	2013-06-13 19:47:03.000000000 +0200
+--- src/regexp_nfa.c	2013-06-13 20:10:23.000000000 +0200
+***************
+*** 3936,3944 ****
+  	case NFA_BOL:
+  	case NFA_BOF:
+  	    /* "^" won't match past end-of-line, don't bother trying.
+! 	     * Except when we are going to the next line for a look-behind
+! 	     * match. */
+  	    if (reginput > regline
+  		    && (nfa_endp == NULL
+  			|| !REG_MULTI
+  			|| reglnum == nfa_endp->se_u.pos.lnum))
+--- 3936,3945 ----
+  	case NFA_BOL:
+  	case NFA_BOF:
+  	    /* "^" won't match past end-of-line, don't bother trying.
+! 	     * Except when at the end of the line, or when we are going to the
+! 	     * next line for a look-behind match. */
+  	    if (reginput > regline
++ 		    && *reginput != NUL
+  		    && (nfa_endp == NULL
+  			|| !REG_MULTI
+  			|| reglnum == nfa_endp->se_u.pos.lnum))
+*** ../vim-7.3.1184/src/testdir/test64.in	2013-06-10 16:35:11.000000000 +0200
+--- src/testdir/test64.in	2013-06-13 20:01:36.000000000 +0200
+***************
+*** 480,485 ****
+--- 480,491 ----
+  :.yank
+  y$Gop:"
+  :"
++ :" Check a pattern with a line break and ^ and $
++ /^Abc:
++ /a\n^b$\n^c/e
++ :.yank
++ Gop:"
++ :"
+  :" Check a pattern with a look beind crossing a line boundary
+  /^Behind:
+  /\(<\_[xy]\+\)\@3<=start
+***************
+*** 555,560 ****
+--- 561,571 ----
+  xjk
+  lmn
+  
++ Abc:
++ a
++ b
++ c
++ 
+  Behind:
+  asdfasd<yyy
+  xxstart1
+*** ../vim-7.3.1184/src/testdir/test64.ok	2013-06-10 16:35:11.000000000 +0200
+--- src/testdir/test64.ok	2013-06-13 20:01:34.000000000 +0200
+***************
+*** 918,923 ****
+--- 918,925 ----
+  <T="7">Ac 7</Title>
+  ghi
+  
++ c
++ 
+  xxstart3
+  
+  thexE thE thExethe
+*** ../vim-7.3.1184/src/version.c	2013-06-13 19:47:03.000000000 +0200
+--- src/version.c	2013-06-13 20:11:36.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1185,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+185. You order fast food over the Internet
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

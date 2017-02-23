@@ -1,0 +1,47 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.960
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.960
+Problem:    Compiler warning for unused variable.
+Solution:   Put declaration in #ifdef.
+Files:	    src/window.c
+
+
+*** ../vim-7.3.959/src/window.c	2013-05-15 15:12:25.000000000 +0200
+--- src/window.c	2013-05-15 23:11:02.000000000 +0200
+***************
+*** 2124,2130 ****
+--- 2124,2132 ----
+  {
+      if (firstwin == lastwin)
+      {
++ #ifdef FEAT_AUTOCMD
+  	buf_T	*old_curbuf = curbuf;
++ #endif
+  
+  	/*
+  	 * Closing the last window in a tab page.  First go to another tab
+*** ../vim-7.3.959/src/version.c	2013-05-15 19:44:35.000000000 +0200
+--- src/version.c	2013-05-15 23:12:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     960,
+  /**/
+
+-- 
+Did you ever stop to think...  and forget to start again?
+                                  -- Steven Wright
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

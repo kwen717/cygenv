@@ -1,0 +1,54 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1293
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1293
+Problem:    Put in empty buffer cannot be undone.
+Solution:   Save one more line for undo. (Ozaki)
+Files:	    src/ops.c
+
+
+*** ../vim-7.3.1292/src/ops.c	2013-06-29 17:19:20.000000000 +0200
+--- src/ops.c	2013-07-03 14:16:42.000000000 +0200
+***************
+*** 3499,3505 ****
+  	    ++lnum;
+  	/* In an empty buffer the empty line is going to be replaced, include
+  	 * it in the saved lines. */
+! 	if ((bufempty() ? u_save(0, 1) : u_save(lnum - 1, lnum)) == FAIL)
+  	    goto end;
+  #ifdef FEAT_FOLDING
+  	if (dir == FORWARD)
+--- 3499,3505 ----
+  	    ++lnum;
+  	/* In an empty buffer the empty line is going to be replaced, include
+  	 * it in the saved lines. */
+! 	if ((bufempty() ? u_save(0, 2) : u_save(lnum - 1, lnum)) == FAIL)
+  	    goto end;
+  #ifdef FEAT_FOLDING
+  	if (dir == FORWARD)
+*** ../vim-7.3.1292/src/version.c	2013-07-03 14:01:21.000000000 +0200
+--- src/version.c	2013-07-03 14:19:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1293,
+  /**/
+
+-- 
+ARTHUR: Listen, old crone!  Unless you tell us where we can buy a shrubbery,
+        my friend and I will ... we will say "Ni!"
+CRONE:  Do your worst!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

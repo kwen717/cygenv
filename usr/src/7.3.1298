@@ -1,0 +1,62 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1298
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1298 (after 7.3.1297)
+Problem:    Crash.
+Solution:   Use STRCPY() instead of STRCAT() and allocate one more byte.
+Files:	    src/misc2.c
+
+
+*** ../vim-7.3.1297/src/misc2.c	2013-07-03 17:13:56.000000000 +0200
+--- src/misc2.c	2013-07-03 17:43:11.000000000 +0200
+***************
+*** 4680,4690 ****
+      STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
+      add_pathsep(ff_expand_buffer);
+      {
+! 	char_u *buf = alloc(STRLEN(ff_expand_buffer)
+! 					 + STRLEN(search_ctx->ffsc_fix_path));
+  
+  	STRCPY(buf, ff_expand_buffer);
+! 	STRCAT(buf, search_ctx->ffsc_fix_path);
+  	if (mch_isdir(buf))
+  	{
+  	    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
+--- 4680,4690 ----
+      STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
+      add_pathsep(ff_expand_buffer);
+      {
+! 	int    eb_len = STRLEN(ff_expand_buffer);
+! 	char_u *buf = alloc(eb_len + STRLEN(search_ctx->ffsc_fix_path) + 1);
+  
+  	STRCPY(buf, ff_expand_buffer);
+! 	STRCPY(buf + eb_len, search_ctx->ffsc_fix_path);
+  	if (mch_isdir(buf))
+  	{
+  	    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
+*** ../vim-7.3.1297/src/version.c	2013-07-03 17:13:56.000000000 +0200
+--- src/version.c	2013-07-03 17:44:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1298,
+  /**/
+
+-- 
+TALL KNIGHT:   Firstly.  You must get us another shrubbery!
+OTHER KNIGHTS: More shrubberies!  More shrubberies for the ex-Knights of Ni!
+ARTHUR:        Not another shrubbery -
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,91 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.857
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.857
+Problem:    The QuitPre autocommand event does not trigger for :qa and :wq.
+Solution:   Trigger the event. (Tatsuro Fujii)
+Files:	    src/ex_docmd.c
+
+
+*** ../vim-7.3.856/src/ex_docmd.c	2013-02-26 17:21:15.000000000 +0100
+--- src/ex_docmd.c	2013-03-13 18:14:56.000000000 +0100
+***************
+*** 6526,6532 ****
+      }
+  #ifdef FEAT_AUTOCMD
+      apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+!     /* Refuse to quick when locked or when the buffer in the last window is
+       * being closed (can only happen in autocommands). */
+      if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
+  	return;
+--- 6526,6532 ----
+      }
+  #ifdef FEAT_AUTOCMD
+      apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+!     /* Refuse to quit when locked or when the buffer in the last window is
+       * being closed (can only happen in autocommands). */
+      if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
+  	return;
+***************
+*** 6600,6606 ****
+  	return;
+      }
+  #ifdef FEAT_AUTOCMD
+!     if (curbuf_locked())
+  	return;
+  #endif
+  
+--- 6600,6609 ----
+  	return;
+      }
+  #ifdef FEAT_AUTOCMD
+!     apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+!     /* Refuse to quit when locked or when the buffer in the last window is
+!      * being closed (can only happen in autocommands). */
+!     if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
+  	return;
+  #endif
+  
+***************
+*** 6936,6942 ****
+  	return;
+      }
+  #ifdef FEAT_AUTOCMD
+!     if (curbuf_locked())
+  	return;
+  #endif
+  
+--- 6939,6948 ----
+  	return;
+      }
+  #ifdef FEAT_AUTOCMD
+!     apply_autocmds(EVENT_QUITPRE, NULL, NULL, FALSE, curbuf);
+!     /* Refuse to quit when locked or when the buffer in the last window is
+!      * being closed (can only happen in autocommands). */
+!     if (curbuf_locked() || (curbuf->b_nwindows == 1 && curbuf->b_closing))
+  	return;
+  #endif
+  
+*** ../vim-7.3.856/src/version.c	2013-03-13 17:50:20.000000000 +0100
+--- src/version.c	2013-03-13 18:26:13.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     857,
+  /**/
+
+-- 
+The future isn't what it used to be.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

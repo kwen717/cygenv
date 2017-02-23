@@ -1,0 +1,339 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1032
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1032
+Problem:    "\ze" is not supported by the new regexp engine.
+Solution:   Make "\ze" work.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1031/src/regexp_nfa.c	2013-05-27 11:21:59.000000000 +0200
+--- src/regexp_nfa.c	2013-05-27 20:06:16.000000000 +0200
+***************
+*** 159,165 ****
+  static int syntax_error = FALSE;
+  
+  /* NFA regexp \ze operator encountered. */
+! static int nfa_has_zend = FALSE;
+  
+  /* Number of sub expressions actually being used during execution. 1 if only
+   * the whole match (subexpr 0) is used. */
+--- 159,165 ----
+  static int syntax_error = FALSE;
+  
+  /* NFA regexp \ze operator encountered. */
+! static int nfa_has_zend;
+  
+  /* Number of sub expressions actually being used during execution. 1 if only
+   * the whole match (subexpr 0) is used. */
+***************
+*** 791,799 ****
+  		case 'e':
+  		    EMIT(NFA_ZEND);
+  		    nfa_has_zend = TRUE;
+! 		    /* TODO: Currently \ze does not work properly. */
+! 		    return FAIL;
+! 		    /* break; */
+  		case '1':
+  		case '2':
+  		case '3':
+--- 791,797 ----
+  		case 'e':
+  		    EMIT(NFA_ZEND);
+  		    nfa_has_zend = TRUE;
+! 		    break;
+  		case '1':
+  		case '2':
+  		case '3':
+***************
+*** 2711,2716 ****
+--- 2709,2716 ----
+  	case NFA_MCLOSE + 0:
+  	    if (nfa_has_zend)
+  	    {
++ 		/* Do not overwrite the position set by \ze. If no \ze
++ 		 * encountered end will be set in nfa_regtry(). */
+  		addstate(l, state->out, m, off, lid);
+  		break;
+  	    }
+***************
+*** 3635,3640 ****
+--- 3635,3641 ----
+  
+  	    case NFA_SKIP_CHAR:
+  	    case NFA_ZSTART:
++ 	    case NFA_ZEND:
+  		/* TODO: should not happen? */
+  		break;
+  
+***************
+*** 3795,3800 ****
+--- 3796,3802 ----
+  	}
+  	if (reg_endpos[0].lnum < 0)
+  	{
++ 	    /* pattern has a \ze but it didn't match, use current end */
+  	    reg_endpos[0].lnum = reglnum;
+  	    reg_endpos[0].col = (int)(reginput - regline);
+  	}
+*** ../vim-7.3.1031/src/testdir/test64.in	2013-05-26 18:40:11.000000000 +0200
+--- src/testdir/test64.in	2013-05-27 20:02:44.000000000 +0200
+***************
+*** 151,158 ****
+  :" Search multi-modifiers
+  :call add(tl, [2, 'x*', 'xcd', 'x'])
+  :call add(tl, [2, 'x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+! :call add(tl, [2, 'x*', 'abcdoij', ''])                    " empty match is good
+! :call add(tl, [2, 'x\+', 'abcdoin'])                       " no match here
+  :call add(tl, [2, 'x\+', 'abcdeoijdfxxiuhfij', 'xx'])
+  :call add(tl, [2, 'x\+', 'xxxxx', 'xxxxx'])
+  :call add(tl, [2, 'x\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+--- 151,160 ----
+  :" Search multi-modifiers
+  :call add(tl, [2, 'x*', 'xcd', 'x'])
+  :call add(tl, [2, 'x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+! :" empty match is good
+! :call add(tl, [2, 'x*', 'abcdoij', ''])
+! :" no match here
+! :call add(tl, [2, 'x\+', 'abcdoin'])
+  :call add(tl, [2, 'x\+', 'abcdeoijdfxxiuhfij', 'xx'])
+  :call add(tl, [2, 'x\+', 'xxxxx', 'xxxxx'])
+  :call add(tl, [2, 'x\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+***************
+*** 160,171 ****
+  :call add(tl, [2, 'x\=', 'abc sfoij', '']) " empty match is good
+  :call add(tl, [2, 'x\=', 'xxxxxxxxx c', 'x'])
+  :call add(tl, [2, 'x\?', 'x sdfoij', 'x'])
+! :call add(tl, [2, 'x\?', 'abc sfoij', ''])                 " empty match is good
+  :call add(tl, [2, 'x\?', 'xxxxxxxxxx c', 'x'])
+  :"
+  :call add(tl, [2, 'a\{0,0}', 'abcdfdoij', ''])
+! :call add(tl, [2, 'a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+! :call add(tl, [2, 'a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}'
+  :call add(tl, [2, 'a\{3,6}', 'aa siofuh'])
+  :call add(tl, [2, 'a\{3,6}', 'aaaaa asfoij afaa', 'aaaaa'])
+  :call add(tl, [2, 'a\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+--- 162,176 ----
+  :call add(tl, [2, 'x\=', 'abc sfoij', '']) " empty match is good
+  :call add(tl, [2, 'x\=', 'xxxxxxxxx c', 'x'])
+  :call add(tl, [2, 'x\?', 'x sdfoij', 'x'])
+! :" empty match is good
+! :call add(tl, [2, 'x\?', 'abc sfoij', ''])
+  :call add(tl, [2, 'x\?', 'xxxxxxxxxx c', 'x'])
+  :"
+  :call add(tl, [2, 'a\{0,0}', 'abcdfdoij', ''])
+! :" same thing as 'a?'
+! :call add(tl, [2, 'a\{0,1}', 'asiubid axxxaaa', 'a'])
+! :" same thing as 'a\{0,1}'
+! :call add(tl, [2, 'a\{1,0}', 'asiubid axxxaaa', 'a'])
+  :call add(tl, [2, 'a\{3,6}', 'aa siofuh'])
+  :call add(tl, [2, 'a\{3,6}', 'aaaaa asfoij afaa', 'aaaaa'])
+  :call add(tl, [2, 'a\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+***************
+*** 173,190 ****
+  :call add(tl, [2, 'a\{2}', 'aaaa', 'aa'])
+  :call add(tl, [2, 'a\{2}', 'iuash fiusahfliusah fiushfilushfi uhsaifuh askfj nasfvius afg aaaa sfiuhuhiushf', 'aa'])
+  :call add(tl, [2, 'a\{2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :call add(tl, [2, 'a\{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+  :call add(tl, [2, 'a\{0,}', 'aaaaa aa', 'aaaaa'])
+  :call add(tl, [2, 'a\{2,}', 'sdfiougjdsafg'])
+  :call add(tl, [0, 'a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+  :call add(tl, [2, 'a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{,5}', 'abcd', 'a'])
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+! :call add(tl, [2, 'a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+  :call add(tl, [2, 'a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+  :"
+  :call add(tl, [2, 'a\{-0,0}', 'abcdfdoij', ''])
+! :call add(tl, [2, 'a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+  :call add(tl, [2, 'a\{-3,6}', 'aa siofuh'])
+  :call add(tl, [2, 'a\{-3,6}', 'aaaaa asfoij afaa', 'aaa'])
+  :call add(tl, [2, 'a\{-3,6}', 'aaaaaaaa', 'aaa'])
+--- 178,198 ----
+  :call add(tl, [2, 'a\{2}', 'aaaa', 'aa'])
+  :call add(tl, [2, 'a\{2}', 'iuash fiusahfliusah fiushfilushfi uhsaifuh askfj nasfvius afg aaaa sfiuhuhiushf', 'aa'])
+  :call add(tl, [2, 'a\{2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+! :" same thing as 'a*'
+! :call add(tl, [2, 'a\{0,}', 'oij sdigfusnf', ''])
+  :call add(tl, [2, 'a\{0,}', 'aaaaa aa', 'aaaaa'])
+  :call add(tl, [2, 'a\{2,}', 'sdfiougjdsafg'])
+  :call add(tl, [0, 'a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+  :call add(tl, [2, 'a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{,5}', 'abcd', 'a'])
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+! :" same thing as 'a*'
+! :call add(tl, [2, 'a\{}', 'bbbcddiuhfcd', ''])
+  :call add(tl, [2, 'a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+  :"
+  :call add(tl, [2, 'a\{-0,0}', 'abcdfdoij', ''])
+! :" anti-greedy version of 'a?'
+! :call add(tl, [2, 'a\{-0,1}', 'asiubid axxxaaa', ''])
+  :call add(tl, [2, 'a\{-3,6}', 'aa siofuh'])
+  :call add(tl, [2, 'a\{-3,6}', 'aaaaa asfoij afaa', 'aaa'])
+  :call add(tl, [2, 'a\{-3,6}', 'aaaaaaaa', 'aaa'])
+***************
+*** 198,204 ****
+  :call add(tl, [2, 'a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{-,5}', 'abcd', ''])
+  :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+! :call add(tl, [0, 'a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
+  :call add(tl, [0, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+  :"
+  :" Test groups of characters and submatches
+--- 206,213 ----
+  :call add(tl, [2, 'a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{-,5}', 'abcd', ''])
+  :call add(tl, [2, 'a\{-,5}', 'aaaaaaaaaa', ''])
+! :" anti-greedy version of 'a*'
+! :call add(tl, [0, 'a\{-}', 'bbbcddiuhfcd', ''])
+  :call add(tl, [0, 'a\{-}', 'aaaaioudfh coisf jda', ''])
+  :"
+  :" Test groups of characters and submatches
+***************
+*** 243,252 ****
+  :call add(tl, [2, '[^[:alpha:]]\+','abcccadfoij7787ysf287yrnccdu','7787'])
+  :call add(tl, [2, '[-a]', '-', '-'])
+  :call add(tl, [2, '[a-]', '-', '-'])
+! :call add(tl, [2, '[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])		" filename regexp
+! :call add(tl, [2, '[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars
+! :call add(tl, [2, '[[.a.]]\+', 'aa', 'aa'])								" collation elem
+! :call add(tl, [2, 'abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
+  :call add(tl, [2, 'abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+  :call add(tl, [2, '\_[0-9]\+', 'asfi9888u', '9888'])
+  :call add(tl, [2, '[0-9\n]\+', 'asfi9888u', '9888'])
+--- 252,265 ----
+  :call add(tl, [2, '[^[:alpha:]]\+','abcccadfoij7787ysf287yrnccdu','7787'])
+  :call add(tl, [2, '[-a]', '-', '-'])
+  :call add(tl, [2, '[a-]', '-', '-'])
+! :" filename regexp
+! :call add(tl, [2, '[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])
+! :" special chars
+! :call add(tl, [2, '[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])
+! :" collation elem
+! :call add(tl, [2, '[[.a.]]\+', 'aa', 'aa'])
+! :" middle of regexp
+! :call add(tl, [2, 'abc[0-9]*ddd', 'siuhabc ii'])
+  :call add(tl, [2, 'abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+  :call add(tl, [2, '\_[0-9]\+', 'asfi9888u', '9888'])
+  :call add(tl, [2, '[0-9\n]\+', 'asfi9888u', '9888'])
+***************
+*** 267,277 ****
+  :call add(tl, [2, '\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
+  :"
+  :"""" Tests for \z features
+! :call add(tl, [2, 'xx \ze test', 'xx '])					" must match after \ze
+! :call add(tl, [0, 'abc\zeend', 'oij abcend', 'abc'])
+  :call add(tl, [2, 'abc\zsdd', 'ddabcddxyzt', 'dd'])
+! :call add(tl, [2, 'aa \zsax', ' ax'])						" must match before \zs
+! :call add(tl, [0, 'abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+  :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+  :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+  :"
+--- 280,296 ----
+  :call add(tl, [2, '\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
+  :"
+  :"""" Tests for \z features
+! :" match ends at \ze
+! :call add(tl, [2, 'xx \ze test', 'xx '])
+! :call add(tl, [2, 'abc\zeend', 'oij abcend', 'abc'])
+! :call add(tl, [2, 'aa\zebb\|aaxx', ' aabb ', 'aa'])
+! :call add(tl, [2, 'aa\zebb\|aaxx', ' aaxx ', 'aaxx'])
+! :call add(tl, [2, 'aabb\|aa\zebb', ' aabb ', 'aabb'])
+! :call add(tl, [2, 'aa\zebb\|aaebb', ' aabb ', 'aa'])
+! :" match starts at \zs
+  :call add(tl, [2, 'abc\zsdd', 'ddabcddxyzt', 'dd'])
+! :call add(tl, [2, 'aa \zsax', ' ax'])
+! :call add(tl, [2, 'abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+  :call add(tl, [2, '\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+  :call add(tl, [2, '\>\zs.', 'aword. ', '.'])
+  :"
+***************
+*** 279,290 ****
+  :call add(tl, [0, 'abc\@=', 'abc', 'ab'])
+  :call add(tl, [0, 'abc\@=cd', 'abcd', 'abcd'])
+  :call add(tl, [0, 'abc\@=', 'ababc', 'ab'])
+! :call add(tl, [2, 'abcd\@=e', 'abcd'])                     " will never match, no matter the input text
+! :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])    " will never match
+  :call add(tl, [0, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+! :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])	" no match
+  :call add(tl, [0, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+! :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])	" no match
+  :call add(tl, [0, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [0, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  :"
+--- 298,313 ----
+  :call add(tl, [0, 'abc\@=', 'abc', 'ab'])
+  :call add(tl, [0, 'abc\@=cd', 'abcd', 'abcd'])
+  :call add(tl, [0, 'abc\@=', 'ababc', 'ab'])
+! :" will never match, no matter the input text
+! :call add(tl, [2, 'abcd\@=e', 'abcd'])
+! :" will never match
+! :call add(tl, [2, 'abcd\@=e', 'any text in here ... '])
+  :call add(tl, [0, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+! :" no match
+! :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])
+  :call add(tl, [0, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+! :" no match
+! :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])
+  :call add(tl, [0, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [0, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+  :"
+*** ../vim-7.3.1031/src/testdir/test64.ok	2013-05-26 18:40:11.000000000 +0200
+--- src/testdir/test64.ok	2013-05-27 20:04:55.000000000 +0200
+***************
+*** 617,622 ****
+--- 617,635 ----
+  OK 2 - xx \ze test
+  OK 0 - abc\zeend
+  OK 1 - abc\zeend
++ OK 2 - abc\zeend
++ OK 0 - aa\zebb\|aaxx
++ OK 1 - aa\zebb\|aaxx
++ OK 2 - aa\zebb\|aaxx
++ OK 0 - aa\zebb\|aaxx
++ OK 1 - aa\zebb\|aaxx
++ OK 2 - aa\zebb\|aaxx
++ OK 0 - aabb\|aa\zebb
++ OK 1 - aabb\|aa\zebb
++ OK 2 - aabb\|aa\zebb
++ OK 0 - aa\zebb\|aaebb
++ OK 1 - aa\zebb\|aaebb
++ OK 2 - aa\zebb\|aaebb
+  OK 0 - abc\zsdd
+  OK 1 - abc\zsdd
+  OK 2 - abc\zsdd
+***************
+*** 625,630 ****
+--- 638,644 ----
+  OK 2 - aa \zsax
+  OK 0 - abc \zsmatch\ze abc
+  OK 1 - abc \zsmatch\ze abc
++ OK 2 - abc \zsmatch\ze abc
+  OK 0 - \v(a \zsif .*){2}
+  OK 1 - \v(a \zsif .*){2}
+  OK 2 - \v(a \zsif .*){2}
+*** ../vim-7.3.1031/src/version.c	2013-05-27 11:21:59.000000000 +0200
+--- src/version.c	2013-05-27 20:04:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1032,
+  /**/
+
+-- 
+An operatingsystem is just a name you give to the rest of bloating
+idiosyncratic machine-based-features you left out of your editor.
+			(author unknown)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

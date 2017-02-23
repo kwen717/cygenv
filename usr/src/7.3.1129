@@ -1,0 +1,699 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1129
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1129
+Problem:    Can't see what pattern in syntax highlighting is slow.
+Solution:   Add the ":syntime" command.
+Files:	    src/structs.h, src/syntax.c, src/ex_cmds.h, src/ex_docmd.c,
+	    src/proto/syntax.pro, src/ex_cmds2.c, src/proto/ex_cmds2.pro,
+	    runtime/doc/syntax.txt
+
+
+*** ../vim-7.3.1128/src/structs.h	2013-05-19 19:16:25.000000000 +0200
+--- src/structs.h	2013-06-06 12:24:08.000000000 +0200
+***************
+*** 1206,1211 ****
+--- 1206,1223 ----
+  typedef struct qf_info_S qf_info_T;
+  #endif
+  
++ #ifdef FEAT_RELTIME
++ /*
++  * Used for :syntime: timing of executing a syntax pattern.
++  */
++ typedef struct {
++     proftime_T	total;		/* total time used */
++     proftime_T	slowest;	/* time of slowest call */
++     long	count;		/* nr of times used */
++     long	match;		/* nr of times matched */
++ } syn_time_T;
++ #endif
++ 
+  /*
+   * These are items normally related to a buffer.  But when using ":ownsyntax"
+   * a window may have its own instance.
+***************
+*** 1230,1235 ****
+--- 1242,1250 ----
+      long	b_syn_sync_linebreaks;	/* offset for multi-line pattern */
+      char_u	*b_syn_linecont_pat;	/* line continuation pattern */
+      regprog_T	*b_syn_linecont_prog;	/* line continuation program */
++ #ifdef FEAT_RELTIME
++     syn_time_T  b_syn_linecont_time;
++ #endif
+      int		b_syn_linecont_ic;	/* ignore-case flag for above */
+      int		b_syn_topgrp;		/* for ":syntax include" */
+  # ifdef FEAT_CONCEAL
+*** ../vim-7.3.1128/src/syntax.c	2013-05-06 04:21:35.000000000 +0200
+--- src/syntax.c	2013-06-06 12:37:55.000000000 +0200
+***************
+*** 153,158 ****
+--- 153,161 ----
+      short	 sp_syn_match_id;	/* highlight group ID of pattern */
+      char_u	*sp_pattern;		/* regexp to match, pattern */
+      regprog_T	*sp_prog;		/* regexp to match, program */
++ #ifdef FEAT_RELTIME
++     syn_time_T	 sp_time;
++ #endif
+      int		 sp_ic;			/* ignore-case flag for sp_prog */
+      short	 sp_off_flags;		/* see below */
+      int		 sp_offsets[SPO_COUNT];	/* offsets */
+***************
+*** 269,274 ****
+--- 272,279 ----
+   */
+  static int keepend_level = -1;
+  
++ static char msg_no_items[] = N_("No Syntax items defined for this buffer");
++ 
+  /*
+   * For the current state we need to remember more than just the idx.
+   * When si_m_endpos.lnum is 0, the items other than si_idx are unknown.
+***************
+*** 395,400 ****
+--- 400,420 ----
+  static int in_id_list __ARGS((stateitem_T *item, short *cont_list, struct sp_syn *ssp, int contained));
+  static int push_current_state __ARGS((int idx));
+  static void pop_current_state __ARGS((void));
++ #ifdef FEAT_RELTIME
++ static void syn_clear_time __ARGS((syn_time_T *tt));
++ static void syntime_clear __ARGS((void));
++ #ifdef __BORLANDC__
++ static int _RTLENTRYF syn_compare_syntime __ARGS((const void *v1, const void *v2));
++ #else
++ static int syn_compare_syntime __ARGS((const void *v1, const void *v2));
++ #endif
++ static void syntime_report __ARGS((void));
++ static int syn_time_on = FALSE;
++ # define IF_SYN_TIME(p) (p)
++ #else
++ # define IF_SYN_TIME(p) NULL
++ typedef int syn_time_T;
++ #endif
+  
+  static void syn_stack_apply_changes_block __ARGS((synblock_T *block, buf_T *buf));
+  static void find_endpos __ARGS((int idx, lpos_T *startpos, lpos_T *m_endpos, lpos_T *hl_endpos, long *flagsp, lpos_T *end_endpos, int *end_idx, reg_extmatch_T *start_ext));
+***************
+*** 406,412 ****
+  static void syn_add_end_off __ARGS((lpos_T *result, regmmatch_T *regmatch, synpat_T *spp, int idx, int extra));
+  static void syn_add_start_off __ARGS((lpos_T *result, regmmatch_T *regmatch, synpat_T *spp, int idx, int extra));
+  static char_u *syn_getcurline __ARGS((void));
+! static int syn_regexec __ARGS((regmmatch_T *rmp, linenr_T lnum, colnr_T col));
+  static int check_keyword_id __ARGS((char_u *line, int startcol, int *endcol, long *flags, short **next_list, stateitem_T *cur_si, int *ccharp));
+  static void syn_cmd_case __ARGS((exarg_T *eap, int syncing));
+  static void syn_cmd_spell __ARGS((exarg_T *eap, int syncing));
+--- 426,432 ----
+  static void syn_add_end_off __ARGS((lpos_T *result, regmmatch_T *regmatch, synpat_T *spp, int idx, int extra));
+  static void syn_add_start_off __ARGS((lpos_T *result, regmmatch_T *regmatch, synpat_T *spp, int idx, int extra));
+  static char_u *syn_getcurline __ARGS((void));
+! static int syn_regexec __ARGS((regmmatch_T *rmp, linenr_T lnum, colnr_T col, syn_time_T *st));
+  static int check_keyword_id __ARGS((char_u *line, int startcol, int *endcol, long *flags, short **next_list, stateitem_T *cur_si, int *ccharp));
+  static void syn_cmd_case __ARGS((exarg_T *eap, int syncing));
+  static void syn_cmd_spell __ARGS((exarg_T *eap, int syncing));
+***************
+*** 977,983 ****
+      {
+  	regmatch.rmm_ic = syn_block->b_syn_linecont_ic;
+  	regmatch.regprog = syn_block->b_syn_linecont_prog;
+! 	return syn_regexec(&regmatch, lnum, (colnr_T)0);
+      }
+      return FALSE;
+  }
+--- 997,1004 ----
+      {
+  	regmatch.rmm_ic = syn_block->b_syn_linecont_ic;
+  	regmatch.regprog = syn_block->b_syn_linecont_prog;
+! 	return syn_regexec(&regmatch, lnum, (colnr_T)0,
+! 				IF_SYN_TIME(&syn_block->b_syn_linecont_time));
+      }
+      return FALSE;
+  }
+***************
+*** 2068,2075 ****
+  
+  			    regmatch.rmm_ic = spp->sp_ic;
+  			    regmatch.regprog = spp->sp_prog;
+! 			    if (!syn_regexec(&regmatch, current_lnum,
+! 							     (colnr_T)lc_col))
+  			    {
+  				/* no match in this line, try another one */
+  				spp->sp_startcol = MAXCOL;
+--- 2089,2098 ----
+  
+  			    regmatch.rmm_ic = spp->sp_ic;
+  			    regmatch.regprog = spp->sp_prog;
+! 			    if (!syn_regexec(&regmatch,
+! 					     current_lnum,
+! 					     (colnr_T)lc_col,
+! 				             IF_SYN_TIME(&spp->sp_time)))
+  			    {
+  				/* no match in this line, try another one */
+  				spp->sp_startcol = MAXCOL;
+***************
+*** 2950,2956 ****
+  
+  	    regmatch.rmm_ic = spp->sp_ic;
+  	    regmatch.regprog = spp->sp_prog;
+! 	    if (syn_regexec(&regmatch, startpos->lnum, lc_col))
+  	    {
+  		if (best_idx == -1 || regmatch.startpos[0].col
+  					      < best_regmatch.startpos[0].col)
+--- 2973,2980 ----
+  
+  	    regmatch.rmm_ic = spp->sp_ic;
+  	    regmatch.regprog = spp->sp_prog;
+! 	    if (syn_regexec(&regmatch, startpos->lnum, lc_col,
+! 						  IF_SYN_TIME(&spp->sp_time)))
+  	    {
+  		if (best_idx == -1 || regmatch.startpos[0].col
+  					      < best_regmatch.startpos[0].col)
+***************
+*** 2981,2987 ****
+  		lc_col = 0;
+  	    regmatch.rmm_ic = spp_skip->sp_ic;
+  	    regmatch.regprog = spp_skip->sp_prog;
+! 	    if (syn_regexec(&regmatch, startpos->lnum, lc_col)
+  		    && regmatch.startpos[0].col
+  					     <= best_regmatch.startpos[0].col)
+  	    {
+--- 3005,3012 ----
+  		lc_col = 0;
+  	    regmatch.rmm_ic = spp_skip->sp_ic;
+  	    regmatch.regprog = spp_skip->sp_prog;
+! 	    if (syn_regexec(&regmatch, startpos->lnum, lc_col,
+! 					      IF_SYN_TIME(&spp_skip->sp_time))
+  		    && regmatch.startpos[0].col
+  					     <= best_regmatch.startpos[0].col)
+  	    {
+***************
+*** 3229,3241 ****
+   * Returns TRUE when there is a match.
+   */
+      static int
+! syn_regexec(rmp, lnum, col)
+      regmmatch_T	*rmp;
+      linenr_T	lnum;
+      colnr_T	col;
+  {
+      rmp->rmm_maxcol = syn_buf->b_p_smc;
+!     if (vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, NULL) > 0)
+      {
+  	rmp->startpos[0].lnum += lnum;
+  	rmp->endpos[0].lnum += lnum;
+--- 3254,3290 ----
+   * Returns TRUE when there is a match.
+   */
+      static int
+! syn_regexec(rmp, lnum, col, st)
+      regmmatch_T	*rmp;
+      linenr_T	lnum;
+      colnr_T	col;
++     syn_time_T  *st;
+  {
++     int r;
++ #ifdef FEAT_RELTIME
++     proftime_T	pt;
++ 
++     if (syn_time_on)
++ 	profile_start(&pt);
++ #endif
++ 
+      rmp->rmm_maxcol = syn_buf->b_p_smc;
+!     r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, NULL);
+! 
+! #ifdef FEAT_RELTIME
+!     if (syn_time_on)
+!     {
+! 	profile_end(&pt);
+! 	profile_add(&st->total, &pt);
+! 	if (profile_cmp(&pt, &st->slowest) < 0)
+! 	    st->slowest = pt;
+! 	++st->count;
+! 	if (r > 0)
+! 	    ++st->match;
+!     }
+! #endif
+! 
+!     if (r > 0)
+      {
+  	rmp->startpos[0].lnum += lnum;
+  	rmp->endpos[0].lnum += lnum;
+***************
+*** 3769,3775 ****
+  
+      if (!syntax_present(curwin))
+      {
+! 	MSG(_("No Syntax items defined for this buffer"));
+  	return;
+      }
+  
+--- 3818,3824 ----
+  
+      if (!syntax_present(curwin))
+      {
+! 	MSG(_(msg_no_items));
+  	return;
+      }
+  
+***************
+*** 5609,5614 ****
+--- 5658,5666 ----
+      if (ci->sp_prog == NULL)
+  	return NULL;
+      ci->sp_ic = curwin->w_s->b_syn_ic;
++ #ifdef FEAT_RELTIME
++     syn_clear_time(&ci->sp_time);
++ #endif
+  
+      /*
+       * Check for a match, highlight or region offset.
+***************
+*** 5783,5790 ****
+  		cpo_save = p_cpo;
+  		p_cpo = (char_u *)"";
+  		curwin->w_s->b_syn_linecont_prog =
+! 			    vim_regcomp(curwin->w_s->b_syn_linecont_pat, RE_MAGIC);
+  		p_cpo = cpo_save;
+  
+  		if (curwin->w_s->b_syn_linecont_prog == NULL)
+  		{
+--- 5835,5845 ----
+  		cpo_save = p_cpo;
+  		p_cpo = (char_u *)"";
+  		curwin->w_s->b_syn_linecont_prog =
+! 		       vim_regcomp(curwin->w_s->b_syn_linecont_pat, RE_MAGIC);
+  		p_cpo = cpo_save;
++ #ifdef FEAT_RELTIME
++ 		syn_clear_time(&curwin->w_s->b_syn_linecont_time);
++ #endif
+  
+  		if (curwin->w_s->b_syn_linecont_prog == NULL)
+  		{
+***************
+*** 6471,6476 ****
+--- 6526,6704 ----
+  }
+  #endif
+  
++ #ifdef FEAT_RELTIME
++ /*
++  * ":syntime".
++  */
++     void
++ ex_syntime(eap)
++     exarg_T	*eap;
++ {
++     if (STRCMP(eap->arg, "on") == 0)
++ 	syn_time_on = TRUE;
++     else if (STRCMP(eap->arg, "off") == 0)
++ 	syn_time_on = FALSE;
++     else if (STRCMP(eap->arg, "clear") == 0)
++ 	syntime_clear();
++     else if (STRCMP(eap->arg, "report") == 0)
++ 	syntime_report();
++     else
++ 	EMSG2(_(e_invarg2), eap->arg);
++ }
++ 
++     static void
++ syn_clear_time(st)
++     syn_time_T *st;
++ {
++     profile_zero(&st->total);
++     profile_zero(&st->slowest);
++     st->count = 0;
++     st->match = 0;
++ }
++ 
++ /*
++  * Clear the syntax timing for the current buffer.
++  */
++     static void
++ syntime_clear()
++ {
++     int		idx;
++     synpat_T	*spp;
++ 
++     if (!syntax_present(curwin))
++     {
++ 	MSG(_(msg_no_items));
++ 	return;
++     }
++     for (idx = 0; idx < curwin->w_s->b_syn_patterns.ga_len; ++idx)
++     {
++ 	spp = &(SYN_ITEMS(curwin->w_s)[idx]);
++ 	syn_clear_time(&spp->sp_time);
++     }
++ }
++ 
++ typedef struct
++ {
++     proftime_T	total;
++     int		count;
++     int		match;
++     proftime_T	slowest;
++     proftime_T	average;
++     int		id;
++     char_u	*pattern;
++ } time_entry_T;
++ 
++     static int
++ #ifdef __BORLANDC__
++ _RTLENTRYF
++ #endif
++ syn_compare_syntime(v1, v2)
++     const void	*v1;
++     const void	*v2;
++ {
++     const time_entry_T	*s1 = v1;
++     const time_entry_T	*s2 = v2;
++ 
++     return profile_cmp(&s1->total, &s2->total);
++ }
++ 
++ /*
++  * Clear the syntax timing for the current buffer.
++  */
++     static void
++ syntime_report()
++ {
++     int		idx;
++     synpat_T	*spp;
++     proftime_T	tm;
++     int		len;
++     proftime_T	total_total;
++     int		total_count = 0;
++     garray_T    ga;
++     time_entry_T *p;
++ 
++     if (!syntax_present(curwin))
++     {
++ 	MSG(_(msg_no_items));
++ 	return;
++     }
++ 
++     ga_init2(&ga, sizeof(time_entry_T), 50);
++     profile_zero(&total_total);
++     for (idx = 0; idx < curwin->w_s->b_syn_patterns.ga_len; ++idx)
++     {
++ 	spp = &(SYN_ITEMS(curwin->w_s)[idx]);
++ 	if (spp->sp_time.count > 0)
++ 	{
++ 	    ga_grow(&ga, 1);
++ 	    p = ((time_entry_T *)ga.ga_data) + ga.ga_len;
++ 	    p->total = spp->sp_time.total;
++ 	    profile_add(&total_total, &spp->sp_time.total);
++ 	    p->count = spp->sp_time.count;
++ 	    p->match = spp->sp_time.match;
++ 	    total_count += spp->sp_time.count;
++ 	    p->slowest = spp->sp_time.slowest;
++ # ifdef FEAT_FLOAT
++ 	    profile_divide(&spp->sp_time.total, spp->sp_time.count, &tm);
++ 	    p->average = tm;
++ # endif
++ 	    p->id = spp->sp_syn.id;
++ 	    p->pattern = spp->sp_pattern;
++ 	    ++ga.ga_len;
++ 	}
++     }
++ 
++     /* sort on total time */
++     qsort(ga.ga_data, (size_t)ga.ga_len, sizeof(time_entry_T), syn_compare_syntime);
++ 
++     MSG_PUTS_TITLE(_("  TOTAL      COUNT  MATCH   SLOWEST     AVERAGE   NAME               PATTERN"));
++     MSG_PUTS("\n");
++     for (idx = 0; idx < ga.ga_len && !got_int; ++idx)
++     {
++ 	spp = &(SYN_ITEMS(curwin->w_s)[idx]);
++ 	p = ((time_entry_T *)ga.ga_data) + idx;
++ 
++ 	MSG_PUTS(profile_msg(&p->total));
++ 	MSG_PUTS(" "); /* make sure there is always a separating space */
++ 	msg_advance(13);
++ 	msg_outnum(p->count);
++ 	MSG_PUTS(" ");
++ 	msg_advance(20);
++ 	msg_outnum(p->match);
++ 	MSG_PUTS(" ");
++ 	msg_advance(26);
++ 	MSG_PUTS(profile_msg(&p->slowest));
++ 	MSG_PUTS(" ");
++ 	msg_advance(38);
++ # ifdef FEAT_FLOAT
++ 	MSG_PUTS(profile_msg(&p->average));
++ 	MSG_PUTS(" ");
++ # endif
++ 	msg_advance(50);
++ 	msg_outtrans(HL_TABLE()[p->id - 1].sg_name);
++ 	MSG_PUTS(" ");
++ 
++ 	msg_advance(69);
++ 	if (Columns < 80)
++ 	    len = 20; /* will wrap anyway */
++ 	else
++ 	    len = Columns - 70;
++ 	if (len > (int)STRLEN(p->pattern))
++ 	    len = (int)STRLEN(p->pattern);
++ 	msg_outtrans_len(p->pattern, len);
++ 	MSG_PUTS("\n");
++     }
++     if (!got_int)
++     {
++ 	MSG_PUTS("\n");
++ 	MSG_PUTS(profile_msg(&total_total));
++ 	msg_advance(13);
++ 	msg_outnum(total_count);
++ 	MSG_PUTS("\n");
++     }
++ }
++ #endif
++ 
+  #endif /* FEAT_SYN_HL */
+  
+  /**************************************
+*** ../vim-7.3.1128/src/ex_cmds.h	2013-05-17 16:39:59.000000000 +0200
+--- src/ex_cmds.h	2013-06-05 22:20:35.000000000 +0200
+***************
+*** 925,930 ****
+--- 925,932 ----
+  			TRLBAR|CMDWIN),
+  EX(CMD_syntax,		"syntax",	ex_syntax,
+  			EXTRA|NOTRLCOM|CMDWIN),
++ EX(CMD_syntime,		"syntime",	ex_syntime,
++ 			WORD1|TRLBAR|CMDWIN),
+  EX(CMD_syncbind,	"syncbind",	ex_syncbind,
+  			TRLBAR),
+  EX(CMD_t,		"t",		ex_copymove,
+*** ../vim-7.3.1128/src/ex_docmd.c	2013-06-02 19:22:05.000000000 +0200
+--- src/ex_docmd.c	2013-06-05 22:21:30.000000000 +0200
+***************
+*** 242,247 ****
+--- 242,250 ----
+  # define ex_syntax		ex_ni
+  # define ex_ownsyntax		ex_ni
+  #endif
++ #if !defined(FEAT_SYN_HL) || !defined(FEAT_RELTIME)
++ # define ex_syntime		ex_ni
++ #endif
+  #ifndef FEAT_SPELL
+  # define ex_spell		ex_ni
+  # define ex_mkspell		ex_ni
+*** ../vim-7.3.1128/src/proto/syntax.pro	2010-08-15 21:57:28.000000000 +0200
+--- src/proto/syntax.pro	2013-06-05 22:59:09.000000000 +0200
+***************
+*** 19,24 ****
+--- 19,25 ----
+  int syn_get_sub_char __ARGS((void));
+  int syn_get_stack_item __ARGS((int i));
+  int syn_get_foldlevel __ARGS((win_T *wp, long lnum));
++ void ex_syntime __ARGS((exarg_T *eap));
+  void init_highlight __ARGS((int both, int reset));
+  int load_colors __ARGS((char_u *name));
+  void do_highlight __ARGS((char_u *line, int forceit, int init));
+*** ../vim-7.3.1128/src/ex_cmds2.c	2013-05-06 04:50:26.000000000 +0200
+--- src/ex_cmds2.c	2013-06-06 12:14:52.000000000 +0200
+***************
+*** 958,963 ****
+--- 958,993 ----
+  
+  # endif  /* FEAT_PROFILE || FEAT_RELTIME */
+  
++ #if defined(FEAT_SYN_HL) && defined(FEAT_RELTIME) && defined(FEAT_FLOAT)
++ # if defined(HAVE_MATH_H)
++ #  include <math.h>
++ # endif
++ 
++ /*
++  * Divide the time "tm" by "count" and store in "tm2".
++  */
++     void
++ profile_divide(tm, count, tm2)
++     proftime_T  *tm;
++     proftime_T  *tm2;
++     int		count;
++ {
++     if (count == 0)
++ 	profile_zero(tm2);
++     else
++     {
++ # ifdef WIN3264
++ 	tm2->QuadPart = tm->QuadPart / count;
++ # else
++ 	double usec = (tm->tv_sec * 1000000.0 + tm->tv_usec) / count;
++ 
++ 	tm2->tv_sec = floor(usec / 1000000.0);
++ 	tm2->tv_usec = round(usec - (tm2->tv_sec * 1000000.0));
++ # endif
++     }
++ }
++ #endif
++ 
+  # if defined(FEAT_PROFILE) || defined(PROTO)
+  /*
+   * Functions for profiling.
+***************
+*** 1050,1056 ****
+   */
+      int
+  profile_cmp(tm1, tm2)
+!     proftime_T *tm1, *tm2;
+  {
+  # ifdef WIN3264
+      return (int)(tm2->QuadPart - tm1->QuadPart);
+--- 1080,1086 ----
+   */
+      int
+  profile_cmp(tm1, tm2)
+!     const proftime_T *tm1, *tm2;
+  {
+  # ifdef WIN3264
+      return (int)(tm2->QuadPart - tm1->QuadPart);
+*** ../vim-7.3.1128/src/proto/ex_cmds2.pro	2012-06-29 12:57:03.000000000 +0200
+--- src/proto/ex_cmds2.pro	2013-06-06 12:14:57.000000000 +0200
+***************
+*** 17,28 ****
+  void profile_setlimit __ARGS((long msec, proftime_T *tm));
+  int profile_passed_limit __ARGS((proftime_T *tm));
+  void profile_zero __ARGS((proftime_T *tm));
+  void profile_add __ARGS((proftime_T *tm, proftime_T *tm2));
+  void profile_self __ARGS((proftime_T *self, proftime_T *total, proftime_T *children));
+  void profile_get_wait __ARGS((proftime_T *tm));
+  void profile_sub_wait __ARGS((proftime_T *tm, proftime_T *tma));
+  int profile_equal __ARGS((proftime_T *tm1, proftime_T *tm2));
+! int profile_cmp __ARGS((proftime_T *tm1, proftime_T *tm2));
+  void ex_profile __ARGS((exarg_T *eap));
+  char_u *get_profile_name __ARGS((expand_T *xp, int idx));
+  void set_context_in_profile_cmd __ARGS((expand_T *xp, char_u *arg));
+--- 17,29 ----
+  void profile_setlimit __ARGS((long msec, proftime_T *tm));
+  int profile_passed_limit __ARGS((proftime_T *tm));
+  void profile_zero __ARGS((proftime_T *tm));
++ void profile_divide __ARGS((proftime_T *tm, int count, proftime_T *tm2));
+  void profile_add __ARGS((proftime_T *tm, proftime_T *tm2));
+  void profile_self __ARGS((proftime_T *self, proftime_T *total, proftime_T *children));
+  void profile_get_wait __ARGS((proftime_T *tm));
+  void profile_sub_wait __ARGS((proftime_T *tm, proftime_T *tma));
+  int profile_equal __ARGS((proftime_T *tm1, proftime_T *tm2));
+! int profile_cmp __ARGS((const proftime_T *tm1, const proftime_T *tm2));
+  void ex_profile __ARGS((exarg_T *eap));
+  char_u *get_profile_name __ARGS((expand_T *xp, int idx));
+  void set_context_in_profile_cmd __ARGS((expand_T *xp, char_u *arg));
+*** ../vim-7.3.1128/runtime/doc/syntax.txt	2010-08-15 21:57:12.000000000 +0200
+--- runtime/doc/syntax.txt	2013-06-06 13:00:36.000000000 +0200
+***************
+*** 37,42 ****
+--- 37,43 ----
+  15. Highlighting tags		|tag-highlight|
+  16. Window-local syntax		|:ownsyntax|
+  17. Color xterms		|xterm-color|
++ 18. When syntax is slow		|:syntime|
+  
+  {Vi does not have any of these commands}
+  
+***************
+*** 4754,4757 ****
+--- 5087,5146 ----
+  that Setup / Font / Enable Bold is NOT enabled.
+  (info provided by John Love-Jensen <eljay@Adobe.COM>)
+  
++ 
++ ==============================================================================
++ 18. When syntax is slow						*:syntime*
++ 
++ This is aimed at authors of a syntax file.
++ 
++ If your syntax causes redrawing to be slow, here are a few hints on making it
++ faster.  To see slowness switch on some features that usually interfere, such
++ as 'relativenumber' and |folding|.
++ 
++ To find out what patterns are consuming most time, get an overview with this
++ sequence: >
++ 	:syntime on
++ 	[ redraw the text at least once with CTRL-L ]
++ 	:syntime report
++ 
++ This will display a list of syntax patterns that were used, sorted by the time
++ it took to match them against the text.
++ 
++ :syntime on		Start measuring syntax times.  This will add some
++ 			overhead to compute the time spent on syntax pattern
++ 			matching.
++ 
++ :syntime off		Stop measuring syntax times.
++ 
++ :syntime clear		Set all the counters to zero, restart measuring.
++ 
++ :syntime report		Show the syntax items used since ":syntime on" in the
++ 			current window.  Use a wider display to see more of
++ 			the output.
++ 
++ 			The list is sorted by total time. The columns are:
++ 			TOTAL		Total time in seconds spent on
++ 					matching this pattern.
++ 			COUNT		Number of times the pattern was used.
++ 			MATCH		Number of times the pattern actually
++ 					matched
++ 			SLOWEST		The longest time for one try.
++ 			AVERAGE		The average time for one try.
++ 			NAME		Name of the syntax item.  Note that
++ 					this is not unique.
++ 			PATTERN		The pattern being used.
++ 
++ Pattern matching gets slow when it has to try many alternatives.  Try to
++ include as much literal text as possible to reduce the number of ways a
++ pattern does NOT match.
++ 
++ When using the "\@<=" and "\@<!" items, add a maximum size to avoid trying at
++ all positions in the current and previous line.  For example, if the item is
++ literal text specify the size of that text (in bytes):
++ 
++ "<\@<=span"   	Matches "span" in "<span".  This tries matching with "<" in
++ 		many places.
++ "<\@1<=span"  	Matches the same, but only tries one byte before "span".
++ 
++ 
+   vim:tw=78:sw=4:ts=8:ft=help:norl:
+*** ../vim-7.3.1128/src/version.c	2013-06-05 21:42:49.000000000 +0200
+--- src/version.c	2013-06-06 13:04:25.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1129,
+  /**/
+
+-- 
+From "know your smileys":
+ :'-D	Laughing so much that they're crying
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

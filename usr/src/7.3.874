@@ -1,0 +1,139 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.874
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.874
+Problem:    Comparing file names does not handle multi-byte characters
+	    properly.
+Solution:   Implement multi-byte handling.
+Files:	    src/misc1.c, src/misc2.c
+
+
+*** ../vim-7.3.873/src/misc1.c	2013-03-19 16:46:59.000000000 +0100
+--- src/misc1.c	2013-03-19 18:30:52.000000000 +0100
+***************
+*** 5049,5068 ****
+      size_t	len;
+  {
+  #ifdef BACKSLASH_IN_FILENAME
+      /* TODO: multi-byte characters. */
+!     while (len > 0 && *x && *y)
+      {
+! 	if ((p_fic ? TOLOWER_LOC(*x) != TOLOWER_LOC(*y) : *x != *y)
+! 		&& !(*x == '/' && *y == '\\')
+! 		&& !(*x == '\\' && *y == '/'))
+  	    break;
+! 	++x;
+! 	++y;
+! 	--len;
+      }
+      if (len == 0)
+  	return 0;
+!     return (*x - *y);
+  #else
+      if (p_fic)
+  	return MB_STRNICMP(x, y, len);
+--- 5049,5076 ----
+      size_t	len;
+  {
+  #ifdef BACKSLASH_IN_FILENAME
++     char_u	*px = x;
++     char_u	*py = y;
++     int		cx = NUL;
++     int		cy = NUL;
++ 
+      /* TODO: multi-byte characters. */
+!     while (len > 0)
+      {
+! 	cx = PTR2CHAR(px);
+! 	cy = PTR2CHAR(py);
+! 	if (cx == NUL || cy == NUL
+! 	    || ((p_fic ? MB_TOLOWER(cx) != MB_TOLOWER(cy) : cx != cy)
+! 		&& !(cx == '/' && cy == '\\')
+! 		&& !(cx == '\\' && cy == '/')))
+  	    break;
+! 	len -= MB_PTR2LEN(px);
+! 	px += MB_PTR2LEN(px);
+! 	py += MB_PTR2LEN(py);
+      }
+      if (len == 0)
+  	return 0;
+!     return (cx - cy);
+  #else
+      if (p_fic)
+  	return MB_STRNICMP(x, y, len);
+*** ../vim-7.3.873/src/misc2.c	2013-03-19 16:46:59.000000000 +0100
+--- src/misc2.c	2013-03-19 18:22:29.000000000 +0100
+***************
+*** 5352,5357 ****
+--- 5352,5359 ----
+      char_u	*s2;
+  {
+      int		i;
++     int		prev1 = NUL;
++     int		prev2 = NUL;
+  
+      if (s1 == s2)
+  	return TRUE;
+***************
+*** 5362,5381 ****
+      if (STRLEN(s1) != STRLEN(s2))
+  	return FAIL;
+  
+!     /* TODO: handle multi-byte characters. */
+!     for (i = 0; s1[i] != NUL && s2[i] != NUL; i++)
+      {
+! 	if (s1[i] != s2[i]
+! 		      && (!p_fic || TOUPPER_LOC(s1[i]) != TOUPPER_LOC(s2[i])))
+! 	{
+! 	    if (i >= 2)
+! 		if (s1[i-1] == '*' && s1[i-2] == '*')
+! 		    continue;
+! 		else
+! 		    return FAIL;
+! 	    else
+! 		return FAIL;
+! 	}
+      }
+      return TRUE;
+  }
+--- 5364,5379 ----
+      if (STRLEN(s1) != STRLEN(s2))
+  	return FAIL;
+  
+!     for (i = 0; s1[i] != NUL && s2[i] != NUL; i += MB_PTR2LEN(s1 + i))
+      {
+! 	int c1 = PTR2CHAR(s1 + i);
+! 	int c2 = PTR2CHAR(s2 + i);
+! 
+! 	if ((p_fic ? MB_TOLOWER(c1) != MB_TOLOWER(c2) : c1 != c2)
+! 		&& (prev1 != '*' || prev2 != '*'))
+! 	    return FAIL;
+! 	prev2 = prev1;
+! 	prev1 = c1;
+      }
+      return TRUE;
+  }
+*** ../vim-7.3.873/src/version.c	2013-03-19 17:42:10.000000000 +0100
+--- src/version.c	2013-03-19 18:24:57.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     874,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+80. At parties, you introduce your spouse as your "service provider."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,374 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.996
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.996
+Problem:    Python: Can't check types of what is returned by bindeval().
+Solution:   Add vim.List, vim.Dictionary and vim.Function types. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/if_py_both.h, src/testdir/test86.in,
+	    src/testdir/test86.ok, src/testdir/test87.in,
+	    src/testdir/test87.ok
+
+
+*** ../vim-7.3.995/runtime/doc/if_pyth.txt	2013-05-17 16:39:59.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-21 19:21:58.000000000 +0200
+***************
+*** 11,19 ****
+  3. Buffer objects				|python-buffer|
+  4. Range objects				|python-range|
+  5. Window objects				|python-window|
+! 6. pyeval(), py3eval() Vim functions		|python-pyeval|
+! 7. Dynamic loading				|python-dynamic|
+! 8. Python 3					|python3|
+  
+  {Vi does not have any of these commands}
+  
+--- 11,20 ----
+  3. Buffer objects				|python-buffer|
+  4. Range objects				|python-range|
+  5. Window objects				|python-window|
+! 6. Tab page objects				|python-tabpage|
+! 7. pyeval(), py3eval() Vim functions		|python-pyeval|
+! 8. Dynamic loading				|python-dynamic|
+! 9. Python 3					|python3|
+  
+  {Vi does not have any of these commands}
+  
+***************
+*** 176,182 ****
+  	   list or dictionary. Thus modifications to these objects imply 
+  	   modifications of the original.
+  
+! 	   Additionally, vimlist and vimdictionary type have read-write 
+  	   `.locked` attribute that returns
+  	     Value           Meaning ~
+  	     zero            Variable is not locked
+--- 177,183 ----
+  	   list or dictionary. Thus modifications to these objects imply 
+  	   modifications of the original.
+  
+! 	   Additionally, vim.List and vim.Dictionary type have read-write 
+  	   `.locked` attribute that returns
+  	     Value           Meaning ~
+  	     zero            Variable is not locked
+***************
+*** 189,202 ****
+  	   case these locks are ignored by anything except |:let|: |extend()| 
+  	   does not care, neither does python interface).
+  
+! 	   Vimdictionary type also supports `.scope` attribute which is one of
+  	     Value              Meaning ~
+  	     zero               Dictionary is not a scope one
+  	     vim.VAR_DEF_SCOPE  Function-local or global scope dictionary
+  	     vim.VAR_SCOPE      Other scope dictionary
+  
+  	2. if expression evaluates to a function reference, then it returns 
+! 	   callable vimfunction object. Use self keyword argument to assign 
+  	   |self| object for dictionary functions.
+  
+  	Note: this function has the same behavior as |lua-eval| (except that 
+--- 190,204 ----
+  	   case these locks are ignored by anything except |:let|: |extend()| 
+  	   does not care, neither does python interface).
+  
+! 	   vim.Dictionary type also supports `.scope` attribute which is one 
+! 	   of
+  	     Value              Meaning ~
+  	     zero               Dictionary is not a scope one
+  	     vim.VAR_DEF_SCOPE  Function-local or global scope dictionary
+  	     vim.VAR_SCOPE      Other scope dictionary
+  
+  	2. if expression evaluates to a function reference, then it returns 
+! 	   callable vim.Function object. Use self keyword argument to assign 
+  	   |self| object for dictionary functions.
+  
+  	Note: this function has the same behavior as |lua-eval| (except that 
+***************
+*** 205,210 ****
+--- 207,216 ----
+  	      relying on outputs of vim.eval() being a copy of original or 
+  	      vim.eval("1") returning a string.
+  
++ 	You can use "List", "Dictionary" and "Function" vim module attributes 
++ 	to test whether object has given type. These types are currently not 
++ 	subclassable, neither they contain constructors, so you can use them 
++ 	only for checks like `isinstance(obj, vim.List)`.
+  
+  
+  Error object of the "vim" module
+***************
+*** 302,307 ****
+--- 308,316 ----
+  	buffer-local options and |python-window| objects to access to
+  	window-local options.
+  
++ 	Type of this object is available via "Options" attribute of vim 
++ 	module.
++ 
+  Output from Python					*python-output*
+  	Vim displays all Python code output in the Vim message area.  Normal
+  	output appears as information messages, and error output appears as
+***************
+*** 371,376 ****
+--- 380,387 ----
+  A trailing '\n' is allowed and ignored, so that you can do: >
+  	:py b.append(f.readlines())
+  
++ Buffer object type is available using "Buffer" attribute of vim module.
++ 
+  Examples (assume b is the current buffer) >
+  	:py print b.name		# write the buffer file name
+  	:py b[0] = "hello!!!"		# replace the top line
+***************
+*** 412,417 ****
+--- 423,430 ----
+  			for Python's built-in list objects.
+  	r.append(list, nr)  Idem, after line "nr"
+  
++ Range object type is available using "Range" attribute of vim module.
++ 
+  Example (assume r is the current range):
+  	# Send all lines in a range to the default printer
+  	vim.command("%d,%dhardcopy!" % (r.start+1,r.end+1))
+***************
+*** 456,461 ****
+--- 469,476 ----
+  The height attribute is writable only if the screen is split horizontally.
+  The width attribute is writable only if the screen is split vertically.
+  
++ Window object type is available using "Window" attribute of vim module.
++ 
+  ==============================================================================
+  6. Tab page objects					*python-tabpage*
+  
+***************
+*** 474,487 ****
+  	vars		The tab page |t:| variables.
+  	window		Current tabpage window.
+  
+  ==============================================================================
+! 6. pyeval() and py3eval() Vim functions			*python-pyeval*
+  
+  To facilitate bi-directional interface, you can use |pyeval()| and |py3eval()| 
+  functions to evaluate Python expressions and pass their values to VimL.
+  
+  ==============================================================================
+! 7. Dynamic loading					*python-dynamic*
+  
+  On MS-Windows the Python library can be loaded dynamically.  The |:version|
+  output then includes |+python/dyn|.
+--- 489,504 ----
+  	vars		The tab page |t:| variables.
+  	window		Current tabpage window.
+  
++ TabPage object type is available using "TabPage" attribute of vim module.
++ 
+  ==============================================================================
+! 7. pyeval() and py3eval() Vim functions			*python-pyeval*
+  
+  To facilitate bi-directional interface, you can use |pyeval()| and |py3eval()| 
+  functions to evaluate Python expressions and pass their values to VimL.
+  
+  ==============================================================================
+! 8. Dynamic loading					*python-dynamic*
+  
+  On MS-Windows the Python library can be loaded dynamically.  The |:version|
+  output then includes |+python/dyn|.
+***************
+*** 498,504 ****
+  sure edit "gvim.exe" and search for "python\d*.dll\c".
+  
+  ==============================================================================
+! 8. Python 3						*python3*
+  
+  							*:py3* *:python3*
+  The `:py3` and `:python3` commands work similar to `:python`.  A simple check
+--- 515,521 ----
+  sure edit "gvim.exe" and search for "python\d*.dll\c".
+  
+  ==============================================================================
+! 9. Python 3						*python3*
+  
+  							*:py3* *:python3*
+  The `:py3` and `:python3` commands work similar to `:python`.  A simple check
+*** ../vim-7.3.995/src/if_py_both.h	2013-05-21 19:10:56.000000000 +0200
+--- src/if_py_both.h	2013-05-21 19:21:58.000000000 +0200
+***************
+*** 4245,4250 ****
+--- 4245,4259 ----
+      {"windows",  (PyObject *)(void *)&TheWindowList},
+      {"tabpages", (PyObject *)(void *)&TheTabPageList},
+      {"current",  (PyObject *)(void *)&TheCurrent},
++ 
++     {"Buffer",     (PyObject *)&BufferType},
++     {"Range",      (PyObject *)&RangeType},
++     {"Window",     (PyObject *)&WindowType},
++     {"TabPage",    (PyObject *)&TabPageType},
++     {"Dictionary", (PyObject *)&DictionaryType},
++     {"List",       (PyObject *)&ListType},
++     {"Function",   (PyObject *)&FunctionType},
++     {"Options",    (PyObject *)&OptionsType},
+  };
+  
+  typedef int (*object_adder)(PyObject *, const char *, PyObject *);
+*** ../vim-7.3.995/src/testdir/test86.in	2013-05-17 13:37:57.000000000 +0200
+--- src/testdir/test86.in	2013-05-21 19:21:58.000000000 +0200
+***************
+*** 631,640 ****
+  cb.append('Current line: ' + repr(vim.current.line))
+  for b in vim.buffers:
+      if b is not cb:
+!         vim.command('bwipeout! ' + b.number)
+  EOF
+  :tabonly!
+  :only!
+  :endfun
+  :"
+  :call Test()
+--- 631,656 ----
+  cb.append('Current line: ' + repr(vim.current.line))
+  for b in vim.buffers:
+      if b is not cb:
+!         vim.command('bwipeout! ' + str(b.number))
+  EOF
+  :tabonly!
+  :only!
++ :"
++ :" Test types
++ py << EOF
++ for expr, attr in (
++     ('vim.vars',                         'Dictionary'),
++     ('vim.options',                      'Options'),
++     ('vim.bindeval("{}")',               'Dictionary'),
++     ('vim.bindeval("[]")',               'List'),
++     ('vim.bindeval("function(\'tr\')")', 'Function'),
++     ('vim.current.buffer',               'Buffer'),
++     ('vim.current.range',                'Range'),
++     ('vim.current.window',               'Window'),
++     ('vim.current.tabpage',              'TabPage'),
++ ):
++     cb.append(expr + ':' + attr + ':' + repr(type(eval(expr)) is getattr(vim, attr)))
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.995/src/testdir/test86.ok	2013-05-17 16:18:27.000000000 +0200
+--- src/testdir/test86.ok	2013-05-21 19:21:58.000000000 +0200
+***************
+*** 333,339 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (954, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 333,339 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (970, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+***************
+*** 359,361 ****
+--- 359,370 ----
+  Current window: <window 0>
+  Current buffer: <buffer test86.in>
+  Current line: 'Type error at assigning None to vim.current.buffer'
++ vim.vars:Dictionary:True
++ vim.options:Options:True
++ vim.bindeval("{}"):Dictionary:True
++ vim.bindeval("[]"):List:True
++ vim.bindeval("function('tr')"):Function:True
++ vim.current.buffer:Buffer:True
++ vim.current.range:Range:True
++ vim.current.window:Window:True
++ vim.current.tabpage:TabPage:True
+*** ../vim-7.3.995/src/testdir/test87.in	2013-05-17 13:37:57.000000000 +0200
+--- src/testdir/test87.in	2013-05-21 19:21:58.000000000 +0200
+***************
+*** 622,627 ****
+--- 622,643 ----
+  EOF
+  :tabonly!
+  :only!
++ :"
++ :" Test types
++ py3 << EOF
++ for expr, attr in (
++     ('vim.vars',                         'Dictionary'),
++     ('vim.options',                      'Options'),
++     ('vim.bindeval("{}")',               'Dictionary'),
++     ('vim.bindeval("[]")',               'List'),
++     ('vim.bindeval("function(\'tr\')")', 'Function'),
++     ('vim.current.buffer',               'Buffer'),
++     ('vim.current.range',                'Range'),
++     ('vim.current.window',               'Window'),
++     ('vim.current.tabpage',              'TabPage'),
++ ):
++     cb.append(expr + ':' + attr + ':' + repr(type(eval(expr)) is getattr(vim, attr)))
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.995/src/testdir/test87.ok	2013-05-21 18:19:33.000000000 +0200
+--- src/testdir/test87.ok	2013-05-21 19:21:58.000000000 +0200
+***************
+*** 322,328 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (930, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 322,328 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (946, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+***************
+*** 348,350 ****
+--- 348,359 ----
+  Current window: <window 0>
+  Current buffer: <buffer test87.in>
+  Current line: 'Type error at assigning None to vim.current.buffer'
++ vim.vars:Dictionary:True
++ vim.options:Options:True
++ vim.bindeval("{}"):Dictionary:True
++ vim.bindeval("[]"):List:True
++ vim.bindeval("function('tr')"):Function:True
++ vim.current.buffer:Buffer:True
++ vim.current.range:Range:True
++ vim.current.window:Window:True
++ vim.current.tabpage:TabPage:True
+*** ../vim-7.3.995/src/version.c	2013-05-21 19:10:56.000000000 +0200
+--- src/version.c	2013-05-21 19:48:38.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     996,
+  /**/
+
+-- 
+SUPERIMPOSE "England AD 787".  After a few more seconds we hear hoofbeats in
+the distance.  They come slowly closer.  Then out of the mist comes KING
+ARTHUR followed by a SERVANT who is banging two half coconuts together.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

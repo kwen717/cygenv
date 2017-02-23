@@ -1,0 +1,66 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1190
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1190
+Problem:    Compiler warning for parentheses. (Christian Wellenbrock)
+Solution:   Change #ifdef.
+Files:	    src/ex_docmd.c
+
+
+*** ../vim-7.3.1189/src/ex_docmd.c	2013-06-12 17:12:19.000000000 +0200
+--- src/ex_docmd.c	2013-06-14 19:08:10.000000000 +0200
+***************
+*** 8568,8578 ****
+  	    break;
+  
+  	default:    /* CMD_rshift or CMD_lshift */
+! 	    if ((eap->cmdidx == CMD_rshift)
+  #ifdef FEAT_RIGHTLEFT
+! 				    ^ curwin->w_p_rl
+  #endif
+! 						    )
+  		oa.op_type = OP_RSHIFT;
+  	    else
+  		oa.op_type = OP_LSHIFT;
+--- 8568,8580 ----
+  	    break;
+  
+  	default:    /* CMD_rshift or CMD_lshift */
+! 	    if (
+  #ifdef FEAT_RIGHTLEFT
+! 		(eap->cmdidx == CMD_rshift) ^ curwin->w_p_rl
+! #else
+! 		eap->cmdidx == CMD_rshift
+  #endif
+! 						)
+  		oa.op_type = OP_RSHIFT;
+  	    else
+  		oa.op_type = OP_LSHIFT;
+*** ../vim-7.3.1189/src/version.c	2013-06-13 22:59:25.000000000 +0200
+--- src/version.c	2013-06-14 19:14:40.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1190,
+  /**/
+
+-- 
+Some of the well known MS-Windows errors:
+	ETIME		Wrong time, wait a little while
+	ECRASH		Try again...
+	EDETECT		Unable to detect errors
+	EOVER		You lost!  Play another game?
+	ENOCLUE		Eh, what did you want?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,99 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.972
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.972
+Problem:    Cursor not restored after InsertEnter autocommand if it moved to
+	    another line.
+Solution:   Also restore if the saved line number is still valid.  Allow
+	    setting v:char to skip restoring.
+Files:	    src/edit.c, runtime/doc/autocmd.txt
+
+
+*** ../vim-7.3.971/src/edit.c	2013-05-06 04:21:35.000000000 +0200
+--- src/edit.c	2013-05-19 21:09:37.000000000 +0200
+***************
+*** 382,394 ****
+  	else
+  	    ptr = (char_u *)"i";
+  	set_vim_var_string(VV_INSERTMODE, ptr, 1);
+  # endif
+  	apply_autocmds(EVENT_INSERTENTER, NULL, NULL, FALSE, curbuf);
+  
+! 	/* Since Insert mode was not started yet a call to check_cursor_col()
+! 	 * may have moved the cursor, especially with the "A" command. */
+! 	if (curwin->w_cursor.col != save_cursor.col
+! 		&& curwin->w_cursor.lnum == save_cursor.lnum)
+  	{
+  	    int save_state = State;
+  
+--- 382,402 ----
+  	else
+  	    ptr = (char_u *)"i";
+  	set_vim_var_string(VV_INSERTMODE, ptr, 1);
++ 	set_vim_var_string(VV_CHAR, NULL, -1);  /* clear v:char */
+  # endif
+  	apply_autocmds(EVENT_INSERTENTER, NULL, NULL, FALSE, curbuf);
+  
+! 	/* Make sure the cursor didn't move.  Do call check_cursor_col() in
+! 	 * case the text was modified.  Since Insert mode was not started yet
+! 	 * a call to check_cursor_col() may move the cursor, especially with
+! 	 * the "A" command, thus set State to avoid that. Also check that the
+! 	 * line number is still valid (lines may have been deleted).
+! 	 * Do not restore if v:char was set to a non-empty string. */
+! 	if (!equalpos(curwin->w_cursor, save_cursor)
+! # ifdef FEAT_EVAL
+! 		&& *get_vim_var_str(VV_CHAR) == NUL
+! # endif
+! 		&& save_cursor.lnum <= curbuf->b_ml.ml_line_count)
+  	{
+  	    int save_state = State;
+  
+*** ../vim-7.3.971/runtime/doc/autocmd.txt	2013-03-19 13:33:18.000000000 +0100
+--- runtime/doc/autocmd.txt	2013-05-19 21:05:59.000000000 +0200
+***************
+*** 674,681 ****
+  InsertEnter			Just before starting Insert mode.  Also for
+  				Replace mode and Virtual Replace mode.  The
+  				|v:insertmode| variable indicates the mode.
+! 				Be careful not to move the cursor or do
+! 				anything else that the user does not expect.
+  							*InsertLeave*
+  InsertLeave			When leaving Insert mode.  Also when using
+  				CTRL-O |i_CTRL-O|.  But not for |i_CTRL-C|.
+--- 691,701 ----
+  InsertEnter			Just before starting Insert mode.  Also for
+  				Replace mode and Virtual Replace mode.  The
+  				|v:insertmode| variable indicates the mode.
+! 				Be careful not to do anything else that the
+! 				user does not expect.
+! 				The cursor is restored afterwards.  If you do
+! 				not want that set |v:char| to a non-empty
+! 				string.
+  							*InsertLeave*
+  InsertLeave			When leaving Insert mode.  Also when using
+  				CTRL-O |i_CTRL-O|.  But not for |i_CTRL-C|.
+*** ../vim-7.3.971/src/version.c	2013-05-19 21:03:50.000000000 +0200
+--- src/version.c	2013-05-19 21:13:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     972,
+  /**/
+
+-- 
+It is illegal for anyone to try and stop a child from playfully jumping over
+puddles of water.
+		[real standing law in California, United States of America]
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

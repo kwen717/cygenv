@@ -1,0 +1,94 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1120
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1120
+Problem:    Crash when regexp logging is enabled.
+Solution:   Avoid using NULL pointers. Advance over count argument.
+Files:	    src/regexp.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1119/src/regexp.c	2013-06-05 12:43:05.000000000 +0200
+--- src/regexp.c	2013-06-05 16:27:25.000000000 +0200
+***************
+*** 6538,6547 ****
+  	    end = next;
+  	if (op == BRACE_LIMITS)
+  	{
+! 	    /* Two short ints */
+  	    fprintf(f, " minval %ld, maxval %ld", OPERAND_MIN(s), OPERAND_MAX(s));
+  	    s += 8;
+  	}
+  	s += 3;
+  	if (op == ANYOF || op == ANYOF + ADD_NL
+  		|| op == ANYBUT || op == ANYBUT + ADD_NL
+--- 6538,6553 ----
+  	    end = next;
+  	if (op == BRACE_LIMITS)
+  	{
+! 	    /* Two ints */
+  	    fprintf(f, " minval %ld, maxval %ld", OPERAND_MIN(s), OPERAND_MAX(s));
+  	    s += 8;
+  	}
++ 	else if (op == BEHIND || op == NOBEHIND)
++ 	{
++ 	    /* one int */
++ 	    fprintf(f, " count %ld", OPERAND_MIN(s));
++ 	    s += 4;
++ 	}
+  	s += 3;
+  	if (op == ANYOF || op == ANYOF + ADD_NL
+  		|| op == ANYBUT || op == ANYBUT + ADD_NL
+*** ../vim-7.3.1119/src/regexp_nfa.c	2013-06-05 12:43:05.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 16:13:25.000000000 +0200
+***************
+*** 2960,2969 ****
+  		    sub->list.multi[j].end.col,
+  		    (int)sub->list.multi[j].end.lnum);
+  	else
+  	    fprintf(log_fd, "\n *** group %d, start: \"%s\", end: \"%s\"",
+  		    j,
+! 		    (char *)sub->list.line[j].start,
+! 		    (char *)sub->list.line[j].end);
+      fprintf(log_fd, "\n");
+  }
+  #endif
+--- 2960,2974 ----
+  		    sub->list.multi[j].end.col,
+  		    (int)sub->list.multi[j].end.lnum);
+  	else
++ 	{
++ 	    char *s = (char *)sub->list.line[j].start;
++ 	    char *e = (char *)sub->list.line[j].end;
++ 
+  	    fprintf(log_fd, "\n *** group %d, start: \"%s\", end: \"%s\"",
+  		    j,
+! 		    s == NULL ? "NULL" : s,
+! 		    e == NULL ? "NULL" : e);
+! 	}
+      fprintf(log_fd, "\n");
+  }
+  #endif
+*** ../vim-7.3.1119/src/version.c	2013-06-05 12:43:05.000000000 +0200
+--- src/version.c	2013-06-05 16:27:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1120,
+  /**/
+
+-- 
+From "know your smileys":
+ |-P	Reaction to unusually ugly C code
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

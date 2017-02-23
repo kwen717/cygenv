@@ -1,0 +1,255 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1087
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1087
+Problem:    A leading star is not seen as a normal char when \{} follows.
+Solution:   Save and restore the parse state properly.
+Files:	    src/regexp.c, src/regexp_nfa.c, src/testdir/test64.in,
+	    src/testdir/test64.ok
+
+
+*** ../vim-7.3.1086/src/regexp.c	2013-05-29 18:45:07.000000000 +0200
+--- src/regexp.c	2013-06-01 14:33:26.000000000 +0200
+***************
+*** 665,674 ****
+--- 665,689 ----
+  #define REG_ZPAREN	2	/* \z(\) */
+  #define REG_NPAREN	3	/* \%(\) */
+  
++ typedef struct
++ {
++      char_u	*regparse;
++      int	prevchr_len;
++      int	curchr;
++      int	prevchr;
++      int	prevprevchr;
++      int	nextchr;
++      int	at_start;
++      int	prev_at_start;
++      int	regnpar;
++ } parse_state_T;
++ 
+  /*
+   * Forward declarations for vim_regcomp()'s friends.
+   */
+  static void	initchr __ARGS((char_u *));
++ static void	save_parse_state __ARGS((parse_state_T *ps));
++ static void	restore_parse_state __ARGS((parse_state_T *ps));
+  static int	getchr __ARGS((void));
+  static void	skipchr_keepstart __ARGS((void));
+  static int	peekchr __ARGS((void));
+***************
+*** 2951,2956 ****
+--- 2966,3009 ----
+  }
+  
+  /*
++  * Save the current parse state, so that it can be restored and parsing
++  * starts in the same state again.
++  */
++     static void
++ save_parse_state(ps)
++     parse_state_T *ps;
++ {
++     ps->regparse = regparse;
++     ps->prevchr_len = prevchr_len;
++     ps->curchr = curchr;
++     ps->prevchr = prevchr;
++     ps->prevprevchr = prevprevchr;
++     ps->nextchr = nextchr;
++     ps->at_start = at_start;
++     ps->prev_at_start = prev_at_start;
++     ps->regnpar = regnpar;
++ }
++ 
++ /*
++  * Restore a previously saved parse state.
++  */
++     static void
++ restore_parse_state(ps)
++     parse_state_T *ps;
++ {
++     regparse = ps->regparse;
++     prevchr_len = ps->prevchr_len;
++     curchr = ps->curchr;
++     prevchr = ps->prevchr;
++     prevprevchr = ps->prevprevchr;
++     nextchr = ps->nextchr;
++     at_start = ps->at_start;
++     prev_at_start = ps->prev_at_start;
++     regnpar = ps->regnpar;
++ }
++ 
++ 
++ /*
+   * Get the next character without advancing.
+   */
+      static int
+*** ../vim-7.3.1086/src/regexp_nfa.c	2013-06-01 13:24:19.000000000 +0200
+--- src/regexp_nfa.c	2013-06-01 14:30:27.000000000 +0200
+***************
+*** 1318,1336 ****
+      int		ret;
+      long	minval, maxval;
+      int		greedy = TRUE;      /* Braces are prefixed with '-' ? */
+!     char_u	*old_regparse, *new_regparse;
+      int		c2;
+      int		old_post_pos;
+      int		my_post_start;
+-     int		old_regnpar;
+      int		quest;
+  
+!     /* Save the current position in the regexp, so that we can use it if
+!      * <atom>{m,n} is next. */
+!     old_regparse = regparse;
+!     /* Save current number of open parenthesis, so we can use it if
+!      * <atom>{m,n} is next */
+!     old_regnpar = regnpar;
+      /* store current pos in the postfix form, for \{m,n} involving 0s */
+      my_post_start = (int)(post_ptr - post_start);
+  
+--- 1318,1334 ----
+      int		ret;
+      long	minval, maxval;
+      int		greedy = TRUE;      /* Braces are prefixed with '-' ? */
+!     parse_state_T old_state;
+!     parse_state_T new_state;
+      int		c2;
+      int		old_post_pos;
+      int		my_post_start;
+      int		quest;
+  
+!     /* Save the current parse state, so that we can use it if <atom>{m,n} is
+!      * next. */
+!     save_parse_state(&old_state);
+! 
+      /* store current pos in the postfix form, for \{m,n} involving 0s */
+      my_post_start = (int)(post_ptr - post_start);
+  
+***************
+*** 1361,1368 ****
+  	     * In order to be consistent with the old engine, we replace
+  	     * <atom>+ with <atom><atom>*
+  	     */
+! 	    regnpar = old_regnpar;
+! 	    regparse = old_regparse;
+  	    curchr = -1;
+  	    if (nfa_regatom() == FAIL)
+  		return FAIL;
+--- 1359,1365 ----
+  	     * In order to be consistent with the old engine, we replace
+  	     * <atom>+ with <atom><atom>*
+  	     */
+! 	    restore_parse_state(&old_state);
+  	    curchr = -1;
+  	    if (nfa_regatom() == FAIL)
+  		return FAIL;
+***************
+*** 1452,1468 ****
+  
+  	    /* Ignore previous call to nfa_regatom() */
+  	    post_ptr = post_start + my_post_start;
+! 	    /* Save pos after the repeated atom and the \{} */
+! 	    new_regparse = regparse;
+  
+  	    quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);
+  	    for (i = 0; i < maxval; i++)
+  	    {
+  		/* Goto beginning of the repeated atom */
+! 		regparse = old_regparse;
+! 		curchr = -1;
+! 		/* Restore count of parenthesis */
+! 		regnpar = old_regnpar;
+  		old_post_pos = (int)(post_ptr - post_start);
+  		if (nfa_regatom() == FAIL)
+  		    return FAIL;
+--- 1449,1462 ----
+  
+  	    /* Ignore previous call to nfa_regatom() */
+  	    post_ptr = post_start + my_post_start;
+! 	    /* Save parse state after the repeated atom and the \{} */
+! 	    save_parse_state(&new_state);
+  
+  	    quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);
+  	    for (i = 0; i < maxval; i++)
+  	    {
+  		/* Goto beginning of the repeated atom */
+! 		restore_parse_state(&old_state);
+  		old_post_pos = (int)(post_ptr - post_start);
+  		if (nfa_regatom() == FAIL)
+  		    return FAIL;
+***************
+*** 1486,1492 ****
+  	    }
+  
+  	    /* Go to just after the repeated atom and the \{} */
+! 	    regparse = new_regparse;
+  	    curchr = -1;
+  
+  	    break;
+--- 1480,1486 ----
+  	    }
+  
+  	    /* Go to just after the repeated atom and the \{} */
+! 	    restore_parse_state(&new_state);
+  	    curchr = -1;
+  
+  	    break;
+*** ../vim-7.3.1086/src/testdir/test64.in	2013-06-01 13:24:19.000000000 +0200
+--- src/testdir/test64.in	2013-06-01 14:36:15.000000000 +0200
+***************
+*** 188,193 ****
+--- 188,197 ----
+  :call add(tl, [2, 'a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+  :call add(tl, [2, 'a\{,5}', 'abcd', 'a'])
+  :call add(tl, [2, 'a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
++ :" leading star as normal char when \{} follows
++ :call add(tl, [2, '^*\{4,}$', '***'])
++ :call add(tl, [2, '^*\{4,}$', '****', '****'])
++ :call add(tl, [2, '^*\{4,}$', '*****', '*****'])
+  :" same thing as 'a*'
+  :call add(tl, [2, 'a\{}', 'bbbcddiuhfcd', ''])
+  :call add(tl, [2, 'a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+*** ../vim-7.3.1086/src/testdir/test64.ok	2013-06-01 13:24:19.000000000 +0200
+--- src/testdir/test64.ok	2013-06-01 14:36:39.000000000 +0200
+***************
+*** 407,412 ****
+--- 407,421 ----
+  OK 0 - a\{,5}
+  OK 1 - a\{,5}
+  OK 2 - a\{,5}
++ OK 0 - ^*\{4,}$
++ OK 1 - ^*\{4,}$
++ OK 2 - ^*\{4,}$
++ OK 0 - ^*\{4,}$
++ OK 1 - ^*\{4,}$
++ OK 2 - ^*\{4,}$
++ OK 0 - ^*\{4,}$
++ OK 1 - ^*\{4,}$
++ OK 2 - ^*\{4,}$
+  OK 0 - a\{}
+  OK 1 - a\{}
+  OK 2 - a\{}
+*** ../vim-7.3.1086/src/version.c	2013-06-01 13:24:19.000000000 +0200
+--- src/version.c	2013-06-01 14:37:37.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1087,
+  /**/
+
+-- 
+Change is inevitable, except from a vending machine.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

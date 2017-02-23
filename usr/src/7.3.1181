@@ -1,0 +1,100 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1181
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1181
+Problem:    Wrong error message for 1.0[0].
+Solution:   Check for funcref and float separately. (Yasuhiro Matsumoto)
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.1180/src/eval.c	2013-06-12 18:13:31.000000000 +0200
+--- src/eval.c	2013-06-12 22:06:30.000000000 +0200
+***************
+*** 112,117 ****
+--- 112,118 ----
+  static char *e_letwrong = N_("E734: Wrong variable type for %s=");
+  static char *e_nofunc = N_("E130: Unknown function: %s");
+  static char *e_illvar = N_("E461: Illegal variable name: %s");
++ static char *e_float_as_string = N_("E806: using Float as a String");
+  
+  static dictitem_T	globvars_var;		/* variable used for g: */
+  #define globvarht globvardict.dv_hashtab
+***************
+*** 5268,5283 ****
+      char_u	*s;
+      char_u	*key = NULL;
+  
+!     if (rettv->v_type == VAR_FUNC
+! #ifdef FEAT_FLOAT
+! 	    || rettv->v_type == VAR_FLOAT
+! #endif
+! 	    )
+      {
+  	if (verbose)
+  	    EMSG(_("E695: Cannot index a Funcref"));
+  	return FAIL;
+      }
+  
+      if (**arg == '.')
+      {
+--- 5269,5288 ----
+      char_u	*s;
+      char_u	*key = NULL;
+  
+!     if (rettv->v_type == VAR_FUNC)
+      {
+  	if (verbose)
+  	    EMSG(_("E695: Cannot index a Funcref"));
+  	return FAIL;
+      }
++ #ifdef FEAT_FLOAT
++     else if (rettv->v_type == VAR_FLOAT)
++     {
++ 	if (verbose)
++ 	    EMSG(_(e_float_as_string));
++ 	return FAIL;
++     }
++ #endif
+  
+      if (**arg == '.')
+      {
+***************
+*** 20085,20091 ****
+  	    break;
+  #ifdef FEAT_FLOAT
+  	case VAR_FLOAT:
+! 	    EMSG(_("E806: using Float as a String"));
+  	    break;
+  #endif
+  	case VAR_STRING:
+--- 20090,20096 ----
+  	    break;
+  #ifdef FEAT_FLOAT
+  	case VAR_FLOAT:
+! 	    EMSG(_(e_float_as_string));
+  	    break;
+  #endif
+  	case VAR_STRING:
+*** ../vim-7.3.1180/src/version.c	2013-06-12 21:25:04.000000000 +0200
+--- src/version.c	2013-06-12 22:08:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1181,
+  /**/
+
+-- 
+The CIA drives around in cars with the "Intel inside" logo.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

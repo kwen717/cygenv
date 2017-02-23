@@ -1,0 +1,109 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.983
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.983
+Problem:    Uneccessary temp variable.
+Solution:   Remove the variable.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.982/src/regexp_nfa.c	2013-05-21 12:34:13.000000000 +0200
+--- src/regexp_nfa.c	2013-05-21 12:35:37.000000000 +0200
+***************
+*** 2833,2839 ****
+      int		old_reglnum = -1;
+      int		reginput_updated = FALSE;
+      thread_T	*t;
+-     char_u	*cc;
+      char_u	*old_reginput = NULL;
+      char_u	*old_regline = NULL;
+      nfa_state_T	*sta;
+--- 2833,2838 ----
+***************
+*** 2931,2937 ****
+  	}
+  	if (c == NUL)
+  	    n = 0;
+- 	cc = reginput;
+  
+  	/* swap lists */
+  	thislist = &list[flag];
+--- 2930,2935 ----
+***************
+*** 3261,3272 ****
+  		break;
+  
+  	    case NFA_KWORD:	/*  \k	*/
+! 		result = vim_iswordp(cc);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+  	    case NFA_SKWORD:	/*  \K	*/
+! 		result = !VIM_ISDIGIT(c) && vim_iswordp(cc);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+--- 3259,3270 ----
+  		break;
+  
+  	    case NFA_KWORD:	/*  \k	*/
+! 		result = vim_iswordp(reginput);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+  	    case NFA_SKWORD:	/*  \K	*/
+! 		result = !VIM_ISDIGIT(c) && vim_iswordp(reginput);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+***************
+*** 3281,3292 ****
+  		break;
+  
+  	    case NFA_PRINT:	/*  \p	*/
+! 		result = ptr2cells(cc) == 1;
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+  	    case NFA_SPRINT:	/*  \P	*/
+! 		result = !VIM_ISDIGIT(c) && ptr2cells(cc) == 1;
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+--- 3279,3290 ----
+  		break;
+  
+  	    case NFA_PRINT:	/*  \p	*/
+! 		result = ptr2cells(reginput) == 1;
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+  	    case NFA_SPRINT:	/*  \P	*/
+! 		result = !VIM_ISDIGIT(c) && ptr2cells(reginput) == 1;
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+*** ../vim-7.3.982/src/version.c	2013-05-21 12:34:13.000000000 +0200
+--- src/version.c	2013-05-21 12:41:58.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     983,
+  /**/
+
+-- 
+Communication is one of the most compli..., eh, well, it's hard.
+You know what I mean.  Not?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

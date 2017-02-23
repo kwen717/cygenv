@@ -1,0 +1,105 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1046
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1046
+Problem:    Python: Using Py_BuildValue for building strings.
+Solution:   Python patch 7 and 7.5: Replace Py_BuildValue with
+	    PyString_FromString. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1045/src/if_py_both.h	2013-05-29 22:19:57.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:24:52.000000000 +0200
+***************
+*** 442,448 ****
+  
+      if (our_tv->v_type == VAR_STRING)
+      {
+! 	result = Py_BuildValue("s", our_tv->vval.v_string == NULL
+  					? "" : (char *)our_tv->vval.v_string);
+      }
+      else if (our_tv->v_type == VAR_NUMBER)
+--- 442,448 ----
+  
+      if (our_tv->v_type == VAR_STRING)
+      {
+! 	result = PyString_FromString(our_tv->vval.v_string == NULL
+  					? "" : (char *)our_tv->vval.v_string);
+      }
+      else if (our_tv->v_type == VAR_NUMBER)
+***************
+*** 451,457 ****
+  
+  	/* For backwards compatibility numbers are stored as strings. */
+  	sprintf(buf, "%ld", (long)our_tv->vval.v_number);
+! 	result = Py_BuildValue("s", buf);
+      }
+  # ifdef FEAT_FLOAT
+      else if (our_tv->v_type == VAR_FLOAT)
+--- 451,457 ----
+  
+  	/* For backwards compatibility numbers are stored as strings. */
+  	sprintf(buf, "%ld", (long)our_tv->vval.v_number);
+! 	result = PyString_FromString((char *) buf);
+      }
+  # ifdef FEAT_FLOAT
+      else if (our_tv->v_type == VAR_FLOAT)
+***************
+*** 459,465 ****
+  	char buf[NUMBUFLEN];
+  
+  	sprintf(buf, "%f", our_tv->vval.v_float);
+! 	result = Py_BuildValue("s", buf);
+      }
+  # endif
+      else if (our_tv->v_type == VAR_LIST)
+--- 459,465 ----
+  	char buf[NUMBUFLEN];
+  
+  	sprintf(buf, "%f", our_tv->vval.v_float);
+! 	result = PyString_FromString((char *) buf);
+      }
+  # endif
+      else if (our_tv->v_type == VAR_LIST)
+***************
+*** 3256,3262 ****
+  BufferAttr(BufferObject *self, char *name)
+  {
+      if (strcmp(name, "name") == 0)
+! 	return Py_BuildValue("s", self->buf->b_ffname);
+      else if (strcmp(name, "number") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, self->buf->b_fnum);
+      else if (strcmp(name, "vars") == 0)
+--- 3256,3263 ----
+  BufferAttr(BufferObject *self, char *name)
+  {
+      if (strcmp(name, "name") == 0)
+! 	return PyString_FromString((self->buf->b_ffname == NULL
+! 				    ? "" : (char *) self->buf->b_ffname));
+      else if (strcmp(name, "number") == 0)
+  	return Py_BuildValue(Py_ssize_t_fmt, self->buf->b_fnum);
+      else if (strcmp(name, "vars") == 0)
+*** ../vim-7.3.1045/src/version.c	2013-05-29 22:19:57.000000000 +0200
+--- src/version.c	2013-05-29 22:25:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1046,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+21. Your dog has its own home page.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

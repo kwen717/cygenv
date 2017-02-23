@@ -1,0 +1,56 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1160
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1160
+Problem:    Mixing long and pointer doesn't always work.
+Solution:   Avoid cast to pointer.
+Files:	    src/undo.c
+
+
+*** ../vim-7.3.1159/src/undo.c	2013-04-15 15:47:07.000000000 +0200
+--- src/undo.c	2013-06-10 20:13:37.000000000 +0200
+***************
+*** 1514,1521 ****
+  	write_ok = TRUE;
+  #ifdef U_DEBUG
+      if (headers_written != buf->b_u_numhead)
+! 	EMSG3("Written %ld headers, but numhead is %ld",
+! 					   headers_written, buf->b_u_numhead);
+  #endif
+  
+  write_error:
+--- 1514,1523 ----
+  	write_ok = TRUE;
+  #ifdef U_DEBUG
+      if (headers_written != buf->b_u_numhead)
+!     {
+! 	EMSGN("Written %ld headers, ...", headers_written);
+! 	EMSGN("... but numhead is %ld", buf->b_u_numhead);
+!     }
+  #endif
+  
+  write_error:
+*** ../vim-7.3.1159/src/version.c	2013-06-10 20:10:40.000000000 +0200
+--- src/version.c	2013-06-10 20:14:58.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1160,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+135. You cut classes or miss work so you can stay home and browse the web.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

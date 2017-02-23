@@ -1,0 +1,119 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1216
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1216
+Problem:    Configure can't find Motif on Ubuntu.
+Solution:   Search for libXm in /usr/lib/*-linux-gnu.
+Files:	    src/configure.in, src/auto/configure
+
+
+*** ../vim-7.3.1215/src/configure.in	2013-06-14 21:22:33.000000000 +0200
+--- src/configure.in	2013-06-17 20:15:13.000000000 +0200
+***************
+*** 2277,2284 ****
+      dnl Remove "-L" from before $GUI_LIB_LOC if it's there
+      GUI_LIB_LOC="`echo $GUI_LIB_LOC|sed 's%-L%%g'`"
+  
+      AC_MSG_CHECKING(for location of Motif GUI libs)
+!     gui_libs="`echo $x_libraries|sed 's%/[^/][^/]*$%%'` `echo "$gui_XXX" | sed s/XXX/lib/g` `echo "$GUI_INC_LOC" | sed s/include/lib/` $GUI_LIB_LOC"
+      GUI_LIB_LOC=
+      for try in $gui_libs; do
+        for libtry in "$try"/libXm.a "$try"/libXm.so* "$try"/libXm.sl "$try"/libXm.dylib; do
+--- 2277,2286 ----
+      dnl Remove "-L" from before $GUI_LIB_LOC if it's there
+      GUI_LIB_LOC="`echo $GUI_LIB_LOC|sed 's%-L%%g'`"
+  
++     dnl Ubuntu has libXm.so in /usr/lib/i386-linux-gnu and elsewhere.  The
++     dnl linker will figure out which one to use, we only check if one exists.
+      AC_MSG_CHECKING(for location of Motif GUI libs)
+!     gui_libs="`echo $x_libraries|sed 's%/[^/][^/]*$%%'` `echo "$gui_XXX" | sed s/XXX/lib/g` /usr/lib/i386-linux-gnu /usr/lib/x86_64-linux-gnu `echo "$GUI_INC_LOC" | sed s/include/lib/` $GUI_LIB_LOC"
+      GUI_LIB_LOC=
+      for try in $gui_libs; do
+        for libtry in "$try"/libXm.a "$try"/libXm.so* "$try"/libXm.sl "$try"/libXm.dylib; do
+***************
+*** 2289,2295 ****
+      done
+      if test -n "$GUI_LIB_LOC"; then
+        dnl Remove /usr/lib, it causes trouble on some systems
+!       if test "$GUI_LIB_LOC" = /usr/lib; then
+  	GUI_LIB_LOC=
+  	AC_MSG_RESULT(in default path)
+        else
+--- 2291,2299 ----
+      done
+      if test -n "$GUI_LIB_LOC"; then
+        dnl Remove /usr/lib, it causes trouble on some systems
+!       if test "$GUI_LIB_LOC" = /usr/lib \
+! 	   -o "$GUI_LIB_LOC" = /usr/lib/i386-linux-gnu \
+! 	   -o "$GUI_LIB_LOC" = /usr/lib/x86_64-linux-gnu; then
+  	GUI_LIB_LOC=
+  	AC_MSG_RESULT(in default path)
+        else
+*** ../vim-7.3.1215/src/auto/configure	2013-06-14 21:22:33.000000000 +0200
+--- src/auto/configure	2013-06-17 20:15:17.000000000 +0200
+***************
+*** 8346,8354 ****
+  
+          GUI_LIB_LOC="`echo $GUI_LIB_LOC|sed 's%-L%%g'`"
+  
+!     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for location of Motif GUI libs" >&5
+  $as_echo_n "checking for location of Motif GUI libs... " >&6; }
+!     gui_libs="`echo $x_libraries|sed 's%/^/^/*$%%'` `echo "$gui_XXX" | sed s/XXX/lib/g` `echo "$GUI_INC_LOC" | sed s/include/lib/` $GUI_LIB_LOC"
+      GUI_LIB_LOC=
+      for try in $gui_libs; do
+        for libtry in "$try"/libXm.a "$try"/libXm.so* "$try"/libXm.sl "$try"/libXm.dylib; do
+--- 8346,8354 ----
+  
+          GUI_LIB_LOC="`echo $GUI_LIB_LOC|sed 's%-L%%g'`"
+  
+!             { $as_echo "$as_me:${as_lineno-$LINENO}: checking for location of Motif GUI libs" >&5
+  $as_echo_n "checking for location of Motif GUI libs... " >&6; }
+!     gui_libs="`echo $x_libraries|sed 's%/^/^/*$%%'` `echo "$gui_XXX" | sed s/XXX/lib/g` /usr/lib/i386-linux-gnu /usr/lib/x86_64-linux-gnu `echo "$GUI_INC_LOC" | sed s/include/lib/` $GUI_LIB_LOC"
+      GUI_LIB_LOC=
+      for try in $gui_libs; do
+        for libtry in "$try"/libXm.a "$try"/libXm.so* "$try"/libXm.sl "$try"/libXm.dylib; do
+***************
+*** 8358,8364 ****
+        done
+      done
+      if test -n "$GUI_LIB_LOC"; then
+!             if test "$GUI_LIB_LOC" = /usr/lib; then
+  	GUI_LIB_LOC=
+  	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: in default path" >&5
+  $as_echo "in default path" >&6; }
+--- 8358,8366 ----
+        done
+      done
+      if test -n "$GUI_LIB_LOC"; then
+!             if test "$GUI_LIB_LOC" = /usr/lib \
+! 	   -o "$GUI_LIB_LOC" = /usr/lib/i386-linux-gnu \
+! 	   -o "$GUI_LIB_LOC" = /usr/lib/x86_64-linux-gnu; then
+  	GUI_LIB_LOC=
+  	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: in default path" >&5
+  $as_echo "in default path" >&6; }
+*** ../vim-7.3.1215/src/version.c	2013-06-17 19:26:29.000000000 +0200
+--- src/version.c	2013-06-17 20:06:50.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1216,
+  /**/
+
+-- 
+Married is a three ring circus:
+First comes the engagement ring.
+Then comes the wedding ring.
+Then comes the suffering.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,153 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1016
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1016
+Problem:    Unused field in nfa_state.
+Solution:   Remove lastthread.
+Files:	    src/regexp.h, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1015/src/regexp.h	2013-05-19 19:16:25.000000000 +0200
+--- src/regexp.h	2013-05-25 15:23:33.000000000 +0200
+***************
+*** 74,80 ****
+      int			id;
+      int			lastlist;
+      int			visits;
+-     thread_T		*lastthread;
+      int			negated;
+  };
+  
+--- 74,79 ----
+*** ../vim-7.3.1015/src/regexp_nfa.c	2013-05-25 14:41:58.000000000 +0200
+--- src/regexp_nfa.c	2013-05-25 15:23:28.000000000 +0200
+***************
+*** 1865,1880 ****
+      /* grow indent for state->out */
+      indent->ga_len -= 1;
+      if (state->out1)
+! 	ga_concat(indent, "| ");
+      else
+! 	ga_concat(indent, "  ");
+      ga_append(indent, '\0');
+  
+      nfa_print_state2(debugf, state->out, indent);
+  
+      /* replace last part of indent for state->out1 */
+      indent->ga_len -= 3;
+!     ga_concat(indent, "  ");
+      ga_append(indent, '\0');
+  
+      nfa_print_state2(debugf, state->out1, indent);
+--- 1865,1880 ----
+      /* grow indent for state->out */
+      indent->ga_len -= 1;
+      if (state->out1)
+! 	ga_concat(indent, (char_u *)"| ");
+      else
+! 	ga_concat(indent, (char_u *)"  ");
+      ga_append(indent, '\0');
+  
+      nfa_print_state2(debugf, state->out, indent);
+  
+      /* replace last part of indent for state->out1 */
+      indent->ga_len -= 3;
+!     ga_concat(indent, (char_u *)"  ");
+      ga_append(indent, '\0');
+  
+      nfa_print_state2(debugf, state->out1, indent);
+***************
+*** 1948,1954 ****
+  
+      s->id   = istate;
+      s->lastlist = 0;
+-     s->lastthread = NULL;
+      s->visits = 0;
+      s->negated = FALSE;
+  
+--- 1948,1953 ----
+***************
+*** 2498,2503 ****
+--- 2497,2503 ----
+  {
+      regsub_T		save;
+      int			subidx = 0;
++     thread_T		*lastthread;
+  
+      if (l == NULL || state == NULL)
+  	return;
+***************
+*** 2531,2539 ****
+  	    {
+  		/* add the state to the list */
+  		state->lastlist = lid;
+! 		state->lastthread = &l->t[l->n++];
+! 		state->lastthread->state = state;
+! 		state->lastthread->sub = *m;
+  	    }
+      }
+  
+--- 2531,2539 ----
+  	    {
+  		/* add the state to the list */
+  		state->lastlist = lid;
+! 		lastthread = &l->t[l->n++];
+! 		lastthread->state = state;
+! 		lastthread->sub = *m;
+  	    }
+      }
+  
+***************
+*** 2983,2989 ****
+  	fprintf(log_fd, ">>> Reginput is \"%s\"\n", reginput);
+  	fprintf(log_fd, ">>> Advanced one character ... Current char is %c (code %d) \n", c, (int)c);
+  	fprintf(log_fd, ">>> Thislist has %d states available: ", thislist->n);
+! 	for (i = 0; i< thislist->n; i++)
+  	    fprintf(log_fd, "%d  ", abs(thislist->t[i].state->id));
+  	fprintf(log_fd, "\n");
+  #endif
+--- 2983,2989 ----
+  	fprintf(log_fd, ">>> Reginput is \"%s\"\n", reginput);
+  	fprintf(log_fd, ">>> Advanced one character ... Current char is %c (code %d) \n", c, (int)c);
+  	fprintf(log_fd, ">>> Thislist has %d states available: ", thislist->n);
+! 	for (i = 0; i < thislist->n; i++)
+  	    fprintf(log_fd, "%d  ", abs(thislist->t[i].state->id));
+  	fprintf(log_fd, "\n");
+  #endif
+***************
+*** 3690,3696 ****
+  	prog->state[i].id = i;
+  	prog->state[i].lastlist = 0;
+  	prog->state[i].visits = 0;
+- 	prog->state[i].lastthread = NULL;
+      }
+  
+      retval = nfa_regtry(prog->start, col);
+--- 3690,3695 ----
+*** ../vim-7.3.1015/src/version.c	2013-05-25 14:41:58.000000000 +0200
+--- src/version.c	2013-05-25 15:28:53.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1016,
+  /**/
+
+-- 
+For large projects, Team Leaders use sophisticated project management software
+to keep track of who's doing what.  The software collects the lies and guesses
+of the project team and organizes them in to instantly outdated charts that
+are too boring to look at closely.  This is called "planning".
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

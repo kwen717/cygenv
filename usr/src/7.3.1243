@@ -1,0 +1,156 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1243
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1243
+Problem:    New regexp engine: back references in look-behind match don't
+	    work. (Lech Lorens)
+Solution:   Copy the submatches before a recursive match. Also fix
+	    function prototypes.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1242/src/regexp_nfa.c	2013-06-21 18:31:16.000000000 +0200
+--- src/regexp_nfa.c	2013-06-26 12:32:19.000000000 +0200
+***************
+*** 290,299 ****
+  #endif
+  static int *re2post __ARGS((void));
+  static nfa_state_T *alloc_state __ARGS((int c, nfa_state_T *out, nfa_state_T *out1));
+  static nfa_state_T *post2nfa __ARGS((int *postfix, int *end, int nfa_calc_size));
+  static void nfa_postprocess __ARGS((nfa_regprog_T *prog));
+  static int check_char_class __ARGS((int class, int c));
+- static void st_error __ARGS((int *postfix, int *end, int *p));
+  static void nfa_save_listids __ARGS((nfa_regprog_T *prog, int *list));
+  static void nfa_restore_listids __ARGS((nfa_regprog_T *prog, int *list));
+  static int nfa_re_num_cmp __ARGS((long_u val, int op, long_u pos));
+--- 290,300 ----
+  #endif
+  static int *re2post __ARGS((void));
+  static nfa_state_T *alloc_state __ARGS((int c, nfa_state_T *out, nfa_state_T *out1));
++ static void st_error __ARGS((int *postfix, int *end, int *p));
++ static int nfa_max_width __ARGS((nfa_state_T *startstate, int depth));
+  static nfa_state_T *post2nfa __ARGS((int *postfix, int *end, int nfa_calc_size));
+  static void nfa_postprocess __ARGS((nfa_regprog_T *prog));
+  static int check_char_class __ARGS((int class, int c));
+  static void nfa_save_listids __ARGS((nfa_regprog_T *prog, int *list));
+  static void nfa_restore_listids __ARGS((nfa_regprog_T *prog, int *list));
+  static int nfa_re_num_cmp __ARGS((long_u val, int op, long_u pos));
+***************
+*** 3469,3474 ****
+--- 3470,3476 ----
+  #ifdef ENABLE_LOG
+  static void log_subsexpr __ARGS((regsubs_T *subs));
+  static void log_subexpr __ARGS((regsub_T *sub));
++ static char *pim_info __ARGS((nfa_pim_T *pim));
+  
+      static void
+  log_subsexpr(subs)
+***************
+*** 3508,3514 ****
+  }
+  
+      static char *
+! pim_info(nfa_pim_T *pim)
+  {
+      static char buf[30];
+  
+--- 3510,3517 ----
+  }
+  
+      static char *
+! pim_info(pim)
+!     nfa_pim_T *pim;
+  {
+      static char buf[30];
+  
+***************
+*** 3532,3537 ****
+--- 3535,3541 ----
+  static void copy_sub __ARGS((regsub_T *to, regsub_T *from));
+  static void copy_sub_off __ARGS((regsub_T *to, regsub_T *from));
+  static int sub_equal __ARGS((regsub_T *sub1, regsub_T *sub2));
++ static int match_backref __ARGS((regsub_T *sub, int subidx, int *bytelen));
+  static int has_state_with_pos __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+  static int state_in_list __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+  static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, nfa_pim_T *pim, int off));
+***************
+*** 4319,4326 ****
+      return FAIL;
+  }
+  
+- static int match_backref __ARGS((regsub_T *sub, int subidx, int *bytelen));
+- 
+  /*
+   * Check for a match with subexpression "subidx".
+   * Return TRUE if it matches.
+--- 4323,4328 ----
+***************
+*** 5195,5200 ****
+--- 5197,5206 ----
+  			 || t->state->c == NFA_START_INVISIBLE_BEFORE_FIRST
+  			 || t->state->c == NFA_START_INVISIBLE_BEFORE_NEG_FIRST)
+  		    {
++ 			/* Copy submatch info for the recursive call, so that
++ 			 * \1 can be matched. */
++ 			copy_sub_off(&m->norm, &t->subs.norm);
++ 
+  			/*
+  			 * First try matching the invisible match, then what
+  			 * follows.
+*** ../vim-7.3.1242/src/testdir/test64.in	2013-06-17 22:04:34.000000000 +0200
+--- src/testdir/test64.in	2013-06-26 12:31:31.000000000 +0200
+***************
+*** 380,385 ****
+--- 380,388 ----
+  :call add(tl, [2, '\(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9', 'xabcddefghiabcddefghix', 'abcddefghiabcddefghi', 'a', 'b', 'c', 'dd', 'e', 'f', 'g', 'h', 'i'])
+  :call add(tl, [2, '\(\d*\)a \1b', ' a b ', 'a b', ''])
+  :call add(tl, [2, '^.\(.\).\_..\1.', "aaa\naaa\nb", "aaa\naaa", 'a'])
++ :call add(tl, [2, '^.*\.\(.*\)/.\+\(\1\)\@<!$', 'foo.bat/foo.com', 'foo.bat/foo.com', 'bat'])
++ :call add(tl, [2, '^.*\.\(.*\)/.\+\(\1\)\@<!$', 'foo.bat/foo.bat'])
++ :call add(tl, [2, '^.*\.\(.*\)/.\+\(\1\)\@<=$', 'foo.bat/foo.bat', 'foo.bat/foo.bat', 'bat', 'bat'])
+  :"
+  :"""" Look-behind with limit
+  :call add(tl, [2, '<\@<=span.', 'xxspanxx<spanyyy', 'spany'])
+*** ../vim-7.3.1242/src/testdir/test64.ok	2013-06-17 22:04:34.000000000 +0200
+--- src/testdir/test64.ok	2013-06-26 12:31:36.000000000 +0200
+***************
+*** 866,871 ****
+--- 866,880 ----
+  OK 0 - ^.\(.\).\_..\1.
+  OK 1 - ^.\(.\).\_..\1.
+  OK 2 - ^.\(.\).\_..\1.
++ OK 0 - ^.*\.\(.*\)/.\+\(\1\)\@<!$
++ OK 1 - ^.*\.\(.*\)/.\+\(\1\)\@<!$
++ OK 2 - ^.*\.\(.*\)/.\+\(\1\)\@<!$
++ OK 0 - ^.*\.\(.*\)/.\+\(\1\)\@<!$
++ OK 1 - ^.*\.\(.*\)/.\+\(\1\)\@<!$
++ OK 2 - ^.*\.\(.*\)/.\+\(\1\)\@<!$
++ OK 0 - ^.*\.\(.*\)/.\+\(\1\)\@<=$
++ OK 1 - ^.*\.\(.*\)/.\+\(\1\)\@<=$
++ OK 2 - ^.*\.\(.*\)/.\+\(\1\)\@<=$
+  OK 0 - <\@<=span.
+  OK 1 - <\@<=span.
+  OK 2 - <\@<=span.
+*** ../vim-7.3.1242/src/version.c	2013-06-24 22:33:26.000000000 +0200
+--- src/version.c	2013-06-26 12:41:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1243,
+  /**/
+
+-- 
+You cannot propel yourself forward by patting yourself on the back.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

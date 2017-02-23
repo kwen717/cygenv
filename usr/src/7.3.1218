@@ -1,0 +1,91 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1218
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1218
+Problem:    "make test" on MS-Windows does not clean all temporary files and
+	    gives some unneccessary message.
+Solution:   Clean the right files.  Create .failed files. (Ken Takata)
+Files:	    src/testdir/Make_dos.mak
+
+
+*** ../vim-7.3.1217/src/testdir/Make_dos.mak	2013-06-16 16:57:43.000000000 +0200
+--- src/testdir/Make_dos.mak	2013-06-17 21:49:44.000000000 +0200
+***************
+*** 61,66 ****
+--- 61,67 ----
+  
+  clean:
+  	-del *.out
++ 	-del *.failed
+  	-if exist test.ok del test.ok
+  	-if exist small.vim del small.vim
+  	-if exist tiny.vim del tiny.vim
+***************
+*** 68,85 ****
+  	-if exist mzscheme.vim del mzscheme.vim
+  	-if exist lua.vim del lua.vim
+  	-del X*
+  	-if exist viminfo del viminfo
+  	-del test.log
+  
+  .in.out:
+  	copy $*.ok test.ok
+  	$(VIMPROG) -u dos.vim -U NONE --noplugin -s dotest.in $*.in
+! 	@diff test.out $*.ok & if errorlevel 1 (echo $* FAILED >> test.log ) \
+! 		else ( del /F $*.out & rename test.out $*.out )
+  	-del X*
+- 	-del X*.*
+  	-del test.ok
+! 	-rd /s /q Xfind
+  	-if exist viminfo del viminfo
+  
+  nolog:
+--- 69,90 ----
+  	-if exist mzscheme.vim del mzscheme.vim
+  	-if exist lua.vim del lua.vim
+  	-del X*
++ 	-if exist Xdir1 rd /s /q Xdir1
++ 	-if exist Xfind rd /s /q Xfind
+  	-if exist viminfo del viminfo
+  	-del test.log
+  
+  .in.out:
++ 	-if exist $*.failed del $*.failed
+  	copy $*.ok test.ok
+  	$(VIMPROG) -u dos.vim -U NONE --noplugin -s dotest.in $*.in
+! 	@diff test.out $*.ok & if errorlevel 1 \
+! 		( move /y test.out $*.failed & echo $* FAILED >> test.log ) \
+! 		else ( move /y test.out $*.out )
+  	-del X*
+  	-del test.ok
+! 	-if exist Xdir1 rd /s /q Xdir1
+! 	-if exist Xfind rd /s /q Xfind
+  	-if exist viminfo del viminfo
+  
+  nolog:
+*** ../vim-7.3.1217/src/version.c	2013-06-17 21:33:36.000000000 +0200
+--- src/version.c	2013-06-17 21:52:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1218,
+  /**/
+
+-- 
+"After a few years of marriage a man can look right at a woman
+without seeing her and a woman can see right through a man
+without looking at him."
+ - Helen Rowland
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

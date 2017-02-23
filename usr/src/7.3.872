@@ -1,0 +1,524 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.872
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.872
+Problem:    On some systems case of file names is always ignored, on others
+	    never.
+Solution:   Add the 'fileignorecase' option to control this at runtime.
+	    Implies 'wildignorecase'.
+Files:	    src/buffer.c, src/edit.c, src/ex_cmds2.c, src/ex_getln.c,
+	    src/fileio.c, src/misc1.c, src/misc2.c, src/option.c,
+	    src/option.h, src/vim.h, runtime/doc/options.txt
+
+
+*** ../vim-7.3.871/src/buffer.c	2013-03-19 14:25:50.000000000 +0100
+--- src/buffer.c	2013-03-19 16:03:42.000000000 +0100
+***************
+*** 2401,2412 ****
+      if (name != NULL)
+      {
+  	regmatch.regprog = prog;
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 	regmatch.rm_ic = TRUE;		/* Always ignore case */
+! #else
+! 	regmatch.rm_ic = FALSE;		/* Never ignore case */
+! #endif
+! 
+  	if (vim_regexec(&regmatch, name, (colnr_T)0))
+  	    match = name;
+  	else
+--- 2401,2407 ----
+      if (name != NULL)
+      {
+  	regmatch.regprog = prog;
+! 	regmatch.rm_ic = p_fic;	/* ignore case when 'fileignorecase' is set */
+  	if (vim_regexec(&regmatch, name, (colnr_T)0))
+  	    match = name;
+  	else
+*** ../vim-7.3.871/src/edit.c	2013-03-19 13:33:18.000000000 +0100
+--- src/edit.c	2013-03-19 15:43:19.000000000 +0100
+***************
+*** 4336,4348 ****
+  
+  		/* May change home directory back to "~". */
+  		tilde_replace(compl_pattern, num_matches, matches);
+! 		ins_compl_add_matches(num_matches, matches,
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 			TRUE
+! #else
+! 			FALSE
+! #endif
+! 			);
+  	    }
+  	    break;
+  
+--- 4336,4342 ----
+  
+  		/* May change home directory back to "~". */
+  		tilde_replace(compl_pattern, num_matches, matches);
+! 		ins_compl_add_matches(num_matches, matches, p_fic || p_wic);
+  	    }
+  	    break;
+  
+*** ../vim-7.3.871/src/ex_cmds2.c	2012-10-03 18:24:55.000000000 +0200
+--- src/ex_cmds2.c	2013-03-19 16:03:50.000000000 +0100
+***************
+*** 1926,1936 ****
+  	 * Delete the items: use each item as a regexp and find a match in the
+  	 * argument list.
+  	 */
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 	regmatch.rm_ic = TRUE;		/* Always ignore case */
+! #else
+! 	regmatch.rm_ic = FALSE;		/* Never ignore case */
+! #endif
+  	for (i = 0; i < new_ga.ga_len && !got_int; ++i)
+  	{
+  	    p = ((char_u **)new_ga.ga_data)[i];
+--- 1926,1932 ----
+  	 * Delete the items: use each item as a regexp and find a match in the
+  	 * argument list.
+  	 */
+! 	regmatch.rm_ic = p_fic;	/* ignore case when 'fileignorecase' is set */
+  	for (i = 0; i < new_ga.ga_len && !got_int; ++i)
+  	{
+  	    p = ((char_u **)new_ga.ga_data)[i];
+*** ../vim-7.3.871/src/ex_getln.c	2012-11-28 16:49:53.000000000 +0100
+--- src/ex_getln.c	2013-03-19 16:03:53.000000000 +0100
+***************
+*** 3653,3671 ****
+  	{
+  	    for (i = 0; i < xp->xp_numfiles; ++i)
+  	    {
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 		if (xp->xp_context == EXPAND_DIRECTORIES
+  			|| xp->xp_context == EXPAND_FILES
+  			|| xp->xp_context == EXPAND_SHELLCMD
+! 			|| xp->xp_context == EXPAND_BUFFERS)
+  		{
+  		    if (TOLOWER_LOC(xp->xp_files[i][len]) !=
+  					    TOLOWER_LOC(xp->xp_files[0][len]))
+  			break;
+  		}
+! 		else
+! #endif
+! 		     if (xp->xp_files[i][len] != xp->xp_files[0][len])
+  		    break;
+  	    }
+  	    if (i < xp->xp_numfiles)
+--- 3653,3668 ----
+  	{
+  	    for (i = 0; i < xp->xp_numfiles; ++i)
+  	    {
+! 		if (p_fic && (xp->xp_context == EXPAND_DIRECTORIES
+  			|| xp->xp_context == EXPAND_FILES
+  			|| xp->xp_context == EXPAND_SHELLCMD
+! 			|| xp->xp_context == EXPAND_BUFFERS))
+  		{
+  		    if (TOLOWER_LOC(xp->xp_files[i][len]) !=
+  					    TOLOWER_LOC(xp->xp_files[0][len]))
+  			break;
+  		}
+! 		else if (xp->xp_files[i][len] != xp->xp_files[0][len])
+  		    break;
+  	    }
+  	    if (i < xp->xp_numfiles)
+*** ../vim-7.3.871/src/fileio.c	2013-03-19 13:33:18.000000000 +0100
+--- src/fileio.c	2013-03-19 15:49:28.000000000 +0100
+***************
+*** 6485,6493 ****
+  #ifdef HAVE_ACL
+      vim_acl_T	acl;		/* ACL from original file */
+  #endif
+- #if defined(UNIX) || defined(CASE_INSENSITIVE_FILENAME)
+      int		use_tmp_file = FALSE;
+- #endif
+  
+      /*
+       * When the names are identical, there is nothing to do.  When they refer
+--- 6485,6491 ----
+***************
+*** 6496,6506 ****
+       */
+      if (fnamecmp(from, to) == 0)
+      {
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 	if (STRCMP(gettail(from), gettail(to)) != 0)
+  	    use_tmp_file = TRUE;
+  	else
+- #endif
+  	    return 0;
+      }
+  
+--- 6494,6502 ----
+       */
+      if (fnamecmp(from, to) == 0)
+      {
+! 	if (p_fic && STRCMP(gettail(from), gettail(to)) != 0)
+  	    use_tmp_file = TRUE;
+  	else
+  	    return 0;
+      }
+  
+***************
+*** 6539,6545 ****
+      }
+  #endif
+  
+- #if defined(UNIX) || defined(CASE_INSENSITIVE_FILENAME)
+      if (use_tmp_file)
+      {
+  	char	tempname[MAXPATHL + 1];
+--- 6535,6540 ----
+***************
+*** 6572,6578 ****
+  	}
+  	return -1;
+      }
+- #endif
+  
+      /*
+       * Delete the "to" file, this is required on some systems to make the
+--- 6567,6572 ----
+***************
+*** 10007,10017 ****
+      int		match = FALSE;
+  #endif
+  
+! #ifdef CASE_INSENSITIVE_FILENAME
+!     regmatch.rm_ic = TRUE;		/* Always ignore case */
+! #else
+!     regmatch.rm_ic = FALSE;		/* Don't ever ignore case */
+! #endif
+  #ifdef FEAT_OSFILETYPE
+      if (*pattern == '<')
+      {
+--- 10001,10007 ----
+      int		match = FALSE;
+  #endif
+  
+!     regmatch.rm_ic = p_fic; /* ignore case if 'fileignorecase' is set */
+  #ifdef FEAT_OSFILETYPE
+      if (*pattern == '<')
+      {
+*** ../vim-7.3.871/src/misc1.c	2013-03-16 21:35:28.000000000 +0100
+--- src/misc1.c	2013-03-19 16:16:24.000000000 +0100
+***************
+*** 5026,5041 ****
+      return retval;
+  }
+  
+- #if (defined(CASE_INSENSITIVE_FILENAME) && defined(BACKSLASH_IN_FILENAME)) \
+- 	|| defined(PROTO)
+  /*
+!  * Versions of fnamecmp() and fnamencmp() that handle '/' and '\' equally.
+   */
+      int
+  vim_fnamecmp(x, y)
+      char_u	*x, *y;
+  {
+      return vim_fnamencmp(x, y, MAXPATHL);
+  }
+  
+      int
+--- 5026,5046 ----
+      return retval;
+  }
+  
+  /*
+!  * Versions of fnamecmp() and fnamencmp() that handle '/' and '\' equally
+!  * and deal with 'fileignorecase'.
+   */
+      int
+  vim_fnamecmp(x, y)
+      char_u	*x, *y;
+  {
++ #ifdef BACKSLASH_IN_FILENAME
+      return vim_fnamencmp(x, y, MAXPATHL);
++ #else
++     if (p_fic)
++ 	return MB_STRICMP(x, y);
++     return STRCMP(x, y);
++ #endif
+  }
+  
+      int
+***************
+*** 5043,5051 ****
+      char_u	*x, *y;
+      size_t	len;
+  {
+      while (len > 0 && *x && *y)
+      {
+! 	if (TOLOWER_LOC(*x) != TOLOWER_LOC(*y)
+  		&& !(*x == '/' && *y == '\\')
+  		&& !(*x == '\\' && *y == '/'))
+  	    break;
+--- 5048,5058 ----
+      char_u	*x, *y;
+      size_t	len;
+  {
++ #ifdef BACKSLASH_IN_FILENAME
++     /* TODO: multi-byte characters. */
+      while (len > 0 && *x && *y)
+      {
+! 	if ((p_fic ? TOLOWER_LOC(*x) != TOLOWER_LOC(*y) : *x != *y)
+  		&& !(*x == '/' && *y == '\\')
+  		&& !(*x == '\\' && *y == '/'))
+  	    break;
+***************
+*** 5056,5063 ****
+      if (len == 0)
+  	return 0;
+      return (*x - *y);
+! }
+  #endif
+  
+  /*
+   * Concatenate file names fname1 and fname2 into allocated memory.
+--- 5063,5074 ----
+      if (len == 0)
+  	return 0;
+      return (*x - *y);
+! #else
+!     if (p_fic)
+! 	return MB_STRNICMP(x, y, len);
+!     return STRNCMP(x, y, len);
+  #endif
++ }
+  
+  /*
+   * Concatenate file names fname1 and fname2 into allocated memory.
+***************
+*** 9835,9845 ****
+  	}
+  	else if (path_end >= path + wildoff
+  			 && (vim_strchr((char_u *)"*?[{~$", *path_end) != NULL
+! #ifndef CASE_INSENSITIVE_FILENAME
+! 			     || ((flags & EW_ICASE)
+! 					       && isalpha(PTR2CHAR(path_end)))
+! #endif
+! 			     ))
+  	    e = p;
+  #ifdef FEAT_MBYTE
+  	if (has_mbyte)
+--- 9846,9853 ----
+  	}
+  	else if (path_end >= path + wildoff
+  			 && (vim_strchr((char_u *)"*?[{~$", *path_end) != NULL
+! 			     || (!p_fic && (flags & EW_ICASE)
+! 					     && isalpha(PTR2CHAR(path_end)))))
+  	    e = p;
+  #ifdef FEAT_MBYTE
+  	if (has_mbyte)
+***************
+*** 9882,9895 ****
+      }
+  
+      /* compile the regexp into a program */
+- #ifdef CASE_INSENSITIVE_FILENAME
+-     regmatch.rm_ic = TRUE;		/* Behave like Terminal.app */
+- #else
+      if (flags & EW_ICASE)
+  	regmatch.rm_ic = TRUE;		/* 'wildignorecase' set */
+      else
+! 	regmatch.rm_ic = FALSE;		/* Don't ignore case */
+! #endif
+      if (flags & (EW_NOERROR | EW_NOTWILD))
+  	++emsg_silent;
+      regmatch.regprog = vim_regcomp(pat, RE_MAGIC);
+--- 9890,9899 ----
+      }
+  
+      /* compile the regexp into a program */
+      if (flags & EW_ICASE)
+  	regmatch.rm_ic = TRUE;		/* 'wildignorecase' set */
+      else
+! 	regmatch.rm_ic = p_fic;	/* ignore case when 'fileignorecase' is set */
+      if (flags & (EW_NOERROR | EW_NOTWILD))
+  	++emsg_silent;
+      regmatch.regprog = vim_regcomp(pat, RE_MAGIC);
+*** ../vim-7.3.871/src/misc2.c	2012-11-28 18:31:49.000000000 +0100
+--- src/misc2.c	2013-03-19 16:39:56.000000000 +0100
+***************
+*** 5362,5374 ****
+      if (STRLEN(s1) != STRLEN(s2))
+  	return FAIL;
+  
+      for (i = 0; s1[i] != NUL && s2[i] != NUL; i++)
+      {
+  	if (s1[i] != s2[i]
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 		&& TOUPPER_LOC(s1[i]) != TOUPPER_LOC(s2[i])
+! #endif
+! 		)
+  	{
+  	    if (i >= 2)
+  		if (s1[i-1] == '*' && s1[i-2] == '*')
+--- 5362,5372 ----
+      if (STRLEN(s1) != STRLEN(s2))
+  	return FAIL;
+  
++     /* TODO: handle multi-byte characters. */
+      for (i = 0; s1[i] != NUL && s2[i] != NUL; i++)
+      {
+  	if (s1[i] != s2[i]
+! 		      && (!p_fic || TOUPPER_LOC(s1[i]) != TOUPPER_LOC(s2[i])))
+  	{
+  	    if (i >= 2)
+  		if (s1[i-1] == '*' && s1[i-2] == '*')
+***************
+*** 6123,6134 ****
+  	    break;
+  	}
+  
+! 	if (
+! #ifdef CASE_INSENSITIVE_FILENAME
+! 		TOUPPER_LOC(p[i]) != TOUPPER_LOC(q[i])
+! #else
+! 		p[i] != q[i]
+! #endif
+  #ifdef BACKSLASH_IN_FILENAME
+  		/* consider '/' and '\\' to be equal */
+  		&& !((p[i] == '/' && q[i] == '\\')
+--- 6121,6127 ----
+  	    break;
+  	}
+  
+! 	if ((p_fic ? TOUPPER_LOC(p[i]) != TOUPPER_LOC(q[i]) : p[i] != q[i])
+  #ifdef BACKSLASH_IN_FILENAME
+  		/* consider '/' and '\\' to be equal */
+  		&& !((p[i] == '/' && q[i] == '\\')
+*** ../vim-7.3.871/src/option.c	2013-03-13 20:42:28.000000000 +0100
+--- src/option.c	2013-03-19 15:40:25.000000000 +0100
+***************
+*** 1108,1113 ****
+--- 1108,1122 ----
+  			    (char_u *)&p_ffs, PV_NONE,
+  			    {(char_u *)DFLT_FFS_VI, (char_u *)DFLT_FFS_VIM}
+  			    SCRIPTID_INIT},
++     {"fileignorecase", "fic", P_BOOL|P_VI_DEF,
++ 			    (char_u *)&p_fic, PV_NONE,
++ 			    {
++ #ifdef CASE_INSENSITIVE_FILENAME
++ 				    (char_u *)TRUE,
++ #else
++ 				    (char_u *)FALSE,
++ #endif
++ 					(char_u *)0L} SCRIPTID_INIT},
+      {"filetype",    "ft",   P_STRING|P_ALLOCED|P_VI_DEF|P_NOGLOB|P_NFNAME,
+  #ifdef FEAT_AUTOCMD
+  			    (char_u *)&p_ft, PV_FT,
+*** ../vim-7.3.871/src/option.h	2012-08-15 16:20:59.000000000 +0200
+--- src/option.h	2013-03-19 15:42:24.000000000 +0100
+***************
+*** 453,458 ****
+--- 453,459 ----
+  EXTERN char_u	*p_fencs;	/* 'fileencodings' */
+  #endif
+  EXTERN char_u	*p_ffs;		/* 'fileformats' */
++ EXTERN long	p_fic;		/* 'fileignorecase' */
+  #ifdef FEAT_FOLDING
+  EXTERN char_u	*p_fcl;		/* 'foldclose' */
+  EXTERN long	p_fdls;		/* 'foldlevelstart' */
+*** ../vim-7.3.871/src/vim.h	2013-03-19 13:33:18.000000000 +0100
+--- src/vim.h	2013-03-19 16:14:29.000000000 +0100
+***************
+*** 1627,1644 ****
+   * (this does not account for maximum name lengths and things like "../dir",
+   * thus it is not 100% accurate!)
+   */
+! #ifdef CASE_INSENSITIVE_FILENAME
+! # ifdef BACKSLASH_IN_FILENAME
+! #  define fnamecmp(x, y) vim_fnamecmp((x), (y))
+! #  define fnamencmp(x, y, n) vim_fnamencmp((x), (y), (size_t)(n))
+! # else
+! #  define fnamecmp(x, y) MB_STRICMP((x), (y))
+! #  define fnamencmp(x, y, n) MB_STRNICMP((x), (y), (n))
+! # endif
+! #else
+! # define fnamecmp(x, y) strcmp((char *)(x), (char *)(y))
+! # define fnamencmp(x, y, n) strncmp((char *)(x), (char *)(y), (size_t)(n))
+! #endif
+  
+  #ifdef HAVE_MEMSET
+  # define vim_memset(ptr, c, size)   memset((ptr), (c), (size))
+--- 1627,1634 ----
+   * (this does not account for maximum name lengths and things like "../dir",
+   * thus it is not 100% accurate!)
+   */
+! #define fnamecmp(x, y) vim_fnamecmp((char_u *)(x), (char_u *)(y))
+! #define fnamencmp(x, y, n) vim_fnamencmp((char_u *)(x), (char_u *)(y), (size_t)(n))
+  
+  #ifdef HAVE_MEMSET
+  # define vim_memset(ptr, c, size)   memset((ptr), (c), (size))
+*** ../vim-7.3.871/runtime/doc/options.txt	2013-01-23 18:37:31.000000000 +0100
+--- runtime/doc/options.txt	2013-03-19 16:25:49.000000000 +0100
+***************
+*** 2895,2900 ****
+--- 2941,2954 ----
+  	NOTE: This option is set to the Vi default value when 'compatible' is
+  	set and to the Vim default value when 'compatible' is reset.
+  
++ 			*'fileignorecase'* *'wic'* *'nofileignorecase'* *'nowic'*
++ 'fileignorecase' 'wic'	boolean	(default on for systems where case in file
++ 				 names is normally ignored.
++ 			global
++ 			{not in Vi}
++ 	When set case is ignored when using file names and directories.
++ 	See 'wildignorecase' for only ignoring case when doing completion.
++ 
+  					*'filetype'* *'ft'*
+  'filetype' 'ft'		string (default: "")
+  			local to buffer
+***************
+*** 7832,7843 ****
+  	uses another default.
+  
+  
+! 			*'wildignorecase* *'wic'* *'nowildignorecase* *'nowic'*
+  'wildignorecase' 'wic'	boolean	(default off)
+  			global
+  			{not in Vi}
+  	When set case is ignored when completing file names and directories.
+! 	Has no effect on systems where file name case is generally ignored.
+  	Does not apply when the shell is used to expand wildcards, which
+  	happens when there are special characters.
+  
+--- 7906,7917 ----
+  	uses another default.
+  
+  
+! 			*'wildignorecase'* *'wic'* *'nowildignorecase'* *'nowic'*
+  'wildignorecase' 'wic'	boolean	(default off)
+  			global
+  			{not in Vi}
+  	When set case is ignored when completing file names and directories.
+! 	Has no effect when 'fileignorecase' is set.
+  	Does not apply when the shell is used to expand wildcards, which
+  	happens when there are special characters.
+  
+*** ../vim-7.3.871/src/version.c	2013-03-19 15:27:43.000000000 +0100
+--- src/version.c	2013-03-19 16:22:46.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     872,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+76. Your ISP regards you as a business partner rather than as a customer.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

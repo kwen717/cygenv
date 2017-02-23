@@ -1,0 +1,58 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.931
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.931
+Problem:    No completion for :xmap and :smap. (Yukihiro Nakadaira)
+Solution:   Add the case statements. (Christian Brabandt)
+Files:	    src/ex_docmd.c
+
+
+*** ../vim-7.3.930/src/ex_docmd.c	2013-05-06 04:21:35.000000000 +0200
+--- src/ex_docmd.c	2013-05-07 05:15:26.000000000 +0200
+***************
+*** 3889,3894 ****
+--- 3889,3896 ----
+  	case CMD_imap:	    case CMD_inoremap:
+  	case CMD_cmap:	    case CMD_cnoremap:
+  	case CMD_lmap:	    case CMD_lnoremap:
++ 	case CMD_smap:	    case CMD_snoremap:
++ 	case CMD_xmap:	    case CMD_xnoremap:
+  	    return set_context_in_map_cmd(xp, cmd, arg, forceit,
+  						     FALSE, FALSE, ea.cmdidx);
+  	case CMD_unmap:
+***************
+*** 3898,3903 ****
+--- 3900,3907 ----
+  	case CMD_iunmap:
+  	case CMD_cunmap:
+  	case CMD_lunmap:
++ 	case CMD_sunmap:
++ 	case CMD_xunmap:
+  	    return set_context_in_map_cmd(xp, cmd, arg, forceit,
+  						      FALSE, TRUE, ea.cmdidx);
+  	case CMD_abbreviate:	case CMD_noreabbrev:
+*** ../vim-7.3.930/src/version.c	2013-05-07 05:11:12.000000000 +0200
+--- src/version.c	2013-05-07 05:16:45.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     931,
+  /**/
+
+-- 
+FIRST HEAD: All right! All right! We'll kill him first and then have tea and
+            biscuits.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

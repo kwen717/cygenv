@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1123
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1123
+Problem:    Can't build tiny Vim on MS-Windows.
+Solution:   Adjust #ifdef around using modif_fname(). (Mike Williams)
+Files:	    src/misc1.c
+
+
+*** ../vim-7.3.1122/src/misc1.c	2013-05-06 04:21:35.000000000 +0200
+--- src/misc1.c	2013-06-05 19:33:30.000000000 +0200
+***************
+*** 4607,4613 ****
+      if (homedir_env != NULL && *homedir_env == NUL)
+  	homedir_env = NULL;
+  
+! #if defined(FEAT_MODIFY_FNAME) || defined(WIN3264)
+      if (homedir_env != NULL && vim_strchr(homedir_env, '~') != NULL)
+      {
+  	int	usedlen = 0;
+--- 4607,4613 ----
+      if (homedir_env != NULL && *homedir_env == NUL)
+  	homedir_env = NULL;
+  
+! #if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL)
+      if (homedir_env != NULL && vim_strchr(homedir_env, '~') != NULL)
+      {
+  	int	usedlen = 0;
+*** ../vim-7.3.1122/src/version.c	2013-06-05 18:52:36.000000000 +0200
+--- src/version.c	2013-06-05 19:34:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1123,
+  /**/
+
+-- 
+From "know your smileys":
+ ...---...   SOS
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

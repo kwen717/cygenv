@@ -1,0 +1,53 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1035
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1035
+Problem:    Compiler warning on 64 bit windows.
+Solution:   Add type cast. (Mike Williams)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1034/src/if_py_both.h	2013-05-24 18:58:39.000000000 +0200
+--- src/if_py_both.h	2013-05-28 19:19:50.000000000 +0200
+***************
+*** 3547,3553 ****
+      int		status;
+      PyObject	*pyfunc, *pymain;
+  
+!     if (u_save(RangeStart - 1, RangeEnd + 1) != OK)
+      {
+  	EMSG(_("cannot save undo information"));
+  	return;
+--- 3547,3553 ----
+      int		status;
+      PyObject	*pyfunc, *pymain;
+  
+!     if (u_save((linenr_T)RangeStart - 1, (linenr_T)RangeEnd + 1) != OK)
+      {
+  	EMSG(_("cannot save undo information"));
+  	return;
+*** ../vim-7.3.1034/src/version.c	2013-05-28 22:30:22.000000000 +0200
+--- src/version.c	2013-05-28 22:31:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1035,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+8. You spend half of the plane trip with your laptop on your lap...and your
+   child in the overhead compartment.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

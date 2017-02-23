@@ -1,0 +1,82 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1300
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1300
+Problem:    Mac: tiny and small build fails.
+Solution:   Don't include os_macosx.m in tiny build. Include mouse support in
+	    small build. (Kazunobu Kuriyama)
+Files:	    src/configure.in, src/auto/configure, src/vim.h
+
+
+*** ../vim-7.3.1299/src/configure.in	2013-06-18 23:31:41.000000000 +0200
+--- src/configure.in	2013-07-03 19:25:28.000000000 +0200
+***************
+*** 3698,3703 ****
+--- 3698,3710 ----
+    else
+      AC_MSG_RESULT(no)
+    fi
++   dnl As mentioned above, tiny build implies os_macosx.m isn't needed.  
++   dnl Exclude it from OS_EXTRA_SRC so that linker won't complain about
++   dnl missing Objective-C symbols.
++   if test "x$features" = "xtiny"; then
++     OS_EXTRA_SRC=`echo "$OS_EXTRA_SRC" | sed -e 's+os_macosx.m++'`
++     OS_EXTRA_OBJ=`echo "$OS_EXTRA_OBJ" | sed -e 's+objects/os_macosx.o++'`
++   fi
+  fi
+  if test "x$MACARCH" = "xboth" && test "x$GUITYPE" = "xCARBONGUI"; then
+    LDFLAGS="$LDFLAGS -isysroot $DEVELOPER_DIR/SDKs/MacOSX10.4u.sdk -arch i386 -arch ppc"
+*** ../vim-7.3.1299/src/auto/configure	2013-06-18 23:31:41.000000000 +0200
+--- src/auto/configure	2013-07-03 19:25:34.000000000 +0200
+***************
+*** 12674,12679 ****
+--- 12674,12683 ----
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+  $as_echo "no" >&6; }
+    fi
++         if test "x$features" = "xtiny"; then
++     OS_EXTRA_SRC=`echo "$OS_EXTRA_SRC" | sed -e 's+os_macosx.m++'`
++     OS_EXTRA_OBJ=`echo "$OS_EXTRA_OBJ" | sed -e 's+objects/os_macosx.o++'`
++   fi
+  fi
+  if test "x$MACARCH" = "xboth" && test "x$GUITYPE" = "xCARBONGUI"; then
+    LDFLAGS="$LDFLAGS -isysroot $DEVELOPER_DIR/SDKs/MacOSX10.4u.sdk -arch i386 -arch ppc"
+*** ../vim-7.3.1299/src/vim.h	2013-06-08 15:24:41.000000000 +0200
+--- src/vim.h	2013-07-03 19:25:01.000000000 +0200
+***************
+*** 101,106 ****
+--- 101,109 ----
+  # endif
+  # ifndef FEAT_CLIPBOARD
+  #  define FEAT_CLIPBOARD
++ #  if defined(FEAT_SMALL) && !defined(FEAT_MOUSE)
++ #   define FEAT_MOUSE
++ #  endif
+  # endif
+  #endif
+  #if defined(MACOS_X) || defined(MACOS_CLASSIC)
+*** ../vim-7.3.1299/src/version.c	2013-07-03 18:49:12.000000000 +0200
+--- src/version.c	2013-07-03 19:49:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1300,
+  /**/
+
+-- 
+TALL KNIGHT: When you have found the shrubbery, then you must cut down the
+             mightiest tree in the forest ... with a herring.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

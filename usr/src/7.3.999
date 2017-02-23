@@ -1,0 +1,165 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.999
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.999
+Problem:    New regexp engine sets curbuf temporarily.
+Solution:   Use reg_buf instead, like the old engine.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.998/src/regexp_nfa.c	2013-05-21 16:28:05.000000000 +0200
+--- src/regexp_nfa.c	2013-05-21 21:15:41.000000000 +0200
+***************
+*** 3125,3139 ****
+  		    int this_class;
+  
+  		    /* Get class of current and previous char (if it exists). */
+! 		    this_class = mb_get_class(reginput);
+  		    if (this_class <= 1)
+  			bow = FALSE;
+  		    else if (reg_prev_class() == this_class)
+  			bow = FALSE;
+  		}
+  #endif
+! 		else if (!vim_iswordc(c)
+! 			|| (reginput > regline && vim_iswordc(reginput[-1])))
+  		    bow = FALSE;
+  		if (bow)
+  		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+--- 3125,3140 ----
+  		    int this_class;
+  
+  		    /* Get class of current and previous char (if it exists). */
+! 		    this_class = mb_get_class_buf(reginput, reg_buf);
+  		    if (this_class <= 1)
+  			bow = FALSE;
+  		    else if (reg_prev_class() == this_class)
+  			bow = FALSE;
+  		}
+  #endif
+! 		else if (!vim_iswordc_buf(c, reg_buf)
+! 			   || (reginput > regline
+! 				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    bow = FALSE;
+  		if (bow)
+  		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+***************
+*** 3153,3167 ****
+  		    int this_class, prev_class;
+  
+  		    /* Get class of current and previous char (if it exists). */
+! 		    this_class = mb_get_class(reginput);
+  		    prev_class = reg_prev_class();
+  		    if (this_class == prev_class
+  					|| prev_class == 0 || prev_class == 1)
+  			eow = FALSE;
+  		}
+  #endif
+! 		else if (!vim_iswordc(reginput[-1])
+! 				    || (reginput[0] != NUL && vim_iswordc(c)))
+  		    eow = FALSE;
+  		if (eow)
+  		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+--- 3154,3168 ----
+  		    int this_class, prev_class;
+  
+  		    /* Get class of current and previous char (if it exists). */
+! 		    this_class = mb_get_class_buf(reginput, reg_buf);
+  		    prev_class = reg_prev_class();
+  		    if (this_class == prev_class
+  					|| prev_class == 0 || prev_class == 1)
+  			eow = FALSE;
+  		}
+  #endif
+! 		else if (!vim_iswordc_buf(reginput[-1], reg_buf)
+! 			|| (reginput[0] != NUL && vim_iswordc_buf(c, reg_buf)))
+  		    eow = FALSE;
+  		if (eow)
+  		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+***************
+*** 3267,3278 ****
+  		break;
+  
+  	    case NFA_KWORD:	/*  \k	*/
+! 		result = vim_iswordp(reginput);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+  	    case NFA_SKWORD:	/*  \K	*/
+! 		result = !VIM_ISDIGIT(c) && vim_iswordp(reginput);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+--- 3268,3279 ----
+  		break;
+  
+  	    case NFA_KWORD:	/*  \k	*/
+! 		result = vim_iswordp_buf(reginput, reg_buf);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+  	    case NFA_SKWORD:	/*  \K	*/
+! 		result = !VIM_ISDIGIT(c) && vim_iswordp_buf(reginput, reg_buf);
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
+***************
+*** 3826,3834 ****
+      colnr_T	col;		/* column to start looking for match */
+      proftime_T	*tm UNUSED;	/* timeout limit or NULL */
+  {
+-     long	r;
+-     buf_T	*save_curbuf = curbuf;
+- 
+      reg_match = NULL;
+      reg_mmatch = rmp;
+      reg_buf = buf;
+--- 3827,3832 ----
+***************
+*** 3842,3853 ****
+  #endif
+      ireg_maxcol = rmp->rmm_maxcol;
+  
+!     /* Need to switch to buffer "buf" to make vim_iswordc() work. */
+!     curbuf = buf;
+!     r = nfa_regexec_both(NULL, col);
+!     curbuf = save_curbuf;
+! 
+!     return r;
+  }
+  
+  #ifdef DEBUG
+--- 3840,3846 ----
+  #endif
+      ireg_maxcol = rmp->rmm_maxcol;
+  
+!     return nfa_regexec_both(NULL, col);
+  }
+  
+  #ifdef DEBUG
+*** ../vim-7.3.998/src/version.c	2013-05-21 20:51:55.000000000 +0200
+--- src/version.c	2013-05-21 21:16:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     999,
+  /**/
+
+-- 
+SOLDIER: Where did you get the coconuts?
+ARTHUR:  Through ... We found them.
+SOLDIER: Found them?  In Mercea.  The coconut's tropical!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

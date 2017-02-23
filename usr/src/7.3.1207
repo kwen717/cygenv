@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1207
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1207
+Problem:    New regexp engine: no match found on "#if FOO". (Lech Lorens)
+Solution:   When adding a state gets skipped don't adjust the index.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1206/src/regexp_nfa.c	2013-06-14 22:33:47.000000000 +0200
+--- src/regexp_nfa.c	2013-06-16 15:38:15.000000000 +0200
+***************
+*** 4210,4215 ****
+--- 4210,4217 ----
+  
+      /* re-order to put the new state at the current position */
+      count = l->n - tlen;
++     if (count == 0)
++ 	return; /* no state got added */
+      if (count == 1)
+      {
+  	/* overwrite the current state */
+*** ../vim-7.3.1206/src/testdir/test64.in	2013-06-15 15:09:44.000000000 +0200
+--- src/testdir/test64.in	2013-06-16 15:38:04.000000000 +0200
+***************
+*** 408,413 ****
+--- 408,415 ----
+  :"""" Requiring lots of states.
+  :call add(tl, [2, '[0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}', " 12345678-1234-1234-1234-123456789012 ", "12345678-1234-1234-1234-123456789012", "1234-"])
+  :"
++ :"""" Skip adding state twice
++ :call add(tl, [2, '^\%(\%(^\s*#\s*if\>\|#\s*if\)\)\(\%>1c.*$\)\@=', "#if FOO", "#if", ' FOO'])
+  :"
+  :"""" Run the tests
+  :"
+*** ../vim-7.3.1206/src/testdir/test64.ok	2013-06-15 15:09:44.000000000 +0200
+--- src/testdir/test64.ok	2013-06-16 15:38:22.000000000 +0200
+***************
+*** 913,918 ****
+--- 913,921 ----
+  OK 0 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 1 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
+  OK 2 - [0-9a-zA-Z]\{8}-\([0-9a-zA-Z]\{4}-\)\{3}[0-9a-zA-Z]\{12}
++ OK 0 - ^\%(\%(^\s*#\s*if\>\|#\s*if\)\)\(\%>1c.*$\)\@=
++ OK 1 - ^\%(\%(^\s*#\s*if\>\|#\s*if\)\)\(\%>1c.*$\)\@=
++ OK 2 - ^\%(\%(^\s*#\s*if\>\|#\s*if\)\)\(\%>1c.*$\)\@=
+  multi-line tests
+  OK 0 - ^.\(.\).\_..\1.
+  OK 1 - ^.\(.\).\_..\1.
+*** ../vim-7.3.1206/src/version.c	2013-06-16 14:25:53.000000000 +0200
+--- src/version.c	2013-06-16 15:42:05.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1207,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+228. You spend Saturday night making the counter on your home page
+     pass that 2000 mark.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

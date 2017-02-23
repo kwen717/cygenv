@@ -1,0 +1,79 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1308
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1308
+Problem:    Typos in MS-Windows build settings and README.
+Solution:   Minor changes to MS-Windows files.
+Files:	    src/msvc2008.bat, src/msvc2010.bat, src/VisVim/README_VisVim.txt
+
+
+*** ../vim-7.3.1307/src/msvc2008.bat	2010-08-15 21:57:32.000000000 +0200
+--- src/msvc2008.bat	2013-06-22 12:39:17.000000000 +0200
+***************
+*** 4,7 ****
+  rem See INSTALLpc.txt for information.
+  @echo on
+  
+! call "%VS90COMNTOOLS%%vsvars32.bat"
+--- 4,7 ----
+  rem See INSTALLpc.txt for information.
+  @echo on
+  
+! call "%VS90COMNTOOLS%vsvars32.bat"
+*** ../vim-7.3.1307/src/msvc2010.bat	2011-06-12 20:36:00.000000000 +0200
+--- src/msvc2010.bat	2013-06-22 12:39:30.000000000 +0200
+***************
+*** 4,7 ****
+  rem See INSTALLpc.txt for information.
+  @echo on
+  
+! call "%VS100COMNTOOLS%%vsvars32.bat"
+--- 4,7 ----
+  rem See INSTALLpc.txt for information.
+  @echo on
+  
+! call "%VS100COMNTOOLS%vsvars32.bat"
+*** ../vim-7.3.1307/src/VisVim/README_VisVim.txt	2013-05-06 04:21:35.000000000 +0200
+--- src/VisVim/README_VisVim.txt	2013-05-11 14:42:53.000000000 +0200
+***************
+*** 282,288 ****
+    occasionally still seems to happen, but it's more stable now).
+    (Vince Negri)
+  - Added support for the new CTRL-\ CTRL-N command of Vim 5.4a.
+!   This prevents Vim from beeping when a VisVim command is executed an Vim is
+    not in insert mode.
+  
+  
+--- 282,288 ----
+    occasionally still seems to happen, but it's more stable now).
+    (Vince Negri)
+  - Added support for the new CTRL-\ CTRL-N command of Vim 5.4a.
+!   This prevents Vim from beeping when a VisVim command is executed and Vim is
+    not in insert mode.
+  
+  
+*** ../vim-7.3.1307/src/version.c	2013-07-04 22:34:56.000000000 +0200
+--- src/version.c	2013-07-04 22:48:42.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1308,
+  /**/
+
+-- 
+An indication you must be a manager:
+You can explain to somebody the difference between "re-engineering",
+"down-sizing", "right-sizing", and "firing people's asses".
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

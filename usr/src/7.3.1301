@@ -1,0 +1,194 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1301
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1301
+Problem:    Some tests fail on MS-Windows.
+Solution:   Fix path separators in test 89 and 96.  Omit test 97, escaping
+	    works differently.  Make findfile() work on MS-Windows.
+Files:	    src/testdir/Make_dos.mak, src/testdir/Make_ming.mak,
+	    src/testdir/Make_os2.mak, src/testdir/test89.in,
+	    src/testdir/test96.in, src/misc2.c
+
+
+*** ../vim-7.3.1300/src/testdir/Make_dos.mak	2013-07-03 16:52:52.000000000 +0200
+--- src/testdir/Make_dos.mak	2013-07-03 20:17:26.000000000 +0200
+***************
+*** 11,17 ****
+  # test12	can't unlink a swap file
+  # test25	uses symbolic link
+  # test27	can't edit file with "*" in file name
+! # test31	16 bit version runs out of memory...
+  
+  SCRIPTS16 =	test1.out test19.out test20.out test22.out \
+  		test23.out test24.out test28.out test29.out \
+--- 11,17 ----
+  # test12	can't unlink a swap file
+  # test25	uses symbolic link
+  # test27	can't edit file with "*" in file name
+! # test97	\{ and \$ are not escaped characters.
+  
+  SCRIPTS16 =	test1.out test19.out test20.out test22.out \
+  		test23.out test24.out test28.out test29.out \
+***************
+*** 32,38 ****
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+--- 32,38 ----
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+*** ../vim-7.3.1300/src/testdir/Make_ming.mak	2013-07-03 16:52:52.000000000 +0200
+--- src/testdir/Make_ming.mak	2013-07-03 20:17:22.000000000 +0200
+***************
+*** 28,34 ****
+  # test12	can't unlink a swap file
+  # test25	uses symbolic link
+  # test27	can't edit file with "*" in file name
+! # test31	16 bit version runs out of memory...
+  
+  SCRIPTS16 =	test1.out test19.out test20.out test22.out \
+  		test23.out test24.out test28.out test29.out \
+--- 28,34 ----
+  # test12	can't unlink a swap file
+  # test25	uses symbolic link
+  # test27	can't edit file with "*" in file name
+! # test97	\{ and \$ are not escaped characters.
+  
+  SCRIPTS16 =	test1.out test19.out test20.out test22.out \
+  		test23.out test24.out test28.out test29.out \
+***************
+*** 52,58 ****
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+--- 52,58 ----
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+*** ../vim-7.3.1300/src/testdir/Make_os2.mak	2013-07-03 16:52:52.000000000 +0200
+--- src/testdir/Make_os2.mak	2013-07-03 20:18:09.000000000 +0200
+***************
+*** 15,20 ****
+--- 15,21 ----
+  # test52	only for Win32
+  # test85	no Lua interface
+  # test86, 87	no Python interface
++ # test97	\{ and \$ are not escaped characters.
+  
+  SCRIPTS = test1.out test3.out test4.out test5.out test6.out \
+  		test7.out test8.out test9.out \
+***************
+*** 33,39 ****
+  		test76.out test77.out test78.out test79.out test80.out \
+  		test81.out test82.out test83.out test84.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  .SUFFIXES: .in .out
+  
+--- 34,40 ----
+  		test76.out test77.out test78.out test79.out test80.out \
+  		test81.out test82.out test83.out test84.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  .SUFFIXES: .in .out
+  
+*** ../vim-7.3.1300/src/testdir/test96.in	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/test96.in	2013-07-03 21:16:20.000000000 +0200
+***************
+*** 72,77 ****
+--- 72,79 ----
+  :wincmd n
+  :wincmd K
+  :b test.out
++ :let fileName = substitute(fileName, '\\', '/', 'g')
++ :let locationListFileName = substitute(locationListFileName, '\\', '/', 'g')
+  :call append(line('$'), "Test A:")
+  :call append(line('$'), "  - file name displayed: " . fileName)
+  :call append(line('$'), "  - quickfix claims that the file name displayed is: " . locationListFileName)
+***************
+*** 125,130 ****
+--- 127,133 ----
+  :wincmd n
+  :wincmd K
+  :b test.out
++ :let bufferName = substitute(bufferName, '\\', '/', 'g')
+  :call append(line('$'), "Test C:")
+  :call append(line('$'), "  - 'buftype' of the location list window: " . locationListWindowBufType)
+  :call append(line('$'), "  - buffer displayed in the 2nd window: " . bufferName)
+*** ../vim-7.3.1300/src/misc2.c	2013-07-03 17:51:07.000000000 +0200
+--- src/misc2.c	2013-07-03 21:09:30.000000000 +0200
+***************
+*** 4693,4706 ****
+  #ifdef FEAT_PATH_EXTRA
+  	else
+  	{
+! 	    char_u *p =  vim_strrchr(search_ctx->ffsc_fix_path, PATHSEP);
+  	    char_u *wc_path = NUL;
+  	    char_u *temp = NUL;
+  	    int    len = 0;
+  
+! 	    if (p != NULL)
+  	    {
+! 		len = p - search_ctx->ffsc_fix_path;
+  		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+  		add_pathsep(ff_expand_buffer);
+  	    }
+--- 4693,4706 ----
+  #ifdef FEAT_PATH_EXTRA
+  	else
+  	{
+! 	    char_u *p =  gettail(search_ctx->ffsc_fix_path);
+  	    char_u *wc_path = NUL;
+  	    char_u *temp = NUL;
+  	    int    len = 0;
+  
+! 	    if (p > search_ctx->ffsc_fix_path)
+  	    {
+! 		len = p - search_ctx->ffsc_fix_path - 1;
+  		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+  		add_pathsep(ff_expand_buffer);
+  	    }
+*** ../vim-7.3.1300/src/version.c	2013-07-03 19:52:49.000000000 +0200
+--- src/version.c	2013-07-03 21:17:33.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1301,
+  /**/
+
+-- 
+Q: How do you tell the difference between a female cat and a male cat?
+A: You ask it a question and if HE answers, it's a male but, if SHE
+   answers, it's a female.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

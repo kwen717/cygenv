@@ -1,0 +1,726 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1172
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1172
+Problem:    Python 2: loading modules doesn't work well.
+Solution:   Fix the code. Add more tests. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/if_py_both.h, src/if_python.c,
+	    src/testdir/python2/module.py, src/testdir/python3/module.py,
+	    src/testdir/python_after/after.py,
+	    src/testdir/python_before/before.py, src/testdir/test86.in,
+	    src/testdir/test86.ok, src/testdir/test87.in,
+	    src/testdir/test87.ok, Filelist
+
+
+*** ../vim-7.3.1171/runtime/doc/if_pyth.txt	2013-06-10 21:27:18.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 315,366 ****
+  {rtp}/python2 (or python3) and {rtp}/pythonx (for both python versions) for 
+  each {rtp} found in 'runtimepath'.
+  
+! Implementation for python 2 is the following: usual importing code with empty 
+! lists in place of sys.path_hooks and sys.meta_path. Code is similar to the 
+! below, but written in C: >
+  
+!     # Assuming vim variable is already accessible and is set to the current 
+!     # module
+      import sys
+  
+!     def find_module(fullname):
+!         return vim
+  
+!     def load_module(fullname):
+!         # see vim._get_paths below
+!         new_path = _get_paths()
+! 
+!         try:         old_path = sys.path
+!         except: pass
+!         try:         old_meta_path = sys.meta_path
+!         except: pass
+!         try:         old_path_hooks = sys.path_hooks
+!         except: pass
+! 
+!         sys.meta_path = []
+!         sys.path_hooks = sys.meta_path
+!         sys.path = new_path
+! 
+!         try:
+!             exec ('import ' + fullname + ' as m')  # No actual exec in C code
+!             return m
+!         finally:
+!             e = None
+!             try:                        sys.path = old_path
+!             except Exception as e: pass
+!             try:                        sys.meta_path = old_meta_path
+!             except Exception as e: pass
+!             try:                        sys.path_hooks = old_path_hooks
+!             except Exception as e: pass
+!             if e:
+!                 raise e
+! 
+!     def path_hook(d):
+!         if d == VIM_SPECIAL_PATH:
+!             return vim
+!         raise ImportError
+! 
+!     sys.path_hooks.append(path_hook)
+  
+  Implementation for python 3 is cleaner: code is similar to the following, but, 
+  again, written in C: >
+--- 315,367 ----
+  {rtp}/python2 (or python3) and {rtp}/pythonx (for both python versions) for 
+  each {rtp} found in 'runtimepath'.
+  
+! Implementation for python 2 is similar to the following, but written in C: >
+  
+!     from imp import find_module, load_module
+!     import vim
+      import sys
+  
+!     class VimModuleLoader(object):
+!         def __init__(self, module):
+!             self.module = module
+! 
+!         def load_module(self, fullname, path=None):
+!             return self.module
+! 
+!     def _find_module(fullname, oldtail, path):
+!         idx = oldtail.find('.')
+!         if idx > 0:
+!             name = oldtail[:idx]
+!             tail = oldtail[idx+1:]
+!             fmr = find_module(name, path)
+!             module = load_module(fullname[:-len(oldtail)] + name, *fmr)
+!             return _find_module(fullname, tail, module.__path__)
+!         else:
+!             fmr = find_module(fullname, path)
+!             return load_module(fullname, *fmr)
+! 
+!     # It uses vim module itself in place of VimPathFinder class: it does not 
+!     # matter for python which object has find_module function attached to as 
+!     # an attribute.
+!     class VimPathFinder(object):
+!         def find_module(cls, fullname, path=None):
+!             try:
+!                 return VimModuleLoader(_find_module(fullname, fullname, path or vim._get_paths()))
+!             except ImportError:
+!                 return None
+!         find_module = classmethod(find_module)
+! 
+!         def load_module(cls, fullname, path=None):
+!             return _find_module(fullname, fullname, path or vim._get_paths())
+!         load_module = classmethod(load_module)
+! 
+!     def hook(path):
+!         if path == vim.VIM_SPECIAL_PATH:
+!             return VimPathFinder
+!         else:
+!             raise ImportError
+  
+!     sys.path_hooks.append(hook)
+  
+  Implementation for python 3 is cleaner: code is similar to the following, but, 
+  again, written in C: >
+***************
+*** 395,408 ****
+  	Note: you must not use value of this constant directly, always use 
+  	      vim.VIM_SPECIAL_PATH object.
+  
+- vim.load_module(name)					*python-load_module*
+  vim.find_module(...)					*python-find_module*
+  vim.path_hook(path)					*python-path_hook*
+  	Methods or objects used to implement path loading as described above. 
+  	You should not be using any of these directly except for vim.path_hook 
+  	in case you need to do something with sys.meta_path. It is not 
+  	guaranteed that any of the objects will exist in the future vim 
+! 	versions. In fact, load_module and find_module methods do not exists 
+  	in python3.
+  
+  vim._get_paths						*python-_get_paths*
+--- 396,408 ----
+  	Note: you must not use value of this constant directly, always use 
+  	      vim.VIM_SPECIAL_PATH object.
+  
+  vim.find_module(...)					*python-find_module*
+  vim.path_hook(path)					*python-path_hook*
+  	Methods or objects used to implement path loading as described above. 
+  	You should not be using any of these directly except for vim.path_hook 
+  	in case you need to do something with sys.meta_path. It is not 
+  	guaranteed that any of the objects will exist in the future vim 
+! 	versions. In fact, find_module methods do not exists 
+  	in python3.
+  
+  vim._get_paths						*python-_get_paths*
+*** ../vim-7.3.1171/src/if_py_both.h	2013-06-10 21:27:18.000000000 +0200
+--- src/if_py_both.h	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 940,946 ****
+      {"foreach_rtp", VimForeachRTP,		METH_VARARGS,			"Call given callable for each path in &rtp"},
+  #if PY_MAJOR_VERSION < 3
+      {"find_module", FinderFindModule,		METH_VARARGS,			"Internal use only, returns loader object for any input it receives"},
+-     {"load_module", LoaderLoadModule,		METH_VARARGS,			"Internal use only, tries importing the given module from &rtp by temporary mocking sys.path (to an rtp-based one) and unsetting sys.meta_path and sys.path_hooks"},
+  #endif
+      {"path_hook",   VimPathHook,		METH_VARARGS,			"Hook function to install in sys.path_hooks"},
+      {"_get_paths",  (PyCFunction)Vim_GetPaths,	METH_NOARGS,			"Get &rtp-based additions to sys.path"},
+--- 940,945 ----
+***************
+*** 5195,5200 ****
+--- 5194,5206 ----
+      PyObject_HEAD
+  } FinderObject;
+  static PyTypeObject FinderType;
++ #else
++ typedef struct
++ {
++     PyObject_HEAD
++     PyObject	*module;
++ } LoaderObject;
++ static PyTypeObject LoaderType;
+  #endif
+  
+      static void
+***************
+*** 5444,5449 ****
+--- 5450,5457 ----
+      PYTYPE_READY(OutputType);
+  #if PY_MAJOR_VERSION >= 3
+      PYTYPE_READY(FinderType);
++ #else
++     PYTYPE_READY(LoaderType);
+  #endif
+      return 0;
+  }
+***************
+*** 5570,5575 ****
+--- 5578,5585 ----
+      {"Options",    (PyObject *)&OptionsType},
+  #if PY_MAJOR_VERSION >= 3
+      {"Finder",     (PyObject *)&FinderType},
++ #else
++     {"Loader",     (PyObject *)&LoaderType},
+  #endif
+  };
+  
+***************
+*** 5666,5671 ****
+--- 5676,5684 ----
+      ADD_CHECKED_OBJECT(m, "_find_module",
+  	    (py_find_module = PyObject_GetAttrString(path_finder,
+  						     "find_module")));
++ #else
++     ADD_OBJECT(m, "_find_module", py_find_module);
++     ADD_OBJECT(m, "_load_module", py_load_module);
+  #endif
+  
+      return 0;
+*** ../vim-7.3.1171/src/if_python.c	2013-06-10 21:27:18.000000000 +0200
+--- src/if_python.c	2013-06-12 14:14:27.000000000 +0200
+***************
+*** 150,155 ****
+--- 150,156 ----
+  # undef Py_InitModule4
+  # undef Py_InitModule4_64
+  # undef PyObject_CallMethod
++ # undef PyObject_CallFunction
+  
+  /*
+   * Wrapper defines
+***************
+*** 219,224 ****
+--- 220,226 ----
+  # define PyObject_HasAttrString dll_PyObject_HasAttrString
+  # define PyObject_SetAttrString dll_PyObject_SetAttrString
+  # define PyObject_CallFunctionObjArgs dll_PyObject_CallFunctionObjArgs
++ # define PyObject_CallFunction dll_PyObject_CallFunction
+  # define PyObject_Call dll_PyObject_Call
+  # define PyString_AsString dll_PyString_AsString
+  # define PyString_AsStringAndSize dll_PyString_AsStringAndSize
+***************
+*** 357,362 ****
+--- 359,365 ----
+  static int (*dll_PyObject_HasAttrString)(PyObject *, const char *);
+  static PyObject* (*dll_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
+  static PyObject* (*dll_PyObject_CallFunctionObjArgs)(PyObject *, ...);
++ static PyObject* (*dll_PyObject_CallFunction)(PyObject *, char *, ...);
+  static PyObject* (*dll_PyObject_Call)(PyObject *, PyObject *, PyObject *);
+  static char*(*dll_PyString_AsString)(PyObject *);
+  static int(*dll_PyString_AsStringAndSize)(PyObject *, char **, int *);
+***************
+*** 528,533 ****
+--- 531,537 ----
+      {"PyObject_HasAttrString", (PYTHON_PROC*)&dll_PyObject_HasAttrString},
+      {"PyObject_SetAttrString", (PYTHON_PROC*)&dll_PyObject_SetAttrString},
+      {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&dll_PyObject_CallFunctionObjArgs},
++     {"PyObject_CallFunction", (PYTHON_PROC*)&dll_PyObject_CallFunction},
+      {"PyObject_Call", (PYTHON_PROC*)&dll_PyObject_Call},
+      {"PyString_AsString", (PYTHON_PROC*)&dll_PyString_AsString},
+      {"PyString_AsStringAndSize", (PYTHON_PROC*)&dll_PyString_AsStringAndSize},
+***************
+*** 748,757 ****
+  static PyObject *ListGetattr(PyObject *, char *);
+  static PyObject *FunctionGetattr(PyObject *, char *);
+  
+- static PyObject *LoaderLoadModule(PyObject *, PyObject *);
+  static PyObject *FinderFindModule(PyObject *, PyObject *);
+  static PyObject *VimPathHook(PyObject *, PyObject *);
+  
+  #ifndef Py_VISIT
+  # define Py_VISIT(obj) visit(obj, arg)
+  #endif
+--- 752,763 ----
+  static PyObject *ListGetattr(PyObject *, char *);
+  static PyObject *FunctionGetattr(PyObject *, char *);
+  
+  static PyObject *FinderFindModule(PyObject *, PyObject *);
+  static PyObject *VimPathHook(PyObject *, PyObject *);
+  
++ static PyObject *py_find_module;
++ static PyObject *py_load_module;
++ 
+  #ifndef Py_VISIT
+  # define Py_VISIT(obj) visit(obj, arg)
+  #endif
+***************
+*** 1376,1465 ****
+  }
+  #endif
+  
+      static PyObject *
+! LoaderLoadModule(PyObject *self, PyObject *args)
+  {
+!     char	*fullname;
+!     PyObject	*path;
+!     PyObject	*meta_path;
+!     PyObject	*path_hooks;
+!     PyObject	*new_path;
+!     PyObject	*r;
+!     PyObject	*new_list;
+  
+!     if (!PyArg_ParseTuple(args, "s", &fullname))
+! 	return NULL;
+  
+!     if (!(new_path = Vim_GetPaths(self)))
+  	return NULL;
+  
+!     if (!(new_list = PyList_New(0)))
+  	return NULL;
+  
+! #define GET_SYS_OBJECT(objstr, obj) \
+!     obj = PySys_GetObject(objstr); \
+!     PyErr_Clear(); \
+!     Py_XINCREF(obj);
+  
+!     GET_SYS_OBJECT("meta_path", meta_path);
+!     if (PySys_SetObject("meta_path", new_list))
+      {
+! 	Py_XDECREF(meta_path);
+! 	Py_DECREF(new_list);
+! 	return NULL;
+      }
+!     Py_DECREF(new_list); /* Now it becomes a reference borrowed from
+! 			    sys.meta_path */
+  
+! #define RESTORE_SYS_OBJECT(objstr, obj) \
+!     if (obj) \
+!     { \
+! 	PySys_SetObject(objstr, obj); \
+! 	Py_DECREF(obj); \
+      }
+  
+!     GET_SYS_OBJECT("path_hooks", path_hooks);
+!     if (PySys_SetObject("path_hooks", new_list))
+!     {
+! 	RESTORE_SYS_OBJECT("meta_path", meta_path);
+! 	Py_XDECREF(path_hooks);
+  	return NULL;
+-     }
+  
+!     GET_SYS_OBJECT("path", path);
+!     if (PySys_SetObject("path", new_path))
+!     {
+! 	RESTORE_SYS_OBJECT("meta_path", meta_path);
+! 	RESTORE_SYS_OBJECT("path_hooks", path_hooks);
+! 	Py_XDECREF(path);
+  	return NULL;
+-     }
+-     Py_DECREF(new_path);
+  
+!     r = PyImport_ImportModule(fullname);
+  
+!     RESTORE_SYS_OBJECT("meta_path", meta_path);
+!     RESTORE_SYS_OBJECT("path_hooks", path_hooks);
+!     RESTORE_SYS_OBJECT("path", path);
+  
+!     if (PyErr_Occurred())
+      {
+! 	Py_XDECREF(r);
+  	return NULL;
+      }
+  
+!     return r;
+! }
+  
+!     static PyObject *
+! FinderFindModule(PyObject *self UNUSED, PyObject *args UNUSED)
+! {
+!     /*
+!      * Don't bother actually finding the module, it is delegated to the "loader"
+!      * object (which is basically the same object: vim module).
+!      */
+!     Py_INCREF(vim_module);
+!     return vim_module;
+  }
+  
+      static PyObject *
+--- 1382,1534 ----
+  }
+  #endif
+  
++     static void
++ LoaderDestructor(LoaderObject *self)
++ {
++     Py_DECREF(self->module);
++     DESTRUCTOR_FINISH(self);
++ }
++ 
+      static PyObject *
+! LoaderLoadModule(LoaderObject *self, PyObject *args UNUSED)
+  {
+!     PyObject	*r = self->module;
+  
+!     Py_INCREF(r);
+!     return r;
+! }
+  
+! static struct PyMethodDef LoaderMethods[] = {
+!     /* name,	    function,				calling,	doc */
+!     {"load_module", (PyCFunction)LoaderLoadModule,	METH_VARARGS,	""},
+!     { NULL,	    NULL,				0,		NULL}
+! };
+! 
+!     static PyObject *
+! call_load_module(char *name, int len, PyObject *find_module_result)
+! {
+!     PyObject	*fd, *pathname, *description;
+! 
+!     if (!PyTuple_Check(find_module_result)
+! 	    || PyTuple_GET_SIZE(find_module_result) != 3)
+!     {
+! 	PyErr_SetString(PyExc_TypeError,
+! 		_("expected 3-tuple as imp.find_module() result"));
+  	return NULL;
++     }
+  
+!     if (!(fd = PyTuple_GET_ITEM(find_module_result, 0))
+! 	    || !(pathname = PyTuple_GET_ITEM(find_module_result, 1))
+! 	    || !(description = PyTuple_GET_ITEM(find_module_result, 2)))
+!     {
+! 	PyErr_SetString(PyExc_RuntimeError,
+! 		_("internal error: imp.find_module returned tuple with NULL"));
+  	return NULL;
++     }
++ 
++     return PyObject_CallFunction(py_load_module,
++ 	    "s#OOO", name, len, fd, pathname, description);
++ }
+  
+!     static PyObject *
+! find_module(char *fullname, char *tail, PyObject *new_path)
+! {
+!     PyObject	*find_module_result;
+!     PyObject	*module;
+!     char	*dot;
+  
+!     if ((dot = (char *) vim_strchr((char_u *) tail, '.')))
+      {
+! 	/*
+! 	 * There is a dot in the name: call find_module recursively without the 
+! 	 * first component
+! 	 */
+! 	PyObject	*newest_path;
+! 	int		partlen = (int) (dot - 1 - tail);
+! 
+! 	if (!(find_module_result = PyObject_CallFunction(py_find_module,
+! 			"s#O", tail, partlen, new_path)))
+! 	    return NULL;
+! 
+! 	if (!(module = call_load_module(
+! 			fullname,
+! 			((int) (tail - fullname)) + partlen,
+! 			find_module_result)))
+! 	{
+! 	    Py_DECREF(find_module_result);
+! 	    return NULL;
+! 	}
+! 
+! 	Py_DECREF(find_module_result);
+! 
+! 	if (!(newest_path = PyObject_GetAttrString(module, "__path__")))
+! 	{
+! 	    Py_DECREF(module);
+! 	    return NULL;
+! 	}
+! 
+! 	Py_DECREF(module);
+! 
+! 	module = find_module(fullname, dot + 1, newest_path);
+! 
+! 	Py_DECREF(newest_path);
+! 
+! 	return module;
+      }
+!     else
+!     {
+! 	if (!(find_module_result = PyObject_CallFunction(py_find_module,
+! 			"sO", tail, new_path)))
+! 	    return NULL;
+! 
+! 	if (!(module = call_load_module(
+! 			fullname,
+! 			STRLEN(fullname),
+! 			find_module_result)))
+! 	{
+! 	    Py_DECREF(find_module_result);
+! 	    return NULL;
+! 	}
+  
+! 	Py_DECREF(find_module_result);
+! 
+! 	return module;
+      }
++ }
+  
+!     static PyObject *
+! FinderFindModule(PyObject *self, PyObject *args)
+! {
+!     char	*fullname;
+!     PyObject	*module;
+!     PyObject	*new_path;
+!     LoaderObject	*loader;
+! 
+!     if (!PyArg_ParseTuple(args, "s", &fullname))
+  	return NULL;
+  
+!     if (!(new_path = Vim_GetPaths(self)))
+  	return NULL;
+  
+!     module = find_module(fullname, fullname, new_path);
+  
+!     Py_DECREF(new_path);
+  
+!     if (!module)
+      {
+! 	Py_INCREF(Py_None);
+! 	return Py_None;
+!     }
+! 
+!     if (!(loader = PyObject_NEW(LoaderObject, &LoaderType)))
+!     {
+! 	Py_DECREF(module);
+  	return NULL;
+      }
+  
+!     loader->module = module;
+  
+!     return (PyObject *) loader;
+  }
+  
+      static PyObject *
+***************
+*** 1483,1489 ****
+  PythonMod_Init(void)
+  {
+      /* The special value is removed from sys.path in Python_Init(). */
+!     static char *(argv[2]) = {"/must>not&exist/foo", NULL};
+  
+      if (init_types())
+  	return -1;
+--- 1552,1585 ----
+  PythonMod_Init(void)
+  {
+      /* The special value is removed from sys.path in Python_Init(). */
+!     static char	*(argv[2]) = {"/must>not&exist/foo", NULL};
+!     PyObject	*imp;
+! 
+!     if (!(imp = PyImport_ImportModule("imp")))
+! 	return -1;
+! 
+!     if (!(py_find_module = PyObject_GetAttrString(imp, "find_module")))
+!     {
+! 	Py_DECREF(imp);
+! 	return -1;
+!     }
+! 
+!     if (!(py_load_module = PyObject_GetAttrString(imp, "load_module")))
+!     {
+! 	Py_DECREF(py_find_module);
+! 	Py_DECREF(imp);
+! 	return -1;
+!     }
+! 
+!     Py_DECREF(imp);
+! 
+!     vim_memset(&LoaderType, 0, sizeof(LoaderType));
+!     LoaderType.tp_name = "vim.Loader";
+!     LoaderType.tp_basicsize = sizeof(LoaderObject);
+!     LoaderType.tp_flags = Py_TPFLAGS_DEFAULT;
+!     LoaderType.tp_doc = "vim message object";
+!     LoaderType.tp_methods = LoaderMethods;
+!     LoaderType.tp_dealloc = (destructor)LoaderDestructor;
+  
+      if (init_types())
+  	return -1;
+*** ../vim-7.3.1171/src/testdir/python2/module.py	2013-06-11 18:47:37.000000000 +0200
+--- src/testdir/python2/module.py	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 1 ****
+--- 1,2 ----
++ import before_1
+  dir = '2'
+*** ../vim-7.3.1171/src/testdir/python3/module.py	2013-06-11 18:47:37.000000000 +0200
+--- src/testdir/python3/module.py	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 1 ****
+--- 1,2 ----
++ import before_1
+  dir = '3'
+*** ../vim-7.3.1171/src/testdir/python_after/after.py	1970-01-01 01:00:00.000000000 +0100
+--- src/testdir/python_after/after.py	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 0 ****
+--- 1,2 ----
++ import before_2
++ dir = "after"
+*** ../vim-7.3.1171/src/testdir/python_before/before.py	1970-01-01 01:00:00.000000000 +0100
+--- src/testdir/python_before/before.py	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ dir = "before"
+*** ../vim-7.3.1171/src/testdir/test86.in	2013-06-11 18:47:37.000000000 +0200
+--- src/testdir/test86.in	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 8,13 ****
+--- 8,14 ----
+  STARTTEST
+  :so small.vim
+  :set encoding=latin1
++ :set noswapfile
+  :if !has('python') | e! test.ok | wq! test.out | endif
+  :lang C
+  :py import vim
+***************
+*** 1071,1080 ****
+--- 1072,1087 ----
+  :"
+  :" Test import
+  py << EOF
++ sys.path.insert(0, os.path.join(os.getcwd(), 'python_before'))
++ sys.path.append(os.path.join(os.getcwd(), 'python_after'))
+  vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+  from module import dir as d
+  from modulex import ddir
+  cb.append(d + ',' + ddir)
++ import before
++ cb.append(before.dir)
++ import after
++ cb.append(after.dir)
+  EOF
+  :"
+  :" Test exceptions
+*** ../vim-7.3.1171/src/testdir/test86.ok	2013-06-11 18:47:37.000000000 +0200
+--- src/testdir/test86.ok	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 1084,1089 ****
+--- 1084,1091 ----
+  vim.current.tabpage = True:(<type 'exceptions.TypeError'>, TypeError('expected vim.TabPage object',))
+  vim.current.xxx = True:(<type 'exceptions.AttributeError'>, AttributeError('xxx',))
+  2,xx
++ before
++ after
+  vim.command("throw 'abc'"):(<class 'vim.error'>, error('abc',))
+  Exe("throw 'def'"):(<class 'vim.error'>, error('def',))
+  vim.eval("Exe('throw ''ghi''')"):(<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1171/src/testdir/test87.in	2013-06-11 18:47:37.000000000 +0200
+--- src/testdir/test87.in	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 2,7 ****
+--- 2,8 ----
+  
+  STARTTEST
+  :so small.vim
++ :set noswapfile
+  :if !has('python3') | e! test.ok | wq! test.out | endif
+  :lang C
+  :py3 import vim
+***************
+*** 1038,1047 ****
+--- 1039,1054 ----
+  :"
+  :" Test import
+  py3 << EOF
++ sys.path.insert(0, os.path.join(os.getcwd(), 'python_before'))
++ sys.path.append(os.path.join(os.getcwd(), 'python_after'))
+  vim.options['rtp'] = os.getcwd().replace(',', '\\,').replace('\\', '\\\\')
+  from module import dir as d
+  from modulex import ddir
+  cb.append(d + ',' + ddir)
++ import before
++ cb.append(before.dir)
++ import after
++ cb.append(after.dir)
+  EOF
+  :"
+  :" Test exceptions
+*** ../vim-7.3.1171/src/testdir/test87.ok	2013-06-11 18:47:37.000000000 +0200
+--- src/testdir/test87.ok	2013-06-12 14:12:13.000000000 +0200
+***************
+*** 1093,1098 ****
+--- 1093,1100 ----
+  vim.current.tabpage = True:(<class 'TypeError'>, TypeError('expected vim.TabPage object',))
+  vim.current.xxx = True:(<class 'AttributeError'>, AttributeError('xxx',))
+  3,xx
++ before
++ after
+  vim.command("throw 'abc'"):(<class 'vim.error'>, error('abc',))
+  Exe("throw 'def'"):(<class 'vim.error'>, error('def',))
+  vim.eval("Exe('throw ''ghi''')"):(<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1171/Filelist	2013-06-11 18:47:37.000000000 +0200
+--- Filelist	2013-06-12 14:13:57.000000000 +0200
+***************
+*** 87,92 ****
+--- 87,94 ----
+  		src/testdir/python2/*.py \
+  		src/testdir/python3/*.py \
+  		src/testdir/pythonx/*.py \
++ 		src/testdir/python_after/*.py \
++ 		src/testdir/python_before/*.py \
+  		src/proto.h \
+  		src/proto/blowfish.pro \
+  		src/proto/buffer.pro \
+*** ../vim-7.3.1171/src/version.c	2013-06-12 14:10:23.000000000 +0200
+--- src/version.c	2013-06-12 14:14:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1172,
+  /**/
+
+-- 
+Microsoft says that MS-Windows is much better for you than Linux.
+That's like the Pope saying that catholicism is much better for
+you than protestantism.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

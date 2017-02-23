@@ -1,0 +1,141 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.980
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.980
+Problem:    Regexp logs may contain garbage. Character classes don't work
+	    correctly for multi-byte characters.
+Solution:   Check for end of post list.  Only use "is" functions for
+	    characters up to 255. (Ken Takata)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.979/src/regexp_nfa.c	2013-05-20 21:56:53.000000000 +0200
+--- src/regexp_nfa.c	2013-05-20 22:09:01.000000000 +0200
+***************
+*** 1826,1838 ****
+  	else if (retval == OK)
+  	    fprintf(f, ">>> NFA engine succeeded !\n");
+  	fprintf(f, "Regexp: \"%s\"\nPostfix notation (char): \"", expr);
+! 	for (p=post_start; *p; p++)
+  	{
+  	    nfa_set_code(*p);
+  	    fprintf(f, "%s, ", code);
+  	}
+  	fprintf(f, "\"\nPostfix notation (int): ");
+! 	for (p=post_start; *p; p++)
+  		fprintf(f, "%d ", *p);
+  	fprintf(f, "\n\n");
+  	fclose(f);
+--- 1826,1838 ----
+  	else if (retval == OK)
+  	    fprintf(f, ">>> NFA engine succeeded !\n");
+  	fprintf(f, "Regexp: \"%s\"\nPostfix notation (char): \"", expr);
+! 	for (p = post_start; *p && p < post_end; p++)
+  	{
+  	    nfa_set_code(*p);
+  	    fprintf(f, "%s, ", code);
+  	}
+  	fprintf(f, "\"\nPostfix notation (int): ");
+! 	for (p = post_start; *p && p < post_end; p++)
+  		fprintf(f, "%d ", *p);
+  	fprintf(f, "\n\n");
+  	fclose(f);
+***************
+*** 2667,2677 ****
+      switch (class)
+      {
+  	case NFA_CLASS_ALNUM:
+! 	    if (isalnum(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_ALPHA:
+! 	    if (isalpha(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_BLANK:
+--- 2667,2677 ----
+      switch (class)
+      {
+  	case NFA_CLASS_ALNUM:
+! 	    if (c >= 1 && c <= 255 && isalnum(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_ALPHA:
+! 	    if (c >= 1 && c <= 255 && isalpha(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_BLANK:
+***************
+*** 2679,2685 ****
+  		return OK;
+  	    break;
+  	case NFA_CLASS_CNTRL:
+! 	    if (iscntrl(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_DIGIT:
+--- 2679,2685 ----
+  		return OK;
+  	    break;
+  	case NFA_CLASS_CNTRL:
+! 	    if (c >= 1 && c <= 255 && iscntrl(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_DIGIT:
+***************
+*** 2687,2693 ****
+  		return OK;
+  	    break;
+  	case NFA_CLASS_GRAPH:
+! 	    if (isgraph(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_LOWER:
+--- 2687,2693 ----
+  		return OK;
+  	    break;
+  	case NFA_CLASS_GRAPH:
+! 	    if (c >= 1 && c <= 255 && isgraph(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_LOWER:
+***************
+*** 2699,2705 ****
+  		return OK;
+  	    break;
+  	case NFA_CLASS_PUNCT:
+! 	    if (ispunct(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_SPACE:
+--- 2699,2705 ----
+  		return OK;
+  	    break;
+  	case NFA_CLASS_PUNCT:
+! 	    if (c >= 1 && c <= 255 && ispunct(c))
+  		return OK;
+  	    break;
+  	case NFA_CLASS_SPACE:
+*** ../vim-7.3.979/src/version.c	2013-05-20 21:56:53.000000000 +0200
+--- src/version.c	2013-05-20 22:10:54.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     980,
+  /**/
+
+-- 
+Why is "abbreviation" such a long word?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

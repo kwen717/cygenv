@@ -1,0 +1,311 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1191
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1191
+Problem:    Backreference to previous line doesn't work. (Lech Lorens)
+Solution:   Implement looking in another line.
+Files:	    src/regexp.c, src/regexp_nfa.c, src/testdir/test64.in,
+	    src/testdir/test64.ok
+
+
+*** ../vim-7.3.1190/src/regexp.c	2013-06-08 18:19:39.000000000 +0200
+--- src/regexp.c	2013-06-14 20:23:33.000000000 +0200
+***************
+*** 3519,3524 ****
+--- 3519,3525 ----
+  	*(pp) = (savep)->se_u.ptr; }
+  
+  static int	re_num_cmp __ARGS((long_u val, char_u *scan));
++ static int	match_with_backref __ARGS((linenr_T start_lnum, colnr_T start_col, linenr_T end_lnum, colnr_T end_col, int *bytelen));
+  static int	regmatch __ARGS((char_u *prog));
+  static int	regrepeat __ARGS((char_u *p, long maxcount));
+  
+***************
+*** 4979,4987 ****
+  	  case BACKREF + 9:
+  	    {
+  		int		len;
+- 		linenr_T	clnum;
+- 		colnr_T		ccol;
+- 		char_u		*p;
+  
+  		no = op - BACKREF;
+  		cleanup_subexpr();
+--- 4980,4985 ----
+***************
+*** 5023,5089 ****
+  			{
+  			    /* Messy situation: Need to compare between two
+  			     * lines. */
+! 			    ccol = reg_startpos[no].col;
+! 			    clnum = reg_startpos[no].lnum;
+! 			    for (;;)
+! 			    {
+! 				/* Since getting one line may invalidate
+! 				 * the other, need to make copy.  Slow! */
+! 				if (regline != reg_tofree)
+! 				{
+! 				    len = (int)STRLEN(regline);
+! 				    if (reg_tofree == NULL
+! 						 || len >= (int)reg_tofreelen)
+! 				    {
+! 					len += 50;	/* get some extra */
+! 					vim_free(reg_tofree);
+! 					reg_tofree = alloc(len);
+! 					if (reg_tofree == NULL)
+! 					{
+! 					    status = RA_FAIL; /* outof memory!*/
+! 					    break;
+! 					}
+! 					reg_tofreelen = len;
+! 				    }
+! 				    STRCPY(reg_tofree, regline);
+! 				    reginput = reg_tofree
+! 						       + (reginput - regline);
+! 				    regline = reg_tofree;
+! 				}
+! 
+! 				/* Get the line to compare with. */
+! 				p = reg_getline(clnum);
+! 				if (clnum == reg_endpos[no].lnum)
+! 				    len = reg_endpos[no].col - ccol;
+! 				else
+! 				    len = (int)STRLEN(p + ccol);
+! 
+! 				if (cstrncmp(p + ccol, reginput, &len) != 0)
+! 				{
+! 				    status = RA_NOMATCH;  /* doesn't match */
+! 				    break;
+! 				}
+! 				if (clnum == reg_endpos[no].lnum)
+! 				    break;		/* match and at end! */
+! 				if (reglnum >= reg_maxline)
+! 				{
+! 				    status = RA_NOMATCH;  /* text too short */
+! 				    break;
+! 				}
+! 
+! 				/* Advance to next line. */
+! 				reg_nextline();
+! 				++clnum;
+! 				ccol = 0;
+! 				if (got_int)
+! 				{
+! 				    status = RA_FAIL;
+! 				    break;
+! 				}
+! 			    }
+! 
+! 			    /* found a match!  Note that regline may now point
+! 			     * to a copy of the line, that should not matter. */
+  			}
+  		    }
+  		}
+--- 5021,5032 ----
+  			{
+  			    /* Messy situation: Need to compare between two
+  			     * lines. */
+! 			    status = match_with_backref(
+! 					    reg_startpos[no].lnum,
+! 					    reg_startpos[no].col,
+! 					    reg_endpos[no].lnum,
+! 					    reg_endpos[no].col,
+! 					    NULL);
+  			}
+  		    }
+  		}
+***************
+*** 6505,6510 ****
+--- 6448,6522 ----
+      return val == n;
+  }
+  
++ /*
++  * Check whether a backreference matches.
++  * Returns RA_FAIL, RA_NOMATCH or RA_MATCH.
++  * If "bytelen" is not NULL, it is set to the bytelength of the whole match.
++  */
++     static int
++ match_with_backref(start_lnum, start_col, end_lnum, end_col, bytelen)
++     linenr_T start_lnum;
++     colnr_T  start_col;
++     linenr_T end_lnum;
++     colnr_T  end_col;
++     int	     *bytelen;
++ {
++     linenr_T	clnum = start_lnum;
++     colnr_T	ccol = start_col;
++     int		len;
++     char_u	*p;
++ 
++     if (bytelen != NULL)
++ 	*bytelen = 0;
++     for (;;)
++     {
++ 	/* Since getting one line may invalidate the other, need to make copy.
++ 	 * Slow! */
++ 	if (regline != reg_tofree)
++ 	{
++ 	    len = (int)STRLEN(regline);
++ 	    if (reg_tofree == NULL || len >= (int)reg_tofreelen)
++ 	    {
++ 		len += 50;	/* get some extra */
++ 		vim_free(reg_tofree);
++ 		reg_tofree = alloc(len);
++ 		if (reg_tofree == NULL)
++ 		    return RA_FAIL; /* out of memory!*/
++ 		reg_tofreelen = len;
++ 	    }
++ 	    STRCPY(reg_tofree, regline);
++ 	    reginput = reg_tofree + (reginput - regline);
++ 	    regline = reg_tofree;
++ 	}
++ 
++ 	/* Get the line to compare with. */
++ 	p = reg_getline(clnum);
++ 	if (clnum == end_lnum)
++ 	    len = end_col - ccol;
++ 	else
++ 	    len = (int)STRLEN(p + ccol);
++ 
++ 	if (cstrncmp(p + ccol, reginput, &len) != 0)
++ 	    return RA_NOMATCH;  /* doesn't match */
++ 	if (bytelen != NULL)
++ 	    *bytelen += len;
++ 	if (clnum == end_lnum)
++ 	    break;		/* match and at end! */
++ 	if (reglnum >= reg_maxline)
++ 	    return RA_NOMATCH;  /* text too short */
++ 
++ 	/* Advance to next line. */
++ 	reg_nextline();
++ 	++clnum;
++ 	ccol = 0;
++ 	if (got_int)
++ 	    return RA_FAIL;
++     }
++ 
++     /* found a match!  Note that regline may now point to a copy of the line,
++      * that should not matter. */
++     return RA_MATCH;
++ }
+  
+  #ifdef BT_REGEXP_DUMP
+  
+*** ../vim-7.3.1190/src/regexp_nfa.c	2013-06-13 22:59:25.000000000 +0200
+--- src/regexp_nfa.c	2013-06-14 20:19:59.000000000 +0200
+***************
+*** 4367,4380 ****
+  	if (sub->list.multi[subidx].start.lnum < 0
+  				       || sub->list.multi[subidx].end.lnum < 0)
+  	    goto retempty;
+! 	/* TODO: line breaks */
+! 	len = sub->list.multi[subidx].end.col
+! 					 - sub->list.multi[subidx].start.col;
+! 	if (cstrncmp(regline + sub->list.multi[subidx].start.col,
+! 							reginput, &len) == 0)
+  	{
+! 	    *bytelen = len;
+! 	    return TRUE;
+  	}
+      }
+      else
+--- 4367,4393 ----
+  	if (sub->list.multi[subidx].start.lnum < 0
+  				       || sub->list.multi[subidx].end.lnum < 0)
+  	    goto retempty;
+! 	if (sub->list.multi[subidx].start.lnum == reglnum
+! 			       && sub->list.multi[subidx].end.lnum == reglnum)
+  	{
+! 	    len = sub->list.multi[subidx].end.col
+! 					  - sub->list.multi[subidx].start.col;
+! 	    if (cstrncmp(regline + sub->list.multi[subidx].start.col,
+! 							 reginput, &len) == 0)
+! 	    {
+! 		*bytelen = len;
+! 		return TRUE;
+! 	    }
+! 	}
+! 	else
+! 	{
+! 	    if (match_with_backref(
+! 			sub->list.multi[subidx].start.lnum,
+! 			sub->list.multi[subidx].start.col,
+! 			sub->list.multi[subidx].end.lnum,
+! 			sub->list.multi[subidx].end.col,
+! 			bytelen) == RA_MATCH)
+! 		return TRUE;
+  	}
+      }
+      else
+*** ../vim-7.3.1190/src/testdir/test64.in	2013-06-13 20:19:35.000000000 +0200
+--- src/testdir/test64.in	2013-06-14 20:01:56.000000000 +0200
+***************
+*** 486,491 ****
+--- 486,497 ----
+  :.yank
+  Gop:"
+  :"
++ :" Check using a backref matching in a previous line
++ /^Backref:
++ /\v.*\/(.*)\n.*\/\1$
++ :.yank
++ Gop:"
++ :"
+  :" Check a pattern with a look beind crossing a line boundary
+  /^Behind:
+  /\(<\_[xy]\+\)\@3<=start
+***************
+*** 566,571 ****
+--- 572,584 ----
+  b
+  c
+  
++ Backref:
++ ./Dir1/Dir2/zyxwvuts.txt
++ ./Dir1/Dir2/abcdefgh.bat
++ 
++ ./Dir1/Dir2/file1.txt
++ ./OtherDir1/OtherDir2/file1.txt
++ 
+  Behind:
+  asdfasd<yyy
+  xxstart1
+*** ../vim-7.3.1190/src/testdir/test64.ok	2013-06-13 20:19:35.000000000 +0200
+--- src/testdir/test64.ok	2013-06-14 20:02:44.000000000 +0200
+***************
+*** 920,925 ****
+--- 920,927 ----
+  
+  c
+  
++ ./Dir1/Dir2/file1.txt
++ 
+  xxstart3
+  
+  thexE thE thExethe
+*** ../vim-7.3.1190/src/version.c	2013-06-14 19:15:52.000000000 +0200
+--- src/version.c	2013-06-14 20:30:34.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1191,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+198. You read all the quotes at Netaholics Anonymous and keep thinking
+     "What's wrong with that?"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

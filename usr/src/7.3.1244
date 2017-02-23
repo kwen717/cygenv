@@ -1,0 +1,54 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1244
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1244
+Problem:    MS-Windows: confirm() dialog text may not fit.
+Solution:   Use GetTextWidthEnc() instead of GetTextWidth(). (Yasuhiro
+	    Matsumoto)
+Files:	    src/gui_w32.c
+
+
+*** ../vim-7.3.1243/src/gui_w32.c	2013-05-06 04:21:35.000000000 +0200
+--- src/gui_w32.c	2013-06-26 12:55:32.000000000 +0200
+***************
+*** 3216,3222 ****
+  	    if (l == 1 && vim_iswhite(*pend)
+  					&& textWidth > maxDialogWidth * 3 / 4)
+  		last_white = pend;
+! 	    textWidth += GetTextWidth(hdc, pend, l);
+  	    if (textWidth >= maxDialogWidth)
+  	    {
+  		/* Line will wrap. */
+--- 3216,3222 ----
+  	    if (l == 1 && vim_iswhite(*pend)
+  					&& textWidth > maxDialogWidth * 3 / 4)
+  		last_white = pend;
+! 	    textWidth += GetTextWidthEnc(hdc, pend, l);
+  	    if (textWidth >= maxDialogWidth)
+  	    {
+  		/* Line will wrap. */
+*** ../vim-7.3.1243/src/version.c	2013-06-26 12:42:38.000000000 +0200
+--- src/version.c	2013-06-26 12:56:47.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1244,
+  /**/
+
+-- 
+The psychic said, "God bless you."  I said, "I didn't sneeze."  She
+looked deep into my eyes and said, "You will, eventually."  And, damn
+if she wasn't right.  Two days later, I sneezed.  --Ellen Degeneres
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

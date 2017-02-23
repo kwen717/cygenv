@@ -1,0 +1,127 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1284
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1284
+Problem:    Compiler warnings in MS-Windows clipboard handling.
+Solution:   Add type casts. (Ken Takata)
+Files:	    src/winclip.c
+
+
+*** ../vim-7.3.1283/src/winclip.c	2013-02-26 14:56:24.000000000 +0100
+--- src/winclip.c	2013-07-01 21:05:53.000000000 +0200
+***************
+*** 180,186 ****
+  {
+      *outlen = WideCharToMultiByte(cp, flags, in, inlen, NULL, 0, def, useddef);
+      /* Add one one byte to avoid a zero-length alloc(). */
+!     *out = alloc((unsigned)*outlen + 1);
+      if (*out != NULL)
+      {
+  	WideCharToMultiByte(cp, flags, in, inlen, *out, *outlen, def, useddef);
+--- 180,186 ----
+  {
+      *outlen = WideCharToMultiByte(cp, flags, in, inlen, NULL, 0, def, useddef);
+      /* Add one one byte to avoid a zero-length alloc(). */
+!     *out = (LPSTR)alloc((unsigned)*outlen + 1);
+      if (*out != NULL)
+      {
+  	WideCharToMultiByte(cp, flags, in, inlen, *out, *outlen, def, useddef);
+***************
+*** 557,563 ****
+  		return;		/* out of memory */
+  	    }
+  	    WideCharToMultiByte(GetACP(), 0, out, len,
+! 						  str, metadata.txtlen, 0, 0);
+  
+  	    /* Allocate memory for the UTF-16 text, add one NUL word to
+  	     * terminate the string. */
+--- 557,563 ----
+  		return;		/* out of memory */
+  	    }
+  	    WideCharToMultiByte(GetACP(), 0, out, len,
+! 					   (LPSTR)str, metadata.txtlen, 0, 0);
+  
+  	    /* Allocate memory for the UTF-16 text, add one NUL word to
+  	     * terminate the string. */
+***************
+*** 584,590 ****
+  
+  	if (lpszMem)
+  	{
+! 	    vim_strncpy(lpszMem, str, metadata.txtlen);
+  	    GlobalUnlock(hMem);
+  	}
+      }
+--- 584,590 ----
+  
+  	if (lpszMem)
+  	{
+! 	    vim_strncpy((char_u *)lpszMem, str, metadata.txtlen);
+  	    GlobalUnlock(hMem);
+  	}
+      }
+***************
+*** 677,683 ****
+      {
+  	/* We can do any CP### -> UTF-16 in one pass, and we can do it
+  	 * without iconv() (convert_* may need iconv). */
+! 	MultiByteToWideChar_alloc(enc_codepage, 0, str, *lenp, &ret, &length);
+      }
+      else
+      {
+--- 677,684 ----
+      {
+  	/* We can do any CP### -> UTF-16 in one pass, and we can do it
+  	 * without iconv() (convert_* may need iconv). */
+! 	MultiByteToWideChar_alloc(enc_codepage, 0, (LPCSTR)str, *lenp,
+! 							       &ret, &length);
+      }
+      else
+      {
+***************
+*** 787,793 ****
+  {
+      LPWSTR	widestr;
+  
+!     MultiByteToWideChar_alloc(GetACP(), 0, str, str_size, &widestr, outlen);
+      if (widestr != NULL)
+      {
+  	++*outlen;	/* Include the 0 after the string */
+--- 788,795 ----
+  {
+      LPWSTR	widestr;
+  
+!     MultiByteToWideChar_alloc(GetACP(), 0, (LPCSTR)str, str_size,
+! 							    &widestr, outlen);
+      if (widestr != NULL)
+      {
+  	++*outlen;	/* Include the 0 after the string */
+*** ../vim-7.3.1283/src/version.c	2013-07-01 20:59:08.000000000 +0200
+--- src/version.c	2013-07-01 21:07:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1284,
+  /**/
+
+-- 
+BLACK KNIGHT:  I move for no man.
+ARTHUR:        So be it!
+    [hah] [parry thrust]
+    [ARTHUR chops the BLACK KNIGHT's left arm off]
+ARTHUR:        Now stand aside, worthy adversary.
+BLACK KNIGHT:  'Tis but a scratch.
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

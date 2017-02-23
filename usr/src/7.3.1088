@@ -1,0 +1,626 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1088
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1088
+Problem:    New regexp engine: \@<= and \@<! are not implemented.
+Solution:   Implement look-behind matching.  Fix off-by-one error in old
+	    regexp engine.
+Files:	    src/regexp.c, src/regexp_nfa.c, src/testdir/test64.in,
+	    src/testdir/test64.ok
+
+
+*** ../vim-7.3.1087/src/regexp.c	2013-06-01 14:42:51.000000000 +0200
+--- src/regexp.c	2013-06-01 18:55:07.000000000 +0200
+***************
+*** 5576,5582 ****
+  		limit = OPERAND_MIN(rp->rs_scan);
+  		if (REG_MULTI)
+  		{
+! 		    if (rp->rs_un.regsave.rs_u.pos.col == 0)
+  		    {
+  			if (rp->rs_un.regsave.rs_u.pos.lnum
+  					< behind_pos.rs_u.pos.lnum
+--- 5576,5589 ----
+  		limit = OPERAND_MIN(rp->rs_scan);
+  		if (REG_MULTI)
+  		{
+! 		    if (limit > 0
+! 			    && ((rp->rs_un.regsave.rs_u.pos.lnum
+! 						    < behind_pos.rs_u.pos.lnum
+! 				    ? (colnr_T)STRLEN(regline)
+! 				    : behind_pos.rs_u.pos.col)
+! 				- rp->rs_un.regsave.rs_u.pos.col >= limit))
+! 			no = FAIL;
+! 		    else if (rp->rs_un.regsave.rs_u.pos.col == 0)
+  		    {
+  			if (rp->rs_un.regsave.rs_u.pos.lnum
+  					< behind_pos.rs_u.pos.lnum
+***************
+*** 5601,5613 ****
+  			else
+  #endif
+  			    --rp->rs_un.regsave.rs_u.pos.col;
+- 			if (limit > 0
+- 				&& ((rp->rs_un.regsave.rs_u.pos.lnum
+- 						    < behind_pos.rs_u.pos.lnum
+- 					? (colnr_T)STRLEN(regline)
+- 					: behind_pos.rs_u.pos.col)
+- 				    - rp->rs_un.regsave.rs_u.pos.col > limit))
+- 			    no = FAIL;
+  		    }
+  		}
+  		else
+--- 5608,5613 ----
+*** ../vim-7.3.1087/src/regexp_nfa.c	2013-06-01 14:42:51.000000000 +0200
+--- src/regexp_nfa.c	2013-06-01 19:42:22.000000000 +0200
+***************
+*** 56,61 ****
+--- 56,62 ----
+      NFA_NOPEN,			    /* Start of subexpression marked with \%( */
+      NFA_NCLOSE,			    /* End of subexpr. marked with \%( ... \) */
+      NFA_START_INVISIBLE,
++     NFA_START_INVISIBLE_BEFORE,
+      NFA_END_INVISIBLE,
+      NFA_COMPOSING,		    /* Next nodes in NFA are part of the
+  				       composing multibyte char */
+***************
+*** 1369,1402 ****
+  	    break;
+  
+  	case Magic('@'):
+  	    op = no_Magic(getchr());
+  	    switch(op)
+  	    {
+  		case '=':
+! 		    EMIT(NFA_PREV_ATOM_NO_WIDTH);
+  		    break;
+  		case '!':
+! 		    EMIT(NFA_PREV_ATOM_NO_WIDTH_NEG);
+  		    break;
+- 		case '0':
+- 		case '1':
+- 		case '2':
+- 		case '3':
+- 		case '4':
+- 		case '5':
+- 		case '6':
+- 		case '7':
+- 		case '8':
+- 		case '9':
+  		case '<':
+  		case '>':
+! 		    /* Not supported yet */
+! 		    return FAIL;
+! 		default:
+! 		    syntax_error = TRUE;
+! 		    EMSGN(_("E869: (NFA) Unknown operator '\\@%c'"), op);
+  		    return FAIL;
+  	    }
+  	    break;
+  
+  	case Magic('?'):
+--- 1370,1412 ----
+  	    break;
+  
+  	case Magic('@'):
++ 	    c2 = getdecchrs();
+  	    op = no_Magic(getchr());
++ 	    i = 0;
+  	    switch(op)
+  	    {
+  		case '=':
+! 		    /* \@= */
+! 		    i = NFA_PREV_ATOM_NO_WIDTH;
+  		    break;
+  		case '!':
+! 		    /* \@! */
+! 		    i = NFA_PREV_ATOM_NO_WIDTH_NEG;
+  		    break;
+  		case '<':
++ 		    op = no_Magic(getchr());
++ 		    if (op == '=')
++ 			/* \@<= */
++ 			i = NFA_PREV_ATOM_JUST_BEFORE;
++ 		    else if (op == '!')
++ 			/* \@<! */
++ 			i = NFA_PREV_ATOM_JUST_BEFORE_NEG;
++ 		    break;
+  		case '>':
+! 		    /* \@> Not supported yet */
+! 		    /* i = NFA_PREV_ATOM_LIKE_PATTERN; */
+  		    return FAIL;
+  	    }
++ 	    if (i == 0)
++ 	    {
++ 		syntax_error = TRUE;
++ 		EMSGN(_("E869: (NFA) Unknown operator '\\@%c'"), op);
++ 		return FAIL;
++ 	    }
++ 	    EMIT(i);
++ 	    if (i == NFA_PREV_ATOM_JUST_BEFORE
++ 					|| i == NFA_PREV_ATOM_JUST_BEFORE_NEG)
++ 		EMIT(c2);
+  	    break;
+  
+  	case Magic('?'):
+***************
+*** 1734,1742 ****
+--- 1744,1758 ----
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
+  	case NFA_PREV_ATOM_NO_WIDTH_NEG:
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH_NEG"); break;
++ 	case NFA_PREV_ATOM_JUST_BEFORE:
++ 			    STRCPY(code, "NFA_PREV_ATOM_JUST_BEFORE"); break;
++ 	case NFA_PREV_ATOM_JUST_BEFORE_NEG:
++ 			 STRCPY(code, "NFA_PREV_ATOM_JUST_BEFORE_NEG"); break;
+  	case NFA_NOPEN:		    STRCPY(code, "NFA_NOPEN"); break;
+  	case NFA_NCLOSE:	    STRCPY(code, "NFA_NCLOSE"); break;
+  	case NFA_START_INVISIBLE:   STRCPY(code, "NFA_START_INVISIBLE"); break;
++ 	case NFA_START_INVISIBLE_BEFORE:
++ 			    STRCPY(code, "NFA_START_INVISIBLE_BEFORE"); break;
+  	case NFA_END_INVISIBLE:	    STRCPY(code, "NFA_END_INVISIBLE"); break;
+  
+  	case NFA_COMPOSING:	    STRCPY(code, "NFA_COMPOSING"); break;
+***************
+*** 2237,2243 ****
+      if (nfa_calc_size == FALSE)
+      {
+  	/* Allocate space for the stack. Max states on the stack : nstate */
+! 	stack = (Frag_T *) lalloc((nstate + 1) * sizeof(Frag_T), TRUE);
+  	stackp = stack;
+  	stack_end = stack + (nstate + 1);
+      }
+--- 2253,2259 ----
+      if (nfa_calc_size == FALSE)
+      {
+  	/* Allocate space for the stack. Max states on the stack : nstate */
+! 	stack = (Frag_T *)lalloc((nstate + 1) * sizeof(Frag_T), TRUE);
+  	stackp = stack;
+  	stack_end = stack + (nstate + 1);
+      }
+***************
+*** 2370,2377 ****
+--- 2386,2397 ----
+  
+  	case NFA_PREV_ATOM_NO_WIDTH:
+  	case NFA_PREV_ATOM_NO_WIDTH_NEG:
++ 	case NFA_PREV_ATOM_JUST_BEFORE:
++ 	case NFA_PREV_ATOM_JUST_BEFORE_NEG:
+  	    /* The \@= operator: match the preceding atom with zero width.
+  	     * The \@! operator: no match for the preceding atom.
++ 	     * The \@<= operator: match for the preceding atom.
++ 	     * The \@<! operator: no match for the preceding atom.
+  	     * Surrounds the preceding atom with START_INVISIBLE and
+  	     * END_INVISIBLE, similarly to MOPEN. */
+  
+***************
+*** 2389,2399 ****
+  	    s = new_state(NFA_START_INVISIBLE, e.start, s1);
+  	    if (s == NULL)
+  		goto theend;
+! 	    if (*p == NFA_PREV_ATOM_NO_WIDTH_NEG)
+  	    {
+  		s->negated = TRUE;
+  		s1->negated = TRUE;
+  	    }
+  
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+--- 2409,2426 ----
+  	    s = new_state(NFA_START_INVISIBLE, e.start, s1);
+  	    if (s == NULL)
+  		goto theend;
+! 	    if (*p == NFA_PREV_ATOM_NO_WIDTH_NEG
+! 				       || *p == NFA_PREV_ATOM_JUST_BEFORE_NEG)
+  	    {
+  		s->negated = TRUE;
+  		s1->negated = TRUE;
+  	    }
++ 	    if (*p == NFA_PREV_ATOM_JUST_BEFORE
++ 				       || *p == NFA_PREV_ATOM_JUST_BEFORE_NEG)
++ 	    {
++ 		s->val = *++p; /* get the count */
++ 		++s->c; /* NFA_START_INVISIBLE -> NFA_START_INVISIBLE_BEFORE */
++ 	    }
+  
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+***************
+*** 3307,3327 ****
+      return val == pos;
+  }
+  
+! static int nfa_regmatch __ARGS((nfa_state_T *start, regsub_T *submatch, regsub_T *m));
+  
+  /*
+   * Main matching routine.
+   *
+   * Run NFA to determine whether it matches reginput.
+   *
+   * Return TRUE if there is a match, FALSE otherwise.
+   * Note: Caller must ensure that: start != NULL.
+   */
+      static int
+! nfa_regmatch(start, submatch, m)
+      nfa_state_T		*start;
+      regsub_T		*submatch;
+      regsub_T		*m;
+  {
+      int		result;
+      int		size = 0;
+--- 3334,3357 ----
+      return val == pos;
+  }
+  
+! static int nfa_regmatch __ARGS((nfa_state_T *start, regsub_T *submatch, regsub_T *m, save_se_T *endp));
+  
+  /*
+   * Main matching routine.
+   *
+   * Run NFA to determine whether it matches reginput.
+   *
++  * When "endp" is not NULL it is a required end-of-match position.
++  *
+   * Return TRUE if there is a match, FALSE otherwise.
+   * Note: Caller must ensure that: start != NULL.
+   */
+      static int
+! nfa_regmatch(start, submatch, m, endp)
+      nfa_state_T		*start;
+      regsub_T		*submatch;
+      regsub_T		*m;
++     save_se_T		*endp;
+  {
+      int		result;
+      int		size = 0;
+***************
+*** 3532,3547 ****
+  	      }
+  
+  	    case NFA_END_INVISIBLE:
+! 		/* This is only encountered after a NFA_START_INVISIBLE node.
+! 		 * They surround a zero-width group, used with "\@=" and "\&".
+  		 * If we got here, it means that the current "invisible" group
+  		 * finished successfully, so return control to the parent
+  		 * nfa_regmatch().  Submatches are stored in *m, and used in
+  		 * the parent call. */
+  		if (start->c == NFA_MOPEN + 0)
+  		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		else
+  		{
+  		    /* do not set submatches for \@! */
+  		    if (!t->state->negated)
+  			/* TODO: only copy positions in use. */
+--- 3562,3603 ----
+  	      }
+  
+  	    case NFA_END_INVISIBLE:
+! 		/* This is only encountered after a NFA_START_INVISIBLE or
+! 		 * NFA_START_INVISIBLE_BEFORE node.
+! 		 * They surround a zero-width group, used with "\@=", "\&",
+! 		 * "\@!", "\@<=" and "\@<!".
+  		 * If we got here, it means that the current "invisible" group
+  		 * finished successfully, so return control to the parent
+  		 * nfa_regmatch().  Submatches are stored in *m, and used in
+  		 * the parent call. */
+  		if (start->c == NFA_MOPEN + 0)
++ 		    /* TODO: do we ever get here? */
+  		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
+  		else
+  		{
++ #ifdef ENABLE_LOG
++ 		    if (endp != NULL)
++ 		    {
++ 			if (REG_MULTI)
++ 			    fprintf(log_fd, "Current lnum: %d, endp lnum: %d; current col: %d, endp col: %d\n",
++ 				    (int)reglnum,
++ 				    (int)endp->se_u.pos.lnum,
++ 				    (int)(reginput - regline),
++ 				    endp->se_u.pos.col);
++ 			else
++ 			    fprintf(log_fd, "Current col: %d, endp col: %d\n",
++ 				    (int)(reginput - regline),
++ 				    (int)(endp->se_u.ptr - reginput));
++ 		    }
++ #endif
++ 		    /* It's only a match if it ends at "endp" */
++ 		    if (endp != NULL && (REG_MULTI
++ 			    ? (reglnum != endp->se_u.pos.lnum
++ 				|| (int)(reginput - regline)
++ 							!= endp->se_u.pos.col)
++ 			    : reginput != endp->se_u.ptr))
++ 			break;
++ 
+  		    /* do not set submatches for \@! */
+  		    if (!t->state->negated)
+  			/* TODO: only copy positions in use. */
+***************
+*** 3551,3561 ****
+  		break;
+  
+  	    case NFA_START_INVISIBLE:
+  	      {
+! 		char_u	*save_reginput = reginput;
+! 		char_u	*save_regline = regline;
+! 		int	save_reglnum = reglnum;
+! 		int	save_nfa_match = nfa_match;
+  
+  		/* Call nfa_regmatch() to check if the current concat matches
+  		 * at this position. The concat ends with the node
+--- 3607,3676 ----
+  		break;
+  
+  	    case NFA_START_INVISIBLE:
++ 	    case NFA_START_INVISIBLE_BEFORE:
+  	      {
+! 		char_u	    *save_reginput = reginput;
+! 		char_u	    *save_regline = regline;
+! 		int	    save_reglnum = reglnum;
+! 		int	    save_nfa_match = nfa_match;
+! 		save_se_T   endpos;
+! 		save_se_T   *endposp = NULL;
+! 
+! 		if (t->state->c == NFA_START_INVISIBLE_BEFORE)
+! 		{
+! 		    /* The recursive match must end at the current position. */
+! 		    endposp = &endpos;
+! 		    if (REG_MULTI)
+! 		    {
+! 			endpos.se_u.pos.col = (int)(reginput - regline);
+! 			endpos.se_u.pos.lnum = reglnum;
+! 		    }
+! 		    else
+! 			endpos.se_u.ptr = reginput;
+! 
+! 		    /* Go back the specified number of bytes, or as far as the
+! 		     * start of the previous line, to try matching "\@<=" or
+! 		     * not matching "\@<!". */
+! 		    if (t->state->val <= 0)
+! 		    {
+! 			if (REG_MULTI)
+! 			{
+! 			    regline = reg_getline(--reglnum);
+! 			    if (regline == NULL)
+! 				/* can't go before the first line */
+! 				regline = reg_getline(++reglnum);
+! 			}
+! 			reginput = regline;
+! 		    }
+! 		    else
+! 		    {
+! 			if (REG_MULTI
+! 				&& (int)(reginput - regline) < t->state->val)
+! 			{
+! 			    /* Not enough bytes in this line, go to end of
+! 			     * previous line. */
+! 			    regline = reg_getline(--reglnum);
+! 			    if (regline == NULL)
+! 			    {
+! 				/* can't go before the first line */
+! 				regline = reg_getline(++reglnum);
+! 				reginput = regline;
+! 			    }
+! 			    else
+! 				reginput = regline + STRLEN(regline);
+! 			}
+! 			if ((int)(reginput - regline) >= t->state->val)
+! 			{
+! 			    reginput -= t->state->val;
+! #ifdef FEAT_MBYTE
+! 			    if (has_mbyte)
+! 				reginput -= mb_head_off(regline, reginput);
+! #endif
+! 			}
+! 			else
+! 			    reginput = regline;
+! 		    }
+! 		}
+  
+  		/* Call nfa_regmatch() to check if the current concat matches
+  		 * at this position. The concat ends with the node
+***************
+*** 3579,3585 ****
+  		 * recursion. */
+  		nfa_save_listids(start, listids);
+  		nfa_set_null_listids(start);
+! 		result = nfa_regmatch(t->state->out, submatch, m);
+  		nfa_set_neg_listids(start);
+  		nfa_restore_listids(start, listids);
+  
+--- 3694,3700 ----
+  		 * recursion. */
+  		nfa_save_listids(start, listids);
+  		nfa_set_null_listids(start);
+! 		result = nfa_regmatch(t->state->out, submatch, m, endposp);
+  		nfa_set_neg_listids(start);
+  		nfa_restore_listids(start, listids);
+  
+***************
+*** 4120,4130 ****
+  	 * matters!
+  	 * Do not add the start state in recursive calls of nfa_regmatch(),
+  	 * because recursive calls should only start in the first position.
+  	 * Also don't start a match past the first line. */
+! 	if (nfa_match == FALSE && start->c == NFA_MOPEN + 0
+! 		&& reglnum == 0 && clen != 0
+! 		&& (ireg_maxcol == 0
+! 			      || (colnr_T)(reginput - regline) < ireg_maxcol))
+  	{
+  #ifdef ENABLE_LOG
+  	    fprintf(log_fd, "(---) STARTSTATE\n");
+--- 4235,4255 ----
+  	 * matters!
+  	 * Do not add the start state in recursive calls of nfa_regmatch(),
+  	 * because recursive calls should only start in the first position.
++ 	 * Unless "endp" is not NULL, then we match the end position.
+  	 * Also don't start a match past the first line. */
+! 	if (nfa_match == FALSE
+! 		&& ((start->c == NFA_MOPEN + 0
+! 			&& reglnum == 0
+! 			&& clen != 0
+! 			&& (ireg_maxcol == 0
+! 			    || (colnr_T)(reginput - regline) < ireg_maxcol))
+! 		    || (endp != NULL
+! 			&& (REG_MULTI
+! 			    ? (reglnum < endp->se_u.pos.lnum
+! 			       || (reglnum == endp->se_u.pos.lnum
+! 			           && (int)(reginput - regline)
+! 						       < endp->se_u.pos.col))
+! 			    : reginput < endp->se_u.ptr))))
+  	{
+  #ifdef ENABLE_LOG
+  	    fprintf(log_fd, "(---) STARTSTATE\n");
+***************
+*** 4148,4154 ****
+  	 * finish. */
+  	if (clen != 0)
+  	    reginput += clen;
+! 	else if (go_to_nextline)
+  	    reg_nextline();
+  	else
+  	    break;
+--- 4273,4280 ----
+  	 * finish. */
+  	if (clen != 0)
+  	    reginput += clen;
+! 	else if (go_to_nextline || (endp != NULL && REG_MULTI
+! 					    && reglnum < endp->se_u.pos.lnum))
+  	    reg_nextline();
+  	else
+  	    break;
+***************
+*** 4225,4231 ****
+      sub.in_use = 0;
+      m.in_use = 0;
+  
+!     if (nfa_regmatch(start, &sub, &m) == FALSE)
+  	return 0;
+  
+      cleanup_subexpr();
+--- 4351,4357 ----
+      sub.in_use = 0;
+      m.in_use = 0;
+  
+!     if (nfa_regmatch(start, &sub, &m, NULL) == FALSE)
+  	return 0;
+  
+      cleanup_subexpr();
+*** ../vim-7.3.1087/src/testdir/test64.in	2013-06-01 14:42:51.000000000 +0200
+--- src/testdir/test64.in	2013-06-01 18:45:09.000000000 +0200
+***************
+*** 363,374 ****
+  :call add(tl, [2, '\(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9', 'xabcddefghiabcddefghix', 'abcddefghiabcddefghi', 'a', 'b', 'c', 'dd', 'e', 'f', 'g', 'h', 'i'])
+  :"
+  :"""" Look-behind with limit
+! :call add(tl, [0, '<\@<=span.', 'xxspanxx<spanyyy', 'spany'])
+! :call add(tl, [0, '<\@1<=span.', 'xxspanxx<spanyyy', 'spany'])
+! :call add(tl, [0, '<\@2<=span.', 'xxspanxx<spanyyy', 'spany'])
+! :call add(tl, [0, '\(<<\)\@<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+! :call add(tl, [0, '\(<<\)\@1<=span.', 'xxspanxxxx<spanxx<<spanyyy'])
+! :call add(tl, [0, '\(<<\)\@2<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+  :"
+  :"""" "\_" prepended negated collection matches EOL
+  :call add(tl, [2, '\_[^8-9]\+', "asfi\n9888", "asfi\n"])
+--- 363,375 ----
+  :call add(tl, [2, '\(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9', 'xabcddefghiabcddefghix', 'abcddefghiabcddefghi', 'a', 'b', 'c', 'dd', 'e', 'f', 'g', 'h', 'i'])
+  :"
+  :"""" Look-behind with limit
+! :call add(tl, [2, '<\@<=span.', 'xxspanxx<spanyyy', 'spany'])
+! :call add(tl, [2, '<\@1<=span.', 'xxspanxx<spanyyy', 'spany'])
+! :call add(tl, [2, '<\@2<=span.', 'xxspanxx<spanyyy', 'spany'])
+! :call add(tl, [2, '\(<<\)\@<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+! :call add(tl, [2, '\(<<\)\@1<=span.', 'xxspanxxxx<spanxx<<spanyyy'])
+! :call add(tl, [2, '\(<<\)\@2<=span.', 'xxspanxxxx<spanxx<<spanyyy', 'spany', '<<'])
+! :call add(tl, [2, '\(foo\)\@<!bar.', 'xx foobar1 xbar2 xx', 'bar2'])
+  :"
+  :"""" "\_" prepended negated collection matches EOL
+  :call add(tl, [2, '\_[^8-9]\+', "asfi\n9888", "asfi\n"])
+***************
+*** 514,521 ****
+  asdfasd<yyy
+  xxstart1
+  asdfasd<yy
+! xxxxstart2
+  asdfasd<yy
+! xxxstart3
+  
+  Results of test64:
+--- 515,522 ----
+  asdfasd<yyy
+  xxstart1
+  asdfasd<yy
+! xxxstart2
+  asdfasd<yy
+! xxstart3
+  
+  Results of test64:
+*** ../vim-7.3.1087/src/testdir/test64.ok	2013-06-01 14:42:51.000000000 +0200
+--- src/testdir/test64.ok	2013-06-01 18:55:43.000000000 +0200
+***************
+*** 817,832 ****
+--- 817,841 ----
+  OK 2 - \(a\)\(b\)\(c\)\(dd\)\(e\)\(f\)\(g\)\(h\)\(i\)\1\2\3\4\5\6\7\8\9
+  OK 0 - <\@<=span.
+  OK 1 - <\@<=span.
++ OK 2 - <\@<=span.
+  OK 0 - <\@1<=span.
+  OK 1 - <\@1<=span.
++ OK 2 - <\@1<=span.
+  OK 0 - <\@2<=span.
+  OK 1 - <\@2<=span.
++ OK 2 - <\@2<=span.
+  OK 0 - \(<<\)\@<=span.
+  OK 1 - \(<<\)\@<=span.
++ OK 2 - \(<<\)\@<=span.
+  OK 0 - \(<<\)\@1<=span.
+  OK 1 - \(<<\)\@1<=span.
++ OK 2 - \(<<\)\@1<=span.
+  OK 0 - \(<<\)\@2<=span.
+  OK 1 - \(<<\)\@2<=span.
++ OK 2 - \(<<\)\@2<=span.
++ OK 0 - \(foo\)\@<!bar.
++ OK 1 - \(foo\)\@<!bar.
++ OK 2 - \(foo\)\@<!bar.
+  OK 0 - \_[^8-9]\+
+  OK 1 - \_[^8-9]\+
+  OK 2 - \_[^8-9]\+
+***************
+*** 844,850 ****
+  <T="7">Ac 7</Title>
+  ghi
+  
+! xxxstart3
+  -0-
+  ffo
+  bob
+--- 853,859 ----
+  <T="7">Ac 7</Title>
+  ghi
+  
+! xxstart3
+  -0-
+  ffo
+  bob
+*** ../vim-7.3.1087/src/version.c	2013-06-01 14:42:51.000000000 +0200
+--- src/version.c	2013-06-01 18:37:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1088,
+  /**/
+
+-- 
+Seen it all, done it all, can't remember most of it.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

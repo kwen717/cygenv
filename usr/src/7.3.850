@@ -1,0 +1,82 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.850
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.850
+Problem:    ":vimgrep //" matches everywhere.
+Solution:   Make it use the previous search pattern. (David Bürgin)
+Files:	    runtime/doc/quickfix.txt, src/quickfix.c
+
+
+*** ../vim-7.3.849/runtime/doc/quickfix.txt	2010-08-15 21:57:19.000000000 +0200
+--- runtime/doc/quickfix.txt	2013-03-07 16:17:39.000000000 +0100
+***************
+*** 563,568 ****
+--- 574,581 ----
+  			'ignorecase' applies.  To overrule it put |/\c| in the
+  			pattern to ignore case or |/\C| to match case.
+  			'smartcase' is not used.
++ 			If {pattern} is empty (e.g. // is specified), the last
++ 			used search pattern is used. |last-pattern|
+  
+  			When a number is put before the command this is used
+  			as the maximum number of matches to find.  Use
+*** ../vim-7.3.849/src/quickfix.c	2012-12-12 15:55:16.000000000 +0100
+--- src/quickfix.c	2013-03-07 16:21:17.000000000 +0100
+***************
+*** 3179,3185 ****
+  	EMSG(_(e_invalpat));
+  	goto theend;
+      }
+!     regmatch.regprog = vim_regcomp(s, RE_MAGIC);
+      if (regmatch.regprog == NULL)
+  	goto theend;
+      regmatch.rmm_ic = p_ic;
+--- 3179,3198 ----
+  	EMSG(_(e_invalpat));
+  	goto theend;
+      }
+! 
+!     if (s != NULL && *s == NUL)
+!     {
+! 	/* Pattern is empty, use last search pattern. */
+! 	if (last_search_pat() == NULL)
+! 	{
+! 	    EMSG(_(e_noprevre));
+! 	    goto theend;
+! 	}
+! 	regmatch.regprog = vim_regcomp(last_search_pat(), RE_MAGIC);
+!     }
+!     else
+! 	regmatch.regprog = vim_regcomp(s, RE_MAGIC);
+! 
+      if (regmatch.regprog == NULL)
+  	goto theend;
+      regmatch.rmm_ic = p_ic;
+*** ../vim-7.3.849/src/version.c	2013-03-07 16:08:31.000000000 +0100
+--- src/version.c	2013-03-07 16:16:26.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     850,
+  /**/
+
+-- 
+The technology involved in making anything invisible is so infinitely
+complex that nine hundred and ninety-nine billion, nine hundred and
+ninety-nine million, nine hundred and ninety-nine thousand, nine hundred
+and ninety-nine times out of a trillion it is much simpler and more
+effective just to take the thing away and do without it.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

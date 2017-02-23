@@ -1,0 +1,279 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.867
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.867
+Problem:    Matchparen does not update match when using auto-indenting.
+	    (Marc Aldorasi)
+Solution:   Add the TextChanged and TextChangedI autocommand events.
+Files:	    runtime/plugin/matchparen.vim, src/main.c, src/edit.c,
+	    src/globals.h, src/vim.h, src/fileio.c, src/proto/fileio.pro,
+	    runtime/doc/autocmd.txt
+
+
+*** ../vim-7.3.866/runtime/plugin/matchparen.vim	2010-08-15 21:57:19.000000000 +0200
+--- runtime/plugin/matchparen.vim	2013-03-19 13:16:46.000000000 +0100
+***************
+*** 1,6 ****
+  " Vim plugin for showing matching parens
+  " Maintainer:  Bram Moolenaar <Bram@vim.org>
+! " Last Change: 2008 Sep 03
+  
+  " Exit quickly when:
+  " - this plugin was already loaded (or disabled)
+--- 1,6 ----
+  " Vim plugin for showing matching parens
+  " Maintainer:  Bram Moolenaar <Bram@vim.org>
+! " Last Change: 2013 Mar 19
+  
+  " Exit quickly when:
+  " - this plugin was already loaded (or disabled)
+***************
+*** 14,19 ****
+--- 14,22 ----
+  augroup matchparen
+    " Replace all matchparen autocommands
+    autocmd! CursorMoved,CursorMovedI,WinEnter * call s:Highlight_Matching_Pair()
++   if exists('##TextChanged')
++     autocmd! TextChanged,TextChangedI * call s:Highlight_Matching_Pair()
++   endif
+  augroup END
+  
+  " Skip the rest if it was already done.
+***************
+*** 82,89 ****
+    endif
+  
+    " When not in a string or comment ignore matches inside them.
+    let s_skip ='synIDattr(synID(line("."), col("."), 0), "name") ' .
+! 	\ '=~?  "string\\|character\\|singlequote\\|comment"'
+    execute 'if' s_skip '| let s_skip = 0 | endif'
+  
+    " Limit the search to lines visible in the window.
+--- 85,93 ----
+    endif
+  
+    " When not in a string or comment ignore matches inside them.
++   " We match "escape" for special items, such as lispEscapeSpecial.
+    let s_skip ='synIDattr(synID(line("."), col("."), 0), "name") ' .
+! 	\ '=~?  "string\\|character\\|singlequote\\|escape\\|comment"'
+    execute 'if' s_skip '| let s_skip = 0 | endif'
+  
+    " Limit the search to lines visible in the window.
+*** ../vim-7.3.866/src/main.c	2013-03-13 20:23:17.000000000 +0100
+--- src/main.c	2013-03-19 13:00:34.000000000 +0100
+***************
+*** 1168,1173 ****
+--- 1168,1186 ----
+  	    }
+  #endif
+  
++ #ifdef FEAT_AUTOCMD
++ 	    /* Trigger TextChanged if b_changedtick differs. */
++ 	    if (!finish_op && has_textchanged()
++ 		    && last_changedtick != curbuf->b_changedtick)
++ 	    {
++ 		if (last_changedtick_buf == curbuf)
++ 		    apply_autocmds(EVENT_TEXTCHANGED, NULL, NULL,
++ 							       FALSE, curbuf);
++ 		last_changedtick_buf = curbuf;
++ 		last_changedtick = curbuf->b_changedtick;
++ 	    }
++ #endif
++ 
+  #if defined(FEAT_DIFF) && defined(FEAT_SCROLLBIND)
+  	    /* Scroll-binding for diff mode may have been postponed until
+  	     * here.  Avoids doing it for every change. */
+*** ../vim-7.3.866/src/edit.c	2013-03-07 19:38:49.000000000 +0100
+--- src/edit.c	2013-03-19 13:08:46.000000000 +0100
+***************
+*** 1593,1598 ****
+--- 1593,1613 ----
+  	    last_cursormoved = curwin->w_cursor;
+  	}
+  #endif
++ #ifdef FEAT_AUTOCMD
++ 	/* Trigger TextChangedI if b_changedtick differs. */
++ 	if (!ready && has_textchangedI()
++ 		&& last_changedtick != curbuf->b_changedtick
++ # ifdef FEAT_INS_EXPAND
++ 		&& !pum_visible()
++ # endif
++ 		)
++ 	{
++ 	    if (last_changedtick_buf == curbuf)
++ 		apply_autocmds(EVENT_TEXTCHANGEDI, NULL, NULL, FALSE, curbuf);
++ 	    last_changedtick_buf = curbuf;
++ 	    last_changedtick = curbuf->b_changedtick;
++ 	}
++ #endif
+  	if (must_redraw)
+  	    update_screen(0);
+  	else if (clear_cmdline || redraw_cmdline)
+*** ../vim-7.3.866/src/globals.h	2013-02-26 14:56:24.000000000 +0100
+--- src/globals.h	2013-03-19 13:11:35.000000000 +0100
+***************
+*** 1057,1067 ****
+  EXTERN int	autocmd_bufnr INIT(= 0);     /* fnum for <abuf> on cmdline */
+  EXTERN char_u	*autocmd_match INIT(= NULL); /* name for <amatch> on cmdline */
+  EXTERN int	did_cursorhold INIT(= FALSE); /* set when CursorHold t'gerd */
+! EXTERN pos_T	last_cursormoved	    /* for CursorMoved event */
+  # ifdef DO_INIT
+  			= INIT_POS_T(0, 0, 0)
+  # endif
+  			;
+  #endif
+  
+  #ifdef FEAT_WINDOWS
+--- 1057,1069 ----
+  EXTERN int	autocmd_bufnr INIT(= 0);     /* fnum for <abuf> on cmdline */
+  EXTERN char_u	*autocmd_match INIT(= NULL); /* name for <amatch> on cmdline */
+  EXTERN int	did_cursorhold INIT(= FALSE); /* set when CursorHold t'gerd */
+! EXTERN pos_T	last_cursormoved	      /* for CursorMoved event */
+  # ifdef DO_INIT
+  			= INIT_POS_T(0, 0, 0)
+  # endif
+  			;
++ EXTERN int	last_changedtick INIT(= 0);   /* for TextChanged event */
++ EXTERN buf_T	*last_changedtick_buf INIT(= NULL);
+  #endif
+  
+  #ifdef FEAT_WINDOWS
+*** ../vim-7.3.866/src/vim.h	2013-02-26 14:56:24.000000000 +0100
+--- src/vim.h	2013-03-19 13:07:00.000000000 +0100
+***************
+*** 1300,1305 ****
+--- 1300,1307 ----
+      EVENT_TABENTER,		/* after entering a tab page */
+      EVENT_SHELLCMDPOST,		/* after ":!cmd" */
+      EVENT_SHELLFILTERPOST,	/* after ":1,2!cmd", ":w !cmd", ":r !cmd". */
++     EVENT_TEXTCHANGED,		/* text was modified */
++     EVENT_TEXTCHANGEDI,		/* text was modified in Insert mode*/
+      NUM_EVENTS			/* MUST be the last one */
+  };
+  
+*** ../vim-7.3.866/src/fileio.c	2013-01-30 14:13:52.000000000 +0100
+--- src/fileio.c	2013-03-19 13:08:31.000000000 +0100
+***************
+*** 7713,7718 ****
+--- 7713,7720 ----
+      {"TabLeave",	EVENT_TABLEAVE},
+      {"TermChanged",	EVENT_TERMCHANGED},
+      {"TermResponse",	EVENT_TERMRESPONSE},
++     {"TextChanged",	EVENT_TEXTCHANGED},
++     {"TextChangedI",	EVENT_TEXTCHANGEDI},
+      {"User",		EVENT_USER},
+      {"VimEnter",	EVENT_VIMENTER},
+      {"VimLeave",	EVENT_VIMLEAVE},
+***************
+*** 9138,9143 ****
+--- 9140,9163 ----
+  }
+  
+  /*
++  * Return TRUE when there is a TextChanged autocommand defined.
++  */
++     int
++ has_textchanged()
++ {
++     return (first_autopat[(int)EVENT_TEXTCHANGED] != NULL);
++ }
++ 
++ /*
++  * Return TRUE when there is a TextChangedI autocommand defined.
++  */
++     int
++ has_textchangedI()
++ {
++     return (first_autopat[(int)EVENT_TEXTCHANGEDI] != NULL);
++ }
++ 
++ /*
+   * Return TRUE when there is an InsertCharPre autocommand defined.
+   */
+      int
+*** ../vim-7.3.866/src/proto/fileio.pro	2012-12-05 19:13:11.000000000 +0100
+--- src/proto/fileio.pro	2013-03-19 13:10:13.000000000 +0100
+***************
+*** 44,49 ****
+--- 44,51 ----
+  int trigger_cursorhold __ARGS((void));
+  int has_cursormoved __ARGS((void));
+  int has_cursormovedI __ARGS((void));
++ int has_textchanged __ARGS((void));
++ int has_textchangedI __ARGS((void));
+  int has_insertcharpre __ARGS((void));
+  void block_autocmds __ARGS((void));
+  void unblock_autocmds __ARGS((void));
+*** ../vim-7.3.866/runtime/doc/autocmd.txt	2012-03-07 20:13:44.000000000 +0100
+--- runtime/doc/autocmd.txt	2013-03-19 13:22:37.000000000 +0100
+***************
+*** 805,817 ****
+  TermResponse			After the response to |t_RV| is received from
+  				the terminal.  The value of |v:termresponse|
+  				can be used to do things depending on the
+! 				terminal version.
+  							*User*
+  User				Never executed automatically.  To be used for
+  				autocommands that are only executed with
+  				":doautocmd".
+  							*UserGettingBored*
+! UserGettingBored		When the user hits CTRL-C.  Just kidding! :-)
+  							*VimEnter*
+  VimEnter			After doing all the startup stuff, including
+  				loading .vimrc files, executing the "-c cmd"
+--- 828,858 ----
+  TermResponse			After the response to |t_RV| is received from
+  				the terminal.  The value of |v:termresponse|
+  				can be used to do things depending on the
+! 				terminal version.  Note that this event may be
+! 				triggered halfway executing another event,
+! 				especially if file I/O, a shell command or
+! 				anything else that takes time is involved.
+! 							*TextChanged*
+! TextChanged			After a change was made to the text in the
+! 				current buffer in Normal mode.  That is when
+! 				|b:changedtick| has changed.
+! 				Not triggered when there is typeahead or when
+! 				an operator is pending.
+! 				Careful: This is triggered very often, don't
+! 				do anything that the user does not expect or
+! 				that is slow.
+! 							*TextChangedI*
+! TextChangedI			After a change was made to the text in the
+! 				current buffer in Insert mode.
+! 				Not triggered when the popup menu is visible.
+! 				Otherwise the same as TextChanged.
+  							*User*
+  User				Never executed automatically.  To be used for
+  				autocommands that are only executed with
+  				":doautocmd".
+  							*UserGettingBored*
+! UserGettingBored		When the user presses the same key 42 times.
+! 				Just kidding! :-)
+  							*VimEnter*
+  VimEnter			After doing all the startup stuff, including
+  				loading .vimrc files, executing the "-c cmd"
+*** ../vim-7.3.866/src/version.c	2013-03-19 12:35:33.000000000 +0100
+--- src/version.c	2013-03-19 13:29:58.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     867,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+73. You give your dog used motherboards instead of bones
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

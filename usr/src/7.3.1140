@@ -1,0 +1,192 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1140
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1140
+Problem:    New regexp engine: trying expensive match while the result is not
+	    going to be used.
+Solution:   Check for output state already being in the state list.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1139/src/regexp_nfa.c	2013-06-07 16:31:44.000000000 +0200
+--- src/regexp_nfa.c	2013-06-07 17:16:31.000000000 +0200
+***************
+*** 3156,3161 ****
+--- 3156,3163 ----
+  static void copy_sub __ARGS((regsub_T *to, regsub_T *from));
+  static void copy_sub_off __ARGS((regsub_T *to, regsub_T *from));
+  static int sub_equal __ARGS((regsub_T *sub1, regsub_T *sub2));
++ static int has_state_with_pos __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
++ static int state_in_list __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs));
+  static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, int off));
+  static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsubs_T *subs, nfa_pim_T *pim, int *ip));
+  
+***************
+*** 3319,3324 ****
+--- 3321,3371 ----
+  }
+  #endif
+  
++ /*
++  * Return TRUE if the same state is already in list "l" with the same
++  * positions as "subs".
++  */
++     static int
++ has_state_with_pos(l, state, subs)
++     nfa_list_T		*l;	/* runtime state list */
++     nfa_state_T		*state;	/* state to update */
++     regsubs_T		*subs;	/* pointers to subexpressions */
++ {
++     nfa_thread_T	*thread;
++     int			i;
++ 
++     for (i = 0; i < l->n; ++i)
++     {
++ 	thread = &l->t[i];
++ 	if (thread->state->id == state->id
++ 		&& sub_equal(&thread->subs.norm, &subs->norm)
++ #ifdef FEAT_SYN_HL
++ 		&& (!nfa_has_zsubexpr ||
++ 		       sub_equal(&thread->subs.synt, &subs->synt))
++ #endif
++ 			      )
++ 	    return TRUE;
++     }
++     return FALSE;
++ }
++ 
++ /*
++  * Return TRUE if "state" is already in list "l".
++  */
++     static int
++ state_in_list(l, state, subs)
++     nfa_list_T		*l;	/* runtime state list */
++     nfa_state_T		*state;	/* state to update */
++     regsubs_T		*subs;	/* pointers to subexpressions */
++ {
++     if (state->lastlist[nfa_ll_index] == l->id)
++     {
++ 	if (!nfa_has_backref || has_state_with_pos(l, state, subs))
++ 	    return TRUE;
++     }
++     return FALSE;
++ }
++ 
+      static void
+  addstate(l, state, subs, off)
+      nfa_list_T		*l;	/* runtime state list */
+***************
+*** 3431,3450 ****
+  		    return;
+  		}
+  
+! 		/* See if the same state is already in the list with the same
+! 		 * positions. */
+! 		for (i = 0; i < l->n; ++i)
+! 		{
+! 		    thread = &l->t[i];
+! 		    if (thread->state->id == state->id
+! 			    && sub_equal(&thread->subs.norm, &subs->norm)
+! #ifdef FEAT_SYN_HL
+! 			    && (!nfa_has_zsubexpr ||
+! 				   sub_equal(&thread->subs.synt, &subs->synt))
+! #endif
+! 					  )
+! 			goto skip_add;
+! 		}
+  	    }
+  
+  	    /* when there are backreferences or look-behind matches the number
+--- 3478,3485 ----
+  		    return;
+  		}
+  
+! 		if (has_state_with_pos(l, state, subs))
+! 		    goto skip_add;
+  	    }
+  
+  	    /* when there are backreferences or look-behind matches the number
+***************
+*** 4600,4605 ****
+--- 4635,4681 ----
+  		break;
+  
+  	    case NFA_START_PATTERN:
++ 	      {
++ 		nfa_state_T *skip = NULL;
++ #ifdef ENABLE_LOG
++ 		int	    skip_lid = 0;
++ #endif
++ 
++ 		/* There is no point in trying to match the pattern if the
++ 		 * output state is not going to be added to the list. */
++ 		if (state_in_list(nextlist, t->state->out1->out, &t->subs))
++ 		{
++ 		    skip = t->state->out1->out;
++ #ifdef ENABLE_LOG
++ 		    skip_lid = nextlist->id;
++ #endif
++ 		}
++ 		else if (state_in_list(nextlist,
++ 					  t->state->out1->out->out, &t->subs))
++ 		{
++ 		    skip = t->state->out1->out->out;
++ #ifdef ENABLE_LOG
++ 		    skip_lid = nextlist->id;
++ #endif
++ 		}
++ 		else if(state_in_list(thislist,
++ 					  t->state->out1->out->out, &t->subs))
++ 		{
++ 		    skip = t->state->out1->out->out;
++ #ifdef ENABLE_LOG
++ 		    skip_lid = thislist->id;
++ #endif
++ 		}
++ 		if (skip != NULL)
++ 		{
++ #ifdef ENABLE_LOG
++ 		    nfa_set_code(skip->c);
++ 		    fprintf(log_fd, "> Not trying to match pattern, output state %d is already in list %d. char %d: %s\n",
++ 			    abs(skip->id), skip_lid, skip->c, code);
++ #endif
++ 		    break;
++ 		}
++ 
+  		/* First try matching the pattern. */
+  		result = recursive_regmatch(t->state, prog,
+  						       submatch, m, &listids);
+***************
+*** 4654,4659 ****
+--- 4730,4736 ----
+  		    }
+  		}
+  		break;
++ 	      }
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+*** ../vim-7.3.1139/src/version.c	2013-06-07 16:31:45.000000000 +0200
+--- src/version.c	2013-06-07 17:30:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1140,
+  /**/
+
+-- 
+From "know your smileys":
+ :-*	A big kiss!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

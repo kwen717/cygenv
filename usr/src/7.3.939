@@ -1,0 +1,60 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.939
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.939
+Problem:    Using Py_BuildValue is inefficient sometimes.
+Solution:   Use PyLong_FromLong(). (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.938/src/if_py_both.h	2013-05-12 19:00:36.000000000 +0200
+--- src/if_py_both.h	2013-05-12 19:08:24.000000000 +0200
+***************
+*** 1838,1847 ****
+  	return Py_BuildValue("(ll)", (long)(pos->lnum), (long)(pos->col));
+      }
+      else if (strcmp(name, "height") == 0)
+! 	return Py_BuildValue("l", (long)(this->win->w_height));
+  #ifdef FEAT_VERTSPLIT
+      else if (strcmp(name, "width") == 0)
+! 	return Py_BuildValue("l", (long)(W_WIDTH(this->win)));
+  #endif
+      else if (strcmp(name, "vars") == 0)
+  	return DictionaryNew(this->win->w_vars);
+--- 1838,1847 ----
+  	return Py_BuildValue("(ll)", (long)(pos->lnum), (long)(pos->col));
+      }
+      else if (strcmp(name, "height") == 0)
+! 	return PyLong_FromLong((long)(this->win->w_height));
+  #ifdef FEAT_VERTSPLIT
+      else if (strcmp(name, "width") == 0)
+! 	return PyLong_FromLong((long)(W_WIDTH(this->win)));
+  #endif
+      else if (strcmp(name, "vars") == 0)
+  	return DictionaryNew(this->win->w_vars);
+*** ../vim-7.3.938/src/version.c	2013-05-12 19:00:36.000000000 +0200
+--- src/version.c	2013-05-12 19:09:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     939,
+  /**/
+
+-- 
+A mathematician is a device for turning coffee into theorems.
+					Paul Erdos
+A computer programmer is a device for turning coffee into bugs.
+					Bram Moolenaar
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

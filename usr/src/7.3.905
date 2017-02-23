@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.905
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.905 (after 7.3.903)
+Problem:    Crash when writing viminfo. (Ron Aaron)
+Solution:   Prevent freed history info to be used.
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.904/src/ex_getln.c	2013-04-15 16:14:15.000000000 +0200
+--- src/ex_getln.c	2013-04-15 22:12:33.000000000 +0200
+***************
+*** 6264,6269 ****
+--- 6264,6270 ----
+  	    vim_free(viminfo_history[type][i]);
+  	vim_free(viminfo_history[type]);
+  	viminfo_history[type] = NULL;
++ 	viminfo_hisidx[type] = 0;
+      }
+  }
+  #endif /* FEAT_VIMINFO */
+*** ../vim-7.3.904/src/version.c	2013-04-15 18:25:55.000000000 +0200
+--- src/version.c	2013-04-15 22:19:03.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     905,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+180. You maintain more than six e-mail addresses.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

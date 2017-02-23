@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1142
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1142
+Problem:    Memory leak in ":syntime report".
+Solution:   Clear the grow array. (Dominique Pelle)
+Files:	    src/syntax.c
+
+
+*** ../vim-7.3.1141/src/syntax.c	2013-06-06 21:19:40.000000000 +0200
+--- src/syntax.c	2013-06-07 19:35:24.000000000 +0200
+***************
+*** 6689,6694 ****
+--- 6689,6695 ----
+  	msg_outtrans_len(p->pattern, len);
+  	MSG_PUTS("\n");
+      }
++     ga_clear(&ga);
+      if (!got_int)
+      {
+  	MSG_PUTS("\n");
+*** ../vim-7.3.1141/src/version.c	2013-06-07 19:17:12.000000000 +0200
+--- src/version.c	2013-06-07 19:36:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1142,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+99. The hum of a cooling fan and the click of keys is comforting to you.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

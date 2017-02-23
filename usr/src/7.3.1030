@@ -1,0 +1,77 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1030
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1030 (after 7.3.1028)
+Problem:    Can't build for debugging.
+Solution:   Fix struct member names.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1029/src/regexp_nfa.c	2013-05-26 22:56:16.000000000 +0200
+--- src/regexp_nfa.c	2013-05-26 23:12:12.000000000 +0200
+***************
+*** 3164,3182 ****
+  			submatch->linelist[j].end = t->sub.linelist[j].end;
+  		    }
+  #ifdef ENABLE_LOG
+! 		for (j = 0; j < 4; j++)
+  		    if (REG_MULTI)
+  			fprintf(log_fd, "\n *** group %d, start: c=%d, l=%d, end: c=%d, l=%d",
+  				j,
+! 				t->sub.startpos[j].col,
+! 				(int)t->sub.startpos[j].lnum,
+! 				t->sub.endpos[j].col,
+! 				(int)t->sub.endpos[j].lnum);
+  		    else
+  			fprintf(log_fd, "\n *** group %d, start: \"%s\", end: \"%s\"",
+  				j,
+! 				(char *)t->sub.start[j],
+! 				(char *)t->sub.end[j]);
+  		fprintf(log_fd, "\n");
+  #endif
+  		/* Found the left-most longest match, do not look at any other
+--- 3164,3182 ----
+  			submatch->linelist[j].end = t->sub.linelist[j].end;
+  		    }
+  #ifdef ENABLE_LOG
+! 		for (j = 0; j < t->sub.in_use; j++)
+  		    if (REG_MULTI)
+  			fprintf(log_fd, "\n *** group %d, start: c=%d, l=%d, end: c=%d, l=%d",
+  				j,
+! 				t->sub.multilist[j].start.col,
+! 				(int)t->sub.multilist[j].start.lnum,
+! 				t->sub.multilist[j].end.col,
+! 				(int)t->sub.multilist[j].end.lnum);
+  		    else
+  			fprintf(log_fd, "\n *** group %d, start: \"%s\", end: \"%s\"",
+  				j,
+! 				(char *)t->sub.linelist[j].start,
+! 				(char *)t->sub.linelist[j].end);
+  		fprintf(log_fd, "\n");
+  #endif
+  		/* Found the left-most longest match, do not look at any other
+*** ../vim-7.3.1029/src/version.c	2013-05-26 22:56:16.000000000 +0200
+--- src/version.c	2013-05-26 23:11:27.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1030,
+  /**/
+
+-- 
+I think that you'll agree that engineers are very effective in their social
+interactions.  It's the "normal" people who are nuts.
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

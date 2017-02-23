@@ -1,0 +1,416 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1017
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1017
+Problem:    Zero width match changes length of match.
+Solution:   For a zero width match put new states in the current position in
+	    the state list.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok,
+	    src/regexp.h
+
+
+*** ../vim-7.3.1016/src/regexp_nfa.c	2013-05-25 15:31:02.000000000 +0200
+--- src/regexp_nfa.c	2013-05-25 20:18:25.000000000 +0200
+***************
+*** 2471,2494 ****
+   * NFA execution code.
+   ****************************************************************/
+  
+! /* thread_T contains runtime information of a NFA state */
+! struct thread
+  {
+      nfa_state_T	*state;
+!     regsub_T	sub;		/* submatch info */
+! };
+  
+  typedef struct
+  {
+!     thread_T	*t;
+!     int		n;
+! } List;
+  
+! static void addstate __ARGS((List *l, nfa_state_T *state, regsub_T *m, int off, int lid, int *match));
+  
+      static void
+  addstate(l, state, m, off, lid, match)
+!     List		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+      regsub_T		*m;	/* pointers to subexpressions */
+      int			off;	/* byte offset, when -1 go to next line */
+--- 2471,2497 ----
+   * NFA execution code.
+   ****************************************************************/
+  
+! /* nfa_thread_T contains runtime information of a NFA state */
+! typedef struct
+  {
+      nfa_state_T	*state;
+!     regsub_T	sub;		/* Submatch info. TODO: expensive! */
+! } nfa_thread_T;
+! 
+  
+  typedef struct
+  {
+!     nfa_thread_T    *t;
+!     int		    n;
+! } nfa_list_T;
+  
+! static void addstate __ARGS((nfa_list_T *l, nfa_state_T *state, regsub_T *m, int off, int lid, int *match));
+! 
+! static void addstate_here __ARGS((nfa_list_T *l, nfa_state_T *state, regsub_T *m, int lid, int *match, int *ip));
+  
+      static void
+  addstate(l, state, m, off, lid, match)
+!     nfa_list_T		*l;	/* runtime state list */
+      nfa_state_T		*state;	/* state to update */
+      regsub_T		*m;	/* pointers to subexpressions */
+      int			off;	/* byte offset, when -1 go to next line */
+***************
+*** 2497,2503 ****
+  {
+      regsub_T		save;
+      int			subidx = 0;
+!     thread_T		*lastthread;
+  
+      if (l == NULL || state == NULL)
+  	return;
+--- 2500,2506 ----
+  {
+      regsub_T		save;
+      int			subidx = 0;
+!     nfa_thread_T	*lastthread;
+  
+      if (l == NULL || state == NULL)
+  	return;
+***************
+*** 2533,2539 ****
+  		state->lastlist = lid;
+  		lastthread = &l->t[l->n++];
+  		lastthread->state = state;
+! 		lastthread->sub = *m;
+  	    }
+      }
+  
+--- 2536,2542 ----
+  		state->lastlist = lid;
+  		lastthread = &l->t[l->n++];
+  		lastthread->state = state;
+! 		lastthread->sub = *m; /* TODO: expensive! */
+  	    }
+      }
+  
+***************
+*** 2698,2703 ****
+--- 2701,2754 ----
+  }
+  
+  /*
++  * Like addstate(), but the new state(s) are put at position "*ip".
++  * Used for zero-width matches, next state to use is the added one.
++  * This makes sure the order of states to be tried does not change, which
++  * matters for alternatives.
++  */
++     static void
++ addstate_here(l, state, m, lid, matchp, ip)
++     nfa_list_T		*l;	/* runtime state list */
++     nfa_state_T		*state;	/* state to update */
++     regsub_T		*m;	/* pointers to subexpressions */
++     int			lid;
++     int			*matchp;	/* found match? */
++     int			*ip;
++ {
++     int tlen = l->n;
++     int count;
++     int i = *ip;
++ 
++     /* first add the state(s) at the end, so that we know how many there are */
++     addstate(l, state, m, 0, lid, matchp);
++ 
++     /* when "*ip" was at the end of the list, nothing to do */
++     if (i + 1 == tlen)
++ 	return;
++ 
++     /* re-order to put the new state at the current position */
++     count = l->n - tlen;
++     if (count > 1)
++     {
++ 	/* make space for new states, then move them from the
++ 	 * end to the current position */
++ 	mch_memmove(&(l->t[i + count]),
++ 		&(l->t[i + 1]),
++ 		sizeof(nfa_thread_T) * (l->n - i - 1));
++ 	mch_memmove(&(l->t[i]),
++ 		&(l->t[l->n - 1]),
++ 		sizeof(nfa_thread_T) * count);
++     }
++     else
++     {
++ 	/* overwrite the current state */
++ 	l->t[i] = l->t[l->n - 1];
++     }
++     --l->n;
++     *ip = i - 1;
++ }
++ 
++ /*
+   * Check character class "class" against current character c.
+   */
+      static int
+***************
+*** 2872,2888 ****
+      int		match = FALSE;
+      int		flag = 0;
+      int		old_reglnum = -1;
+!     int		go_to_nextline;
+!     thread_T	*t;
+      char_u	*old_reginput = NULL;
+      char_u	*old_regline = NULL;
+!     List	list[3];
+!     List	*listtbl[2][2];
+!     List	*ll;
+      int		listid = 1;
+!     List	*thislist;
+!     List	*nextlist;
+!     List	*neglist;
+      int		*listids = NULL;
+      int		j = 0;
+  #ifdef NFA_REGEXP_DEBUG_LOG
+--- 2923,2939 ----
+      int		match = FALSE;
+      int		flag = 0;
+      int		old_reglnum = -1;
+!     int		go_to_nextline = FALSE;
+!     nfa_thread_T *t;
+      char_u	*old_reginput = NULL;
+      char_u	*old_regline = NULL;
+!     nfa_list_T	list[3];
+!     nfa_list_T	*listtbl[2][2];
+!     nfa_list_T	*ll;
+      int		listid = 1;
+!     nfa_list_T	*thislist;
+!     nfa_list_T	*nextlist;
+!     nfa_list_T	*neglist;
+      int		*listids = NULL;
+      int		j = 0;
+  #ifdef NFA_REGEXP_DEBUG_LOG
+***************
+*** 2896,2905 ****
+  #endif
+  
+      /* Allocate memory for the lists of nodes */
+!     size = (nstate + 1) * sizeof(thread_T);
+!     list[0].t = (thread_T *)lalloc(size, TRUE);
+!     list[1].t = (thread_T *)lalloc(size, TRUE);
+!     list[2].t = (thread_T *)lalloc(size, TRUE);
+      if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
+  	goto theend;
+      vim_memset(list[0].t, 0, size);
+--- 2947,2956 ----
+  #endif
+  
+      /* Allocate memory for the lists of nodes */
+!     size = (nstate + 1) * sizeof(nfa_thread_T);
+!     list[0].t = (nfa_thread_T *)lalloc(size, TRUE);
+!     list[1].t = (nfa_thread_T *)lalloc(size, TRUE);
+!     list[2].t = (nfa_thread_T *)lalloc(size, TRUE);
+      if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
+  	goto theend;
+      vim_memset(list[0].t, 0, size);
+***************
+*** 3056,3063 ****
+  		 * nfa_regmatch().  Submatches are stored in *m, and used in
+  		 * the parent call. */
+  		if (start->c == NFA_MOPEN + 0)
+! 		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+! 								      &match);
+  		else
+  		{
+  		    *m = t->sub;
+--- 3107,3114 ----
+  		 * nfa_regmatch().  Submatches are stored in *m, and used in
+  		 * the parent call. */
+  		if (start->c == NFA_MOPEN + 0)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								  &match, &i);
+  		else
+  		{
+  		    *m = t->sub;
+***************
+*** 3130,3137 ****
+  			    t->sub.end[j] = m->end[j];
+  			}
+  		    /* t->state->out1 is the corresponding END_INVISIBLE node */
+! 		    addstate(thislist, t->state->out1->out, &t->sub, 0, listid,
+! 								    &match);
+  		}
+  		else
+  		{
+--- 3181,3188 ----
+  			    t->sub.end[j] = m->end[j];
+  			}
+  		    /* t->state->out1 is the corresponding END_INVISIBLE node */
+! 		    addstate_here(thislist, t->state->out1->out, &t->sub,
+! 							  listid, &match, &i);
+  		}
+  		else
+  		{
+***************
+*** 3142,3155 ****
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+! 		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+! 								    &match);
+  		break;
+  
+  	    case NFA_EOL:
+  		if (c == NUL)
+! 		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+! 								    &match);
+  		break;
+  
+  	    case NFA_BOW:
+--- 3193,3206 ----
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								  &match, &i);
+  		break;
+  
+  	    case NFA_EOL:
+  		if (c == NUL)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								  &match, &i);
+  		break;
+  
+  	    case NFA_BOW:
+***************
+*** 3176,3183 ****
+  				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    bow = FALSE;
+  		if (bow)
+! 		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+! 								    &match);
+  		break;
+  	    }
+  
+--- 3227,3234 ----
+  				   && vim_iswordc_buf(reginput[-1], reg_buf)))
+  		    bow = FALSE;
+  		if (bow)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								  &match, &i);
+  		break;
+  	    }
+  
+***************
+*** 3204,3211 ****
+  			|| (reginput[0] != NUL && vim_iswordc_buf(c, reg_buf)))
+  		    eow = FALSE;
+  		if (eow)
+! 		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+! 								    &match);
+  		break;
+  	    }
+  
+--- 3255,3262 ----
+  			|| (reginput[0] != NUL && vim_iswordc_buf(c, reg_buf)))
+  		    eow = FALSE;
+  		if (eow)
+! 		    addstate_here(thislist, t->state->out, &t->sub, listid,
+! 								  &match, &i);
+  		break;
+  	    }
+  
+*** ../vim-7.3.1016/src/testdir/test64.in	2013-05-21 13:30:17.000000000 +0200
+--- src/testdir/test64.in	2013-05-25 19:54:40.000000000 +0200
+***************
+*** 270,275 ****
+--- 270,276 ----
+  :call add(tl, ['aa \zsax', ' ax'])						" must match before \zs
+  :call add(tl, ['abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+  :call add(tl, ['\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
++ :call add(tl, ['\>\zs.', 'aword. ', '.'])
+  
+  :"""" Tests for \@ features
+  :call add(tl, ['abc\@=', 'abc', 'ab'])
+***************
+*** 299,304 ****
+--- 300,311 ----
+  :call add(tl, ['\%u0020', 'yes no', ' '])
+  :call add(tl, ['\%U00000020', 'yes no', ' '])
+  
++ :"""" Alternatives, must use first longest match
++ :call add(tl, ['goo\|go', 'google', 'goo'])
++ :call add(tl, ['\<goo\|\<go', 'google', 'goo'])
++ :call add(tl, ['\<goo\|go', 'google', 'goo'])
++ 
++ 
+  :"""" Run the tests
+  
+  :"
+*** ../vim-7.3.1016/src/testdir/test64.ok	2013-05-21 13:30:17.000000000 +0200
+--- src/testdir/test64.ok	2013-05-25 19:54:43.000000000 +0200
+***************
+*** 209,214 ****
+--- 209,215 ----
+  OK - aa \zsax
+  OK - abc \zsmatch\ze abc
+  OK - \v(a \zsif .*){2}
++ OK - \>\zs.
+  OK - abc\@=
+  OK - abc\@=cd
+  OK - abc\@=
+***************
+*** 231,234 ****
+--- 232,238 ----
+  OK - \%x20
+  OK - \%u0020
+  OK - \%U00000020
++ OK - goo\|go
++ OK - \<goo\|\<go
++ OK - \<goo\|go
+  192.168.0.1
+*** ../vim-7.3.1016/src/regexp.h	2013-05-25 15:31:02.000000000 +0200
+--- src/regexp.h	2013-05-25 20:17:53.000000000 +0200
+***************
+*** 29,36 ****
+  
+  typedef struct regengine regengine_T;
+  
+- typedef struct thread thread_T;
+- 
+  /*
+   * Structure returned by vim_regcomp() to pass on to vim_regexec().
+   * This is the general structure. For the actual matcher, two specific
+--- 29,34 ----
+*** ../vim-7.3.1016/src/version.c	2013-05-25 15:31:02.000000000 +0200
+--- src/version.c	2013-05-25 20:15:23.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1017,
+  /**/
+
+-- 
+A salesperson says:            Translation:
+"backward compatible"          Old technology
+"Premium"                      Overpriced
+"Can't keep it on the shelf"   Unavailable
+"Stands alone"                 Piece of shit
+"Proprietary"                  Incompatible
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,93 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.886
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.886
+Problem:    Can't build with multi-byte on Solaris 10.
+Solution:   Add #ifdef X_HAVE_UTF8_STRING. (Laurent Blume)
+Files:	    src/ui.c
+
+
+*** ../vim-7.3.885/src/ui.c	2013-03-13 17:50:20.000000000 +0100
+--- src/ui.c	2013-04-12 12:24:10.000000000 +0200
+***************
+*** 1458,1464 ****
+  
+      int
+  clip_gen_owner_exists(cbd)
+!     VimClipboard	*cbd;
+  {
+  #ifdef FEAT_XCLIPBOARD
+  # ifdef FEAT_GUI_GTK
+--- 1458,1464 ----
+  
+      int
+  clip_gen_owner_exists(cbd)
+!     VimClipboard	*cbd UNUSED;
+  {
+  #ifdef FEAT_XCLIPBOARD
+  # ifdef FEAT_GUI_GTK
+***************
+*** 2134,2140 ****
+  	text_prop.encoding = *type;
+  	text_prop.format = *format;
+  	text_prop.nitems = len;
+! #ifdef FEAT_MBYTE
+  	if (*type == utf8_atom)
+  	    status = Xutf8TextPropertyToTextList(X_DISPLAY, &text_prop,
+  							 &text_list, &n_text);
+--- 2134,2140 ----
+  	text_prop.encoding = *type;
+  	text_prop.format = *format;
+  	text_prop.nitems = len;
+! #if defined(FEAT_MBYTE) && defined(X_HAVE_UTF8_STRING)
+  	if (*type == utf8_atom)
+  	    status = Xutf8TextPropertyToTextList(X_DISPLAY, &text_prop,
+  							 &text_list, &n_text);
+***************
+*** 2196,2203 ****
+  	    default: type = XA_STRING;
+  	}
+  #ifdef FEAT_MBYTE
+! 	if (type == utf8_atom && !enc_utf8)
+! 	    /* Only request utf-8 when 'encoding' is utf8. */
+  	    continue;
+  #endif
+  	success = MAYBE;
+--- 2196,2208 ----
+  	    default: type = XA_STRING;
+  	}
+  #ifdef FEAT_MBYTE
+! 	if (type == utf8_atom
+! # if defined(X_HAVE_UTF8_STRING)
+! 		&& !enc_utf8
+! # endif
+! 		)
+! 	    /* Only request utf-8 when 'encoding' is utf8 and
+! 	     * Xutf8TextPropertyToTextList is available. */
+  	    continue;
+  #endif
+  	success = MAYBE;
+*** ../vim-7.3.885/src/version.c	2013-04-12 12:18:43.000000000 +0200
+--- src/version.c	2013-04-12 12:25:44.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     886,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+149. You find your computer sexier than your girlfriend
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

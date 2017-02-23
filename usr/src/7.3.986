@@ -1,0 +1,61 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.986
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.986
+Problem:    Test 95 doesn't pass when 'encoding' isn't utf-8. (Yasuhiro
+	    Matsumoto)
+Solution:   Force 'encoding' to be utf-8.
+Files:	    src/testdir/test95.in
+
+
+*** ../vim-7.3.985/src/testdir/test95.in	2013-05-21 12:34:13.000000000 +0200
+--- src/testdir/test95.in	2013-05-21 12:58:09.000000000 +0200
+***************
+*** 1,4 ****
+! Test for regexp patterns with multi-byte support.
+  See test64 for the non-multi-byte tests.
+  
+  A pattern that gives the expected result produces OK, so that we know it was
+--- 1,4 ----
+! Test for regexp patterns with multi-byte support, using utf-8.
+  See test64 for the non-multi-byte tests.
+  
+  A pattern that gives the expected result produces OK, so that we know it was
+***************
+*** 7,12 ****
+--- 7,13 ----
+  STARTTEST
+  :so small.vim
+  :so mbyte.vim
++ :set encoding=utf-8 viminfo+=nviminfo
+  :" tl is a List of Lists with:
+  :"    regexp pattern
+  :"    text to test the pattern on
+*** ../vim-7.3.985/src/version.c	2013-05-21 12:52:00.000000000 +0200
+--- src/version.c	2013-05-21 12:59:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     986,
+  /**/
+
+-- 
+(letter from Mark to Mike, about the film's probable certificate)
+      For an 'A' we would have to: Lose as many shits as possible; Take Jesus
+      Christ out, if possible; Loose "I fart in your general direction"; Lose
+      "the oral sex"; Lose "oh, fuck off"; Lose "We make castanets out of your
+      testicles"
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,73 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.913
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.913 (after 7.3.905)
+Problem:    Still a crash when writing viminfo.
+Solution:   Add checks for NULL pointers. (Ron Aaron)
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.912/src/ex_getln.c	2013-04-15 22:22:48.000000000 +0200
+--- src/ex_getln.c	2013-04-24 15:35:22.000000000 +0200
+***************
+*** 6177,6182 ****
+--- 6177,6183 ----
+  	}
+  	vim_free(viminfo_history[type]);
+  	viminfo_history[type] = NULL;
++ 	viminfo_hisidx[type] = 0;
+      }
+  }
+  
+***************
+*** 6230,6235 ****
+--- 6231,6237 ----
+  			&& !(round == 2 && i >= viminfo_hisidx[type]))
+  		{
+  		    p = round == 1 ? history[type][i].hisstr
++ 				   : viminfo_history[type] == NULL ? NULL
+  						   : viminfo_history[type][i];
+  		    if (p != NULL && (round == 2 || !history[type][i].viminfo))
+  		    {
+***************
+*** 6261,6267 ****
+  		}
+  	}
+  	for (i = 0; i < viminfo_hisidx[type]; ++i)
+! 	    vim_free(viminfo_history[type][i]);
+  	vim_free(viminfo_history[type]);
+  	viminfo_history[type] = NULL;
+  	viminfo_hisidx[type] = 0;
+--- 6263,6270 ----
+  		}
+  	}
+  	for (i = 0; i < viminfo_hisidx[type]; ++i)
+! 	    if (viminfo_history[type] != NULL)
+! 		vim_free(viminfo_history[type][i]);
+  	vim_free(viminfo_history[type]);
+  	viminfo_history[type] = NULL;
+  	viminfo_hisidx[type] = 0;
+*** ../vim-7.3.912/src/version.c	2013-04-24 15:12:27.000000000 +0200
+--- src/version.c	2013-04-24 15:38:22.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     913,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+225. You sign up for free subscriptions for all the computer magazines
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

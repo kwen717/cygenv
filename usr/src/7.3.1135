@@ -1,0 +1,71 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1135
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1135
+Problem:    Compiler warning for unused argument.
+Solution:   Add UNUSED.
+Files:	    src/syntax.c
+
+
+*** ../vim-7.3.1134/src/syntax.c	2013-06-06 14:55:16.000000000 +0200
+--- src/syntax.c	2013-06-06 21:18:20.000000000 +0200
+***************
+*** 3258,3264 ****
+      regmmatch_T	*rmp;
+      linenr_T	lnum;
+      colnr_T	col;
+!     syn_time_T  *st;
+  {
+      int r;
+  #ifdef FEAT_PROFILE
+--- 3258,3264 ----
+      regmmatch_T	*rmp;
+      linenr_T	lnum;
+      colnr_T	col;
+!     syn_time_T  *st UNUSED;
+  {
+      int r;
+  #ifdef FEAT_PROFILE
+***************
+*** 6649,6655 ****
+      }
+  
+      /* sort on total time */
+!     qsort(ga.ga_data, (size_t)ga.ga_len, sizeof(time_entry_T), syn_compare_syntime);
+  
+      MSG_PUTS_TITLE(_("  TOTAL      COUNT  MATCH   SLOWEST     AVERAGE   NAME               PATTERN"));
+      MSG_PUTS("\n");
+--- 6649,6656 ----
+      }
+  
+      /* sort on total time */
+!     qsort(ga.ga_data, (size_t)ga.ga_len, sizeof(time_entry_T),
+! 							 syn_compare_syntime);
+  
+      MSG_PUTS_TITLE(_("  TOTAL      COUNT  MATCH   SLOWEST     AVERAGE   NAME               PATTERN"));
+      MSG_PUTS("\n");
+*** ../vim-7.3.1134/src/version.c	2013-06-06 18:55:45.000000000 +0200
+--- src/version.c	2013-06-06 21:19:01.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1135,
+  /**/
+
+-- 
+I AM THANKFUL...
+...for all the complaining I hear about the government
+because it means we have freedom of speech.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

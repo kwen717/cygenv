@@ -1,0 +1,80 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1107
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1107
+Problem:    Compiler warnings for unused variables.
+Solution:   Put the variables inside #ifdef.
+Files:	    src/regexp.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1106/src/regexp.c	2013-06-02 15:01:51.000000000 +0200
+--- src/regexp.c	2013-06-03 19:38:46.000000000 +0200
+***************
+*** 361,368 ****
+--- 361,370 ----
+  static char_u e_unmatchedpp[] = N_("E53: Unmatched %s%%(");
+  static char_u e_unmatchedp[] = N_("E54: Unmatched %s(");
+  static char_u e_unmatchedpar[] = N_("E55: Unmatched %s)");
++ #ifdef FEAT_SYN_HL
+  static char_u e_z_not_allowed[] = N_("E66: \\z( not allowed here");
+  static char_u e_z1_not_allowed[] = N_("E67: \\z1 et al. not allowed here");
++ #endif
+  
+  #define NOT_MULTI	0
+  #define MULTI_ONE	1
+*** ../vim-7.3.1106/src/regexp_nfa.c	2013-06-03 12:17:00.000000000 +0200
+--- src/regexp_nfa.c	2013-06-03 19:39:55.000000000 +0200
+***************
+*** 237,244 ****
+--- 237,246 ----
+  /* NFA regexp \1 .. \9 encountered. */
+  static int nfa_has_backref;
+  
++ #ifdef FEAT_SYN_HL
+  /* NFA regexp has \z( ), set zsubexpr. */
+  static int nfa_has_zsubexpr;
++ #endif
+  
+  /* Number of sub expressions actually being used during execution. 1 if only
+   * the whole match (subexpr 0) is used. */
+***************
+*** 420,426 ****
+      if (*p == '^')
+      {
+  	not = TRUE;
+! 	p ++;
+      }
+  
+      while (p < end)
+--- 422,428 ----
+      if (*p == '^')
+      {
+  	not = TRUE;
+! 	p++;
+      }
+  
+      while (p < end)
+*** ../vim-7.3.1106/src/version.c	2013-06-03 12:17:00.000000000 +0200
+--- src/version.c	2013-06-03 19:39:34.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1107,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+70. ISDN lines are added to your house on a hourly basis
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.959
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.959 (after 7.3.957)
+Problem:    Missing error number.
+Solution:   Assign an error number.
+Files:	    src/if_python3.c
+
+
+*** ../vim-7.3.958/src/if_python3.c	2013-05-15 18:28:08.000000000 +0200
+--- src/if_python3.c	2013-05-15 19:41:51.000000000 +0200
+***************
+*** 1007,1013 ****
+      DoPy3Command(eap, buffer, NULL);
+  }
+  
+! void ex_py3do(exarg_T *eap)
+  {
+      linenr_T		i;
+      const char		*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
+--- 1007,1014 ----
+      DoPy3Command(eap, buffer, NULL);
+  }
+  
+!     void
+! ex_py3do(exarg_T *eap)
+  {
+      linenr_T		i;
+      const char		*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
+***************
+*** 1068,1075 ****
+  	{
+  	    if (!PyUnicode_Check(pyret))
+  	    {
+! 		/* TODO: a proper error number */
+! 		EMSG(_("E000: return value must be an instance of str"));
+  		Py_XDECREF(pyret);
+  		status = 1;
+  		goto out;
+--- 1069,1075 ----
+  	{
+  	    if (!PyUnicode_Check(pyret))
+  	    {
+! 		EMSG(_("E863: return value must be an instance of str"));
+  		Py_XDECREF(pyret);
+  		status = 1;
+  		goto out;
+*** ../vim-7.3.958/src/version.c	2013-05-15 19:07:03.000000000 +0200
+--- src/version.c	2013-05-15 19:38:05.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     959,
+  /**/
+
+
+-- 
+CRONE:  Who sent you?
+ARTHUR: The Knights Who Say Ni!
+CRONE:  Aaaagh!  (she looks around in rear) No!  We have no shrubberies here.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

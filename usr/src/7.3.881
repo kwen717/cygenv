@@ -1,0 +1,108 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.881
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.881
+Problem:    Python list does not work correctly.
+Solution:   Fix it and add a test. (Yukihiro Nakadaira)
+Files:	    src/testdir/test86.in, src/testdir/test86.ok, src/if_py_both.h
+
+
+*** ../vim-7.3.880/src/testdir/test86.in	2013-02-20 16:54:24.000000000 +0100
+--- src/testdir/test86.in	2013-04-05 19:18:48.000000000 +0200
+***************
+*** 321,326 ****
+--- 321,351 ----
+  :py trace_main()
+  :py sys.settrace(None)
+  :$put =string(l)
++ :"
++ :" Slice
++ :py ll = vim.bindeval('[0, 1, 2, 3, 4, 5]')
++ :py l = ll[:4]
++ :$put =string(pyeval('l'))
++ :py l = ll[2:]
++ :$put =string(pyeval('l'))
++ :py l = ll[:-4]
++ :$put =string(pyeval('l'))
++ :py l = ll[-2:]
++ :$put =string(pyeval('l'))
++ :py l = ll[2:4]
++ :$put =string(pyeval('l'))
++ :py l = ll[4:2]
++ :$put =string(pyeval('l'))
++ :py l = ll[-4:-2]
++ :$put =string(pyeval('l'))
++ :py l = ll[-2:-4]
++ :$put =string(pyeval('l'))
++ :py l = ll[:]
++ :$put =string(pyeval('l'))
++ :py l = ll[0:6]
++ :$put =string(pyeval('l'))
++ :py l = ll[-10:10]
++ :$put =string(pyeval('l'))
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.880/src/testdir/test86.ok	2013-02-20 16:54:24.000000000 +0100
+--- src/testdir/test86.ok	2013-04-05 19:18:48.000000000 +0200
+***************
+*** 65,67 ****
+--- 65,78 ----
+  vim:	Vim(let):E859:
+  [1]
+  [1, 10, 11, 10, 11, 10, 11, 10, 11, 10, 11, 10, 1]
++ [0, 1, 2, 3]
++ [2, 3, 4, 5]
++ [0, 1]
++ [4, 5]
++ [2, 3]
++ []
++ [2, 3]
++ []
++ [0, 1, 2, 3, 4, 5]
++ [0, 1, 2, 3, 4, 5]
++ [0, 1, 2, 3, 4, 5]
+*** ../vim-7.3.880/src/if_py_both.h	2013-02-14 22:11:31.000000000 +0100
+--- src/if_py_both.h	2013-04-05 19:27:46.000000000 +0200
+***************
+*** 1139,1145 ****
+  
+      for (i = 0; i < n; ++i)
+      {
+! 	PyObject	*item = ListItem(self, i);
+  	if (item == NULL)
+  	{
+  	    Py_DECREF(list);
+--- 1139,1145 ----
+  
+      for (i = 0; i < n; ++i)
+      {
+! 	PyObject	*item = ListItem(self, first + i);
+  	if (item == NULL)
+  	{
+  	    Py_DECREF(list);
+*** ../vim-7.3.880/src/version.c	2013-04-05 18:58:42.000000000 +0200
+--- src/version.c	2013-04-05 19:31:59.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     881,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+123. You ask the car dealer to install an extra cigarette lighter
+     on your new car to power your notebook.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

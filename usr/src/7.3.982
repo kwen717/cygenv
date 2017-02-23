@@ -1,0 +1,97 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.982
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.982
+Problem:    In the new regexp engine \p does not work on multi-byte
+	    characters.
+Solution:   Don't point to an integer but the characters.
+Files:	    src/regexp_nfa.c, src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.981/src/regexp_nfa.c	2013-05-20 22:19:58.000000000 +0200
+--- src/regexp_nfa.c	2013-05-21 12:34:02.000000000 +0200
+***************
+*** 2931,2937 ****
+  	}
+  	if (c == NUL)
+  	    n = 0;
+! 	cc = (char_u *)&c;
+  
+  	/* swap lists */
+  	thislist = &list[flag];
+--- 2931,2937 ----
+  	}
+  	if (c == NUL)
+  	    n = 0;
+! 	cc = reginput;
+  
+  	/* swap lists */
+  	thislist = &list[flag];
+***************
+*** 2960,2966 ****
+  	    if (neglist->n > 0)
+  	    {
+  		t = &neglist->t[0];
+! 		neglist->n --;
+  		i--;
+  	    }
+  	    else
+--- 2960,2966 ----
+  	    if (neglist->n > 0)
+  	    {
+  		t = &neglist->t[0];
+! 		neglist->n--;
+  		i--;
+  	    }
+  	    else
+*** ../vim-7.3.981/src/testdir/test95.in	2013-05-19 19:16:25.000000000 +0200
+--- src/testdir/test95.in	2013-05-21 12:24:56.000000000 +0200
+***************
+*** 25,30 ****
+--- 25,33 ----
+  :call add(tl, [' [^ ]\+', 'start มabcdม ', ' มabcdม'])
+  :call add(tl, ['[ม[:alpha:][=a=]]\+', '879 aiaãมâมaiuvna ', 'aiaãมâมaiuvna'])
+  
++ :" this is not a normal "i" but 0xec
++ :call add(tl, ['\p\+', 'ìa', 'ìa'])
++ 
+  :"""" Run the tests
+  
+  :"
+*** ../vim-7.3.981/src/testdir/test95.ok	2013-05-19 19:16:25.000000000 +0200
+--- src/testdir/test95.ok	2013-05-21 12:31:00.000000000 +0200
+***************
+*** 4,6 ****
+--- 4,7 ----
+  OK - [^ม ]\+
+  OK -  [^ ]\+
+  OK - [ม[:alpha:][=a=]]\+
++ OK - \p\+
+*** ../vim-7.3.981/src/version.c	2013-05-21 00:02:54.000000000 +0200
+--- src/version.c	2013-05-21 12:32:41.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     982,
+  /**/
+
+-- 
+ERIC IDLE PLAYED: THE DEAD COLLECTOR, MR BINT (A VILLAGE NE'ER-DO -WELL VERY
+                  KEEN ON BURNING WITCHES), SIR ROBIN, THE GUARD WHO DOESN'T
+                  HICOUGH BUT TRIES TO GET THINGS STRAIGHT, CONCORDE (SIR
+                  LAUNCELOT'S TRUSTY STEED), ROGER THE SHRUBBER (A SHRUBBER),
+                  BROTHER MAYNARD
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

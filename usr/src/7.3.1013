@@ -1,0 +1,347 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1013
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1013
+Problem:    New regexp logging is a bit messy.
+Solution:   Consistently use #defines, add explanatory comment. (Taro Muraoka)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1012/src/regexp_nfa.c	2013-05-24 23:10:45.000000000 +0200
+--- src/regexp_nfa.c	2013-05-25 12:17:35.000000000 +0200
+***************
+*** 5,16 ****
+   * This file is included in "regexp.c".
+   */
+  
+  #ifdef DEBUG
+! /* Comment this out to disable log files. They can get pretty big */
+  # define ENABLE_LOG
+! # define LOG_NAME "log_nfarun.log"
+! # define NFA_REGEXP_DEBUG_LOG
+! # define NFA_REGEXP_DEBUG_LOG_NAME	"nfa_regexp_debug.log"
+  #endif
+  
+  /* Upper limit allowed for {m,n} repetitions handled by NFA */
+--- 5,32 ----
+   * This file is included in "regexp.c".
+   */
+  
++ /*
++  * Logging of NFA engine.
++  *
++  * The NFA engine can write four log files:
++  * - Error log: Contains NFA engine's fatal errors.
++  * - Dump log: Contains compiled NFA state machine's information.
++  * - Run log: Contains information of matching procedure.
++  * - Debug log: Contains detailed information of matching procedure. Can be
++  *   disabled by undefining NFA_REGEXP_DEBUG_LOG.
++  * The first one can also be used without debug mode.
++  * The last three are enabled when compiled as debug mode and individually
++  * disabled by commenting them out.
++  * The log files can get quite big!
++  * Do disable all of this when compiling Vim for debugging, undefine DEBUG in
++  * regexp.c
++  */
+  #ifdef DEBUG
+! # define NFA_REGEXP_ERROR_LOG	"nfa_regexp_error.log"
+  # define ENABLE_LOG
+! # define NFA_REGEXP_DUMP_LOG	"nfa_regexp_dump.log"
+! # define NFA_REGEXP_RUN_LOG	"nfa_regexp_run.log"
+! # define NFA_REGEXP_DEBUG_LOG	"nfa_regexp_debug.log"
+  #endif
+  
+  /* Upper limit allowed for {m,n} repetitions handled by NFA */
+***************
+*** 1769,1775 ****
+      int *p;
+      FILE *f;
+  
+!     f = fopen("LOG.log", "a");
+      if (f != NULL)
+      {
+  	fprintf(f, "\n-------------------------\n");
+--- 1785,1791 ----
+      int *p;
+      FILE *f;
+  
+!     f = fopen(NFA_REGEXP_DUMP_LOG, "a");
+      if (f != NULL)
+      {
+  	fprintf(f, "\n-------------------------\n");
+***************
+*** 1827,1833 ****
+  nfa_dump(prog)
+      nfa_regprog_T *prog;
+  {
+!     FILE *debugf = fopen("LOG.log", "a");
+  
+      if (debugf != NULL)
+      {
+--- 1843,1849 ----
+  nfa_dump(prog)
+      nfa_regprog_T *prog;
+  {
+!     FILE *debugf = fopen(NFA_REGEXP_DUMP_LOG, "a");
+  
+      if (debugf != NULL)
+      {
+***************
+*** 1994,2007 ****
+  
+      static void
+  st_error(postfix, end, p)
+!     int *postfix;
+!     int *end;
+!     int *p;
+  {
+      FILE *df;
+      int *p2;
+  
+!     df = fopen("stack.err", "a");
+      if (df)
+      {
+  	fprintf(df, "Error popping the stack!\n");
+--- 2010,2024 ----
+  
+      static void
+  st_error(postfix, end, p)
+!     int *postfix UNUSED;
+!     int *end UNUSED;
+!     int *p UNUSED;
+  {
++ #ifdef NFA_REGEXP_ERROR_LOG
+      FILE *df;
+      int *p2;
+  
+!     df = fopen(NFA_REGEXP_ERROR_LOG, "a");
+      if (df)
+      {
+  	fprintf(df, "Error popping the stack!\n");
+***************
+*** 2036,2041 ****
+--- 2053,2059 ----
+  	fprintf(df, "\n--------------------------\n");
+  	fclose(df);
+      }
++ #endif
+      EMSG(_("E874: (NFA) Could not pop the stack !"));
+  }
+  
+***************
+*** 2148,2155 ****
+--- 2166,2175 ----
+  	    }
+  	    e1 = POP();
+  	    e1.start->negated = TRUE;
++ #ifdef FEAT_MBYTE
+  	    if (e1.start->c == NFA_COMPOSING)
+  		e1.start->out1->negated = TRUE;
++ #endif
+  	    PUSH(e1);
+  	    break;
+  
+***************
+*** 2265,2270 ****
+--- 2285,2291 ----
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+  
++ #ifdef FEAT_MBYTE
+  	case NFA_COMPOSING:	/* char with composing char */
+  #if 0
+  	    /* TODO */
+***************
+*** 2274,2279 ****
+--- 2295,2301 ----
+  	    }
+  #endif
+  	    /* FALLTHROUGH */
++ #endif
+  
+  	case NFA_MOPEN + 0:	/* Submatch */
+  	case NFA_MOPEN + 1:
+***************
+*** 2298,2306 ****
+--- 2320,2330 ----
+  		case NFA_NOPEN:
+  		    mclose = NFA_NCLOSE;
+  		    break;
++ #ifdef FEAT_MBYTE
+  		case NFA_COMPOSING:
+  		    mclose = NFA_END_COMPOSING;
+  		    break;
++ #endif
+  		default:
+  		    /* NFA_MOPEN(0) ... NFA_MOPEN(9) */
+  		    mclose = *p + NSUBEXP;
+***************
+*** 2336,2344 ****
+--- 2360,2370 ----
+  		goto theend;
+  	    patch(e.out, s1);
+  
++ #ifdef FEAT_MBYTE
+  	    if (mopen == NFA_COMPOSING)
+  		/* COMPOSING->out1 = END_COMPOSING */
+  		patch(list1(&s->out1), s1);
++ #endif
+  
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+***************
+*** 2802,2809 ****
+      thread_T	*t;
+      char_u	*old_reginput = NULL;
+      char_u	*old_regline = NULL;
+-     nfa_state_T	*sta;
+-     nfa_state_T *end;
+      List	list[3];
+      List	*listtbl[2][2];
+      List	*ll;
+--- 2828,2833 ----
+***************
+*** 2813,2825 ****
+      List	*neglist;
+      int		*listids = NULL;
+      int		j = 0;
+-     int		len = 0;
+  #ifdef NFA_REGEXP_DEBUG_LOG
+!     FILE	*debug = fopen(NFA_REGEXP_DEBUG_LOG_NAME, "a");
+  
+      if (debug == NULL)
+      {
+! 	EMSG2(_("(NFA) COULD NOT OPEN %s !"), NFA_REGEXP_DEBUG_LOG_NAME);
+  	return FALSE;
+      }
+  #endif
+--- 2837,2848 ----
+      List	*neglist;
+      int		*listids = NULL;
+      int		j = 0;
+  #ifdef NFA_REGEXP_DEBUG_LOG
+!     FILE	*debug = fopen(NFA_REGEXP_DEBUG_LOG, "a");
+  
+      if (debug == NULL)
+      {
+! 	EMSG2(_("(NFA) COULD NOT OPEN %s !"), NFA_REGEXP_DEBUG_LOG);
+  	return FALSE;
+      }
+  #endif
+***************
+*** 2836,2842 ****
+      vim_memset(list[2].t, 0, size);
+  
+  #ifdef ENABLE_LOG
+!     log_fd = fopen(LOG_NAME, "a");
+      if (log_fd != NULL)
+      {
+  	fprintf(log_fd, "**********************************\n");
+--- 2859,2865 ----
+      vim_memset(list[2].t, 0, size);
+  
+  #ifdef ENABLE_LOG
+!     log_fd = fopen(NFA_REGEXP_RUN_LOG, "a");
+      if (log_fd != NULL)
+      {
+  	fprintf(log_fd, "**********************************\n");
+***************
+*** 3025,3031 ****
+  		nfa_restore_listids(start, listids);
+  
+  #ifdef ENABLE_LOG
+! 		log_fd = fopen(LOG_NAME, "a");
+  		if (log_fd != NULL)
+  		{
+  		    fprintf(log_fd, "****************************\n");
+--- 3048,3054 ----
+  		nfa_restore_listids(start, listids);
+  
+  #ifdef ENABLE_LOG
+! 		log_fd = fopen(NFA_REGEXP_RUN_LOG, "a");
+  		if (log_fd != NULL)
+  		{
+  		    fprintf(log_fd, "****************************\n");
+***************
+*** 3141,3147 ****
+  #ifdef FEAT_MBYTE
+  	    case NFA_COMPOSING:
+  	    {
+! 		int mc = c;
+  
+  		result = OK;
+  		sta = t->state->out;
+--- 3164,3173 ----
+  #ifdef FEAT_MBYTE
+  	    case NFA_COMPOSING:
+  	    {
+! 		int	    mc = c;
+! 		int	    len = 0;
+! 		nfa_state_T *end;
+! 		nfa_state_T *sta;
+  
+  		result = OK;
+  		sta = t->state->out;
+***************
+*** 3469,3475 ****
+      need_clear_subexpr = TRUE;
+  
+  #ifdef ENABLE_LOG
+!     f = fopen(LOG_NAME, "a");
+      if (f != NULL)
+      {
+  	fprintf(f, "\n\n\n\n\n\n\t\t=======================================================\n");
+--- 3495,3501 ----
+      need_clear_subexpr = TRUE;
+  
+  #ifdef ENABLE_LOG
+!     f = fopen(NFA_REGEXP_RUN_LOG, "a");
+      if (f != NULL)
+      {
+  	fprintf(f, "\n\n\n\n\n\n\t\t=======================================================\n");
+***************
+*** 3662,3668 ****
+       */
+  #ifdef ENABLE_LOG
+      {
+! 	FILE *f = fopen(LOG_NAME, "a");
+  
+  	if (f != NULL)
+  	{
+--- 3688,3694 ----
+       */
+  #ifdef ENABLE_LOG
+      {
+! 	FILE *f = fopen(NFA_REGEXP_RUN_LOG, "a");
+  
+  	if (f != NULL)
+  	{
+*** ../vim-7.3.1012/src/version.c	2013-05-24 23:10:45.000000000 +0200
+--- src/version.c	2013-05-25 12:06:33.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1013,
+  /**/
+
+-- 
+Scientists decoded the first message from an alien civilization:
+        SIMPLY SEND 6 TIMES 10 TO THE 50 ATOMS OF HYDROGEN TO THE STAR
+SYSTEM AT THE TOP OF THE LIST, CROSS OFF THAT STAR SYSTEM, THEN PUT
+YOUR STAR SYSTEM AT THE BOTTOM OF THE LIST AND SEND IT TO 100 OTHER
+STAR SYSTEMS.  WITHIN ONE TENTH GALACTIC ROTATION YOU WILL RECEIVE
+ENOUGH HYDROGREN TO POWER YOUR CIVILIZATION UNTIL ENTROPY REACHES ITS
+MAXIMUM!  IT REALLY WORKS!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

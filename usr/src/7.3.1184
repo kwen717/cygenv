@@ -1,0 +1,65 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1184
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1184
+Problem:    Highlighting is sometimes wrong. (Axel Bender)
+Solution:   Fetch regline again when returning from recursive regmatch.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1183/src/regexp_nfa.c	2013-06-11 22:44:03.000000000 +0200
+--- src/regexp_nfa.c	2013-06-13 19:32:31.000000000 +0200
+***************
+*** 4495,4501 ****
+      int		    **listids;
+  {
+      char_u	*save_reginput = reginput;
+-     char_u	*save_regline = regline;
+      int		save_reglnum = reglnum;
+      int		save_nfa_match = nfa_match;
+      int		save_nfa_listid = nfa_listid;
+--- 4495,4500 ----
+***************
+*** 4633,4640 ****
+  
+      /* restore position in input text */
+      reginput = save_reginput;
+-     regline = save_regline;
+      reglnum = save_reglnum;
+      nfa_match = save_nfa_match;
+      nfa_endp = save_nfa_endp;
+      nfa_listid = save_nfa_listid;
+--- 4632,4640 ----
+  
+      /* restore position in input text */
+      reginput = save_reginput;
+      reglnum = save_reglnum;
++     if (REG_MULTI)
++ 	regline = reg_getline(reglnum);
+      nfa_match = save_nfa_match;
+      nfa_endp = save_nfa_endp;
+      nfa_listid = save_nfa_listid;
+*** ../vim-7.3.1183/src/version.c	2013-06-13 19:27:13.000000000 +0200
+--- src/version.c	2013-06-13 19:32:57.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1184,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+183. You move your coffeemaker next to your computer.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

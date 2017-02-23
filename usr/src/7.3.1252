@@ -1,0 +1,55 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1252
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1252
+Problem:    Gvim does not find the toolbar bitmap files in ~/vimfiles/bitmaps
+	    if the corresponding menu command contains additional characters
+	    like the shortcut marker '&' or if you use a non-english locale.  
+Solution:   Use menu->en_dname or menu->dname. (Martin Gieseking)
+Files:	    src/gui_w32.c
+
+
+*** ../vim-7.3.1251/src/gui_w32.c	2013-06-26 13:16:13.000000000 +0200
+--- src/gui_w32.c	2013-06-27 22:01:03.000000000 +0200
+***************
+*** 4163,4169 ****
+  	 * didn't exist or wasn't specified, try the menu name
+  	 */
+  	if (hbitmap == NULL
+! 		&& (gui_find_bitmap(menu->name, fname, "bmp") == OK))
+  	    hbitmap = LoadImage(
+  		    NULL,
+  		    fname,
+--- 4163,4171 ----
+  	 * didn't exist or wasn't specified, try the menu name
+  	 */
+  	if (hbitmap == NULL
+! 		&& (gui_find_bitmap(menu->en_dname != NULL
+! 					? menu->en_dname
+! 					: menu->dname, fname, "bmp") == OK))
+  	    hbitmap = LoadImage(
+  		    NULL,
+  		    fname,
+*** ../vim-7.3.1251/src/version.c	2013-06-26 21:56:33.000000000 +0200
+--- src/version.c	2013-06-27 20:33:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1252,
+  /**/
+
+-- 
+Why doesn't Tarzan have a beard?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

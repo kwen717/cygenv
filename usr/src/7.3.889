@@ -1,0 +1,71 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.889
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.889
+Problem:    Can't build with Ruby 2.0 on a 64 bit system.
+Solution:   Define rb_fix2int and rb_num2int. (Kohei Suzuki)
+Files:	    src/if_ruby.c
+
+
+*** ../vim-7.3.888/src/if_ruby.c	2013-03-07 15:16:16.000000000 +0100
+--- src/if_ruby.c	2013-04-12 15:25:26.000000000 +0200
+***************
+*** 88,93 ****
+--- 88,101 ----
+  # define rb_int2big rb_int2big_stub
+  #endif
+  
++ #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20 \
++ 	&& SIZEOF_INT < SIZEOF_LONG
++ /* Ruby 2.0 defines a number of static functions which use rb_fix2int and
++  * rb_num2int if SIZEOF_INT < SIZEOF_LONG (64bit) */
++ # define rb_fix2int rb_fix2int_stub
++ # define rb_num2int rb_num2int_stub
++ #endif
++ 
+  #include <ruby.h>
+  #ifdef RUBY19_OR_LATER
+  # include <ruby/encoding.h>
+***************
+*** 352,357 ****
+--- 360,376 ----
+  {
+      return dll_rb_int2big(x);
+  }
++ #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20 \
++ 	&& SIZEOF_INT < SIZEOF_LONG
++ long rb_fix2int_stub(VALUE x)
++ {
++     return dll_rb_fix2int(x);
++ }
++ long rb_num2int_stub(VALUE x)
++ {
++     return dll_rb_num2int(x);
++ }
++ #endif
+  #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 20
+  VALUE
+  rb_float_new_in_heap(double d)
+*** ../vim-7.3.888/src/version.c	2013-04-12 14:42:35.000000000 +0200
+--- src/version.c	2013-04-12 15:24:15.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     889,
+  /**/
+
+-- 
+"Hit any key to continue" is very confusing when you have two keyboards.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

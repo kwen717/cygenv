@@ -1,0 +1,287 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.880
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.880
+Problem:    When writing viminfo, old history lines may replace lines written
+	    more recently by another Vim instance.
+Solution:   Mark history entries that were read from viminfo and overwrite
+	    them when merging with the current viminfo.
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.879/src/ex_getln.c	2013-03-19 16:46:59.000000000 +0100
+--- src/ex_getln.c	2013-04-05 18:56:08.000000000 +0200
+***************
+*** 56,61 ****
+--- 56,62 ----
+  typedef struct hist_entry
+  {
+      int		hisnum;		/* identifying number */
++     int		viminfo;	/* when TRUE hisstr comes from viminfo */
+      char_u	*hisstr;	/* actual entry, separator char after the NUL */
+  } histentry_T;
+  
+***************
+*** 113,118 ****
+--- 114,120 ----
+  static int	ExpandRTDir __ARGS((char_u *pat, int *num_file, char_u ***file, char *dirname[]));
+  # ifdef FEAT_CMDHIST
+  static char_u	*get_history_arg __ARGS((expand_T *xp, int idx));
++ static void	clear_hist_entry __ARGS((histentry_T *hisptr));
+  # endif
+  # if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL)
+  static int	ExpandUserDefined __ARGS((expand_T *xp, regmatch_T *regmatch, int *num_file, char_u ***file));
+***************
+*** 5343,5352 ****
+  		if (hisidx[type] < 0)		/* there are no entries yet */
+  		{
+  		    for (i = 0; i < newlen; ++i)
+! 		    {
+! 			temp[i].hisnum = 0;
+! 			temp[i].hisstr = NULL;
+! 		    }
+  		}
+  		else if (newlen > hislen)	/* array becomes bigger */
+  		{
+--- 5345,5351 ----
+  		if (hisidx[type] < 0)		/* there are no entries yet */
+  		{
+  		    for (i = 0; i < newlen; ++i)
+! 			clear_hist_entry(&temp[i]);
+  		}
+  		else if (newlen > hislen)	/* array becomes bigger */
+  		{
+***************
+*** 5354,5363 ****
+  			temp[i] = history[type][i];
+  		    j = i;
+  		    for ( ; i <= newlen - (hislen - hisidx[type]); ++i)
+! 		    {
+! 			temp[i].hisnum = 0;
+! 			temp[i].hisstr = NULL;
+! 		    }
+  		    for ( ; j < hislen; ++i, ++j)
+  			temp[i] = history[type][j];
+  		}
+--- 5353,5359 ----
+  			temp[i] = history[type][i];
+  		    j = i;
+  		    for ( ; i <= newlen - (hislen - hisidx[type]); ++i)
+! 			clear_hist_entry(&temp[i]);
+  		    for ( ; j < hislen; ++i, ++j)
+  			temp[i] = history[type][j];
+  		}
+***************
+*** 5385,5390 ****
+--- 5381,5395 ----
+      }
+  }
+  
++     static void
++ clear_hist_entry(hisptr)
++     histentry_T	*hisptr;
++ {
++     hisptr->hisnum = 0;
++     hisptr->viminfo = FALSE;
++     hisptr->hisstr = NULL;
++ }
++ 
+  /*
+   * Check if command line 'str' is already in history.
+   * If 'move_to_front' is TRUE, matching entry is moved to end of history.
+***************
+*** 5433,5440 ****
+  	    history[type][last_i] = history[type][i];
+  	    last_i = i;
+  	}
+- 	history[type][i].hisstr = str;
+  	history[type][i].hisnum = ++hisnum[type];
+  	return TRUE;
+      }
+      return FALSE;
+--- 5438,5446 ----
+  	    history[type][last_i] = history[type][i];
+  	    last_i = i;
+  	}
+  	history[type][i].hisnum = ++hisnum[type];
++ 	history[type][i].viminfo = FALSE;
++ 	history[type][i].hisstr = str;
+  	return TRUE;
+      }
+      return FALSE;
+***************
+*** 5498,5505 ****
+  	    /* Current line is from the same mapping, remove it */
+  	    hisptr = &history[HIST_SEARCH][hisidx[HIST_SEARCH]];
+  	    vim_free(hisptr->hisstr);
+! 	    hisptr->hisstr = NULL;
+! 	    hisptr->hisnum = 0;
+  	    --hisnum[histype];
+  	    if (--hisidx[HIST_SEARCH] < 0)
+  		hisidx[HIST_SEARCH] = hislen - 1;
+--- 5504,5510 ----
+  	    /* Current line is from the same mapping, remove it */
+  	    hisptr = &history[HIST_SEARCH][hisidx[HIST_SEARCH]];
+  	    vim_free(hisptr->hisstr);
+! 	    clear_hist_entry(hisptr);
+  	    --hisnum[histype];
+  	    if (--hisidx[HIST_SEARCH] < 0)
+  		hisidx[HIST_SEARCH] = hislen - 1;
+***************
+*** 5520,5525 ****
+--- 5525,5531 ----
+  	    hisptr->hisstr[len + 1] = sep;
+  
+  	hisptr->hisnum = ++hisnum[histype];
++ 	hisptr->viminfo = FALSE;
+  	if (histype == HIST_SEARCH && in_map)
+  	    last_maptick = maptick;
+      }
+***************
+*** 5709,5716 ****
+  	for (i = hislen; i--;)
+  	{
+  	    vim_free(hisptr->hisstr);
+! 	    hisptr->hisnum = 0;
+! 	    hisptr++->hisstr = NULL;
+  	}
+  	hisidx[histype] = -1;	/* mark history as cleared */
+  	hisnum[histype] = 0;	/* reset identifier counter */
+--- 5715,5721 ----
+  	for (i = hislen; i--;)
+  	{
+  	    vim_free(hisptr->hisstr);
+! 	    clear_hist_entry(hisptr);
+  	}
+  	hisidx[histype] = -1;	/* mark history as cleared */
+  	hisnum[histype] = 0;	/* reset identifier counter */
+***************
+*** 5755,5770 ****
+  	    {
+  		found = TRUE;
+  		vim_free(hisptr->hisstr);
+! 		hisptr->hisstr = NULL;
+! 		hisptr->hisnum = 0;
+  	    }
+  	    else
+  	    {
+  		if (i != last)
+  		{
+  		    history[histype][last] = *hisptr;
+! 		    hisptr->hisstr = NULL;
+! 		    hisptr->hisnum = 0;
+  		}
+  		if (--last < 0)
+  		    last += hislen;
+--- 5760,5773 ----
+  	    {
+  		found = TRUE;
+  		vim_free(hisptr->hisstr);
+! 		clear_hist_entry(hisptr);
+  	    }
+  	    else
+  	    {
+  		if (i != last)
+  		{
+  		    history[histype][last] = *hisptr;
+! 		    clear_hist_entry(hisptr);
+  		}
+  		if (--last < 0)
+  		    last += hislen;
+***************
+*** 5808,5815 ****
+  	history[histype][i] = history[histype][j];
+  	i = j;
+      }
+!     history[histype][i].hisstr = NULL;
+!     history[histype][i].hisnum = 0;
+      if (--i < 0)
+  	i += hislen;
+      hisidx[histype] = i;
+--- 5811,5817 ----
+  	history[histype][i] = history[histype][j];
+  	i = j;
+      }
+!     clear_hist_entry(&history[histype][i]);
+      if (--i < 0)
+  	i += hislen;
+      hisidx[histype] = i;
+***************
+*** 6043,6054 ****
+  
+      for (type = 0; type < HIST_COUNT; ++type)
+      {
+! 	/*
+! 	 * Count the number of empty spaces in the history list.  If there are
+! 	 * more spaces available than we request, then fill them up.
+! 	 */
+  	for (i = 0, num = 0; i < hislen; i++)
+! 	    if (history[type][i].hisstr == NULL)
+  		num++;
+  	len = asklen;
+  	if (num > len)
+--- 6045,6055 ----
+  
+      for (type = 0; type < HIST_COUNT; ++type)
+      {
+! 	/* Count the number of empty spaces in the history list.  Entries read
+! 	 * from viminfo previously are also considered empty.  If there are
+! 	 * more spaces available than we request, then fill them up. */
+  	for (i = 0, num = 0; i < hislen; i++)
+! 	    if (history[type][i].hisstr == NULL || history[type][i].viminfo)
+  		num++;
+  	len = asklen;
+  	if (num > len)
+***************
+*** 6141,6147 ****
+  		hisidx[type] = hislen - 1;
+  	    do
+  	    {
+! 		if (history[type][idx].hisstr != NULL)
+  		    break;
+  		if (++idx == hislen)
+  		    idx = 0;
+--- 6142,6149 ----
+  		hisidx[type] = hislen - 1;
+  	    do
+  	    {
+! 		if (history[type][idx].hisstr != NULL
+! 						|| history[type][idx].viminfo)
+  		    break;
+  		if (++idx == hislen)
+  		    idx = 0;
+***************
+*** 6153,6158 ****
+--- 6155,6161 ----
+  	{
+  	    vim_free(history[type][idx].hisstr);
+  	    history[type][idx].hisstr = viminfo_history[type][i];
++ 	    history[type][idx].viminfo = TRUE;
+  	    if (--idx < 0)
+  		idx = hislen - 1;
+  	}
+*** ../vim-7.3.879/src/version.c	2013-04-05 17:43:10.000000000 +0200
+--- src/version.c	2013-04-05 18:54:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     880,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+122. You ask if the Netaholics Anonymous t-shirt you ordered can be
+     sent to you via e-mail.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

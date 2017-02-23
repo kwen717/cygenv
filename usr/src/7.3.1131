@@ -1,0 +1,162 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1131
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1131
+Problem:    New regexp engine is a bit slow.
+Solution:   Do not clear the state list.  Don't copy syntax submatches when
+	    not used.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1130/src/regexp_nfa.c	2013-06-05 21:42:49.000000000 +0200
+--- src/regexp_nfa.c	2013-06-06 15:57:14.000000000 +0200
+***************
+*** 319,325 ****
+      post_start = (int *)lalloc(postfix_size, TRUE);
+      if (post_start == NULL)
+  	return FAIL;
+-     vim_memset(post_start, 0, postfix_size);
+      post_ptr = post_start;
+      post_end = post_start + nstate_max;
+      nfa_has_zend = FALSE;
+--- 319,324 ----
+***************
+*** 347,353 ****
+      if (new_start == NULL)
+  	return FAIL;
+      mch_memmove(new_start, post_start, nstate_max * sizeof(int));
+-     vim_memset(new_start + nstate_max, 0, 1000 * sizeof(int));
+      old_start = post_start;
+      post_start = new_start;
+      post_ptr = new_start + (post_ptr - old_start);
+--- 346,351 ----
+***************
+*** 4127,4137 ****
+  
+      /* Allocate memory for the lists of nodes. */
+      size = (nstate + 1) * sizeof(nfa_thread_T);
+!     list[0].t = (nfa_thread_T *)lalloc_clear(size, TRUE);
+      list[0].len = nstate + 1;
+!     list[1].t = (nfa_thread_T *)lalloc_clear(size, TRUE);
+      list[1].len = nstate + 1;
+!     list[2].t = (nfa_thread_T *)lalloc_clear(size, TRUE);
+      list[2].len = nstate + 1;
+      if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
+  	goto theend;
+--- 4125,4135 ----
+  
+      /* Allocate memory for the lists of nodes. */
+      size = (nstate + 1) * sizeof(nfa_thread_T);
+!     list[0].t = (nfa_thread_T *)lalloc(size, TRUE);
+      list[0].len = nstate + 1;
+!     list[1].t = (nfa_thread_T *)lalloc(size, TRUE);
+      list[1].len = nstate + 1;
+!     list[2].t = (nfa_thread_T *)lalloc(size, TRUE);
+      list[2].len = nstate + 1;
+      if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
+  	goto theend;
+***************
+*** 4390,4396 ****
+  			    /* Copy submatch info from the recursive call */
+  			    copy_sub_off(&t->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+! 			    copy_sub_off(&t->subs.synt, &m->synt);
+  #endif
+  
+  			    /* t->state->out1 is the corresponding
+--- 4388,4395 ----
+  			    /* Copy submatch info from the recursive call */
+  			    copy_sub_off(&t->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+! 			    if (nfa_has_zsubexpr)
+! 				copy_sub_off(&t->subs.synt, &m->synt);
+  #endif
+  
+  			    /* t->state->out1 is the corresponding
+***************
+*** 4441,4447 ****
+  		    /* Copy submatch info from the recursive call */
+  		    copy_sub_off(&t->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+! 		    copy_sub_off(&t->subs.synt, &m->synt);
+  #endif
+  		    /* Now we need to skip over the matched text and then
+  		     * continue with what follows. */
+--- 4440,4447 ----
+  		    /* Copy submatch info from the recursive call */
+  		    copy_sub_off(&t->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+! 		    if (nfa_has_zsubexpr)
+! 			copy_sub_off(&t->subs.synt, &m->synt);
+  #endif
+  		    /* Now we need to skip over the matched text and then
+  		     * continue with what follows. */
+***************
+*** 5053,5059 ****
+  			    /* Copy submatch info from the recursive call */
+  			    copy_sub_off(&t->pim->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+! 			    copy_sub_off(&t->pim->subs.synt, &m->synt);
+  #endif
+  			}
+  		    }
+--- 5053,5060 ----
+  			    /* Copy submatch info from the recursive call */
+  			    copy_sub_off(&t->pim->subs.norm, &m->norm);
+  #ifdef FEAT_SYN_HL
+! 			    if (nfa_has_zsubexpr)
+! 				copy_sub_off(&t->pim->subs.synt, &m->synt);
+  #endif
+  			}
+  		    }
+***************
+*** 5074,5080 ****
+  			/* Copy submatch info from the recursive call */
+  			copy_sub_off(&t->subs.norm, &t->pim->subs.norm);
+  #ifdef FEAT_SYN_HL
+! 			copy_sub_off(&t->subs.synt, &t->pim->subs.synt);
+  #endif
+  		    }
+  		    else
+--- 5075,5082 ----
+  			/* Copy submatch info from the recursive call */
+  			copy_sub_off(&t->subs.norm, &t->pim->subs.norm);
+  #ifdef FEAT_SYN_HL
+! 			if (nfa_has_zsubexpr)
+! 			    copy_sub_off(&t->subs.synt, &t->pim->subs.synt);
+  #endif
+  		    }
+  		    else
+***************
+*** 5440,5446 ****
+      prog = (nfa_regprog_T *)lalloc(prog_size, TRUE);
+      if (prog == NULL)
+  	goto fail;
+-     vim_memset(prog, 0, prog_size);
+      state_ptr = prog->state;
+  
+      /*
+--- 5442,5447 ----
+*** ../vim-7.3.1130/src/version.c	2013-06-06 14:55:16.000000000 +0200
+--- src/version.c	2013-06-06 16:21:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1131,
+  /**/
+
+-- 
+There's no place like $(HOME)!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

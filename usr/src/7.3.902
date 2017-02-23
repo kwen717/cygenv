@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.902
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.902
+Problem:    When deleting last buffer in other tab the tabline is not updated.
+Solution:   Set the redraw_tabline flag. (Yukihiro Nakadaira)
+Files:	    src/window.c
+
+
+*** ../vim-7.3.901/src/window.c	2013-04-15 12:27:30.000000000 +0200
+--- src/window.c	2013-04-15 15:52:46.000000000 +0200
+***************
+*** 2070,2075 ****
+--- 2070,2076 ----
+  
+      --RedrawingDisabled;
+  
++     redraw_tabline = TRUE;
+      if (h != tabline_height())
+  	shell_new_rows();
+  }
+*** ../vim-7.3.901/src/version.c	2013-04-15 15:47:07.000000000 +0200
+--- src/version.c	2013-04-15 15:54:42.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     902,
+  /**/
+
+-- 
+If Microsoft would build a car...
+... The airbag system would ask "are you SURE?" before deploying.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

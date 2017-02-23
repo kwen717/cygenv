@@ -1,0 +1,112 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.9
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.967 (after 7.3.965)
+Problem:    Build fails on Mac OSX. (Greg Novack)
+Solution:   Undefine clear().
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.966/src/if_py_both.h	2013-05-17 16:39:59.000000000 +0200
+--- src/if_py_both.h	2013-05-17 20:40:47.000000000 +0200
+***************
+*** 474,480 ****
+  static PyObject *ConvertToPyObject(typval_T *);
+  
+      static PyObject *
+! VimEvalPy(PyObject *self UNUSED, PyObject *args UNUSED)
+  {
+      char	*expr;
+      typval_T	*our_tv;
+--- 474,480 ----
+  static PyObject *ConvertToPyObject(typval_T *);
+  
+      static PyObject *
+! VimEvalPy(PyObject *self UNUSED, PyObject *args)
+  {
+      char	*expr;
+      typval_T	*our_tv;
+***************
+*** 547,555 ****
+  typedef int (*traversefun)(void *, visitproc, void *);
+  typedef int (*clearfun)(void **);
+  
+! /* Main purpose of this object is removing the need for do python initialization 
+!  * (i.e. PyType_Ready and setting type attributes) for a big bunch of objects.
+!  */
+  
+  typedef struct
+  {
+--- 547,555 ----
+  typedef int (*traversefun)(void *, visitproc, void *);
+  typedef int (*clearfun)(void **);
+  
+! /* Main purpose of this object is removing the need for do python
+!  * initialization (i.e. PyType_Ready and setting type attributes) for a big
+!  * bunch of objects. */
+  
+  typedef struct
+  {
+***************
+*** 598,603 ****
+--- 598,608 ----
+  	return 0;
+  }
+  
++ /* Mac OSX defines clear() somewhere. */
++ #ifdef clear
++ # undef clear
++ #endif
++ 
+      static int
+  IterClear(PyObject *self)
+  {
+***************
+*** 3287,3295 ****
+      else if (!(next = BufferNew(((BufferObject *)(r))->buf->b_next)))
+  	return NULL;
+      *buffer = next;
+!     /* Do not increment reference: we no longer hold it (decref), but whoever on 
+!      * other side will hold (incref). Decref+incref = nothing.
+!      */
+      return r;
+  }
+  
+--- 3292,3299 ----
+      else if (!(next = BufferNew(((BufferObject *)(r))->buf->b_next)))
+  	return NULL;
+      *buffer = next;
+!     /* Do not increment reference: we no longer hold it (decref), but whoever
+!      * on other side will hold (incref). Decref+incref = nothing. */
+      return r;
+  }
+  
+*** ../vim-7.3.966/src/version.c	2013-05-17 16:39:59.000000000 +0200
+--- src/version.c	2013-05-17 21:19:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     967,
+  /**/
+
+-- 
+ARTHUR:          What does it say?
+BROTHER MAYNARD: It reads ... "Here may be found the last words of Joseph of
+                 Aramathea." "He who is valorous and pure of heart may find
+                 the Holy Grail in the aaaaarrrrrrggghhh..."
+ARTHUR:          What?
+BROTHER MAYNARD: "The Aaaaarrrrrrggghhh..."
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,94 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1305
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1305
+Problem:    Warnings from 64 bit compiler.
+Solution:   Add type casts.
+Files:	    src/misc2.c
+
+
+*** ../vim-7.3.1304/src/misc2.c	2013-07-03 21:19:00.000000000 +0200
+--- src/misc2.c	2013-07-04 21:14:48.000000000 +0200
+***************
+*** 4680,4687 ****
+      STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
+      add_pathsep(ff_expand_buffer);
+      {
+! 	int    eb_len = STRLEN(ff_expand_buffer);
+! 	char_u *buf = alloc(eb_len + STRLEN(search_ctx->ffsc_fix_path) + 1);
+  
+  	STRCPY(buf, ff_expand_buffer);
+  	STRCPY(buf + eb_len, search_ctx->ffsc_fix_path);
+--- 4680,4688 ----
+      STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
+      add_pathsep(ff_expand_buffer);
+      {
+! 	int    eb_len = (int)STRLEN(ff_expand_buffer);
+! 	char_u *buf = alloc(eb_len
+! 				+ (int)STRLEN(search_ctx->ffsc_fix_path) + 1);
+  
+  	STRCPY(buf, ff_expand_buffer);
+  	STRCPY(buf + eb_len, search_ctx->ffsc_fix_path);
+***************
+*** 4700,4717 ****
+  
+  	    if (p > search_ctx->ffsc_fix_path)
+  	    {
+! 		len = p - search_ctx->ffsc_fix_path - 1;
+  		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+  		add_pathsep(ff_expand_buffer);
+  	    }
+  	    else
+! 		len = STRLEN(search_ctx->ffsc_fix_path);
+  
+  	    if (search_ctx->ffsc_wc_path != NULL)
+  	    {
+  		wc_path = vim_strsave(search_ctx->ffsc_wc_path);
+! 		temp = alloc(STRLEN(search_ctx->ffsc_wc_path)
+! 				 + (STRLEN(search_ctx->ffsc_fix_path) - len));
+  	    }
+  
+  	    if (temp == NULL || wc_path == NULL)
+--- 4701,4718 ----
+  
+  	    if (p > search_ctx->ffsc_fix_path)
+  	    {
+! 		len = (int)(p - search_ctx->ffsc_fix_path) - 1;
+  		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+  		add_pathsep(ff_expand_buffer);
+  	    }
+  	    else
+! 		len = (int)STRLEN(search_ctx->ffsc_fix_path);
+  
+  	    if (search_ctx->ffsc_wc_path != NULL)
+  	    {
+  		wc_path = vim_strsave(search_ctx->ffsc_wc_path);
+! 		temp = alloc((int)(STRLEN(search_ctx->ffsc_wc_path)
+! 				 + (STRLEN(search_ctx->ffsc_fix_path)) - len));
+  	    }
+  
+  	    if (temp == NULL || wc_path == NULL)
+*** ../vim-7.3.1304/src/version.c	2013-07-04 20:50:42.000000000 +0200
+--- src/version.c	2013-07-04 21:13:23.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1305,
+  /**/
+
+-- 
+A hamburger walks into a bar, and the bartender says: "I'm sorry,
+but we don't serve food here."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

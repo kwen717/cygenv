@@ -1,0 +1,80 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1031
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1031
+Problem:    Compiler warnings for shadowed variable. (John Little)
+Solution:   Move the variable declarations to the scope where they are used.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1030/src/regexp_nfa.c	2013-05-26 23:13:03.000000000 +0200
+--- src/regexp_nfa.c	2013-05-27 11:15:35.000000000 +0200
+***************
+*** 2999,3005 ****
+      nfa_list_T	*nextlist;
+      nfa_list_T	*neglist;
+      int		*listids = NULL;
+-     int		j = 0;
+  #ifdef NFA_REGEXP_DEBUG_LOG
+      FILE	*debug = fopen(NFA_REGEXP_DEBUG_LOG, "a");
+  
+--- 2999,3004 ----
+***************
+*** 3149,3154 ****
+--- 3148,3156 ----
+  	    switch (t->state->c)
+  	    {
+  	    case NFA_MATCH:
++ 	      {
++ 		int j;
++ 
+  		nfa_match = TRUE;
+  		submatch->in_use = t->sub.in_use;
+  		if (REG_MULTI)
+***************
+*** 3186,3191 ****
+--- 3188,3194 ----
+  		if (nextlist->n == 0 && neglist->n == 0)
+  		    clen = 0;
+  		goto nextchar;
++ 	      }
+  
+  	    case NFA_END_INVISIBLE:
+  		/* This is only encountered after a NFA_START_INVISIBLE node.
+***************
+*** 3251,3256 ****
+--- 3254,3261 ----
+  #endif
+  		if (result == TRUE)
+  		{
++ 		    int j;
++ 
+  		    /* Restore position in input text */
+  		    reginput = old_reginput;
+  		    regline = old_regline;
+*** ../vim-7.3.1030/src/version.c	2013-05-26 23:13:03.000000000 +0200
+--- src/version.c	2013-05-27 11:21:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1031,
+  /**/
+
+-- 
+It's totally unfair to suggest - as many have - that engineers are socially
+inept.  Engineers simply have different objectives when it comes to social
+interaction.
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

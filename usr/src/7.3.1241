@@ -1,0 +1,51 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1241
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1241 (after 7.3.1236)
+Problem:    Some test files missing from the distribution.
+Solution:   Update the list of files.
+Files:	    Filelist
+
+
+*** ../vim-7.3.1240/Filelist	2013-06-12 14:20:15.000000000 +0200
+--- Filelist	2013-06-24 22:21:10.000000000 +0200
+***************
+*** 87,92 ****
+--- 87,96 ----
+  		src/testdir/python2/*.py \
+  		src/testdir/python3/*.py \
+  		src/testdir/pythonx/*.py \
++ 		src/testdir/pythonx/topmodule/__init__.py \
++ 		src/testdir/pythonx/topmodule/submodule/__init__.py \
++ 		src/testdir/pythonx/topmodule/submodule/subsubmodule/__init__.py \
++ 		src/testdir/pythonx/topmodule/submodule/subsubmodule/subsubsubmodule.py \
+  		src/testdir/python_after/*.py \
+  		src/testdir/python_before/*.py \
+  		src/proto.h \
+*** ../vim-7.3.1240/src/version.c	2013-06-24 22:17:27.000000000 +0200
+--- src/version.c	2013-06-24 22:23:24.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1241,
+  /**/
+
+-- 
+DINGO:   And after the spanking ... the oral sex.
+GALAHAD: Oh, dear! Well, I...
+GIRLS:   The oral sex ...  The oral sex.
+GALAHAD: Well, I suppose I could stay a BIT longer.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

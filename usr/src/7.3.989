@@ -1,0 +1,67 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.989
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.989
+Problem:    New regexp engine compares negative numbers to character.
+Solution:   Add missing case statements.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.988/src/regexp_nfa.c	2013-05-21 14:02:55.000000000 +0200
+--- src/regexp_nfa.c	2013-05-21 15:31:47.000000000 +0200
+***************
+*** 3383,3390 ****
+--- 3383,3412 ----
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
+  
++ 	    case NFA_MOPEN + 0:
++ 	    case NFA_MOPEN + 1:
++ 	    case NFA_MOPEN + 2:
++ 	    case NFA_MOPEN + 3:
++ 	    case NFA_MOPEN + 4:
++ 	    case NFA_MOPEN + 5:
++ 	    case NFA_MOPEN + 6:
++ 	    case NFA_MOPEN + 7:
++ 	    case NFA_MOPEN + 8:
++ 	    case NFA_MOPEN + 9:
++ 		/* handled below */
++ 		break;
++ 
++ 	    case NFA_SKIP_CHAR:
++ 	    case NFA_ZSTART:
++ 		/* TODO: should not happen? */
++ 		break;
++ 
+  	    default:	/* regular character */
++ 		/* TODO: put this in #ifdef later */
++ 		if (t->state->c < -256)
++ 		    EMSGN("INTERNAL: Negative state char: %ld", t->state->c);
+  		result = (no_Magic(t->state->c) == c);
++ 
+  		if (!result)
+  		    result = ireg_ic == TRUE
+  				&& MB_TOLOWER(t->state->c) == MB_TOLOWER(c);
+*** ../vim-7.3.988/src/version.c	2013-05-21 14:02:55.000000000 +0200
+--- src/version.c	2013-05-21 15:32:50.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     989,
+  /**/
+
+-- 
+God made machine language; all the rest is the work of man.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

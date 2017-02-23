@@ -1,0 +1,97 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1277
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1277
+Problem:    In diff mode 'cursorline' also draws in the non-active window.
+	    When 'nu' and 'sbr' are set the 'sbr' string is not underlined.
+Solution:   Only draw the cursor line in the current window. Combine the
+	    'cursorline' and other highlighting attributes. (Christian
+	    Brabandt)
+Files:	    src/screen.c
+
+
+*** ../vim-7.3.1276/src/screen.c	2013-06-15 23:00:26.000000000 +0200
+--- src/screen.c	2013-06-30 17:13:16.000000000 +0200
+***************
+*** 3366,3374 ****
+  #endif
+  
+  #ifdef FEAT_SYN_HL
+!     /* Cursor line highlighting for 'cursorline'.  Not when Visual mode is
+!      * active, because it's not clear what is selected then. */
+!     if (wp->w_p_cul && lnum == wp->w_cursor.lnum && !VIsual_active)
+      {
+  	line_attr = hl_attr(HLF_CUL);
+  	area_highlighting = TRUE;
+--- 3366,3376 ----
+  #endif
+  
+  #ifdef FEAT_SYN_HL
+!     /* Cursor line highlighting for 'cursorline' in the current window.  Not
+!      * when Visual mode is active, because it's not clear what is selected
+!      * then. */
+!     if (wp->w_p_cul && wp == curwin && lnum == wp->w_cursor.lnum
+! 							    && !VIsual_active)
+      {
+  	line_attr = hl_attr(HLF_CUL);
+  	area_highlighting = TRUE;
+***************
+*** 3541,3547 ****
+  		     * the current line differently.
+  		     * TODO: Can we use CursorLine instead of CursorLineNr
+  		     * when CursorLineNr isn't set? */
+! 		    if ((wp->w_p_cul || wp->w_p_rnu)
+  						 && lnum == wp->w_cursor.lnum)
+  			char_attr = hl_attr(HLF_CLN);
+  #endif
+--- 3543,3549 ----
+  		     * the current line differently.
+  		     * TODO: Can we use CursorLine instead of CursorLineNr
+  		     * when CursorLineNr isn't set? */
+! 		    if (((wp->w_p_cul && wp == curwin) || wp->w_p_rnu)
+  						 && lnum == wp->w_cursor.lnum)
+  			char_attr = hl_attr(HLF_CLN);
+  #endif
+***************
+*** 3582,3587 ****
+--- 3584,3595 ----
+  		     * required when 'linebreak' is also set. */
+  		    if (tocol == vcol)
+  			tocol += n_extra;
++ #ifdef FEAT_SYN_HL
++ 		    /* combine 'showbreak' with 'cursorline' */
++ 		    if (wp->w_p_cul && wp == curwin
++ 						 && lnum == wp->w_cursor.lnum)
++ 			char_attr = hl_combine_attr(char_attr, HLF_CLN);
++ #endif
+  		}
+  # endif
+  	    }
+*** ../vim-7.3.1276/src/version.c	2013-06-30 17:22:19.000000000 +0200
+--- src/version.c	2013-06-30 17:07:24.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1277,
+  /**/
+
+-- 
+ARTHUR:  Then who is your lord?
+WOMAN:   We don't have a lord.
+ARTHUR:  What?
+DENNIS:  I told you.  We're an anarcho-syndicalist commune.  We take it in
+         turns to act as a sort of executive officer for the week.
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,165 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.861
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.861
+Problem:    ":setlocal number" clears global value of 'relativenumber'.
+Solution:   Do it properly. (Markus Heidelberg)
+Files:	    src/testdir/test89.in, src/testdir/test89.ok, src/option.c
+
+
+*** ../vim-7.3.860/src/testdir/test89.in	2013-02-14 20:10:28.000000000 +0100
+--- src/testdir/test89.in	2013-03-13 20:27:10.000000000 +0100
+***************
+*** 10,15 ****
+--- 10,52 ----
+  :$put ='results:'
+  :$put a
+  :$put b
++ :"
++ :set nonu nornu
++ :setglobal nu
++ :setlocal rnu
++ :redir @c | setglobal nu? | redir END
++ :set nonu nornu
++ :setglobal rnu
++ :setlocal nu
++ :redir @d | setglobal rnu? | redir END
++ :$put =':setlocal must NOT reset the other global value'
++ :$put c
++ :$put d
++ :"
++ :set nonu nornu
++ :setglobal nu
++ :setglobal rnu
++ :redir @e | setglobal nu? | redir END
++ :set nonu nornu
++ :setglobal rnu
++ :setglobal nu
++ :redir @f | setglobal rnu? | redir END
++ :$put =':setglobal MUST reset the other global value'
++ :$put e
++ :$put f
++ :"
++ :set nonu nornu
++ :set nu
++ :set rnu
++ :redir @g | setglobal nu? | redir END
++ :set nonu nornu
++ :set rnu
++ :set nu
++ :redir @h | setglobal rnu? | redir END
++ :$put =':set MUST reset the other global value'
++ :$put g
++ :$put h
++ :"
+  :/^results/,$w! test.out
+  :q!
+  ENDTEST
+*** ../vim-7.3.860/src/testdir/test89.ok	2013-02-13 15:44:22.000000000 +0100
+--- src/testdir/test89.ok	2013-03-13 20:27:10.000000000 +0100
+***************
+*** 5,7 ****
+--- 5,22 ----
+  
+  nonumber
+    relativenumber
++ :setlocal must NOT reset the other global value
++ 
++   number
++ 
++   relativenumber
++ :setglobal MUST reset the other global value
++ 
++ nonumber
++ 
++ norelativenumber
++ :set MUST reset the other global value
++ 
++ nonumber
++ 
++ norelativenumber
+*** ../vim-7.3.860/src/option.c	2013-03-13 19:29:24.000000000 +0100
+--- src/option.c	2013-03-13 20:35:20.000000000 +0100
+***************
+*** 7631,7652 ****
+      }
+  #endif
+  
+!     /* 'number', 'relativenumber' */
+!     else if ((int *)varp == &curwin->w_p_nu
+! 	  || (int *)varp == &curwin->w_p_rnu)
+      {
+! 	/* If 'number' is set, reset 'relativenumber'. */
+! 	/* If 'relativenumber' is set, reset 'number'. */
+! 	if ((int *)varp == &curwin->w_p_nu && curwin->w_p_nu)
+! 	{
+! 	    curwin->w_p_rnu = FALSE;
+  	    curwin->w_allbuf_opt.wo_rnu = FALSE;
+! 	}
+! 	if ((int *)varp == &curwin->w_p_rnu && curwin->w_p_rnu)
+! 	{
+! 	    curwin->w_p_nu = FALSE;
+  	    curwin->w_allbuf_opt.wo_nu = FALSE;
+! 	}
+      }
+  
+      else if ((int *)varp == &curbuf->b_p_ro)
+--- 7631,7663 ----
+      }
+  #endif
+  
+!     /* If 'number' is set, reset 'relativenumber'. */
+!     /* If 'relativenumber' is set, reset 'number'. */
+!     else if ((int *)varp == &curwin->w_p_nu && curwin->w_p_nu)
+      {
+! 	curwin->w_p_rnu = FALSE;
+! 
+! 	/* Only reset the global value if the own value is set globally. */
+! 	if (((opt_flags & (OPT_LOCAL | OPT_GLOBAL)) == 0))
+  	    curwin->w_allbuf_opt.wo_rnu = FALSE;
+!     }
+!     else if ((int *)varp == &curwin->w_p_rnu && curwin->w_p_rnu)
+!     {
+! 	curwin->w_p_nu = FALSE;
+! 
+! 	/* Only reset the global value if the own value is set globally. */
+! 	if (((opt_flags & (OPT_LOCAL | OPT_GLOBAL)) == 0))
+  	    curwin->w_allbuf_opt.wo_nu = FALSE;
+!     }
+!     else if ((int *)varp == &curwin->w_allbuf_opt.wo_nu
+! 						&& curwin->w_allbuf_opt.wo_nu)
+!     {
+!         curwin->w_allbuf_opt.wo_rnu = FALSE;
+!     }
+!     else if ((int *)varp == &curwin->w_allbuf_opt.wo_rnu
+! 					       && curwin->w_allbuf_opt.wo_rnu)
+!     {
+!         curwin->w_allbuf_opt.wo_nu = FALSE;
+      }
+  
+      else if ((int *)varp == &curbuf->b_p_ro)
+*** ../vim-7.3.860/src/version.c	2013-03-13 20:23:17.000000000 +0100
+--- src/version.c	2013-03-13 20:42:09.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     861,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+43. You tell the kids they can't use the computer because "Daddy's got work to
+    do" and you don't even have a job.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

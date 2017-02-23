@@ -1,0 +1,205 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.942
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.942
+Problem:    Python: SEGV in Buffer functions.
+Solution:   Call CheckBuffer() at the right time. (ZyX)
+Files:	    src/if_py_both.h, src/if_python.c, src/if_python3.c
+
+
+*** ../vim-7.3.941/src/if_py_both.h	2013-05-12 19:45:30.000000000 +0200
+--- src/if_py_both.h	2013-05-12 20:19:08.000000000 +0200
+***************
+*** 2391,2396 ****
+--- 2391,2399 ----
+      if (CheckBuffer(self))
+  	return NULL;
+  
++     if (end == -1)
++ 	end = self->buf->b_ml.ml_line_count;
++ 
+      if (n < 0 || n > end - start)
+      {
+  	PyErr_SetString(PyExc_IndexError, _("line number out of range"));
+***************
+*** 2408,2413 ****
+--- 2411,2419 ----
+      if (CheckBuffer(self))
+  	return NULL;
+  
++     if (end == -1)
++ 	end = self->buf->b_ml.ml_line_count;
++ 
+      size = end - start + 1;
+  
+      if (lo < 0)
+***************
+*** 2432,2437 ****
+--- 2438,2446 ----
+      if (CheckBuffer(self))
+  	return -1;
+  
++     if (end == -1)
++ 	end = self->buf->b_ml.ml_line_count;
++ 
+      if (n < 0 || n > end - start)
+      {
+  	PyErr_SetString(PyExc_IndexError, _("line number out of range"));
+***************
+*** 2457,2462 ****
+--- 2466,2474 ----
+      if (CheckBuffer(self))
+  	return -1;
+  
++     if (end == -1)
++ 	end = self->buf->b_ml.ml_line_count;
++ 
+      /* Sort out the slice range */
+      size = end - start + 1;
+  
+***************
+*** 2493,2498 ****
+--- 2505,2513 ----
+      if (CheckBuffer(self))
+  	return NULL;
+  
++     if (end == -1)
++ 	end = self->buf->b_ml.ml_line_count;
++ 
+      max = n = end - start + 1;
+  
+      if (!PyArg_ParseTuple(args, "O|n", &lines, &n))
+***************
+*** 2700,2714 ****
+      static PyObject *
+  BufferItem(PyObject *self, PyInt n)
+  {
+!     return RBItem((BufferObject *)(self), n, 1,
+! 		  (PyInt)((BufferObject *)(self))->buf->b_ml.ml_line_count);
+  }
+  
+      static PyObject *
+  BufferSlice(PyObject *self, PyInt lo, PyInt hi)
+  {
+!     return RBSlice((BufferObject *)(self), lo, hi, 1,
+! 		   (PyInt)((BufferObject *)(self))->buf->b_ml.ml_line_count);
+  }
+  
+      static PyObject *
+--- 2715,2727 ----
+      static PyObject *
+  BufferItem(PyObject *self, PyInt n)
+  {
+!     return RBItem((BufferObject *)(self), n, 1, -1);
+  }
+  
+      static PyObject *
+  BufferSlice(PyObject *self, PyInt lo, PyInt hi)
+  {
+!     return RBSlice((BufferObject *)(self), lo, hi, 1, -1);
+  }
+  
+      static PyObject *
+***************
+*** 2732,2740 ****
+      static PyObject *
+  BufferAppend(PyObject *self, PyObject *args)
+  {
+!     return RBAppend((BufferObject *)(self), args, 1,
+! 		    (PyInt)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+! 		    NULL);
+  }
+  
+      static PyObject *
+--- 2745,2751 ----
+      static PyObject *
+  BufferAppend(PyObject *self, PyObject *args)
+  {
+!     return RBAppend((BufferObject *)(self), args, 1, -1, NULL);
+  }
+  
+      static PyObject *
+*** ../vim-7.3.941/src/if_python.c	2013-05-12 19:45:30.000000000 +0200
+--- src/if_python.c	2013-05-12 20:19:08.000000000 +0200
+***************
+*** 1073,1089 ****
+      static PyInt
+  BufferAssItem(PyObject *self, PyInt n, PyObject *val)
+  {
+!     return RBAsItem((BufferObject *)(self), n, val, 1,
+! 		     (PyInt)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+! 		     NULL);
+  }
+  
+      static PyInt
+  BufferAssSlice(PyObject *self, PyInt lo, PyInt hi, PyObject *val)
+  {
+!     return RBAsSlice((BufferObject *)(self), lo, hi, val, 1,
+! 		      (PyInt)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+! 		      NULL);
+  }
+  
+  static PySequenceMethods RangeAsSeq = {
+--- 1073,1085 ----
+      static PyInt
+  BufferAssItem(PyObject *self, PyInt n, PyObject *val)
+  {
+!     return RBAsItem((BufferObject *)(self), n, val, 1, -1, NULL);
+  }
+  
+      static PyInt
+  BufferAssSlice(PyObject *self, PyInt lo, PyInt hi, PyObject *val)
+  {
+!     return RBAsSlice((BufferObject *)(self), lo, hi, val, 1, -1, NULL);
+  }
+  
+  static PySequenceMethods RangeAsSeq = {
+*** ../vim-7.3.941/src/if_python3.c	2013-05-12 18:44:44.000000000 +0200
+--- src/if_python3.c	2013-05-12 20:19:08.000000000 +0200
+***************
+*** 1110,1115 ****
+--- 1110,1118 ----
+      {
+  	Py_ssize_t start, stop, step, slicelen;
+  
++ 	if (CheckBuffer((BufferObject *) self))
++ 	    return NULL;
++ 
+  	if (PySlice_GetIndicesEx((PyObject *)idx,
+  	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count+1,
+  	      &start, &stop,
+***************
+*** 1139,1144 ****
+--- 1142,1150 ----
+      {
+  	Py_ssize_t start, stop, step, slicelen;
+  
++ 	if (CheckBuffer((BufferObject *) self))
++ 	    return -1;
++ 
+  	if (PySlice_GetIndicesEx((PyObject *)idx,
+  	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count+1,
+  	      &start, &stop,
+*** ../vim-7.3.941/src/version.c	2013-05-12 19:45:30.000000000 +0200
+--- src/version.c	2013-05-12 19:49:58.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     942,
+  /**/
+
+-- 
+Vim is like Emacs without all the typing.  (John "Johann" Spetz)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

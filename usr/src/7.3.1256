@@ -1,0 +1,151 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1256
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1256
+Problem:    Can't build without eval or autocmd feature.
+Solution:   Add #ifdefs.
+Files:	    src/mbyte.c, src/window.c
+
+
+*** ../vim-7.3.1255/src/mbyte.c	2013-06-26 19:17:58.000000000 +0200
+--- src/mbyte.c	2013-06-28 19:53:43.000000000 +0200
+***************
+*** 5079,5084 ****
+--- 5079,5085 ----
+  	{
+  	    xim_set_focus(gui.in_focus);
+  
++ #  ifdef FEAT_EVAL
+  	    if (p_imaf[0] != NUL)
+  	    {
+  		char_u *argv[1];
+***************
+*** 5089,5095 ****
+  		    argv[0] = (char_u *)"0";
+  		(void)call_func_retnr(p_imaf, 1, argv, FALSE);
+  	    }
+! 	    else if (im_activatekey_keyval != GDK_VoidSymbol)
+  	    {
+  		if (im_is_active)
+  		{
+--- 5090,5098 ----
+  		    argv[0] = (char_u *)"0";
+  		(void)call_func_retnr(p_imaf, 1, argv, FALSE);
+  	    }
+! 	    else
+! #  endif
+! 		if (im_activatekey_keyval != GDK_VoidSymbol)
+  	    {
+  		if (im_is_active)
+  		{
+***************
+*** 5249,5260 ****
+      int
+  im_get_status(void)
+  {
+      if (p_imsf[0] != NUL)
+      {
+  	int is_active;
+  
+  	/* FIXME: Don't execute user function in unsafe situation. */
+! 	if (exiting || is_autocmd_blocked())
+  	    return FALSE;
+  	/* FIXME: :py print 'xxx' is shown duplicate result.
+  	 * Use silent to avoid it. */
+--- 5252,5268 ----
+      int
+  im_get_status(void)
+  {
++ #  ifdef FEAT_EVAL
+      if (p_imsf[0] != NUL)
+      {
+  	int is_active;
+  
+  	/* FIXME: Don't execute user function in unsafe situation. */
+! 	if (exiting
+! #   ifdef FEAT_AUTOCMD
+! 		|| is_autocmd_blocked()
+! #   endif
+! 		)
+  	    return FALSE;
+  	/* FIXME: :py print 'xxx' is shown duplicate result.
+  	 * Use silent to avoid it. */
+***************
+*** 5263,5268 ****
+--- 5271,5277 ----
+  	--msg_silent;
+  	return (is_active > 0);
+      }
++ #  endif
+      return im_is_active;
+  }
+  
+*** ../vim-7.3.1255/src/window.c	2013-06-26 14:04:37.000000000 +0200
+--- src/window.c	2013-06-28 19:50:44.000000000 +0200
+***************
+*** 53,62 ****
+  static void frame_append __ARGS((frame_T *after, frame_T *frp));
+  static void frame_insert __ARGS((frame_T *before, frame_T *frp));
+  static void frame_remove __ARGS((frame_T *frp));
+! #ifdef FEAT_VERTSPLIT
+  static void win_goto_ver __ARGS((int up, long count));
+  static void win_goto_hor __ARGS((int left, long count));
+! #endif
+  static void frame_add_height __ARGS((frame_T *frp, int n));
+  static void last_status_rec __ARGS((frame_T *fr, int statusline));
+  
+--- 53,62 ----
+  static void frame_append __ARGS((frame_T *after, frame_T *frp));
+  static void frame_insert __ARGS((frame_T *before, frame_T *frp));
+  static void frame_remove __ARGS((frame_T *frp));
+! # ifdef FEAT_VERTSPLIT
+  static void win_goto_ver __ARGS((int up, long count));
+  static void win_goto_hor __ARGS((int left, long count));
+! # endif
+  static void frame_add_height __ARGS((frame_T *frp, int n));
+  static void last_status_rec __ARGS((frame_T *fr, int statusline));
+  
+***************
+*** 6928,6933 ****
+--- 6928,6934 ----
+  }
+  #endif
+  
++ #ifdef FEAT_WINDOWS
+  /*
+   * Return TRUE if "topfrp" and its children are at the right height.
+   */
+***************
+*** 6948,6953 ****
+--- 6949,6955 ----
+  
+      return TRUE;
+  }
++ #endif
+  
+  #ifdef FEAT_VERTSPLIT
+  /*
+*** ../vim-7.3.1255/src/version.c	2013-06-27 22:35:58.000000000 +0200
+--- src/version.c	2013-06-28 19:54:22.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1256,
+  /**/
+
+-- 
+Q: How does a UNIX Guru do Sex ?
+A: unzip;strip;touch;finger;mount;fsck;more;yes;umount;sleep
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

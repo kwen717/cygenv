@@ -1,0 +1,165 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1157
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1157
+Problem:    New regexp engine fails on "\(\<command\)\@<=.*"
+Solution:   Fix rule for postponing match.  Further tune estimating whether
+	    postponing works better.  Add test.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1156/src/regexp_nfa.c	2013-06-09 20:50:56.000000000 +0200
+--- src/regexp_nfa.c	2013-06-10 16:28:58.000000000 +0200
+***************
+*** 4587,4592 ****
+--- 4587,4593 ----
+  
+  /*
+   * Estimate the chance of a match with "state" failing.
++  * empty match: 0
+   * NFA_ANY: 1
+   * specific character: 99
+   */
+***************
+*** 4616,4622 ****
+--- 4617,4625 ----
+  	case NFA_ANY:
+  	    /* matches anything, unlikely to fail */
+  	    return 1;
++ 
+  	case NFA_MATCH:
++ 	case NFA_MCLOSE:
+  	    /* empty match works always */
+  	    return 0;
+  
+***************
+*** 4664,4670 ****
+  	case NFA_ZCLOSE9:
+  #endif
+  	case NFA_NOPEN:
+- 	case NFA_MCLOSE:
+  	case NFA_MCLOSE1:
+  	case NFA_MCLOSE2:
+  	case NFA_MCLOSE3:
+--- 4667,4672 ----
+***************
+*** 5095,5117 ****
+  	    case NFA_START_INVISIBLE_BEFORE:
+  	    case NFA_START_INVISIBLE_BEFORE_NEG:
+  		{
+! 		    int cout = t->state->out1->out->c;
+  
+! 		    /* Do it directly when what follows is possibly end of
+! 		     * match (closing paren).
+! 		     * Do it directly if there already is a PIM.
+! 		     * Postpone when it is \@<= or \@<!, these are expensive.
+! 		     * Otherwise first do the one that has the highest chance
+! 		     * of failing. */
+! 		    if ((cout >= NFA_MCLOSE && cout <= NFA_MCLOSE9)
+! #ifdef FEAT_SYN_HL
+! 			    || (cout >= NFA_ZCLOSE && cout <= NFA_ZCLOSE9)
+  #endif
+! 			    || t->pim.result != NFA_PIM_UNUSED
+! 			    || (t->state->c != NFA_START_INVISIBLE_BEFORE
+! 			        && t->state->c != NFA_START_INVISIBLE_BEFORE_NEG
+! 				&& failure_chance(t->state->out1->out, 0)
+! 					  < failure_chance(t->state->out, 0)))
+  		    {
+  			/*
+  			 * First try matching the invisible match, then what
+--- 5097,5142 ----
+  	    case NFA_START_INVISIBLE_BEFORE:
+  	    case NFA_START_INVISIBLE_BEFORE_NEG:
+  		{
+! 		    int directly = FALSE;
+  
+! #ifdef ENABLE_LOG
+! 		    fprintf(log_fd, "Failure chance invisible: %d, what follows: %d\n",
+! 			    failure_chance(t->state->out, 0),
+! 			    failure_chance(t->state->out1->out, 0));
+  #endif
+! 		    /* Do it directly when what follows is possibly the end of
+! 		     * the match.
+! 		     * Do it directly if there already is a PIM.
+! 		     * Postpone when the invisible match is expensive or has a
+! 		     * lower chance of failing. */
+! 		    if (match_follows(t->state->out1->out, 0)
+! 					   || t->pim.result != NFA_PIM_UNUSED)
+! 			directly = TRUE;
+! 		    else
+! 		    {
+! 			int ch_invisible = failure_chance(t->state->out, 0);
+! 			int ch_follows = failure_chance(t->state->out1->out, 0);
+! 
+! 			if (t->state->c == NFA_START_INVISIBLE_BEFORE
+! 			     || t->state->c == NFA_START_INVISIBLE_BEFORE_NEG)
+! 			{
+! 			    /* "before" matches are very expensive when
+! 			     * unbounded, always prefer what follows then,
+! 			     * unless what follows will always match.
+! 			     * Otherwise strongly prefer what follows. */
+! 			    if (t->state->val <= 0 && ch_follows > 0)
+! 				directly = FALSE;
+! 			    else
+! 				directly = ch_follows * 10 < ch_invisible;
+! 			}
+! 			else
+! 			{
+! 			    /* normal invisible, first do the one with the
+! 			     * highest failure chance */
+! 			    directly = ch_follows < ch_invisible;
+! 			}
+! 		    }
+! 		    if (directly)
+  		    {
+  			/*
+  			 * First try matching the invisible match, then what
+*** ../vim-7.3.1156/src/testdir/test64.in	2013-06-08 18:19:40.000000000 +0200
+--- src/testdir/test64.in	2013-06-10 16:19:49.000000000 +0200
+***************
+*** 392,397 ****
+--- 392,398 ----
+  :call add(tl, [2, '\v\C%(<Last Changed:\s+)@<=.*$', '" Last Changed: 1970', '1970'])
+  :call add(tl, [2, '\(foo\)\@<=\>', 'foobar'])
+  :call add(tl, [2, '\(foo\)\@<=\>', 'barfoo', '', 'foo'])
++ :call add(tl, [2, '\(foo\)\@<=.*', 'foobar', 'bar', 'foo'])
+  :"
+  :""""" \@>
+  :call add(tl, [2, '\(a*\)\@>a', 'aaaa'])
+*** ../vim-7.3.1156/src/testdir/test64.ok	2013-06-08 18:19:40.000000000 +0200
+--- src/testdir/test64.ok	2013-06-10 16:21:07.000000000 +0200
+***************
+*** 890,895 ****
+--- 890,898 ----
+  OK 0 - \(foo\)\@<=\>
+  OK 1 - \(foo\)\@<=\>
+  OK 2 - \(foo\)\@<=\>
++ OK 0 - \(foo\)\@<=.*
++ OK 1 - \(foo\)\@<=.*
++ OK 2 - \(foo\)\@<=.*
+  OK 0 - \(a*\)\@>a
+  OK 1 - \(a*\)\@>a
+  OK 2 - \(a*\)\@>a
+*** ../vim-7.3.1156/src/version.c	2013-06-09 20:50:56.000000000 +0200
+--- src/version.c	2013-06-10 16:23:57.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1157,
+  /**/
+
+-- 
+In a world without fences, who needs Gates and Windows?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

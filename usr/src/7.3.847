@@ -1,0 +1,47 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.847
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.847
+Problem:    Test 55 fails when messages are translated.
+Solution:   Set language to C. (Ken Takata)
+Files:	    src/testdir/test55.in
+
+
+*** ../vim-7.3.846/src/testdir/test55.in	2012-08-29 16:55:09.000000000 +0200
+--- src/testdir/test55.in	2013-03-07 14:33:12.000000000 +0100
+***************
+*** 3,8 ****
+--- 3,9 ----
+  STARTTEST
+  :so small.vim
+  :fun Test(...)
++ :lang C
+  :" Creating List directly with different types
+  :let l = [1, 'as''d', [1, 2, function("strlen")], {'a': 1},]
+  :$put =string(l)
+*** ../vim-7.3.846/src/version.c	2013-03-07 13:32:03.000000000 +0100
+--- src/version.c	2013-03-07 14:49:57.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     847,
+  /**/
+
+-- 
+"Space is big.  Really big.  You just won't believe how vastly hugely mind-
+bogglingly big it is.  I mean, you may think it's a long way down the
+road to the chemist, but that's just peanuts to space."
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,78 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.878
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.878
+Problem:    'fileignorecase' is missing in options window and quickref.
+Solution:   Add the option.
+Files:	    runtime/optwin.vim, runtime/doc/quickref.txt
+
+
+*** ../vim-7.3.877/runtime/optwin.vim	2010-08-15 21:57:20.000000000 +0200
+--- runtime/optwin.vim	2013-04-05 15:35:22.000000000 +0200
+***************
+*** 1042,1047 ****
+--- 1035,1044 ----
+    call append("$", "wildignore\tlist of patterns to ignore files for file name completion")
+    call <SID>OptionG("wig", &wig)
+  endif
++ call append("$", "fileignorecase\tignore case when using file names")
++ call <SID>BinOptionG("fic", &fic)
++ call append("$", "wildignorecase\tignore case when completing file names")
++ call <SID>BinOptionG("wic", &wic)
+  if has("wildmenu")
+    call append("$", "wildmenu\tcommand-line completion shows a list of matches")
+    call <SID>BinOptionG("wmnu", &wmnu)
+***************
+*** 1340,1342 ****
+--- 1339,1343 ----
+  let &sc = s:old_sc
+  let &cpo = s:cpo_save
+  unlet s:old_title s:old_icon s:old_ru s:old_sc s:cpo_save s:idx s:lnum
++ 
++ " vim: ts=8 sw=2 sts=2
+*** ../vim-7.3.877/runtime/doc/quickref.txt	2010-08-15 21:57:17.000000000 +0200
+--- runtime/doc/quickref.txt	2013-04-05 15:36:35.000000000 +0200
+***************
+*** 690,695 ****
+--- 691,697 ----
+  'fileencodings'   'fencs'   automatically detected character encodings
+  'fileformat'	  'ff'	    file format used for file I/O
+  'fileformats'	  'ffs'     automatically detected values for 'fileformat'
++ 'fileignorecase'  'fic'     ignore case when using file names
+  'filetype'	  'ft'	    type of file, used for autocommands
+  'fillchars'	  'fcs'     characters to use for displaying special items
+  'fkmap'		  'fk'	    Farsi keyboard mapping
+***************
+*** 934,939 ****
+--- 937,943 ----
+  'wildchar'	  'wc'	    command-line character for wildcard expansion
+  'wildcharm'	  'wcm'     like 'wildchar' but also works when mapped
+  'wildignore'	  'wig'     files matching these patterns are not completed
++ 'wildignorecase'  'wic'     ignore case when completing file names
+  'wildmenu'	  'wmnu'    use menu for command line completion
+  'wildmode'	  'wim'     mode for 'wildchar' command-line expansion
+  'wildoptions'	  'wop'     specifies how command line completion is done
+*** ../vim-7.3.877/src/version.c	2013-04-03 21:14:25.000000000 +0200
+--- src/version.c	2013-04-05 15:37:09.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     878,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+121. You ask for e-mail adresses instead of telephone numbers.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,69 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.944
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.944
+Problem:    External program receives the termrespone.
+Solution:   Insert a delay and discard input. (Hayaki Saito)
+Files:	    src/term.c
+
+
+*** ../vim-7.3.943/src/term.c	2013-04-06 14:30:35.000000000 +0200
+--- src/term.c	2013-05-13 20:24:14.000000000 +0200
+***************
+*** 3253,3261 ****
+  	if (!gui.in_use && !gui.starting)
+  # endif
+  	{
+! 	    /* May need to check for T_CRV response. */
+  	    if (crv_status == CRV_SENT || u7_status == U7_SENT)
+! 		(void)vpeekc_nomap();
+  	    /* Check for termcodes first, otherwise an external program may
+  	     * get them. */
+  	    check_for_codes_from_term();
+--- 3253,3271 ----
+  	if (!gui.in_use && !gui.starting)
+  # endif
+  	{
+! 	    /* May need to discard T_CRV or T_U7 response. */
+  	    if (crv_status == CRV_SENT || u7_status == U7_SENT)
+! 	    {
+! # ifdef UNIX
+! 		/* Give the terminal a chance to respond. */
+! 		mch_delay(100L, FALSE);
+! # endif
+! # ifdef TCIFLUSH
+! 		/* Discard data received but not read. */
+! 		if (exiting)
+! 		    tcflush(fileno(stdin), TCIFLUSH);
+! # endif
+! 	    }
+  	    /* Check for termcodes first, otherwise an external program may
+  	     * get them. */
+  	    check_for_codes_from_term();
+*** ../vim-7.3.943/src/version.c	2013-05-12 21:16:17.000000000 +0200
+--- src/version.c	2013-05-13 20:24:29.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     944,
+  /**/
+
+-- 
+DENNIS:  Listen -- strange women lying in ponds distributing swords is no
+         basis for a system of government.  Supreme executive power derives
+         from a mandate from the masses, not from some farcical aquatic
+         ceremony.
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

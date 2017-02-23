@@ -1,0 +1,163 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1303
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1303 (after 7.3.1290)
+Problem:    Undo is synced whenever CTRL-R = is called, breaking some plugins.
+Solution:   Only break undo when calling setline() or append().
+Files:	    src/globals.h, src/eval.c, src/edit.c, src/testdir/test61.in,
+	    src/testdir/test61.ok
+
+
+*** ../vim-7.3.1302/src/globals.h	2013-04-24 14:06:42.000000000 +0200
+--- src/globals.h	2013-07-04 19:53:44.000000000 +0200
+***************
+*** 916,921 ****
+--- 916,925 ----
+  EXTERN int allow_keys INIT(= FALSE);	/* allow key codes when no_mapping
+  					 * is set */
+  EXTERN int no_u_sync INIT(= 0);		/* Don't call u_sync() */
++ #ifdef FEAT_EVAL
++ EXTERN int u_sync_once INIT(= 0);	/* Call u_sync() once when evaluating
++ 					   an expression. */
++ #endif
+  
+  EXTERN int restart_edit INIT(= 0);	/* call edit when next cmd finished */
+  EXTERN int arrow_used;			/* Normally FALSE, set to TRUE after
+*** ../vim-7.3.1302/src/eval.c	2013-06-29 13:58:26.000000000 +0200
+--- src/eval.c	2013-07-04 19:57:18.000000000 +0200
+***************
+*** 8742,8747 ****
+--- 8742,8755 ----
+      typval_T	*tv;
+      long	added = 0;
+  
++     /* When coming here from Insert mode, sync undo, so that this can be
++      * undone separately from what was previously inserted. */
++     if (u_sync_once == 2)
++     {
++ 	u_sync_once = 1; /* notify that u_sync() was called */
++ 	u_sync(TRUE);
++     }
++ 
+      lnum = get_tv_lnum(argvars);
+      if (lnum >= 0
+  	    && lnum <= curbuf->b_ml.ml_line_count
+***************
+*** 16408,16413 ****
+--- 16416,16430 ----
+  	rettv->vval.v_number = 1;	/* FAIL */
+  	if (line == NULL || lnum < 1 || lnum > curbuf->b_ml.ml_line_count + 1)
+  	    break;
++ 
++ 	/* When coming here from Insert mode, sync undo, so that this can be
++ 	 * undone separately from what was previously inserted. */
++ 	if (u_sync_once == 2)
++ 	{
++ 	    u_sync_once = 1; /* notify that u_sync() was called */
++ 	    u_sync(TRUE);
++ 	}
++ 
+  	if (lnum <= curbuf->b_ml.ml_line_count)
+  	{
+  	    /* existing line, replace it */
+*** ../vim-7.3.1302/src/edit.c	2013-07-03 13:16:18.000000000 +0200
+--- src/edit.c	2013-07-04 20:22:25.000000000 +0200
+***************
+*** 8135,8143 ****
+  # ifdef USE_IM_CONTROL
+  	int	im_on = im_get_status();
+  # endif
+! 	/* Sync undo, so the effect of e.g., setline() can be undone. */
+! 	u_sync(TRUE);
+! 	ins_need_undo = TRUE;
+  
+  	regname = get_expr_register();
+  # ifdef USE_IM_CONTROL
+--- 8135,8143 ----
+  # ifdef USE_IM_CONTROL
+  	int	im_on = im_get_status();
+  # endif
+! 	/* Sync undo when evaluating the expression calls setline() or
+! 	 * append(), so that it can be undone separately. */
+! 	u_sync_once = 2;
+  
+  	regname = get_expr_register();
+  # ifdef USE_IM_CONTROL
+***************
+*** 8178,8183 ****
+--- 8178,8186 ----
+  #ifdef FEAT_EVAL
+      }
+      --no_u_sync;
++     if (u_sync_once == 1)
++ 	ins_need_undo = TRUE;
++     u_sync_once = 0;
+  #endif
+  #ifdef FEAT_CMDL_INFO
+      clear_showcmd();
+*** ../vim-7.3.1302/src/testdir/test61.in	2013-06-26 21:56:33.000000000 +0200
+--- src/testdir/test61.in	2013-07-04 20:23:47.000000000 +0200
+***************
+*** 93,99 ****
+  :set ul=100
+  o1a2=setline('.','1234')
+  
+! uu:%w >>test.out
+  :qa!
+  ENDTEST
+  
+--- 93,109 ----
+  :set ul=100
+  o1a2=setline('.','1234')
+  
+! uu:"
+! oc
+! :set ul=100
+! o1a2=setline('.','1234')
+! 
+! u:"
+! od
+! :set ul=100
+! o1a2=string(123)
+! u:"
+! :%w >>test.out
+  :qa!
+  ENDTEST
+  
+*** ../vim-7.3.1302/src/testdir/test61.ok	2013-06-15 17:54:36.000000000 +0200
+--- src/testdir/test61.ok	2013-07-04 20:24:25.000000000 +0200
+***************
+*** 44,46 ****
+--- 44,49 ----
+  
+  a
+  b
++ c
++ 12
++ d
+*** ../vim-7.3.1302/src/version.c	2013-07-03 22:28:32.000000000 +0200
+--- src/version.c	2013-07-04 20:09:30.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1303,
+  /**/
+
+
+-- 
+In Africa some of the native tribes have a custom of beating the ground
+with clubs and uttering spine chilling cries.  Anthropologists call
+this a form of primitive self-expression.  In America we call it golf.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

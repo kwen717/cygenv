@@ -1,0 +1,304 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.898
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.898
+Problem:    Memory leak reported by valgrind in test 91.
+Solution:   Only use default argument when needed.
+Files:	    src/eval.c, src/testdir/test91.in, src/testdir/test91.ok
+
+
+*** ../vim-7.3.897/src/eval.c	2013-04-15 13:06:15.000000000 +0200
+--- src/eval.c	2013-04-15 15:09:17.000000000 +0200
+***************
+*** 11120,11139 ****
+      buf_T	*save_curbuf;
+      char_u	*varname;
+      dictitem_T	*v;
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      varname = get_tv_string_chk(&argvars[1]);
+      ++emsg_off;
+      buf = get_buf_tv(&argvars[0], FALSE);
+  
+!     if (argvars[2].v_type != VAR_UNKNOWN)
+! 	/* set the default value */
+! 	copy_tv(&argvars[2], rettv);
+!     else
+!     {
+! 	rettv->v_type = VAR_STRING;
+! 	rettv->vval.v_string = NULL;
+!     }
+  
+      if (buf != NULL && varname != NULL)
+      {
+--- 11120,11134 ----
+      buf_T	*save_curbuf;
+      char_u	*varname;
+      dictitem_T	*v;
++     int		done = FALSE;
+  
+      (void)get_tv_number(&argvars[0]);	    /* issue errmsg if type error */
+      varname = get_tv_string_chk(&argvars[1]);
+      ++emsg_off;
+      buf = get_buf_tv(&argvars[0], FALSE);
+  
+!     rettv->v_type = VAR_STRING;
+!     rettv->vval.v_string = NULL;
+  
+      if (buf != NULL && varname != NULL)
+      {
+***************
+*** 11142,11152 ****
+  	curbuf = buf;
+  
+  	if (*varname == '&')	/* buffer-local-option */
+! 	    get_option_tv(&varname, rettv, TRUE);
+  	else if (STRCMP(varname, "changedtick") == 0)
+  	{
+  	    rettv->v_type = VAR_NUMBER;
+  	    rettv->vval.v_number = curbuf->b_changedtick;
+  	}
+  	else
+  	{
+--- 11137,11151 ----
+  	curbuf = buf;
+  
+  	if (*varname == '&')	/* buffer-local-option */
+! 	{
+! 	    if (get_option_tv(&varname, rettv, TRUE) == OK)
+! 		done = TRUE;
+! 	}
+  	else if (STRCMP(varname, "changedtick") == 0)
+  	{
+  	    rettv->v_type = VAR_NUMBER;
+  	    rettv->vval.v_number = curbuf->b_changedtick;
++ 	    done = TRUE;
+  	}
+  	else
+  	{
+***************
+*** 11155,11167 ****
+--- 11154,11173 ----
+  	    v = find_var_in_ht(&curbuf->b_vars->dv_hashtab,
+  							 'b', varname, FALSE);
+  	    if (v != NULL)
++ 	    {
+  		copy_tv(&v->di_tv, rettv);
++ 		done = TRUE;
++ 	    }
+  	}
+  
+  	/* restore previous notion of curbuf */
+  	curbuf = save_curbuf;
+      }
+  
++     if (!done && argvars[2].v_type != VAR_UNKNOWN)
++ 	/* use the default value */
++ 	copy_tv(&argvars[2], rettv);
++ 
+      --emsg_off;
+  }
+  
+***************
+*** 11767,11772 ****
+--- 11773,11779 ----
+      tabpage_T	*tp;
+      dictitem_T	*v;
+      char_u	*varname;
++     int		done = FALSE;
+  
+      rettv->v_type = VAR_STRING;
+      rettv->vval.v_string = NULL;
+***************
+*** 11778,11788 ****
+  	/* look up the variable */
+  	v = find_var_in_ht(&tp->tp_vars->dv_hashtab, 0, varname, FALSE);
+  	if (v != NULL)
+  	    copy_tv(&v->di_tv, rettv);
+! 	else if (argvars[2].v_type != VAR_UNKNOWN)
+! 	    copy_tv(&argvars[2], rettv);
+      }
+!     else if (argvars[2].v_type != VAR_UNKNOWN)
+  	copy_tv(&argvars[2], rettv);
+  }
+  
+--- 11785,11797 ----
+  	/* look up the variable */
+  	v = find_var_in_ht(&tp->tp_vars->dv_hashtab, 0, varname, FALSE);
+  	if (v != NULL)
++ 	{
+  	    copy_tv(&v->di_tv, rettv);
+! 	    done = TRUE;
+! 	}
+      }
+! 
+!     if (!done && argvars[2].v_type != VAR_UNKNOWN)
+  	copy_tv(&argvars[2], rettv);
+  }
+  
+***************
+*** 11894,11899 ****
+--- 11903,11909 ----
+      char_u	*varname;
+      dictitem_T	*v;
+      tabpage_T	*tp;
++     int		done = FALSE;
+  
+  #ifdef FEAT_WINDOWS
+      if (off == 1)
+***************
+*** 11905,11918 ****
+      varname = get_tv_string_chk(&argvars[off + 1]);
+      ++emsg_off;
+  
+!     if (argvars[off + 2].v_type != VAR_UNKNOWN)
+! 	/* set the default return value */
+! 	copy_tv(&argvars[off + 2], rettv);
+!     else
+!     {
+! 	rettv->v_type = VAR_STRING;
+! 	rettv->vval.v_string = NULL;
+!     }
+  
+      if (win != NULL && varname != NULL)
+      {
+--- 11915,11922 ----
+      varname = get_tv_string_chk(&argvars[off + 1]);
+      ++emsg_off;
+  
+!     rettv->v_type = VAR_STRING;
+!     rettv->vval.v_string = NULL;
+  
+      if (win != NULL && varname != NULL)
+      {
+***************
+*** 11923,11936 ****
+  	curbuf = win->w_buffer;
+  
+  	if (*varname == '&')	/* window-local-option */
+! 	    get_option_tv(&varname, rettv, 1);
+  	else
+  	{
+  	    /* Look up the variable. */
+  	    /* Let getwinvar({nr}, "") return the "w:" dictionary. */
+  	    v = find_var_in_ht(&win->w_vars->dv_hashtab, 'w', varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+  
+  	/* restore previous notion of curwin */
+--- 11927,11946 ----
+  	curbuf = win->w_buffer;
+  
+  	if (*varname == '&')	/* window-local-option */
+! 	{
+! 	    if (get_option_tv(&varname, rettv, 1) == OK)
+! 		done = TRUE;
+! 	}
+  	else
+  	{
+  	    /* Look up the variable. */
+  	    /* Let getwinvar({nr}, "") return the "w:" dictionary. */
+  	    v = find_var_in_ht(&win->w_vars->dv_hashtab, 'w', varname, FALSE);
+  	    if (v != NULL)
++ 	    {
+  		copy_tv(&v->di_tv, rettv);
++ 		done = TRUE;
++ 	    }
+  	}
+  
+  	/* restore previous notion of curwin */
+***************
+*** 11938,11943 ****
+--- 11948,11957 ----
+  	curbuf = curwin->w_buffer;
+      }
+  
++     if (!done && argvars[off + 2].v_type != VAR_UNKNOWN)
++ 	/* use the default return value */
++ 	copy_tv(&argvars[off + 2], rettv);
++ 
+      --emsg_off;
+  }
+  
+*** ../vim-7.3.897/src/testdir/test91.in	2013-02-20 21:11:14.000000000 +0100
+--- src/testdir/test91.in	2013-04-15 14:59:31.000000000 +0200
+***************
+*** 4,12 ****
+  STARTTEST
+  :so small.vim
+  :"
+! :" test for getbufvar()
+! :let b:var_num = 1234
+! :let def_num = 5678
+  :$put =string(getbufvar(1, 'var_num'))
+  :$put =string(getbufvar(1, 'var_num', def_num))
+  :$put =string(getbufvar(1, ''))
+--- 4,13 ----
+  STARTTEST
+  :so small.vim
+  :"
+! :" Test for getbufvar()
+! :" Use strings to test for memory leaks.
+! :let b:var_num = '1234'
+! :let def_num = '5678'
+  :$put =string(getbufvar(1, 'var_num'))
+  :$put =string(getbufvar(1, 'var_num', def_num))
+  :$put =string(getbufvar(1, ''))
+*** ../vim-7.3.897/src/testdir/test91.ok	2013-02-20 21:11:14.000000000 +0100
+--- src/testdir/test91.ok	2013-04-15 15:02:45.000000000 +0200
+***************
+*** 1,13 ****
+  start:
+! 1234
+! 1234
+! {'var_num': 1234}
+! {'var_num': 1234}
+! 5678
+  {}
+  {}
+  ''
+! 5678
+  0
+  0
+  'Dance'
+--- 1,13 ----
+  start:
+! '1234'
+! '1234'
+! {'var_num': '1234'}
+! {'var_num': '1234'}
+! '5678'
+  {}
+  {}
+  ''
+! '5678'
+  0
+  0
+  'Dance'
+*** ../vim-7.3.897/src/version.c	2013-04-15 14:44:53.000000000 +0200
+--- src/version.c	2013-04-15 15:14:22.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     898,
+  /**/
+
+-- 
+If Apple would build a car...
+... it would be powered by the sun, be reliable, five times
+as fast and twice as easy to drive; but would only run on
+five percent of the roads.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

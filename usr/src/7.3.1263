@@ -1,0 +1,51 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1263
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1263
+Problem:    Typo in short option name.
+Solution:   Change "imse" to "imsf".
+Files:	    src/option.c
+
+
+*** ../vim-7.3.1262/src/option.c	2013-06-26 19:17:58.000000000 +0200
+--- src/option.c	2013-06-29 14:38:51.000000000 +0200
+***************
+*** 1476,1482 ****
+  			    {(char_u *)B_IMODE_NONE, (char_u *)0L}
+  #endif
+  			    SCRIPTID_INIT},
+!     {"imstatusfunc","imse",P_STRING|P_VI_DEF|P_SECURE,
+  # if defined(FEAT_EVAL) && defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
+  			    (char_u *)&p_imsf, PV_NONE,
+  			    {(char_u *)"", (char_u *)NULL}
+--- 1476,1482 ----
+  			    {(char_u *)B_IMODE_NONE, (char_u *)0L}
+  #endif
+  			    SCRIPTID_INIT},
+!     {"imstatusfunc","imsf",P_STRING|P_VI_DEF|P_SECURE,
+  # if defined(FEAT_EVAL) && defined(FEAT_XIM) && defined(FEAT_GUI_GTK)
+  			    (char_u *)&p_imsf, PV_NONE,
+  			    {(char_u *)"", (char_u *)NULL}
+*** ../vim-7.3.1262/src/version.c	2013-06-29 14:16:58.000000000 +0200
+--- src/version.c	2013-06-29 14:39:26.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1263,
+  /**/
+
+-- 
+Shit makes the flowers grow and that's beautiful
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

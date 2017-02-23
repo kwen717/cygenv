@@ -1,0 +1,201 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1275
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1275
+Problem:    "gn" does not work when the match is a single character.
+Solution:   Fix it, add a test. (Christian Brabandt)
+Files:	    src/search.c, src/testdir/test53.in, src/testdir/test53.ok
+
+
+*** ../vim-7.3.1274/src/search.c	2013-06-08 18:19:40.000000000 +0200
+--- src/search.c	2013-06-30 14:41:48.000000000 +0200
+***************
+*** 4489,4495 ****
+  #endif /* FEAT_TEXTOBJ */
+  
+  #if defined(FEAT_VISUAL) || defined(PROTO)
+! static int is_zerowidth __ARGS((char_u *pattern));
+  
+  /*
+   * Find next search match under cursor, cursor at end.
+--- 4489,4495 ----
+  #endif /* FEAT_TEXTOBJ */
+  
+  #if defined(FEAT_VISUAL) || defined(PROTO)
+! static int is_one_char __ARGS((char_u *pattern));
+  
+  /*
+   * Find next search match under cursor, cursor at end.
+***************
+*** 4510,4516 ****
+      char_u	old_p_ws = p_ws;
+      int		flags = 0;
+      pos_T	save_VIsual;
+!     int		zerowidth = FALSE;
+  
+      /* wrapping should not occur */
+      p_ws = FALSE;
+--- 4510,4516 ----
+      char_u	old_p_ws = p_ws;
+      int		flags = 0;
+      pos_T	save_VIsual;
+!     int		one_char;
+  
+      /* wrapping should not occur */
+      p_ws = FALSE;
+***************
+*** 4540,4548 ****
+  	orig_pos = pos = start_pos = curwin->w_cursor;
+  
+      /* Is the pattern is zero-width? */
+!     zerowidth = is_zerowidth(spats[last_idx].pat);
+!     if (zerowidth == -1)
+! 	return FAIL;
+  
+      /*
+       * The trick is to first search backwards and then search forward again,
+--- 4540,4548 ----
+  	orig_pos = pos = start_pos = curwin->w_cursor;
+  
+      /* Is the pattern is zero-width? */
+!     one_char = is_one_char(spats[last_idx].pat);
+!     if (one_char == -1)
+! 	return FAIL;  /* invalid pattern */
+  
+      /*
+       * The trick is to first search backwards and then search forward again,
+***************
+*** 4557,4563 ****
+  	    dir = !i;
+  
+  	flags = 0;
+! 	if (!dir && !zerowidth)
+  	    flags = SEARCH_END;
+  
+  	result = searchit(curwin, curbuf, &pos, (dir ? FORWARD : BACKWARD),
+--- 4557,4563 ----
+  	    dir = !i;
+  
+  	flags = 0;
+! 	if (!dir && !one_char)
+  	    flags = SEARCH_END;
+  
+  	result = searchit(curwin, curbuf, &pos, (dir ? FORWARD : BACKWARD),
+***************
+*** 4598,4604 ****
+  
+      /* move to match, except for zero-width matches, in which case, we are
+       * already on the next match */
+!     if (!zerowidth)
+  	result = searchit(curwin, curbuf, &pos, (forward ? FORWARD : BACKWARD),
+  	    spats[last_idx].pat, 0L, flags | SEARCH_KEEP, RE_SEARCH, 0, NULL);
+  
+--- 4598,4604 ----
+  
+      /* move to match, except for zero-width matches, in which case, we are
+       * already on the next match */
+!     if (!one_char)
+  	result = searchit(curwin, curbuf, &pos, (forward ? FORWARD : BACKWARD),
+  	    spats[last_idx].pat, 0L, flags | SEARCH_KEEP, RE_SEARCH, 0, NULL);
+  
+***************
+*** 4645,4655 ****
+  }
+  
+  /*
+!  * Check if the pattern is zero-width.
+   * Returns TRUE, FALSE or -1 for failure.
+   */
+      static int
+! is_zerowidth(pattern)
+      char_u	*pattern;
+  {
+      regmmatch_T	regmatch;
+--- 4645,4655 ----
+  }
+  
+  /*
+!  * Check if the pattern is one character or zero-width.
+   * Returns TRUE, FALSE or -1 for failure.
+   */
+      static int
+! is_one_char(pattern)
+      char_u	*pattern;
+  {
+      regmmatch_T	regmatch;
+***************
+*** 4677,4682 ****
+--- 4677,4685 ----
+  	    result = (nmatched != 0
+  		&& regmatch.startpos[0].lnum == regmatch.endpos[0].lnum
+  		&& regmatch.startpos[0].col == regmatch.endpos[0].col);
++ 
++ 	if (!result && incl(&pos) == 0 && pos.col == regmatch.endpos[0].col)
++ 	    result  = TRUE;
+      }
+  
+      called_emsg |= save_called_emsg;
+*** ../vim-7.3.1274/src/testdir/test53.in	2012-10-11 03:35:38.000000000 +0200
+--- src/testdir/test53.in	2013-06-30 14:31:56.000000000 +0200
+***************
+*** 44,50 ****
+  vlgnd
+  /mother
+  :set selection=exclusive
+! $cgNmongoose
+  :/^start:/,/^end:/wq! test.out
+  ENDTEST
+  
+--- 44,51 ----
+  vlgnd
+  /mother
+  :set selection=exclusive
+! $cgNmongoose/i
+! cgnj
+  :/^start:/,/^end:/wq! test.out
+  ENDTEST
+  
+***************
+*** 73,76 ****
+--- 74,78 ----
+  delete first and last chars
+  uniquepattern uniquepattern
+  my very excellent mother just served us nachos
++ for (i=0; i<=10; i++)
+  end:
+*** ../vim-7.3.1274/src/testdir/test53.ok	2012-10-11 03:35:38.000000000 +0200
+--- src/testdir/test53.ok	2013-06-30 14:31:56.000000000 +0200
+***************
+*** 26,29 ****
+--- 26,30 ----
+  elete first and last char
+   uniquepattern
+  my very excellent mongoose just served us nachos
++ for (j=0; i<=10; i++)
+  end:
+*** ../vim-7.3.1274/src/version.c	2013-06-30 13:57:40.000000000 +0200
+--- src/version.c	2013-06-30 14:31:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1275,
+  /**/
+
+-- 
+There are 2 kinds of people in my world: those who know Unix, Perl, Vim, GNU,
+Linux, etc, and those who know COBOL.  It gets very difficult for me at
+parties, not knowing which group to socialise with :-)
+						Sitaram Chamarty
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

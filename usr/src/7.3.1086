@@ -1,0 +1,144 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1086
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1086
+Problem:    Old regexp engine accepts illegal range, new one doesn't.
+Solution:   Also accept the illegal range with the new engine.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1085/src/regexp_nfa.c	2013-06-01 12:40:14.000000000 +0200
+--- src/regexp_nfa.c	2013-06-01 13:16:34.000000000 +0200
+***************
+*** 1089,1096 ****
+  			     * while loop. */
+  			}
+  		    }
+! 		    /* Try a range like 'a-x' or '\t-z' */
+! 		    if (*regparse == '-')
+  		    {
+  			emit_range = TRUE;
+  			startc = oldstartc;
+--- 1089,1097 ----
+  			     * while loop. */
+  			}
+  		    }
+! 		    /* Try a range like 'a-x' or '\t-z'. Also allows '-' as a
+! 		     * start character. */
+! 		    if (*regparse == '-' && oldstartc != -1)
+  		    {
+  			emit_range = TRUE;
+  			startc = oldstartc;
+***************
+*** 1140,1155 ****
+  
+  		    /* Normal printable char */
+  		    if (startc == -1)
+! #ifdef FEAT_MBYTE
+! 			startc = (*mb_ptr2char)(regparse);
+! #else
+! 		    startc = *regparse;
+! #endif
+  
+  		    /* Previous char was '-', so this char is end of range. */
+  		    if (emit_range)
+  		    {
+! 			endc = startc; startc = oldstartc;
+  			if (startc > endc)
+  			    EMSG_RET_FAIL(_(e_invrange));
+  #ifdef FEAT_MBYTE
+--- 1141,1153 ----
+  
+  		    /* Normal printable char */
+  		    if (startc == -1)
+! 			startc = PTR2CHAR(regparse);
+  
+  		    /* Previous char was '-', so this char is end of range. */
+  		    if (emit_range)
+  		    {
+! 			endc = startc;
+! 			startc = oldstartc;
+  			if (startc > endc)
+  			    EMSG_RET_FAIL(_(e_invrange));
+  #ifdef FEAT_MBYTE
+***************
+*** 1166,1172 ****
+  				TRY_NEG();
+  				EMIT_GLUE();
+  			    }
+- 			    emit_range = FALSE;
+  			}
+  			else
+  #endif
+--- 1164,1169 ----
+***************
+*** 1190,1197 ****
+  				    TRY_NEG();
+  				    EMIT_GLUE();
+  				}
+- 			    emit_range = FALSE;
+  			}
+  		    }
+  		    else
+  		    {
+--- 1187,1195 ----
+  				    TRY_NEG();
+  				    EMIT_GLUE();
+  				}
+  			}
++ 			emit_range = FALSE;
++ 			startc = -1;
+  		    }
+  		    else
+  		    {
+*** ../vim-7.3.1085/src/testdir/test64.in	2013-06-01 12:40:14.000000000 +0200
+--- src/testdir/test64.in	2013-06-01 13:14:51.000000000 +0200
+***************
+*** 270,275 ****
+--- 270,276 ----
+  :call add(tl, [2, '\_[0-9]\+', "asfi\n9888u", "\n9888"])
+  :call add(tl, [2, '\_f', "  \na ", "\n"])
+  :call add(tl, [2, '\_f\+', "  \na ", "\na"])
++ :call add(tl, [2, '[0-9A-Za-z-_.]\+', " @0_a.A-{ ", "0_a.A-"])
+  :"
+  :"""" Test start/end of line, start/end of file
+  :call add(tl, [2, '^a.', "a_\nb ", "a_"])
+*** ../vim-7.3.1085/src/testdir/test64.ok	2013-06-01 12:40:14.000000000 +0200
+--- src/testdir/test64.ok	2013-06-01 13:22:58.000000000 +0200
+***************
+*** 605,610 ****
+--- 605,613 ----
+  OK 0 - \_f\+
+  OK 1 - \_f\+
+  OK 2 - \_f\+
++ OK 0 - [0-9A-Za-z-_.]\+
++ OK 1 - [0-9A-Za-z-_.]\+
++ OK 2 - [0-9A-Za-z-_.]\+
+  OK 0 - ^a.
+  OK 1 - ^a.
+  OK 2 - ^a.
+*** ../vim-7.3.1085/src/version.c	2013-06-01 12:40:14.000000000 +0200
+--- src/version.c	2013-06-01 13:17:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1086,
+  /**/
+
+-- 
+Micro$oft: where do you want to go today?
+    Linux: where do you want to go tomorrow?
+  FreeBSD: are you guys coming, or what?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

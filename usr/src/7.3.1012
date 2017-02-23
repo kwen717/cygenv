@@ -1,0 +1,196 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1012
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1012
+Problem:    \Z does not work properly with the new regexp engine.
+Solution:   Make \Z work.  Add tests.
+Files:	    src/regexp_nfa.c, src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.1011/src/regexp_nfa.c	2013-05-24 21:59:50.000000000 +0200
+--- src/regexp_nfa.c	2013-05-24 22:46:00.000000000 +0200
+***************
+*** 1184,1197 ****
+  		    EMIT(NFA_CONCAT);
+  		}
+  		return OK;
+! 	    }		/* if exists closing ] */
+! 	    else if (reg_strict)
+  	    {
+  		syntax_error = TRUE;
+  		EMSG_RET_FAIL(_(e_missingbracket));
+  	    }
+  
+- 	/* FALLTHROUGH */
+  	default:
+  	    {
+  #ifdef FEAT_MBYTE
+--- 1184,1198 ----
+  		    EMIT(NFA_CONCAT);
+  		}
+  		return OK;
+! 	    } /* if exists closing ] */
+! 
+! 	    if (reg_strict)
+  	    {
+  		syntax_error = TRUE;
+  		EMSG_RET_FAIL(_(e_missingbracket));
+  	    }
++ 	    /* FALLTHROUGH */
+  
+  	default:
+  	    {
+  #ifdef FEAT_MBYTE
+***************
+*** 1214,1220 ****
+  			EMIT(c);
+  			if (i > 0)
+  			    EMIT(NFA_CONCAT);
+! 			if (i += utf_char2len(c) >= plen)
+  			    break;
+  			c = utf_ptr2char(old_regparse + i);
+  		    }
+--- 1215,1221 ----
+  			EMIT(c);
+  			if (i > 0)
+  			    EMIT(NFA_CONCAT);
+! 			if ((i += utf_char2len(c)) >= plen)
+  			    break;
+  			c = utf_ptr2char(old_regparse + i);
+  		    }
+***************
+*** 2269,2275 ****
+  	    /* TODO */
+  	    if (regflags & RF_ICOMBINE)
+  	    {
+! 		goto normalchar;
+  	    }
+  #endif
+  	    /* FALLTHROUGH */
+--- 2270,2276 ----
+  	    /* TODO */
+  	    if (regflags & RF_ICOMBINE)
+  	    {
+! 		/* use the base character only */
+  	    }
+  #endif
+  	    /* FALLTHROUGH */
+***************
+*** 3145,3167 ****
+  		result = OK;
+  		sta = t->state->out;
+  		len = 0;
+! 		while (sta->c != NFA_END_COMPOSING && len < n)
+  		{
+! 		    if (len > 0)
+! 			mc = mb_ptr2char(reginput + len);
+! 		    if (mc != sta->c)
+! 			break;
+! 		    len += mb_char2len(mc);
+! 		    sta = sta->out;
+  		}
+  
+  		/* if input char length doesn't match regexp char length */
+  		if (len < n || sta->c != NFA_END_COMPOSING)
+  		    result = FAIL;
+  		end = t->state->out1;	    /* NFA_END_COMPOSING */
+- 		/* If \Z was present, then ignore composing characters */
+- 		if (ireg_icombine)
+- 		    result = 1 ^ sta->negated;
+  		ADD_POS_NEG_STATE(end);
+  		break;
+  	    }
+--- 3146,3176 ----
+  		result = OK;
+  		sta = t->state->out;
+  		len = 0;
+! 		if (ireg_icombine)
+  		{
+! 		    /* If \Z was present, then ignore composing characters. */
+! 		    /* TODO: How about negated? */
+! 		    if (sta->c != c)
+! 			result = FAIL;
+! 		    len = n;
+! 		    while (sta->c != NFA_END_COMPOSING)
+! 			sta = sta->out;
+  		}
++ 		else
++ 		    while (sta->c != NFA_END_COMPOSING && len < n)
++ 		    {
++ 			if (len > 0)
++ 			    mc = mb_ptr2char(reginput + len);
++ 			if (mc != sta->c)
++ 			    break;
++ 			len += mb_char2len(mc);
++ 			sta = sta->out;
++ 		    }
+  
+  		/* if input char length doesn't match regexp char length */
+  		if (len < n || sta->c != NFA_END_COMPOSING)
+  		    result = FAIL;
+  		end = t->state->out1;	    /* NFA_END_COMPOSING */
+  		ADD_POS_NEG_STATE(end);
+  		break;
+  	    }
+*** ../vim-7.3.1011/src/testdir/test95.in	2013-05-24 21:59:50.000000000 +0200
+--- src/testdir/test95.in	2013-05-24 23:02:13.000000000 +0200
+***************
+*** 41,46 ****
+--- 41,55 ----
+  
+  :"""" Test \Z
+  :call add(tl, ['ú\Z', 'x'])
++ :call add(tl, ['יהוה\Z', 'יהוה', 'יהוה'])
++ :call add(tl, ['יְהוָה\Z', 'יהוה', 'יהוה'])
++ :call add(tl, ['יהוה\Z', 'יְהוָה', 'יְהוָה'])
++ :call add(tl, ['יְהוָה\Z', 'יְהוָה', 'יְהוָה'])
++ :call add(tl, ['יְ\Z', 'וְיַ', 'יַ'])
++ :call add(tl, ["ק\u200d\u05b9x\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
++ :call add(tl, ["ק\u200d\u05b9x\\Z", "xק\u200dxy", "ק\u200dx"])
++ :call add(tl, ["ק\u200dx\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
++ :call add(tl, ["ק\u200dx\\Z", "xק\u200dxy", "ק\u200dx"])
+  
+  :"""" Combining different tests and features
+  :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+*** ../vim-7.3.1011/src/testdir/test95.ok	2013-05-24 21:59:50.000000000 +0200
+--- src/testdir/test95.ok	2013-05-24 23:02:59.000000000 +0200
+***************
+*** 12,15 ****
+--- 12,24 ----
+  OK - .ม
+  OK - .ม่
+  OK - ú\Z
++ OK - יהוה\Z
++ OK - יְהוָה\Z
++ OK - יהוה\Z
++ OK - יְהוָה\Z
++ OK - יְ\Z
++ OK - ק‍ֹx\Z
++ OK - ק‍ֹx\Z
++ OK - ק‍x\Z
++ OK - ק‍x\Z
+  OK - [^[=a=]]\+
+*** ../vim-7.3.1011/src/version.c	2013-05-24 21:59:50.000000000 +0200
+--- src/version.c	2013-05-24 23:08:21.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1012,
+  /**/
+
+-- 
+BEDEVERE: And that, my lord, is how we know the Earth to be banana-shaped.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,232 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1226
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1226
+Problem:    Python: duplicate code.
+Solution:   Share code between OutputWrite() and OutputWritelines(). (ZyX)
+Files:	    src/if_py_both.h, src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1225/src/if_py_both.h	2013-06-16 14:25:53.000000000 +0200
+--- src/if_py_both.h	2013-06-23 12:46:03.000000000 +0200
+***************
+*** 281,295 ****
+      }
+  }
+  
+!     static PyObject *
+! OutputWrite(OutputObject *self, PyObject *args)
+  {
+!     Py_ssize_t len = 0;
+!     char *str = NULL;
+!     int error = self->error;
+  
+!     if (!PyArg_ParseTuple(args, "et#", ENC_OPT, &str, &len))
+! 	return NULL;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+--- 281,295 ----
+      }
+  }
+  
+!     static int
+! write_output(OutputObject *self, PyObject *string)
+  {
+!     Py_ssize_t	len = 0;
+!     char	*str = NULL;
+!     int		error = self->error;
+  
+!     if (!PyArg_Parse(string, "et#", ENC_OPT, &str, &len))
+! 	return -1;
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+***************
+*** 298,341 ****
+      Py_END_ALLOW_THREADS
+      PyMem_Free(str);
+  
+      Py_INCREF(Py_None);
+      return Py_None;
+  }
+  
+      static PyObject *
+! OutputWritelines(OutputObject *self, PyObject *args)
+  {
+-     PyObject	*seq;
+      PyObject	*iterator;
+      PyObject	*item;
+-     int error = self->error;
+- 
+-     if (!PyArg_ParseTuple(args, "O", &seq))
+- 	return NULL;
+  
+      if (!(iterator = PyObject_GetIter(seq)))
+  	return NULL;
+  
+      while ((item = PyIter_Next(iterator)))
+      {
+! 	char *str = NULL;
+! 	PyInt len;
+! 
+! 	if (!PyArg_Parse(item, "et#", ENC_OPT, &str, &len))
+  	{
+- 	    PyErr_SetString(PyExc_TypeError, _("writelines() requires list of strings"));
+  	    Py_DECREF(iterator);
+  	    Py_DECREF(item);
+  	    return NULL;
+  	}
+  	Py_DECREF(item);
+- 
+- 	Py_BEGIN_ALLOW_THREADS
+- 	Python_Lock_Vim();
+- 	writer((writefn)(error ? emsg : msg), (char_u *)str, len);
+- 	Python_Release_Vim();
+- 	Py_END_ALLOW_THREADS
+- 	PyMem_Free(str);
+      }
+  
+      Py_DECREF(iterator);
+--- 298,334 ----
+      Py_END_ALLOW_THREADS
+      PyMem_Free(str);
+  
++     return 0;
++ }
++ 
++     static PyObject *
++ OutputWrite(OutputObject *self, PyObject *string)
++ {
++     if (write_output(self, string))
++ 	return NULL;
++ 
+      Py_INCREF(Py_None);
+      return Py_None;
+  }
+  
+      static PyObject *
+! OutputWritelines(OutputObject *self, PyObject *seq)
+  {
+      PyObject	*iterator;
+      PyObject	*item;
+  
+      if (!(iterator = PyObject_GetIter(seq)))
+  	return NULL;
+  
+      while ((item = PyIter_Next(iterator)))
+      {
+! 	if (write_output(self, item))
+  	{
+  	    Py_DECREF(iterator);
+  	    Py_DECREF(item);
+  	    return NULL;
+  	}
+  	Py_DECREF(item);
+      }
+  
+      Py_DECREF(iterator);
+***************
+*** 360,367 ****
+  
+  static struct PyMethodDef OutputMethods[] = {
+      /* name,	    function,				calling,	doc */
+!     {"write",	    (PyCFunction)OutputWrite,		METH_VARARGS,	""},
+!     {"writelines",  (PyCFunction)OutputWritelines,	METH_VARARGS,	""},
+      {"flush",	    (PyCFunction)OutputFlush,		METH_NOARGS,	""},
+      {"__dir__",	    (PyCFunction)OutputDir,		METH_NOARGS,	""},
+      { NULL,	    NULL,				0,		NULL}
+--- 353,360 ----
+  
+  static struct PyMethodDef OutputMethods[] = {
+      /* name,	    function,				calling,	doc */
+!     {"write",	    (PyCFunction)OutputWrite,		METH_O,		""},
+!     {"writelines",  (PyCFunction)OutputWritelines,	METH_O,		""},
+      {"flush",	    (PyCFunction)OutputFlush,		METH_NOARGS,	""},
+      {"__dir__",	    (PyCFunction)OutputDir,		METH_NOARGS,	""},
+      { NULL,	    NULL,				0,		NULL}
+***************
+*** 3009,3015 ****
+      return NULL;
+  }
+  
+! /* Window object
+   */
+  
+  typedef struct
+--- 3002,3009 ----
+      return NULL;
+  }
+  
+! /*
+!  * Window object
+   */
+  
+  typedef struct
+*** ../vim-7.3.1225/src/testdir/test86.ok	2013-06-12 14:26:20.000000000 +0200
+--- src/testdir/test86.ok	2013-06-23 12:43:55.000000000 +0200
+***************
+*** 444,450 ****
+  sys.stdout.write(None):TypeError:('coercing to Unicode: need string or buffer, NoneType found',)
+  >> OutputWriteLines
+  sys.stdout.writelines(None):TypeError:("'NoneType' object is not iterable",)
+! sys.stdout.writelines([1]):TypeError:('writelines() requires list of strings',)
+  > VimCommand
+  vim.command(1):TypeError:('must be string, not int',)
+  > VimToPython
+--- 444,450 ----
+  sys.stdout.write(None):TypeError:('coercing to Unicode: need string or buffer, NoneType found',)
+  >> OutputWriteLines
+  sys.stdout.writelines(None):TypeError:("'NoneType' object is not iterable",)
+! sys.stdout.writelines([1]):TypeError:('coercing to Unicode: need string or buffer, int found',)
+  > VimCommand
+  vim.command(1):TypeError:('must be string, not int',)
+  > VimToPython
+*** ../vim-7.3.1225/src/testdir/test87.ok	2013-06-12 14:20:15.000000000 +0200
+--- src/testdir/test87.ok	2013-06-23 12:44:00.000000000 +0200
+***************
+*** 433,439 ****
+  sys.stdout.write(None):(<class 'TypeError'>, TypeError("Can't convert 'NoneType' object to str implicitly",))
+  >> OutputWriteLines
+  sys.stdout.writelines(None):(<class 'TypeError'>, TypeError("'NoneType' object is not iterable",))
+! sys.stdout.writelines([1]):(<class 'TypeError'>, TypeError('writelines() requires list of strings',))
+  >>> Testing *Iter* using sys.stdout.writelines(%s)
+  sys.stdout.writelines(FailingIter()):(<class 'NotImplementedError'>, NotImplementedError())
+  sys.stdout.writelines(FailingIterNext()):(<class 'NotImplementedError'>, NotImplementedError())
+--- 433,439 ----
+  sys.stdout.write(None):(<class 'TypeError'>, TypeError("Can't convert 'NoneType' object to str implicitly",))
+  >> OutputWriteLines
+  sys.stdout.writelines(None):(<class 'TypeError'>, TypeError("'NoneType' object is not iterable",))
+! sys.stdout.writelines([1]):(<class 'TypeError'>, TypeError("Can't convert 'int' object to str implicitly",))
+  >>> Testing *Iter* using sys.stdout.writelines(%s)
+  sys.stdout.writelines(FailingIter()):(<class 'NotImplementedError'>, NotImplementedError())
+  sys.stdout.writelines(FailingIterNext()):(<class 'NotImplementedError'>, NotImplementedError())
+*** ../vim-7.3.1225/src/version.c	2013-06-22 13:00:14.000000000 +0200
+--- src/version.c	2013-06-23 12:45:35.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1226,
+  /**/
+
+-- 
+       We're knights of the round table
+       We dance whene'er we're able
+       We do routines and chorus scenes
+       With footwork impeccable.
+       We dine well here in Camelot
+       We eat ham and jam and spam a lot.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

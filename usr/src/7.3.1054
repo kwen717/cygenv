@@ -1,0 +1,178 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1054
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1054 (after 7.3.1042)
+Problem:    Can't build without the +autocmd feature. (Elimar Riesebieter)
+Solution:   Fix use of buf and curbuf.
+Files:      src/ex_cmds.c, src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1053/src/ex_cmds.c	2013-05-29 22:02:18.000000000 +0200
+--- src/ex_cmds.c	2013-05-30 11:24:41.000000000 +0200
+***************
+*** 2421,2430 ****
+      char_u	*new_fname;
+  {
+      char_u	*fname, *sfname, *xfname;
+! #ifdef FEAT_AUTOCMD
+!     buf_T	*buf = curbuf;
+  
+!     apply_autocmds(EVENT_BUFFILEPRE, NULL, NULL, FALSE, buf);
+      /* buffer changed, don't change name now */
+      if (buf != curbuf)
+  	return FAIL;
+--- 2421,2431 ----
+      char_u	*new_fname;
+  {
+      char_u	*fname, *sfname, *xfname;
+!     buf_T	*buf;
+  
+! #ifdef FEAT_AUTOCMD
+!     buf = curbuf;
+!     apply_autocmds(EVENT_BUFFILEPRE, NULL, NULL, FALSE, curbuf);
+      /* buffer changed, don't change name now */
+      if (buf != curbuf)
+  	return FAIL;
+***************
+*** 2440,2457 ****
+       * But don't set the alternate file name if the buffer didn't have a
+       * name.
+       */
+!     fname = buf->b_ffname;
+!     sfname = buf->b_sfname;
+!     xfname = buf->b_fname;
+!     buf->b_ffname = NULL;
+!     buf->b_sfname = NULL;
+!     if (setfname(buf, new_fname, NULL, TRUE) == FAIL)
+      {
+! 	buf->b_ffname = fname;
+! 	buf->b_sfname = sfname;
+  	return FAIL;
+      }
+!     buf->b_flags |= BF_NOTEDITED;
+      if (xfname != NULL && *xfname != NUL)
+      {
+  	buf = buflist_new(fname, xfname, curwin->w_cursor.lnum, 0);
+--- 2441,2458 ----
+       * But don't set the alternate file name if the buffer didn't have a
+       * name.
+       */
+!     fname = curbuf->b_ffname;
+!     sfname = curbuf->b_sfname;
+!     xfname = curbuf->b_fname;
+!     curbuf->b_ffname = NULL;
+!     curbuf->b_sfname = NULL;
+!     if (setfname(curbuf, new_fname, NULL, TRUE) == FAIL)
+      {
+! 	curbuf->b_ffname = fname;
+! 	curbuf->b_sfname = sfname;
+  	return FAIL;
+      }
+!     curbuf->b_flags |= BF_NOTEDITED;
+      if (xfname != NULL && *xfname != NUL)
+      {
+  	buf = buflist_new(fname, xfname, curwin->w_cursor.lnum, 0);
+***************
+*** 2461,2467 ****
+      vim_free(fname);
+      vim_free(sfname);
+  #ifdef FEAT_AUTOCMD
+!     apply_autocmds(EVENT_BUFFILEPOST, NULL, NULL, FALSE, buf);
+  #endif
+      /* Change directories when the 'acd' option is set. */
+      DO_AUTOCHDIR
+--- 2462,2468 ----
+      vim_free(fname);
+      vim_free(sfname);
+  #ifdef FEAT_AUTOCMD
+!     apply_autocmds(EVENT_BUFFILEPOST, NULL, NULL, FALSE, curbuf);
+  #endif
+      /* Change directories when the 'acd' option is set. */
+      DO_AUTOCHDIR
+*** ../vim-7.3.1053/src/testdir/test86.ok	2013-05-29 22:36:06.000000000 +0200
+--- src/testdir/test86.ok	2013-05-30 11:34:12.000000000 +0200
+***************
+*** 320,332 ****
+  Third line
+  foo
+  1:BufFilePre:1
+! 6:BufFilePost:1
+  testdir/foo
+  5:BufFilePre:5
+  5:BufFilePost:5
+  testdir/bar
+  1:BufFilePre:1
+! 7:BufFilePost:1
+  testdir/test86.in
+  valid: b:False, cb:True
+  i:<buffer test86.in>
+--- 320,332 ----
+  Third line
+  foo
+  1:BufFilePre:1
+! 1:BufFilePost:1
+  testdir/foo
+  5:BufFilePre:5
+  5:BufFilePost:5
+  testdir/bar
+  1:BufFilePre:1
+! 1:BufFilePost:1
+  testdir/test86.in
+  valid: b:False, cb:True
+  i:<buffer test86.in>
+*** ../vim-7.3.1053/src/testdir/test87.ok	2013-05-29 22:36:06.000000000 +0200
+--- src/testdir/test87.ok	2013-05-30 11:34:26.000000000 +0200
+***************
+*** 309,321 ****
+  Third line
+  foo
+  1:BufFilePre:1
+! 6:BufFilePost:1
+  testdir/foo
+  5:BufFilePre:5
+  5:BufFilePost:5
+  testdir/bar
+  1:BufFilePre:1
+! 7:BufFilePost:1
+  testdir/test87.in
+  valid: b:False, cb:True
+  i:<buffer test87.in>
+--- 309,321 ----
+  Third line
+  foo
+  1:BufFilePre:1
+! 1:BufFilePost:1
+  testdir/foo
+  5:BufFilePre:5
+  5:BufFilePost:5
+  testdir/bar
+  1:BufFilePre:1
+! 1:BufFilePost:1
+  testdir/test87.in
+  valid: b:False, cb:True
+  i:<buffer test87.in>
+*** ../vim-7.3.1053/src/version.c	2013-05-29 22:58:28.000000000 +0200
+--- src/version.c	2013-05-30 11:40:54.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1054,
+  /**/
+
+-- 
+For a moment, nothing happened.
+Then, after a second or so, nothing continued to happen.
+		-- Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,173 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1068
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1068
+Problem:    Python: Script is auto-loaded on function creation.
+Solution:   Python patch 27. (ZyX)
+Files:	    src/eval.c, src/if_py_both.h, src/proto/eval.pro,
+	    src/testdir/test86.ok, src/testdir/test87.ok, src/vim.h
+
+
+*** ../vim-7.3.1067/src/eval.c	2013-05-30 13:14:06.000000000 +0200
+--- src/eval.c	2013-05-30 13:35:15.000000000 +0200
+***************
+*** 810,815 ****
+--- 810,816 ----
+  # endif
+  	prof_self_cmp __ARGS((const void *s1, const void *s2));
+  #endif
++ static int script_autoload __ARGS((char_u *name, int reload));
+  static char_u *autoload_name __ARGS((char_u *name));
+  static void cat_func_name __ARGS((char_u *buf, ufunc_T *fp));
+  static void func_free __ARGS((ufunc_T *fp));
+***************
+*** 829,838 ****
+  static void sortFunctions __ARGS(());
+  #endif
+  
+- 
+- /* Character used as separated in autoload function/variable names. */
+- #define AUTOLOAD_CHAR '#'
+- 
+  /*
+   * Initialize the global and v: variables.
+   */
+--- 830,835 ----
+***************
+*** 22190,22196 ****
+   * If "name" has a package name try autoloading the script for it.
+   * Return TRUE if a package was loaded.
+   */
+!     int
+  script_autoload(name, reload)
+      char_u	*name;
+      int		reload;	    /* load script again when already loaded */
+--- 22187,22193 ----
+   * If "name" has a package name try autoloading the script for it.
+   * Return TRUE if a package was loaded.
+   */
+!     static int
+  script_autoload(name, reload)
+      char_u	*name;
+      int		reload;	    /* load script again when already loaded */
+*** ../vim-7.3.1067/src/if_py_both.h	2013-05-30 13:22:07.000000000 +0200
+--- src/if_py_both.h	2013-05-30 13:35:15.000000000 +0200
+***************
+*** 2015,2033 ****
+  	func_ref(self->name);
+      }
+      else
+!     {
+! 	self->name = get_expanded_name(name, TRUE);
+! 	if (self->name == NULL)
+  	{
+! 	    if (script_autoload(name, TRUE) && !aborting())
+! 		self->name = get_expanded_name(name, TRUE);
+! 	    if (self->name == NULL)
+! 	    {
+! 		PyErr_SetString(PyExc_ValueError, _("function does not exist"));
+! 		return NULL;
+! 	    }
+  	}
+-     }
+  
+      return (PyObject *)(self);
+  }
+--- 2015,2027 ----
+  	func_ref(self->name);
+      }
+      else
+! 	if ((self->name = get_expanded_name(name,
+! 				    vim_strchr(name, AUTOLOAD_CHAR) == NULL))
+! 		== NULL)
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, _("function does not exist"));
+! 	    return NULL;
+  	}
+  
+      return (PyObject *)(self);
+  }
+*** ../vim-7.3.1067/src/proto/eval.pro	2013-05-30 13:14:06.000000000 +0200
+--- src/proto/eval.pro	2013-05-30 13:35:15.000000000 +0200
+***************
+*** 132,136 ****
+  void ex_oldfiles __ARGS((exarg_T *eap));
+  int modify_fname __ARGS((char_u *src, int *usedlen, char_u **fnamep, char_u **bufp, int *fnamelen));
+  char_u *do_string_sub __ARGS((char_u *str, char_u *pat, char_u *sub, char_u *flags));
+- int script_autoload __ARGS((char_u *name, int reload));
+  /* vim: set ft=c : */
+--- 132,135 ----
+*** ../vim-7.3.1067/src/testdir/test86.ok	2013-05-30 13:28:37.000000000 +0200
+--- src/testdir/test86.ok	2013-05-30 13:35:15.000000000 +0200
+***************
+*** 889,895 ****
+  >> FunctionConstructor
+  vim.Function("123"):(<type 'exceptions.ValueError'>, ValueError('unnamed function does not exist',))
+  vim.Function("xxx_non_existent_function_xxx"):(<type 'exceptions.ValueError'>, ValueError('function does not exist',))
+! vim.Function("xxx#non#existent#function#xxx"):(<type 'exceptions.ValueError'>, ValueError('function does not exist',))
+  >> FunctionCall
+  >>> Testing StringToChars using f({%s : 1})
+  f({1 : 1}):(<type 'exceptions.TypeError'>, TypeError('object must be string',))
+--- 889,895 ----
+  >> FunctionConstructor
+  vim.Function("123"):(<type 'exceptions.ValueError'>, ValueError('unnamed function does not exist',))
+  vim.Function("xxx_non_existent_function_xxx"):(<type 'exceptions.ValueError'>, ValueError('function does not exist',))
+! vim.Function("xxx#non#existent#function#xxx"):NOT FAILED
+  >> FunctionCall
+  >>> Testing StringToChars using f({%s : 1})
+  f({1 : 1}):(<type 'exceptions.TypeError'>, TypeError('object must be string',))
+*** ../vim-7.3.1067/src/testdir/test87.ok	2013-05-30 13:28:37.000000000 +0200
+--- src/testdir/test87.ok	2013-05-30 13:35:15.000000000 +0200
+***************
+*** 878,884 ****
+  >> FunctionConstructor
+  vim.Function("123"):(<class 'ValueError'>, ValueError('unnamed function does not exist',))
+  vim.Function("xxx_non_existent_function_xxx"):(<class 'ValueError'>, ValueError('function does not exist',))
+! vim.Function("xxx#non#existent#function#xxx"):(<class 'ValueError'>, ValueError('function does not exist',))
+  >> FunctionCall
+  >>> Testing StringToChars using f({%s : 1})
+  f({1 : 1}):(<class 'TypeError'>, TypeError('object must be string',))
+--- 878,884 ----
+  >> FunctionConstructor
+  vim.Function("123"):(<class 'ValueError'>, ValueError('unnamed function does not exist',))
+  vim.Function("xxx_non_existent_function_xxx"):(<class 'ValueError'>, ValueError('function does not exist',))
+! vim.Function("xxx#non#existent#function#xxx"):NOT FAILED
+  >> FunctionCall
+  >>> Testing StringToChars using f({%s : 1})
+  f({1 : 1}):(<class 'TypeError'>, TypeError('object must be string',))
+*** ../vim-7.3.1067/src/vim.h	2013-05-06 03:52:44.000000000 +0200
+--- src/vim.h	2013-05-30 13:35:15.000000000 +0200
+***************
+*** 2243,2246 ****
+--- 2243,2249 ----
+  #define SREQ_WIN	1	/* Request window-local option */
+  #define SREQ_BUF	2	/* Request buffer-local option */
+  
++ /* Character used as separated in autoload function/variable names. */
++ #define AUTOLOAD_CHAR '#'
++ 
+  #endif /* VIM__H */
+*** ../vim-7.3.1067/src/version.c	2013-05-30 13:32:26.000000000 +0200
+--- src/version.c	2013-05-30 13:34:44.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1068,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+10. Ask people what sex they are. Laugh hysterically after they answer.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

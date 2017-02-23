@@ -1,0 +1,122 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1212
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1212
+Problem:    "make test" on MS-Windows does not report failure like Unix does.
+Solution:   Make it work like on Unix. (Taro Muraoka)
+Files:	    src/testdir/Make_dos.mak
+
+
+*** ../vim-7.3.1211/src/testdir/Make_dos.mak	2013-06-09 17:52:42.000000000 +0200
+--- src/testdir/Make_dos.mak	2013-06-16 16:52:22.000000000 +0200
+***************
+*** 40,62 ****
+  
+  .SUFFIXES: .in .out
+  
+! nongui:	fixff $(SCRIPTS16) $(SCRIPTS)
+! 	echo ALL DONE
+  
+! small:
+! 	echo ALL DONE
+  
+! gui:	fixff $(SCRIPTS16) $(SCRIPTS) $(SCRIPTS_GUI)
+! 	echo ALL DONE
+  
+! win32:	fixff $(SCRIPTS16) $(SCRIPTS) $(SCRIPTS32)
+! 	echo ALL DONE
+  
+  fixff:
+  	-$(VIMPROG) -u dos.vim --noplugin "+argdo set ff=dos|upd" +q *.in *.ok
+  	-$(VIMPROG) -u dos.vim --noplugin "+argdo set ff=unix|upd" +q \
+  		dotest.in test60.ok test71.ok test74.ok
+  
+  clean:
+  	-del *.out
+  	-if exist test.ok del test.ok
+--- 40,64 ----
+  
+  .SUFFIXES: .in .out
+  
+! nongui:	fixff $(SCRIPTS16) $(SCRIPTS) report
+  
+! small:	report
+  
+! gui:	fixff $(SCRIPTS16) $(SCRIPTS) $(SCRIPTS_GUI) report
+  
+! win32:	fixff $(SCRIPTS16) $(SCRIPTS) $(SCRIPTS32) report
+  
+  fixff:
+  	-$(VIMPROG) -u dos.vim --noplugin "+argdo set ff=dos|upd" +q *.in *.ok
+  	-$(VIMPROG) -u dos.vim --noplugin "+argdo set ff=unix|upd" +q \
+  		dotest.in test60.ok test71.ok test74.ok
+  
++ report:
++ 	@echo ""
++ 	@echo Test results:
++ 	@IF EXIST test.log ( type test.log & echo TEST FAILURE & exit /b 1 ) \
++ 		ELSE ( ECHO ALL DONE )
++ 
+  clean:
+  	-del *.out
+  	-if exist test.ok del test.ok
+***************
+*** 67,81 ****
+  	-if exist lua.vim del lua.vim
+  	-del X*
+  	-if exist viminfo del viminfo
+  
+  .in.out:
+  	copy $*.ok test.ok
+  	$(VIMPROG) -u dos.vim -U NONE --noplugin -s dotest.in $*.in
+! 	diff test.out $*.ok
+! 	-if exist $*.out del $*.out
+! 	rename test.out $*.out
+  	-del X*
+  	-del X*.*
+  	-del test.ok
+  	-rd /s /q Xfind
+  	-if exist viminfo del viminfo
+--- 69,86 ----
+  	-if exist lua.vim del lua.vim
+  	-del X*
+  	-if exist viminfo del viminfo
++ 	-del test.log
+  
+  .in.out:
+  	copy $*.ok test.ok
+  	$(VIMPROG) -u dos.vim -U NONE --noplugin -s dotest.in $*.in
+! 	@diff test.out $*.ok & if errorlevel 1 (echo $* FAILED >> test.log ) \
+! 		else ( del /F $*.out & rename test.out $*.out )
+  	-del X*
+  	-del X*.*
+  	-del test.ok
+  	-rd /s /q Xfind
+  	-if exist viminfo del viminfo
++ 
++ nolog:
++ 	-del test.log
+*** ../vim-7.3.1211/src/version.c	2013-06-16 16:41:42.000000000 +0200
+--- src/version.c	2013-06-16 16:54:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1212,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+236. You start saving URL's in your digital watch.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

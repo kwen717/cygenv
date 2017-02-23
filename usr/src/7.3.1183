@@ -1,0 +1,47 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1183
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1183
+Problem:    Python tests 86 and 87 fail.
+Solution:   Add "empty" files. (ZyX)
+Files:	    src/testdir/python_before/before_1.py,
+	    src/testdir/python_before/before_2.py
+
+
+*** ../vim-7.3.1182/src/testdir/python_before/before_1.py	2013-06-13 19:26:45.000000000 +0200
+--- src/testdir/python_before/before_1.py	2013-06-13 19:20:01.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ # empty file
+*** ../vim-7.3.1182/src/testdir/python_before/before_2.py	2013-06-13 19:26:45.000000000 +0200
+--- src/testdir/python_before/before_2.py	2013-06-13 19:20:12.000000000 +0200
+***************
+*** 0 ****
+--- 1 ----
++ # empty file
+*** ../vim-7.3.1182/src/version.c	2013-06-12 22:41:30.000000000 +0200
+--- src/version.c	2013-06-13 19:26:23.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1183,
+  /**/
+
+-- 
+Wizards had always known that the act of observation changed the thing that
+was observed, and sometimes forgot that it also changed the observer too.
+			Terry Pratchett  -  Interesting times
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

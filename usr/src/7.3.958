@@ -1,0 +1,67 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.958
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.958
+Problem:    Python: Iteration destructor not set.
+Solution:   Put IterDestructor to use. (ZyX)
+Files:	    src/if_py_both.c
+
+
+*** ../vim-7.3.957/src/if_py_both.h	2013-05-15 17:49:00.000000000 +0200
+--- src/if_py_both.h	2013-05-15 19:00:19.000000000 +0200
+***************
+*** 566,572 ****
+      return (PyObject *)(self);
+  }
+  
+- #if 0 /* unused */
+      static void
+  IterDestructor(PyObject *self)
+  {
+--- 566,571 ----
+***************
+*** 576,582 ****
+  
+      DESTRUCTOR_FINISH(self);
+  }
+- #endif
+  
+      static PyObject *
+  IterNext(PyObject *self)
+--- 575,580 ----
+***************
+*** 3823,3828 ****
+--- 3821,3827 ----
+      IterType.tp_doc = "generic iterator object";
+      IterType.tp_iter = IterIter;
+      IterType.tp_iternext = IterNext;
++     IterType.tp_dealloc = IterDestructor;
+  
+      vim_memset(&BufferType, 0, sizeof(BufferType));
+      BufferType.tp_name = "vim.buffer";
+*** ../vim-7.3.957/src/version.c	2013-05-15 18:28:08.000000000 +0200
+--- src/version.c	2013-05-15 19:05:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     958,
+  /**/
+
+-- 
+Yesterday is history.
+Tomorrow is a mystery.
+Today is a gift.
+That's why it is called 'present'.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

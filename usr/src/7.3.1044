@@ -1,0 +1,391 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1044
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1044
+Problem:    Python: No {Buffer,TabPage,Window}.valid attributes.
+Solution:   Python patch 5: add .valid (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c,
+	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1043/src/if_py_both.h	2013-05-29 22:02:18.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:08:36.000000000 +0200
+***************
+*** 1815,1820 ****
+--- 1815,1833 ----
+  }
+  
+      static PyObject *
++ TabPageAttrValid(TabPageObject *self, char *name)
++ {
++     PyObject *r;
++ 
++     if (strcmp(name, "valid") != 0)
++ 	return NULL;
++ 
++     r = ((self->tab == INVALID_TABPAGE_VALUE) ? Py_False : Py_True);
++     Py_INCREF(r);
++     return r;
++ }
++ 
++     static PyObject *
+  TabPageAttr(TabPageObject *self, char *name)
+  {
+      if (strcmp(name, "windows") == 0)
+***************
+*** 2010,2015 ****
+--- 2023,2041 ----
+  }
+  
+      static PyObject *
++ WindowAttrValid(WindowObject *self, char *name)
++ {
++     PyObject *r;
++ 
++     if (strcmp(name, "valid") != 0)
++ 	return NULL;
++ 
++     r = ((self->win == INVALID_WINDOW_VALUE) ? Py_False : Py_True);
++     Py_INCREF(r);
++     return r;
++ }
++ 
++     static PyObject *
+  WindowAttr(WindowObject *self, char *name)
+  {
+      if (strcmp(name, "buffer") == 0)
+***************
+*** 2050,2057 ****
+  	return (PyObject *)(self->tabObject);
+      }
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sssssssss]", "buffer", "cursor", "height",
+! 		"vars", "options", "number", "row", "col", "tabpage");
+      else
+  	return NULL;
+  }
+--- 2076,2083 ----
+  	return (PyObject *)(self->tabObject);
+      }
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssssssssss]", "buffer", "cursor", "height",
+! 		"vars", "options", "number", "row", "col", "tabpage", "valid");
+      else
+  	return NULL;
+  }
+***************
+*** 3186,3191 ****
+--- 3212,3230 ----
+  }
+  
+      static PyObject *
++ BufferAttrValid(BufferObject *self, char *name)
++ {
++     PyObject *r;
++ 
++     if (strcmp(name, "valid") != 0)
++ 	return NULL;
++ 
++     r = ((self->buf == INVALID_BUFFER_VALUE) ? Py_False : Py_True);
++     Py_INCREF(r);
++     return r;
++ }
++ 
++     static PyObject *
+  BufferAttr(BufferObject *self, char *name)
+  {
+      if (strcmp(name, "name") == 0)
+***************
+*** 3198,3204 ****
+  	return OptionsNew(SREQ_BUF, self->buf, (checkfun) CheckBuffer,
+  			(PyObject *) self);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[ssss]", "name", "number", "vars", "options");
+      else
+  	return NULL;
+  }
+--- 3237,3244 ----
+  	return OptionsNew(SREQ_BUF, self->buf, (checkfun) CheckBuffer,
+  			(PyObject *) self);
+      else if (strcmp(name,"__members__") == 0)
+! 	return Py_BuildValue("[sssss]", "name", "number", "vars", "options",
+! 		"valid");
+      else
+  	return NULL;
+  }
+*** ../vim-7.3.1043/src/if_python3.c	2013-05-29 22:02:18.000000000 +0200
+--- src/if_python3.c	2013-05-29 22:08:36.000000000 +0200
+***************
+*** 1067,1078 ****
+   */
+  
+      static PyObject *
+! BufferGetattro(PyObject *self, PyObject*nameobj)
+  {
+      PyObject *r;
+  
+      GET_ATTR_STRING(name, nameobj);
+  
+      if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+  
+--- 1067,1081 ----
+   */
+  
+      static PyObject *
+! BufferGetattro(PyObject *self, PyObject *nameobj)
+  {
+      PyObject *r;
+  
+      GET_ATTR_STRING(name, nameobj);
+  
++     if ((r = BufferAttrValid((BufferObject *)(self), name)))
++ 	return r;
++ 
+      if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+  
+***************
+*** 1094,1101 ****
+      static PyObject *
+  BufferDir(PyObject *self UNUSED)
+  {
+!     return Py_BuildValue("[sssss]", "name", "number",
+! 						   "append", "mark", "range");
+  }
+  
+  /******************/
+--- 1097,1105 ----
+      static PyObject *
+  BufferDir(PyObject *self UNUSED)
+  {
+!     return Py_BuildValue("[ssssssss]",
+! 	    "name", "number", "vars", "options", "valid",
+! 	    "append", "mark", "range");
+  }
+  
+  /******************/
+***************
+*** 1283,1288 ****
+--- 1287,1295 ----
+  
+      GET_ATTR_STRING(name, nameobj);
+  
++     if ((r = TabPageAttrValid((TabPageObject *)(self), name)))
++ 	return r;
++ 
+      if (CheckTabPage((TabPageObject *)(self)))
+  	return NULL;
+  
+***************
+*** 1303,1308 ****
+--- 1310,1318 ----
+  
+      GET_ATTR_STRING(name, nameobj);
+  
++     if ((r = WindowAttrValid((WindowObject *)(self), name)))
++ 	return r;
++ 
+      if (CheckWindow((WindowObject *)(self)))
+  	return NULL;
+  
+*** ../vim-7.3.1043/src/if_python.c	2013-05-29 22:05:51.000000000 +0200
+--- src/if_python.c	2013-05-29 22:08:36.000000000 +0200
+***************
+*** 1125,1130 ****
+--- 1125,1133 ----
+  {
+      PyObject *r;
+  
++     if ((r = BufferAttrValid((BufferObject *)(self), name)))
++ 	return r;
++ 
+      if (CheckBuffer((BufferObject *)(self)))
+  	return NULL;
+  
+***************
+*** 1206,1211 ****
+--- 1209,1217 ----
+  {
+      PyObject *r;
+  
++     if ((r = TabPageAttrValid((TabPageObject *)(self), name)))
++ 	return r;
++ 
+      if (CheckTabPage((TabPageObject *)(self)))
+  	return NULL;
+  
+***************
+*** 1224,1229 ****
+--- 1230,1238 ----
+  {
+      PyObject *r;
+  
++     if ((r = WindowAttrValid((WindowObject *)(self), name)))
++ 	return r;
++ 
+      if (CheckWindow((WindowObject *)(self)))
+  	return NULL;
+  
+*** ../vim-7.3.1043/src/testdir/test86.in	2013-05-29 22:02:18.000000000 +0200
+--- src/testdir/test86.in	2013-05-29 22:08:36.000000000 +0200
+***************
+*** 513,518 ****
+--- 513,519 ----
+      if _b is not cb:
+          vim.command('bwipeout! ' + str(_b.number))
+  del _b
++ cb.append('valid: b:%s, cb:%s' % (repr(b.valid), repr(cb.valid)))
+  for expr in ('b[1]','b[:] = ["A", "B"]','b[:]','b.append("abc")', 'b.name = "!"'):
+      try:
+          exec(expr)
+***************
+*** 663,671 ****
+--- 664,676 ----
+  cb.append('Current window: ' + repr(vim.current.window))
+  cb.append('Current buffer: ' + repr(vim.current.buffer))
+  cb.append('Current line: ' + repr(vim.current.line))
++ ws = list(vim.windows)
++ ts = list(vim.tabpages)
+  for b in vim.buffers:
+      if b is not cb:
+          vim.command('bwipeout! ' + str(b.number))
++ cb.append('w.valid: ' + repr([w.valid for w in ws]))
++ cb.append('t.valid: ' + repr([t.valid for t in ts]))
+  EOF
+  :tabonly!
+  :only!
+*** ../vim-7.3.1043/src/testdir/test86.ok	2013-05-29 22:02:18.000000000 +0200
+--- src/testdir/test86.ok	2013-05-29 22:09:47.000000000 +0200
+***************
+*** 328,333 ****
+--- 328,334 ----
+  1:BufFilePre:1
+  7:BufFilePost:1
+  testdir/test86.in
++ valid: b:False, cb:True
+  i:<buffer test86.in>
+  i2:<buffer test86.in>
+  i:<buffer a>
+***************
+*** 344,350 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (36, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 345,351 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (37, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+***************
+*** 370,375 ****
+--- 371,378 ----
+  Current window: <window 0>
+  Current buffer: <buffer test86.in>
+  Current line: 'Type error at assigning None to vim.current.buffer'
++ w.valid: [True, False]
++ t.valid: [True, False, True, False]
+  vim.vars:Dictionary:True
+  vim.options:Options:True
+  vim.bindeval("{}"):Dictionary:True
+*** ../vim-7.3.1043/src/testdir/test87.in	2013-05-29 22:02:18.000000000 +0200
+--- src/testdir/test87.in	2013-05-29 22:08:36.000000000 +0200
+***************
+*** 500,505 ****
+--- 500,506 ----
+      if _b is not cb:
+          vim.command('bwipeout! ' + str(_b.number))
+  del _b
++ cb.append('valid: b:%s, cb:%s' % (repr(b.valid), repr(cb.valid)))
+  for expr in ('b[1]','b[:] = ["A", "B"]','b[:]','b.append("abc")'):
+      try:
+          exec(expr)
+***************
+*** 641,649 ****
+--- 642,654 ----
+  cb.append('Current window: ' + repr(vim.current.window))
+  cb.append('Current buffer: ' + repr(vim.current.buffer))
+  cb.append('Current line: ' + repr(vim.current.line))
++ ws = list(vim.windows)
++ ts = list(vim.tabpages)
+  for b in vim.buffers:
+      if b is not cb:
+          vim.command('bwipeout! ' + str(b.number))
++ cb.append('w.valid: ' + repr([w.valid for w in ws]))
++ cb.append('t.valid: ' + repr([t.valid for t in ts]))
+  EOF
+  :tabonly!
+  :only!
+*** ../vim-7.3.1043/src/testdir/test87.ok	2013-05-29 22:02:18.000000000 +0200
+--- src/testdir/test87.ok	2013-05-29 22:10:11.000000000 +0200
+***************
+*** 317,322 ****
+--- 317,323 ----
+  1:BufFilePre:1
+  7:BufFilePost:1
+  testdir/test87.in
++ valid: b:False, cb:True
+  i:<buffer test87.in>
+  i2:<buffer test87.in>
+  i:<buffer a>
+***************
+*** 333,339 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (36, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 334,340 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (37, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+***************
+*** 359,364 ****
+--- 360,367 ----
+  Current window: <window 0>
+  Current buffer: <buffer test87.in>
+  Current line: 'Type error at assigning None to vim.current.buffer'
++ w.valid: [True, False]
++ t.valid: [True, False, True, False]
+  vim.vars:Dictionary:True
+  vim.options:Options:True
+  vim.bindeval("{}"):Dictionary:True
+*** ../vim-7.3.1043/src/version.c	2013-05-29 22:05:51.000000000 +0200
+--- src/version.c	2013-05-29 22:10:45.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1044,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+20. When looking at a pageful of someone else's links, you notice all of them
+    are already highlighted in purple.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

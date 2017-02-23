@@ -1,0 +1,99 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.927
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.927
+Problem:    Missing combining characters when putting text in a register.
+Solution:   Include combining characters. (Christian Brabandt)
+Files:	    src/getchar.c, src/testdir/test44.in, src/testdir/test44.ok
+
+
+*** ../vim-7.3.926/src/getchar.c	2013-04-15 15:47:07.000000000 +0200
+--- src/getchar.c	2013-05-06 05:06:13.000000000 +0200
+***************
+*** 4616,4624 ****
+--- 4616,4636 ----
+  	    }
+  	    else
+  	    {
++ #ifdef FEAT_MBYTE
++ 		int len  = mb_char2len(PTR2CHAR(s));
++ 		int len2 = mb_ptr2len(s);
++ #endif
+  		/* Add character, possibly multi-byte to destination, escaping
+  		 * CSI and K_SPECIAL. */
+  		d = add_char2buf(PTR2CHAR(s), d);
++ #ifdef FEAT_MBYTE
++ 		while (len < len2)
++ 		{
++ 		    /* add following combining char */
++ 		    d = add_char2buf(PTR2CHAR(s + len), d);
++ 		    len += mb_char2len(PTR2CHAR(s + len));
++ 		}
++ #endif
+  		mb_ptr_adv(s);
+  	    }
+  	}
+*** ../vim-7.3.926/src/testdir/test44.in	2013-01-23 16:43:07.000000000 +0100
+--- src/testdir/test44.in	2013-05-06 05:01:39.000000000 +0200
+***************
+*** 32,38 ****
+  x:" Test backwards search from a multi-byte char
+  /x
+  x?.
+! x:?^1?,$w! test.out
+  :e! test.out
+  G:put =matchstr(\"אבגד\", \".\", 0, 2) " ב
+  :put =matchstr(\"אבגד\", \"..\", 0, 2) " בג
+--- 32,40 ----
+  x:" Test backwards search from a multi-byte char
+  /x
+  x?.
+! x:let @w=':%s#comb[i]nations#œ̄ṣ́m̥̄ᾱ̆́#g'
+! :@w
+! :?^1?,$w! test.out
+  :e! test.out
+  G:put =matchstr(\"אבגד\", \".\", 0, 2) " ב
+  :put =matchstr(\"אבגד\", \"..\", 0, 2) " בג
+***************
+*** 61,63 ****
+--- 63,66 ----
+  h AÀÁÂÃÄÅĀĂĄǍǞǠẢ BḂḆ CÇĆĈĊČ DĎĐḊḎḐ EÈÉÊËĒĔĖĘĚẺẼ FḞ GĜĞĠĢǤǦǴḠ HĤĦḢḦḨ IÌÍÎÏĨĪĬĮİǏỈ JĴ KĶǨḰḴ LĹĻĽĿŁḺ MḾṀ NÑŃŅŇṄṈ OÒÓÔÕÖØŌŎŐƠǑǪǬỎ PṔṖ Q RŔŖŘṘṞ SŚŜŞŠṠ TŢŤŦṪṮ UÙÚÛÜŨŪŬŮŰŲƯǓỦ VṼ WŴẀẂẄẆ XẊẌ YÝŶŸẎỲỶỸ ZŹŻŽƵẐẔ
+  i aàáâãäåāăąǎǟǡả bḃḇ cçćĉċč dďđḋḏḑ eèéêëēĕėęěẻẽ fḟ gĝğġģǥǧǵḡ hĥħḣḧḩẖ iìíîïĩīĭįǐỉ jĵǰ kķǩḱḵ lĺļľŀłḻ mḿṁ nñńņňŉṅṉ oòóôõöøōŏőơǒǫǭỏ pṕṗ q rŕŗřṙṟ sśŝşšṡ tţťŧṫṯẗ uùúûüũūŭůűųưǔủ vṽ wŵẁẃẅẇẘ xẋẍ yýÿŷẏẙỳỷỹ zźżžƶẑẕ
+  j 0123❤x
++ k combinations
+*** ../vim-7.3.926/src/testdir/test44.ok	2013-01-23 16:43:07.000000000 +0100
+--- src/testdir/test44.ok	2013-05-06 05:01:39.000000000 +0200
+***************
+*** 17,22 ****
+--- 17,23 ----
+  h AÀÁÂÃÄÅĀĂĄǍǞǠẢ BḂḆ CÇĆĈĊČ DĎĐḊḎḐ EÈÉÊËĒĔĖĘĚẺẼ FḞ GĜĞĠĢǤǦǴḠ HĤĦḢḦḨ IÌÍÎÏĨĪĬĮİǏỈ JĴ KĶǨḰḴ LĹĻĽĿŁḺ MḾṀ NÑŃŅŇṄṈ OÒÓÔÕÖØŌŎŐƠǑǪǬỎ PṔṖ Q RŔŖŘṘṞ SŚŜŞŠṠ TŢŤŦṪṮ UÙÚÛÜŨŪŬŮŰŲƯǓỦ VṼ WŴẀẂẄẆ XẊẌ YÝŶŸẎỲỶỸ ZŹŻŽƵẐ
+  i aàáâãäåāăąǎǟǡả bḃḇ cçćĉċč dďđḋḏḑ eèéêëēĕėęěẻẽ fḟ gĝğġģǥǧǵḡ hĥħḣḧḩẖ iìíîïĩīĭįǐỉ jĵǰ kķǩḱḵ lĺļľŀłḻ mḿṁ nñńņňŉṅṉ oòóôõöøōŏőơǒǫǭỏ pṕṗ q rŕŗřṙṟ sśŝşšṡ tţťŧṫṯẗ uùúûüũūŭůűųưǔủ vṽ wŵẁẃẅẇẘ xẋẍ yýÿŷẏẙỳỷỹ zźżžƶẑ
+  j 012❤
++ k œ̄ṣ́m̥̄ᾱ̆́
+  ב
+  בג
+  א
+*** ../vim-7.3.926/src/version.c	2013-05-06 04:50:26.000000000 +0200
+--- src/version.c	2013-05-06 05:08:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     927,
+  /**/
+
+-- 
+In his lifetime van Gogh painted 486 oil paintings. Oddly enough, 8975
+of them are to be found in the United States.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,194 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1161
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1161
+Problem:    Python: PyList_SetItem() is inefficient.
+Solution:   Use PyList_SET_ITEM() (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1160/src/if_py_both.h	2013-06-05 20:34:07.000000000 +0200
+--- src/if_py_both.h	2013-06-10 20:37:50.000000000 +0200
+***************
+*** 375,382 ****
+      static int
+  PythonIO_Init_io(void)
+  {
+!     PySys_SetObject("stdout", (PyObject *)(void *)&Output);
+!     PySys_SetObject("stderr", (PyObject *)(void *)&Error);
+  
+      if (PyErr_Occurred())
+      {
+--- 375,384 ----
+      static int
+  PythonIO_Init_io(void)
+  {
+!     if (PySys_SetObject("stdout", (PyObject *)(void *)&Output))
+! 	return -1;
+!     if (PySys_SetObject("stderr", (PyObject *)(void *)&Error))
+! 	return -1;
+  
+      if (PyErr_Occurred())
+      {
+***************
+*** 1319,1330 ****
+  		Py_DECREF(r);
+  		return NULL;
+  	    }
+! 	    if (PyList_SetItem(r, i, newObj))
+! 	    {
+! 		Py_DECREF(r);
+! 		Py_DECREF(newObj);
+! 		return NULL;
+! 	    }
+  	    --todo;
+  	    ++i;
+  	}
+--- 1321,1327 ----
+  		Py_DECREF(r);
+  		return NULL;
+  	    }
+! 	    PyList_SET_ITEM(r, i, newObj);
+  	    --todo;
+  	    ++i;
+  	}
+***************
+*** 1808,1819 ****
+  	    return NULL;
+  	}
+  
+! 	if ((PyList_SetItem(list, ((reversed)?(n-i-1):(i)), item)))
+! 	{
+! 	    Py_DECREF(item);
+! 	    Py_DECREF(list);
+! 	    return NULL;
+! 	}
+      }
+  
+      return list;
+--- 1805,1811 ----
+  	    return NULL;
+  	}
+  
+! 	PyList_SET_ITEM(list, ((reversed)?(n-i-1):(i)), item);
+      }
+  
+      return list;
+***************
+*** 3164,3176 ****
+  	    return NULL;
+  	}
+  
+! 	/* Set the list item */
+! 	if (PyList_SetItem(list, i, str))
+! 	{
+! 	    Py_DECREF(str);
+! 	    Py_DECREF(list);
+! 	    return NULL;
+! 	}
+      }
+  
+      /* The ownership of the Python list is passed to the caller (ie,
+--- 3156,3162 ----
+  	    return NULL;
+  	}
+  
+! 	PyList_SET_ITEM(list, i, str);
+      }
+  
+      /* The ownership of the Python list is passed to the caller (ie,
+***************
+*** 5366,5373 ****
+      static int
+  populate_module(PyObject *m, object_adder add_object, attr_getter get_attr)
+  {
+!     int i;
+!     PyObject	*os;
+  
+      for (i = 0; i < (int)(sizeof(numeric_constants)
+  					   / sizeof(struct numeric_constant));
+--- 5352,5359 ----
+      static int
+  populate_module(PyObject *m, object_adder add_object, attr_getter get_attr)
+  {
+!     int		i;
+!     PyObject	*other_module;
+  
+      for (i = 0; i < (int)(sizeof(numeric_constants)
+  					   / sizeof(struct numeric_constant));
+***************
+*** 5395,5418 ****
+      ADD_CHECKED_OBJECT(m, "options",
+  	    OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL));
+  
+!     if (!(os = PyImport_ImportModule("os")))
+  	return -1;
+!     ADD_OBJECT(m, "os", os);
+  
+!     if (!(py_getcwd = PyObject_GetAttrString(os, "getcwd")))
+  	return -1;
+      ADD_OBJECT(m, "_getcwd", py_getcwd)
+  
+!     if (!(py_chdir = PyObject_GetAttrString(os, "chdir")))
+  	return -1;
+      ADD_OBJECT(m, "_chdir", py_chdir);
+!     if (PyObject_SetAttrString(os, "chdir", get_attr(m, "chdir")))
+  	return -1;
+  
+!     if ((py_fchdir = PyObject_GetAttrString(os, "fchdir")))
+      {
+  	ADD_OBJECT(m, "_fchdir", py_fchdir);
+! 	if (PyObject_SetAttrString(os, "fchdir", get_attr(m, "fchdir")))
+  	    return -1;
+      }
+      else
+--- 5381,5404 ----
+      ADD_CHECKED_OBJECT(m, "options",
+  	    OptionsNew(SREQ_GLOBAL, NULL, dummy_check, NULL));
+  
+!     if (!(other_module = PyImport_ImportModule("os")))
+  	return -1;
+!     ADD_OBJECT(m, "os", other_module);
+  
+!     if (!(py_getcwd = PyObject_GetAttrString(other_module, "getcwd")))
+  	return -1;
+      ADD_OBJECT(m, "_getcwd", py_getcwd)
+  
+!     if (!(py_chdir = PyObject_GetAttrString(other_module, "chdir")))
+  	return -1;
+      ADD_OBJECT(m, "_chdir", py_chdir);
+!     if (PyObject_SetAttrString(other_module, "chdir", get_attr(m, "chdir")))
+  	return -1;
+  
+!     if ((py_fchdir = PyObject_GetAttrString(other_module, "fchdir")))
+      {
+  	ADD_OBJECT(m, "_fchdir", py_fchdir);
+! 	if (PyObject_SetAttrString(other_module,"fchdir",get_attr(m,"fchdir")))
+  	    return -1;
+      }
+      else
+*** ../vim-7.3.1160/src/version.c	2013-06-10 20:25:05.000000000 +0200
+--- src/version.c	2013-06-10 20:37:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1161,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+136. You decide to stay in a low-paying job teaching just for the
+     free Internet access.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

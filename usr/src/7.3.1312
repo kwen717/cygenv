@@ -1,0 +1,71 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1312
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1312 (after 7.3.1287)
+Problem:    Not giving correct error messages for SystemExit().
+Solution:   Move E858 into an else. (Ken Takata)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1311/src/if_py_both.h	2013-07-01 22:02:58.000000000 +0200
+--- src/if_py_both.h	2013-07-06 12:57:36.000000000 +0200
+***************
+*** 5103,5116 ****
+      run_ret = PyRun_String((char *)cmd, Py_eval_input, globals, globals);
+      if (run_ret == NULL)
+      {
+! 	if (PyErr_ExceptionMatches(PyExc_SystemExit))
+  	{
+  	    EMSG2(_(e_py_systemexit), "python");
+  	    PyErr_Clear();
+  	}
+! 	if (PyErr_Occurred() && !msg_silent)
+! 	    PyErr_PrintEx(0);
+! 	EMSG(_("E858: Eval did not return a valid python object"));
+      }
+      else
+      {
+--- 5103,5119 ----
+      run_ret = PyRun_String((char *)cmd, Py_eval_input, globals, globals);
+      if (run_ret == NULL)
+      {
+! 	if (PyErr_Occurred() && PyErr_ExceptionMatches(PyExc_SystemExit))
+  	{
+  	    EMSG2(_(e_py_systemexit), "python");
+  	    PyErr_Clear();
+  	}
+! 	else
+! 	{
+! 	    if (PyErr_Occurred() && !msg_silent)
+! 		PyErr_PrintEx(0);
+! 	    EMSG(_("E858: Eval did not return a valid python object"));
+! 	}
+      }
+      else
+      {
+*** ../vim-7.3.1311/src/version.c	2013-07-05 20:09:08.000000000 +0200
+--- src/version.c	2013-07-06 12:58:53.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1312,
+  /**/
+
+-- 
+ROBIN:  (warily) And if you get a question wrong?
+ARTHUR: You are cast into the Gorge of Eternal Peril.
+ROBIN:  Oh ... wacho!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

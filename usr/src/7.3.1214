@@ -1,0 +1,76 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1214
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1214
+Problem:    Missing declaration for init_users() and realloc_post_list().
+	    (Salman Halim)
+Solution:   Add the declarations.
+Files:	    src/misc1.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1213/src/misc1.c	2013-06-08 18:19:40.000000000 +0200
+--- src/misc1.c	2013-06-16 22:46:01.000000000 +0200
+***************
+*** 16,21 ****
+--- 16,22 ----
+  
+  static char_u *vim_version_dir __ARGS((char_u *vimdir));
+  static char_u *remove_tail __ARGS((char_u *p, char_u *pend, char_u *name));
++ static void init_users __ARGS((void));
+  static int copy_indent __ARGS((int size, char_u	*src));
+  
+  /* All user names (for ~user completion as done by shell). */
+***************
+*** 4487,4493 ****
+   * Done only once and then cached.
+   */
+      static void
+! init_users() {
+      static int	lazy_init_done = FALSE;
+  
+      if (lazy_init_done)
+--- 4488,4495 ----
+   * Done only once and then cached.
+   */
+      static void
+! init_users()
+! {
+      static int	lazy_init_done = FALSE;
+  
+      if (lazy_init_done)
+*** ../vim-7.3.1213/src/regexp_nfa.c	2013-06-16 15:43:43.000000000 +0200
+--- src/regexp_nfa.c	2013-06-16 22:46:35.000000000 +0200
+***************
+*** 273,278 ****
+--- 273,279 ----
+  static int nfa_get_reganch __ARGS((nfa_state_T *start, int depth));
+  static int nfa_get_regstart __ARGS((nfa_state_T *start, int depth));
+  static char_u *nfa_get_match_text __ARGS((nfa_state_T *start));
++ static int realloc_post_list __ARGS((void));
+  static int nfa_recognize_char_class __ARGS((char_u *start, char_u *end, int extra_newl));
+  static int nfa_emit_equi_class __ARGS((int c));
+  static int nfa_regatom __ARGS((void));
+*** ../vim-7.3.1213/src/version.c	2013-06-16 17:32:33.000000000 +0200
+--- src/version.c	2013-06-16 22:45:31.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1214,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+239. You think "surfing" is something you do on dry land.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

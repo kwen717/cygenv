@@ -1,0 +1,81 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1187
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1187 (after 7.3.1170)
+Problem:    "s:" is recognized but "<SID>" is not. (ZyX)
+Solution:   Translate "<SID>" like "s:".
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.1186/src/eval.c	2013-06-12 22:08:54.000000000 +0200
+--- src/eval.c	2013-06-13 21:15:58.000000000 +0200
+***************
+*** 10976,10996 ****
+  	EMSG2(_("E700: Unknown function: %s"), s);
+      else
+      {
+! 	if (STRNCMP(s, "s:", 2) == 0)
+  	{
+  	    char	sid_buf[25];
+  
+! 	    /* Expand s: into <SNR>nr_, so that the function can also be
+! 	     * called from another script. Using trans_function_name() would
+! 	     * also work, but some plugins depend on the name being printable
+! 	     * text. */
+  	    sprintf(sid_buf, "<SNR>%ld_", (long)current_SID);
+  	    rettv->vval.v_string =
+! 			    alloc((int)(STRLEN(sid_buf) + STRLEN(s + 2) + 1));
+  	    if (rettv->vval.v_string != NULL)
+  	    {
+  		STRCPY(rettv->vval.v_string, sid_buf);
+! 		STRCAT(rettv->vval.v_string, s + 2);
+  	    }
+  	}
+  	else
+--- 10976,10997 ----
+  	EMSG2(_("E700: Unknown function: %s"), s);
+      else
+      {
+! 	if (STRNCMP(s, "s:", 2) == 0 || STRNCMP(s, "<SID>", 5) == 0)
+  	{
+  	    char	sid_buf[25];
++ 	    int		off = *s == 's' ? 2 : 5;
+  
+! 	    /* Expand s: and <SID> into <SNR>nr_, so that the function can
+! 	     * also be called from another script. Using trans_function_name()
+! 	     * would also work, but some plugins depend on the name being
+! 	     * printable text. */
+  	    sprintf(sid_buf, "<SNR>%ld_", (long)current_SID);
+  	    rettv->vval.v_string =
+! 			    alloc((int)(STRLEN(sid_buf) + STRLEN(s + off) + 1));
+  	    if (rettv->vval.v_string != NULL)
+  	    {
+  		STRCPY(rettv->vval.v_string, sid_buf);
+! 		STRCAT(rettv->vval.v_string, s + off);
+  	    }
+  	}
+  	else
+*** ../vim-7.3.1186/src/version.c	2013-06-13 20:57:44.000000000 +0200
+--- src/version.c	2013-06-13 21:18:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1187,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+189. You put your e-mail address in the upper left-hand corner of envelopes.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

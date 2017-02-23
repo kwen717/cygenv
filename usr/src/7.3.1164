@@ -1,0 +1,155 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1164
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1164
+Problem:    Can't test what is actually displayed on screen.
+Solution:   Add the screenchar() and screenattr() functions.
+Files:      src/eval.c, runtime/doc/eval.txt
+    
+
+*** ../vim-7.3.1163/src/eval.c	2013-06-10 20:10:40.000000000 +0200
+--- src/eval.c	2013-06-10 23:15:38.000000000 +0200
+***************
+*** 654,659 ****
+--- 654,661 ----
+  #ifdef FEAT_FLOAT
+  static void f_round __ARGS((typval_T *argvars, typval_T *rettv));
+  #endif
++ static void f_screenattr __ARGS((typval_T *argvars, typval_T *rettv));
++ static void f_screenchar __ARGS((typval_T *argvars, typval_T *rettv));
+  static void f_screencol __ARGS((typval_T *argvars, typval_T *rettv));
+  static void f_screenrow __ARGS((typval_T *argvars, typval_T *rettv));
+  static void f_search __ARGS((typval_T *argvars, typval_T *rettv));
+***************
+*** 8037,8042 ****
+--- 8039,8046 ----
+  #ifdef FEAT_FLOAT
+      {"round",		1, 1, f_round},
+  #endif
++     {"screenattr",	2, 2, f_screenattr},
++     {"screenchar",	2, 2, f_screenchar},
+      {"screencol",	0, 0, f_screencol},
+      {"screenrow",	0, 0, f_screenrow},
+      {"search",		1, 4, f_search},
+***************
+*** 15804,15809 ****
+--- 15808,15866 ----
+  #endif
+  
+  /*
++  * "screenattr()" function
++  */
++     static void
++ f_screenattr(argvars, rettv)
++     typval_T	*argvars UNUSED;
++     typval_T	*rettv;
++ {
++     int		row;
++     int		col;
++     int		c;
++ 
++     row = get_tv_number_chk(&argvars[0], NULL) - 1;
++     col = get_tv_number_chk(&argvars[1], NULL) - 1;
++     if (row < 0 || row >= screen_Rows
++ 	    || col < 0 || col >= screen_Columns)
++ 	c = -1;
++     else
++ 	c = ScreenAttrs[LineOffset[row] + col];
++     rettv->vval.v_number = c;
++ }
++ 
++ /*
++  * "screenchar()" function
++  */
++     static void
++ f_screenchar(argvars, rettv)
++     typval_T	*argvars UNUSED;
++     typval_T	*rettv;
++ {
++     int		row;
++     int		col;
++     int		off;
++     int		c;
++ 
++     row = get_tv_number_chk(&argvars[0], NULL) - 1;
++     col = get_tv_number_chk(&argvars[1], NULL) - 1;
++     if (row < 0 || row >= screen_Rows
++ 	    || col < 0 || col >= screen_Columns)
++ 	c = -1;
++     else
++     {
++ 	off = LineOffset[row] + col;
++ #ifdef FEAT_MBYTE
++ 	if (enc_utf8 && ScreenLinesUC[off] != 0)
++ 	    c = ScreenLinesUC[off];
++ 	else
++ #endif
++ 	    c = ScreenLines[off];
++     }
++     rettv->vval.v_number = c;
++ }
++ 
++ /*
+   * "screencol()" function
+   *
+   * First column is 1 to be consistent with virtcol().
+*** ../vim-7.3.1163/runtime/doc/eval.txt	2013-05-06 04:50:26.000000000 +0200
+--- runtime/doc/eval.txt	2013-06-11 18:39:17.000000000 +0200
+***************
+*** 1895,1900 ****
+--- 1906,1913 ----
+  resolve( {filename})		String	get filename a shortcut points to
+  reverse( {list})		List	reverse {list} in-place
+  round( {expr})			Float	round off {expr}
++ screenattr( {row}, {col})	Number	attribute at screen position
++ screenchar( {row}, {col})	Number	character at screen position
+  screencol()			Number	current cursor column
+  screenrow()			Number	current cursor row
+  search( {pattern} [, {flags} [, {stopline} [, {timeout}]]])
+***************
+*** 4863,4868 ****
+--- 4893,4913 ----
+  <			-5.0
+  		{only available when compiled with the |+float| feature}
+  
++ screenattr(row, col)						*screenattr()*
++ 		Like screenchar(), but return the attribute.  This is a rather
++ 		arbitrary number that can only be used to compare to the
++ 		attribute at other positions.
++ 
++ screenchar(row, col)						*screenchar()*
++ 		The result is a Number, which is the character at position
++ 		[row, col] on the screen.  This works for every possible
++ 		screen position, also status lines, window separators and the
++ 		command line.  The top left position is row one, column one
++ 		The character excludes composing characters.  For double-byte
++ 		encodings it may only be the first byte.
++ 		This is mainly to be used for testing.
++ 		Returns -1 when row or col is out of range.
++ 
+  screencol()							*screencol()*
+  		The result is a Number, which is the current screen column of
+  		the cursor. The leftmost column has number 1.
+*** ../vim-7.3.1163/src/version.c	2013-06-10 21:27:18.000000000 +0200
+--- src/version.c	2013-06-11 18:36:46.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1164,
+  /**/
+
+-- 
+Fingers not found - Pound head on keyboard to continue.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

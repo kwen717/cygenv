@@ -1,0 +1,8 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =6
+let g:netrw_dirhist_1='/cygdrive/c/Workspace/sydjs-site/templates/mixins'
+let g:netrw_dirhist_2='/cygdrive/c/bak11frank.Gateway_821B11'
+let g:netrw_dirhist_3='/cygdrive/c/421qlogic/sys'
+let g:netrw_dirhist_4='/cygdrive/c/421qlogic'
+let g:netrw_dirhist_5='/cygdrive/c'
+let g:netrw_dirhist_6='/cygdrive/c/88Emulex411A/src'

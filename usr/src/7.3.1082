@@ -1,0 +1,168 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1082
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1082
+Problem:    New regexp engine: Problem with \@= matching.
+Solution:   Save and restore nfa_match.
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1081/src/regexp_nfa.c	2013-05-31 20:49:27.000000000 +0200
+--- src/regexp_nfa.c	2013-05-31 21:19:15.000000000 +0200
+***************
+*** 3332,3342 ****
+      int		result;
+      int		size = 0;
+      int		flag = 0;
+-     int		old_reglnum = -1;
+      int		go_to_nextline = FALSE;
+      nfa_thread_T *t;
+-     char_u	*old_reginput = NULL;
+-     char_u	*old_regline = NULL;
+      nfa_list_T	list[3];
+      nfa_list_T	*listtbl[2][2];
+      nfa_list_T	*ll;
+--- 3332,3339 ----
+***************
+*** 3560,3574 ****
+  		break;
+  
+  	    case NFA_START_INVISIBLE:
+! 		/* Save global variables, and call nfa_regmatch() to check if
+! 		 * the current concat matches at this position. The concat
+! 		 * ends with the node NFA_END_INVISIBLE */
+! 		old_reginput = reginput;
+! 		old_regline = regline;
+! 		old_reglnum = reglnum;
+  		if (listids == NULL)
+  		{
+! 		    listids = (int *) lalloc(sizeof(int) * nstate, TRUE);
+  		    if (listids == NULL)
+  		    {
+  			EMSG(_("E878: (NFA) Could not allocate memory for branch traversal!"));
+--- 3557,3574 ----
+  		break;
+  
+  	    case NFA_START_INVISIBLE:
+! 	      {
+! 		char_u	*save_reginput = reginput;
+! 		char_u	*save_regline = regline;
+! 		int	save_reglnum = reglnum;
+! 		int	save_nfa_match = nfa_match;
+! 
+! 		/* Call nfa_regmatch() to check if the current concat matches
+! 		 * at this position. The concat ends with the node
+! 		 * NFA_END_INVISIBLE */
+  		if (listids == NULL)
+  		{
+! 		    listids = (int *)lalloc(sizeof(int) * nstate, TRUE);
+  		    if (listids == NULL)
+  		    {
+  			EMSG(_("E878: (NFA) Could not allocate memory for branch traversal!"));
+***************
+*** 3588,3594 ****
+  		result = nfa_regmatch(t->state->out, submatch, m);
+  		nfa_set_neg_listids(start);
+  		nfa_restore_listids(start, listids);
+! 		nfa_match = FALSE;
+  
+  #ifdef ENABLE_LOG
+  		log_fd = fopen(NFA_REGEXP_RUN_LOG, "a");
+--- 3588,3599 ----
+  		result = nfa_regmatch(t->state->out, submatch, m);
+  		nfa_set_neg_listids(start);
+  		nfa_restore_listids(start, listids);
+! 
+! 		/* restore position in input text */
+! 		reginput = save_reginput;
+! 		regline = save_regline;
+! 		reglnum = save_reglnum;
+! 		nfa_match = save_nfa_match;
+  
+  #ifdef ENABLE_LOG
+  		log_fd = fopen(NFA_REGEXP_RUN_LOG, "a");
+***************
+*** 3610,3619 ****
+  		{
+  		    int j;
+  
+- 		    /* Restore position in input text */
+- 		    reginput = old_reginput;
+- 		    regline = old_regline;
+- 		    reglnum = old_reglnum;
+  		    /* Copy submatch info from the recursive call */
+  		    if (REG_MULTI)
+  			for (j = 1; j < m->in_use; j++)
+--- 3615,3620 ----
+***************
+*** 3635,3646 ****
+  		    addstate_here(thislist, t->state->out1->out, &t->sub,
+  								    &listidx);
+  		}
+- 		else
+- 		{
+- 		    /* continue with next input char */
+- 		    reginput = old_reginput;
+- 		}
+  		break;
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+--- 3636,3643 ----
+  		    addstate_here(thislist, t->state->out1->out, &t->sub,
+  								    &listidx);
+  		}
+  		break;
++ 	      }
+  
+  	    case NFA_BOL:
+  		if (reginput == regline)
+*** ../vim-7.3.1081/src/testdir/test64.in	2013-05-30 22:43:57.000000000 +0200
+--- src/testdir/test64.in	2013-05-31 21:14:37.000000000 +0200
+***************
+*** 305,310 ****
+--- 305,311 ----
+  :call add(tl, [2, '\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+  :call add(tl, [2, '\(.*John\)\@=.*Bob', 'here is John, and here is B'])
+  :call add(tl, [2, '\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
++ :call add(tl, [2, '\<\S\+\())\)\@=', '$((i=i+1))', 'i=i+1', '))'])
+  :call add(tl, [2, '.*John\&.*Bob', 'here is John, and here is B'])
+  :call add(tl, [2, '.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+  :call add(tl, [2, '\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
+*** ../vim-7.3.1081/src/testdir/test64.ok	2013-05-30 22:43:57.000000000 +0200
+--- src/testdir/test64.ok	2013-05-31 21:16:29.000000000 +0200
+***************
+*** 669,674 ****
+--- 669,677 ----
+  OK 0 - \(John.*\)\@=.*Bob
+  OK 1 - \(John.*\)\@=.*Bob
+  OK 2 - \(John.*\)\@=.*Bob
++ OK 0 - \<\S\+\())\)\@=
++ OK 1 - \<\S\+\())\)\@=
++ OK 2 - \<\S\+\())\)\@=
+  OK 0 - .*John\&.*Bob
+  OK 1 - .*John\&.*Bob
+  OK 2 - .*John\&.*Bob
+*** ../vim-7.3.1081/src/version.c	2013-05-31 20:49:27.000000000 +0200
+--- src/version.c	2013-05-31 21:21:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1082,
+  /**/
+
+-- 
+To define recursion, we must first define recursion.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

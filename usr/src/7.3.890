@@ -1,0 +1,60 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.890
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.890
+Problem:    Test 79 fails on Windows. (Michael Soyka)
+Solution:   Add comment below line causing an error.
+Files:	    src/testdir/test79.in
+
+
+*** ../vim-7.3.889/src/testdir/test79.in	2013-03-19 17:42:10.000000000 +0100
+--- src/testdir/test79.in	2013-04-13 11:16:38.000000000 +0200
+***************
+*** 206,216 ****
+  STARTTEST
+  :set magic&
+  :set cpo&
+! /^TEST/
+  j:s/A./\=submatch(0)/
+  j:s/B./\=submatch(0)/
+  /^Q$
+  :s/Q[^\n]Q/\=submatch(0)."foobar"/
+  ENDTEST
+  
+  TEST_7:
+--- 206,217 ----
+  STARTTEST
+  :set magic&
+  :set cpo&
+! /^TEST_7/
+  j:s/A./\=submatch(0)/
+  j:s/B./\=submatch(0)/
+  /^Q$
+  :s/Q[^\n]Q/\=submatch(0)."foobar"/
++ :" Avoid :s error breaks dotest map on Windows.
+  ENDTEST
+  
+  TEST_7:
+*** ../vim-7.3.889/src/version.c	2013-04-14 16:18:52.000000000 +0200
+--- src/version.c	2013-04-14 16:21:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     890,
+  /**/
+
+-- 
+"Hit any key to continue" it said, but nothing happened after F sharp.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

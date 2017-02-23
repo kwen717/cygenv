@@ -1,0 +1,59 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.882
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.882
+Problem:    CursorHold may trigger after receiving the termresponse.
+Solution:   Set the did_cursorhold flag. (Hayaki Saito)
+Files:	    src/term.c
+
+
+*** ../vim-7.3.881/src/term.c	2013-03-16 14:33:32.000000000 +0100
+--- src/term.c	2013-04-05 19:49:58.000000000 +0200
+***************
+*** 4137,4142 ****
+--- 4137,4145 ----
+  		    char *p = NULL;
+  
+  		    u7_status = U7_GOT;
++ # ifdef FEAT_AUTOCMD
++ 		    did_cursorhold = TRUE;
++ # endif
+  		    if (extra == 2)
+  			p = "single";
+  		    else if (extra == 3)
+***************
+*** 4153,4158 ****
+--- 4156,4164 ----
+  		if (*T_CRV != NUL && i > 2 + (tp[0] != CSI) && tp[i] == 'c')
+  		{
+  		    crv_status = CRV_GOT;
++ # ifdef FEAT_AUTOCMD
++ 		    did_cursorhold = TRUE;
++ # endif
+  
+  		    /* If this code starts with CSI, you can bet that the
+  		     * terminal uses 8-bit codes. */
+*** ../vim-7.3.881/src/version.c	2013-04-05 19:32:30.000000000 +0200
+--- src/version.c	2013-04-05 19:46:21.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     882,
+  /**/
+
+-- 
+Would you care for a drink?   I mean, if it were, like,
+disabled and you had to look after it?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

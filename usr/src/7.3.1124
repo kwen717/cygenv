@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1124
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1124
+Problem:    Python: Crash on MS-Windows when os.fchdir() is not available.
+Solution:   Check for _chdir to be NULL. (Ken Takata)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1123/src/if_py_both.h	2013-06-03 20:04:43.000000000 +0200
+--- src/if_py_both.h	2013-06-05 20:33:48.000000000 +0200
+***************
+*** 718,723 ****
+--- 718,725 ----
+      PyObject	*todecref;
+      char_u	*new_dir;
+  
++     if (_chdir == NULL)
++ 	return NULL;
+      if (!(r = PyObject_Call(_chdir, args, kwargs)))
+  	return NULL;
+  
+*** ../vim-7.3.1123/src/version.c	2013-06-05 19:35:31.000000000 +0200
+--- src/version.c	2013-06-05 20:09:04.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1124,
+  /**/
+
+-- 
+From "know your smileys":
+ =):-)	Uncle Sam
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

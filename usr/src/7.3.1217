@@ -1,0 +1,93 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1217
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1217
+Problem:    New regexp engine: Can't handle \%[[ao]]. (Yukihiro Nakadaira)
+Solution:   Support nested atoms inside \%[].
+Files:	    src/regexp_nfa.c, src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1216/src/regexp_nfa.c	2013-06-16 22:49:09.000000000 +0200
+--- src/regexp_nfa.c	2013-06-17 21:27:03.000000000 +0200
+***************
+*** 1150,1162 ****
+  			int	    n;
+  
+  			/* \%[abc] */
+! 			for (n = 0; (c = getchr()) != ']'; ++n)
+  			{
+  			    if (c == NUL)
+  				EMSG2_RET_FAIL(_(e_missing_sb),
+  						      reg_magic == MAGIC_ALL);
+! 			    EMIT(c);
+  			}
+  			if (n == 0)
+  			    EMSG2_RET_FAIL(_(e_empty_sb),
+  						      reg_magic == MAGIC_ALL);
+--- 1150,1165 ----
+  			int	    n;
+  
+  			/* \%[abc] */
+! 			for (n = 0; (c = peekchr()) != ']'; ++n)
+  			{
+  			    if (c == NUL)
+  				EMSG2_RET_FAIL(_(e_missing_sb),
+  						      reg_magic == MAGIC_ALL);
+! 			    /* recursive call! */
+! 			    if (nfa_regatom() == FAIL)
+! 				return FAIL;
+  			}
++ 			getchr();  /* get the ] */
+  			if (n == 0)
+  			    EMSG2_RET_FAIL(_(e_empty_sb),
+  						      reg_magic == MAGIC_ALL);
+*** ../vim-7.3.1216/src/testdir/test64.in	2013-06-16 15:43:43.000000000 +0200
+--- src/testdir/test64.in	2013-06-17 21:21:35.000000000 +0200
+***************
+*** 366,371 ****
+--- 366,372 ----
+  :call add(tl, [2, '\%[bar]x', 'barxx', 'barx'])
+  :call add(tl, [2, '\%[bar]x', 'bxx', 'bx'])
+  :call add(tl, [2, '\%[bar]x', 'xxx', 'x'])
++ :call add(tl, [2, 'b\%[[ao]r]', 'bar bor', 'bar'])
+  :"
+  :"""" Alternatives, must use first longest match
+  :call add(tl, [2, 'goo\|go', 'google', 'goo'])
+*** ../vim-7.3.1216/src/testdir/test64.ok	2013-06-16 15:43:43.000000000 +0200
+--- src/testdir/test64.ok	2013-06-17 21:27:09.000000000 +0200
+***************
+*** 836,841 ****
+--- 836,844 ----
+  OK 0 - \%[bar]x
+  OK 1 - \%[bar]x
+  OK 2 - \%[bar]x
++ OK 0 - b\%[[ao]r]
++ OK 1 - b\%[[ao]r]
++ OK 2 - b\%[[ao]r]
+  OK 0 - goo\|go
+  OK 1 - goo\|go
+  OK 2 - goo\|go
+*** ../vim-7.3.1216/src/version.c	2013-06-17 20:27:13.000000000 +0200
+--- src/version.c	2013-06-17 21:20:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1217,
+  /**/
+
+
+-- 
+Marriage isn't a word.  It's a sentence.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

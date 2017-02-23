@@ -1,0 +1,58 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1219
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1219
+Problem:    No test for using []] inside \%[].
+Solution:   Add a test.
+Files:	    src/testdir/test64.in, src/testdir/test64.ok
+
+
+*** ../vim-7.3.1218/src/testdir/test64.in	2013-06-17 21:33:36.000000000 +0200
+--- src/testdir/test64.in	2013-06-17 21:59:47.000000000 +0200
+***************
+*** 367,372 ****
+--- 367,373 ----
+  :call add(tl, [2, '\%[bar]x', 'bxx', 'bx'])
+  :call add(tl, [2, '\%[bar]x', 'xxx', 'x'])
+  :call add(tl, [2, 'b\%[[ao]r]', 'bar bor', 'bar'])
++ :call add(tl, [2, 'b\%[[]]r]', 'b]r bor', 'b]r'])
+  :"
+  :"""" Alternatives, must use first longest match
+  :call add(tl, [2, 'goo\|go', 'google', 'goo'])
+*** ../vim-7.3.1218/src/testdir/test64.ok	2013-06-17 21:33:36.000000000 +0200
+--- src/testdir/test64.ok	2013-06-17 21:59:51.000000000 +0200
+***************
+*** 839,844 ****
+--- 839,847 ----
+  OK 0 - b\%[[ao]r]
+  OK 1 - b\%[[ao]r]
+  OK 2 - b\%[[ao]r]
++ OK 0 - b\%[[]]r]
++ OK 1 - b\%[[]]r]
++ OK 2 - b\%[[]]r]
+  OK 0 - goo\|go
+  OK 1 - goo\|go
+  OK 2 - goo\|go
+*** ../vim-7.3.1218/src/version.c	2013-06-17 21:53:33.000000000 +0200
+--- src/version.c	2013-06-17 22:03:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1219,
+  /**/
+
+-- 
+If you're sending someone Styrofoam, what do you pack it in?
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

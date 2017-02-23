@@ -1,0 +1,72 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.914
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.914
+Problem:    ~/.viminfo is messed up when running tests.
+Solution:   Set the viminfo filename.
+Files:	    src/testdir/test89.in, src/testdir/test94.in
+
+
+*** ../vim-7.3.913/src/testdir/test89.in	2013-03-13 20:42:28.000000000 +0100
+--- src/testdir/test89.in	2013-04-24 15:42:05.000000000 +0200
+***************
+*** 2,8 ****
+  
+  STARTTEST
+  :so small.vim
+! :set hidden nocp nu rnu
+  :redir @a | set nu? rnu? | redir END
+  :e! xx
+  :redir @b | set nu? rnu? | redir END
+--- 2,8 ----
+  
+  STARTTEST
+  :so small.vim
+! :set hidden nocp nu rnu viminfo+=nviminfo
+  :redir @a | set nu? rnu? | redir END
+  :e! xx
+  :redir @b | set nu? rnu? | redir END
+*** ../vim-7.3.913/src/testdir/test94.in	2013-04-12 13:44:49.000000000 +0200
+--- src/testdir/test94.in	2013-04-24 15:43:10.000000000 +0200
+***************
+*** 17,23 ****
+  
+  STARTTEST
+  :so small.vim
+! :set nocp
+  :
+  :" User functions
+  :function MoveToCap()
+--- 17,23 ----
+  
+  STARTTEST
+  :so small.vim
+! :set nocp viminfo+=nviminfo
+  :
+  :" User functions
+  :function MoveToCap()
+*** ../vim-7.3.913/src/version.c	2013-04-24 15:39:06.000000000 +0200
+--- src/version.c	2013-04-24 15:44:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     914,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+226. You sit down at the computer right after dinner and your spouse
+     says "See you in the morning."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

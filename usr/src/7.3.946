@@ -1,0 +1,98 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.946
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.946
+Problem:    Sometimes get stuck in waiting for cursor position report,
+	    resulting in keys starting with <Esc>[ not working.
+Solution:   Only wait for more characters after <Esc>[ if followed by '?', '>'
+	    or a digit.
+Files:	    src/term.c
+
+
+*** ../vim-7.3.945/src/term.c	2013-05-13 20:26:47.000000000 +0200
+--- src/term.c	2013-05-15 14:12:43.000000000 +0200
+***************
+*** 4126,4134 ****
+  	     *   The final byte is 'R'. now it is only used for checking for
+  	     *   ambiguous-width character state.
+  	     */
+  	    if ((*T_CRV != NUL || *T_U7 != NUL)
+  			&& ((tp[0] == ESC && tp[1] == '[' && len >= 3)
+! 			    || (tp[0] == CSI && len >= 2)))
+  	    {
+  		j = 0;
+  		extra = 0;
+--- 4126,4136 ----
+  	     *   The final byte is 'R'. now it is only used for checking for
+  	     *   ambiguous-width character state.
+  	     */
++ 	    p = tp[0] == CSI ? tp + 1 : tp + 2;
+  	    if ((*T_CRV != NUL || *T_U7 != NUL)
+  			&& ((tp[0] == ESC && tp[1] == '[' && len >= 3)
+! 			    || (tp[0] == CSI && len >= 2))
+! 			&& (VIM_ISDIGIT(*p) || *p == '>' || *p == '?'))
+  	    {
+  		j = 0;
+  		extra = 0;
+***************
+*** 4136,4142 ****
+  				&& !(tp[i] >= '{' && tp[i] <= '~')
+  				&& !ASCII_ISALPHA(tp[i]); ++i)
+  		    if (tp[i] == ';' && ++j == 1)
+! 			extra = atoi((char *)tp + i + 1);
+  		if (i == len)
+  		    return -1;		/* not enough characters */
+  
+--- 4138,4144 ----
+  				&& !(tp[i] >= '{' && tp[i] <= '~')
+  				&& !ASCII_ISALPHA(tp[i]); ++i)
+  		    if (tp[i] == ';' && ++j == 1)
+! 			extra = i + 1;
+  		if (i == len)
+  		    return -1;		/* not enough characters */
+  
+***************
+*** 4150,4155 ****
+--- 4152,4159 ----
+  # ifdef FEAT_AUTOCMD
+  		    did_cursorhold = TRUE;
+  # endif
++ 		    if (extra > 0)
++ 			extra = atoi((char *)tp + extra);
+  		    if (extra == 2)
+  			aw = "single";
+  		    else if (extra == 3)
+***************
+*** 4178,4183 ****
+--- 4182,4189 ----
+  		    /* rxvt sends its version number: "20703" is 2.7.3.
+  		     * Ignore it for when the user has set 'term' to xterm,
+  		     * even though it's an rxvt. */
++ 		    if (extra > 0)
++ 			extra = atoi((char *)tp + extra);
+  		    if (extra > 20000)
+  			extra = 0;
+  
+*** ../vim-7.3.945/src/version.c	2013-05-15 13:38:41.000000000 +0200
+--- src/version.c	2013-05-15 14:17:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     946,
+  /**/
+
+-- 
+No letters of the alphabet were harmed in the creation of this message.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

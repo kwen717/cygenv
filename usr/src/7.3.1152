@@ -1,0 +1,56 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1152
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1152
+Problem:    In tiny build ireg_icombine is undefined. (Tony Mechelynck)
+Solution:   Add #ifdef.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1151/src/regexp_nfa.c	2013-06-08 23:26:10.000000000 +0200
+--- src/regexp_nfa.c	2013-06-08 23:29:22.000000000 +0200
+***************
+*** 6198,6204 ****
+  
+  	/* If match_text is set it contains the full text that must match.
+  	 * Nothing else to try. Doesn't handle combining chars well. */
+! 	if (prog->match_text != NULL && !ireg_icombine)
+  	    return find_match_text(col, prog->regstart, prog->match_text);
+      }
+  
+--- 6198,6208 ----
+  
+  	/* If match_text is set it contains the full text that must match.
+  	 * Nothing else to try. Doesn't handle combining chars well. */
+! 	if (prog->match_text != NULL
+! #ifdef FEAT_MBYTE
+! 		    && !ireg_icombine
+! #endif
+! 		)
+  	    return find_match_text(col, prog->regstart, prog->match_text);
+      }
+  
+*** ../vim-7.3.1151/src/version.c	2013-06-08 23:26:10.000000000 +0200
+--- src/version.c	2013-06-08 23:28:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1152,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+118. You are on a first-name basis with your ISP's staff.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

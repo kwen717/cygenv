@@ -1,0 +1,125 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1260
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1260
+Problem:    User completion does not get the whole command line in the command
+	    line window.
+Solution:   Pass on the whole command line. (Daniel Thau)
+Files:	    src/ex_getln.c, src/structs.h
+
+
+*** ../vim-7.3.1259/src/ex_getln.c	2013-06-23 16:16:13.000000000 +0200
+--- src/ex_getln.c	2013-06-29 12:53:30.000000000 +0200
+***************
+*** 3729,3734 ****
+--- 3729,3735 ----
+  #if defined(FEAT_USR_CMDS) && defined(FEAT_EVAL) && defined(FEAT_CMDL_COMPL)
+      xp->xp_arg = NULL;
+  #endif
++     xp->xp_line = NULL;
+  }
+  
+  /*
+***************
+*** 4378,4383 ****
+--- 4379,4389 ----
+      int		old_char = NUL;
+      char_u	*nextcomm;
+  
++     /* Store the string here so that call_user_expand_func() can get to them
++      * easily. */
++     xp->xp_line = str;
++     xp->xp_col = col;
++ 
+      /*
+       * Avoid a UMR warning from Purify, only save the character if it has been
+       * written before.
+***************
+*** 4952,4978 ****
+      void	*ret;
+      struct cmdline_info	    save_ccline;
+  
+!     if (xp->xp_arg == NULL || xp->xp_arg[0] == '\0')
+  	return NULL;
+      *num_file = 0;
+      *file = NULL;
+  
+!     if (ccline.cmdbuff == NULL)
+      {
+- 	/* Completion from Insert mode, pass fake arguments. */
+- 	keep = 0;
+- 	sprintf((char *)num, "%d", (int)STRLEN(xp->xp_pattern));
+- 	args[1] = xp->xp_pattern;
+-     }
+-     else
+-     {
+- 	/* Completion on the command line, pass real arguments. */
+  	keep = ccline.cmdbuff[ccline.cmdlen];
+  	ccline.cmdbuff[ccline.cmdlen] = 0;
+- 	sprintf((char *)num, "%d", ccline.cmdpos);
+- 	args[1] = ccline.cmdbuff;
+      }
+      args[0] = vim_strnsave(xp->xp_pattern, xp->xp_pattern_len);
+      args[2] = num;
+  
+      /* Save the cmdline, we don't know what the function may do. */
+--- 4958,4977 ----
+      void	*ret;
+      struct cmdline_info	    save_ccline;
+  
+!     if (xp->xp_arg == NULL || xp->xp_arg[0] == '\0' || xp->xp_line == NULL)
+  	return NULL;
+      *num_file = 0;
+      *file = NULL;
+  
+!     if (ccline.cmdbuff != NULL)
+      {
+  	keep = ccline.cmdbuff[ccline.cmdlen];
+  	ccline.cmdbuff[ccline.cmdlen] = 0;
+      }
++ 
+      args[0] = vim_strnsave(xp->xp_pattern, xp->xp_pattern_len);
++     args[1] = xp->xp_line;
++     sprintf((char *)num, "%d", xp->xp_col);
+      args[2] = num;
+  
+      /* Save the cmdline, we don't know what the function may do. */
+*** ../vim-7.3.1259/src/structs.h	2013-06-12 19:52:11.000000000 +0200
+--- src/structs.h	2013-06-29 12:47:03.000000000 +0200
+***************
+*** 493,498 ****
+--- 493,500 ----
+      int		xp_numfiles;		/* number of files found by
+  						    file name completion */
+      char_u	**xp_files;		/* list of files */
++     char_u	*xp_line;		/* text being completed */
++     int		xp_col;			/* cursor position in line */
+  } expand_T;
+  
+  /* values for xp_backslash */
+*** ../vim-7.3.1259/src/version.c	2013-06-29 12:10:22.000000000 +0200
+--- src/version.c	2013-06-29 12:41:08.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1260,
+  /**/
+
+-- 
+This is the polymorph virus!  Follow these instructions carefully:
+1. Send this message to everybody you know.
+2. Format your harddisk.
+Thank you for your cooperation in spreading the most powerful virus ever!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

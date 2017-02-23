@@ -1,0 +1,178 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.929
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.929 (after 7.3.924)
+Problem:    Compiler warning for unused variable. Not freeing unused string.
+Solution:   Remove the variable. Clear the options.
+Files:      src/option.c
+
+
+*** ../vim-7.3.928/src/option.c	2013-05-06 03:52:44.000000000 +0200
+--- src/option.c	2013-05-06 06:42:03.000000000 +0200
+***************
+*** 9705,9713 ****
+  {
+      struct vimoption *p;
+      int		opt_idx;
+! 
+!     buf_T *buf = (buf_T *) from;
+!     win_T *win = (win_T *) from;
+  
+      opt_idx = findoption(name);
+      p = &(options[opt_idx]);
+--- 9705,9711 ----
+  {
+      struct vimoption *p;
+      int		opt_idx;
+!     buf_T	*buf = (buf_T *)from;
+  
+      opt_idx = findoption(name);
+      p = &(options[opt_idx]);
+***************
+*** 9716,9775 ****
+      {
+  	/* global option with local value: use local value if it's been set */
+  	case PV_EP:
+! 	    *buf->b_p_ep = NUL;
+  	    break;
+  	case PV_KP:
+! 	    *buf->b_p_kp = NUL;
+  	    break;
+  	case PV_PATH:
+! 	    *buf->b_p_path = NUL;
+  	    break;
+  	case PV_AR:
+  	    buf->b_p_ar = -1;
+  	    break;
+  	case PV_TAGS:
+! 	    *buf->b_p_tags = NUL;
+  	    break;
+  #ifdef FEAT_FIND_ID
+  	case PV_DEF:
+! 	    *buf->b_p_def = NUL;
+  	    break;
+  	case PV_INC:
+! 	    *buf->b_p_inc = NUL;
+  	    break;
+  #endif
+  #ifdef FEAT_INS_EXPAND
+  	case PV_DICT:
+! 	    *buf->b_p_dict = NUL;
+  	    break;
+  	case PV_TSR:
+! 	    *buf->b_p_tsr = NUL;
+  	    break;
+  #endif
+  #ifdef FEAT_QUICKFIX
+  	case PV_EFM:
+! 	    *buf->b_p_efm = NUL;
+  	    break;
+  	case PV_GP:
+! 	    *buf->b_p_gp = NUL;
+  	    break;
+  	case PV_MP:
+! 	    *buf->b_p_mp = NUL;
+  	    break;
+  #endif
+  #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
+  	case PV_BEXPR:
+! 	    *buf->b_p_bexpr = NUL;
+  	    break;
+  #endif
+  #if defined(FEAT_CRYPT)
+  	case PV_CM:
+! 	    *buf->b_p_cm = NUL;
+  	    break;
+  #endif
+  #ifdef FEAT_STL_OPT
+  	case PV_STL:
+! 	    *win->w_p_stl = NUL;
+  	    break;
+  #endif
+      }
+--- 9714,9773 ----
+      {
+  	/* global option with local value: use local value if it's been set */
+  	case PV_EP:
+! 	    clear_string_option(&buf->b_p_ep);
+  	    break;
+  	case PV_KP:
+! 	    clear_string_option(&buf->b_p_kp);
+  	    break;
+  	case PV_PATH:
+! 	    clear_string_option(&buf->b_p_path);
+  	    break;
+  	case PV_AR:
+  	    buf->b_p_ar = -1;
+  	    break;
+  	case PV_TAGS:
+! 	    clear_string_option(&buf->b_p_tags);
+  	    break;
+  #ifdef FEAT_FIND_ID
+  	case PV_DEF:
+! 	    clear_string_option(&buf->b_p_def);
+  	    break;
+  	case PV_INC:
+! 	    clear_string_option(&buf->b_p_inc);
+  	    break;
+  #endif
+  #ifdef FEAT_INS_EXPAND
+  	case PV_DICT:
+! 	    clear_string_option(&buf->b_p_dict);
+  	    break;
+  	case PV_TSR:
+! 	    clear_string_option(&buf->b_p_tsr);
+  	    break;
+  #endif
+  #ifdef FEAT_QUICKFIX
+  	case PV_EFM:
+! 	    clear_string_option(&buf->b_p_efm);
+  	    break;
+  	case PV_GP:
+! 	    clear_string_option(&buf->b_p_gp);
+  	    break;
+  	case PV_MP:
+! 	    clear_string_option(&buf->b_p_mp);
+  	    break;
+  #endif
+  #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
+  	case PV_BEXPR:
+! 	    clear_string_option(&buf->b_p_bexpr);
+  	    break;
+  #endif
+  #if defined(FEAT_CRYPT)
+  	case PV_CM:
+! 	    clear_string_option(&buf->b_p_cm);
+  	    break;
+  #endif
+  #ifdef FEAT_STL_OPT
+  	case PV_STL:
+! 	    clear_string_option(&((win_T *)from)->w_p_stl);
+  	    break;
+  #endif
+      }
+*** ../vim-7.3.928/src/version.c	2013-05-06 06:26:10.000000000 +0200
+--- src/version.c	2013-05-06 06:35:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     929,
+  /**/
+
+-- 
+Microsoft: "Windows NT 4.0 now has the same user-interface as Windows 95"
+    Windows 95: "Press CTRL-ALT-DEL to reboot"
+Windows NT 4.0: "Press CTRL-ALT-DEL to login"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

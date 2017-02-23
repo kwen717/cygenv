@@ -1,0 +1,50 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.988
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.988
+Problem:    New regexp engine is slow.
+Solution:   Break out of the loop when the state list is empty.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.987/src/regexp_nfa.c	2013-05-21 12:43:52.000000000 +0200
+--- src/regexp_nfa.c	2013-05-21 14:01:33.000000000 +0200
+***************
+*** 2951,2956 ****
+--- 2951,2961 ----
+  #ifdef NFA_REGEXP_DEBUG_LOG
+  	fprintf(debug, "\n-------------------\n");
+  #endif
++ 	/*
++ 	 * If the state lists are empty we can stop.
++ 	 */
++ 	if (thislist->n == 0 && neglist->n == 0)
++ 	    break;
+  
+  	/* compute nextlist */
+  	for (i = 0; i < thislist->n || neglist->n > 0; ++i)
+*** ../vim-7.3.987/src/version.c	2013-05-21 13:30:17.000000000 +0200
+--- src/version.c	2013-05-21 14:02:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     988,
+  /**/
+
+-- 
+The chat program is in public domain.  This is not the GNU public license.
+If it breaks then you get to keep both pieces.
+		-- Copyright notice for the chat program
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

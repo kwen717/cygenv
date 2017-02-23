@@ -1,0 +1,65 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1266
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1266
+Problem:    QNX: GUI fails to start.
+Solution:   Remove the QNX-specific #ifdef. (Sean Boudreau)
+Files:	    src/gui.c
+
+
+*** ../vim-7.3.1265/src/gui.c	2013-06-17 22:43:18.000000000 +0200
+--- src/gui.c	2013-06-29 15:15:44.000000000 +0200
+***************
+*** 206,217 ****
+      static void
+  gui_do_fork()
+  {
+- #ifdef __QNXNTO__
+-     procmgr_daemon(0, PROCMGR_DAEMON_KEEPUMASK | PROCMGR_DAEMON_NOCHDIR |
+- 	    PROCMGR_DAEMON_NOCLOSE | PROCMGR_DAEMON_NODEVNULL);
+-     gui_attempt_start();
+-     return;
+- #else
+      int		pipefd[2];	/* pipe between parent and child */
+      int		pipe_error;
+      int		status;
+--- 206,211 ----
+***************
+*** 316,322 ****
+      /* If we failed to start the GUI, exit now. */
+      if (!gui.in_use)
+  	exit(1);
+- #endif
+  }
+  
+  /*
+--- 310,315 ----
+*** ../vim-7.3.1265/src/version.c	2013-06-29 15:07:16.000000000 +0200
+--- src/version.c	2013-06-29 15:16:24.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1266,
+  /**/
+
+-- 
+DEAD PERSON:  I don't want to go in the cart!
+CUSTOMER:     Oh, don't be such a baby.
+MORTICIAN:    I can't take him...
+DEAD PERSON:  I feel fine!
+CUSTOMER:     Oh, do us a favor...
+MORTICIAN:    I can't.
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.908
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.908
+Problem:    Possible crash when using a list in Python.
+Solution:   Return early if the list is NULL. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.907/src/if_py_both.h	2013-04-24 13:04:21.000000000 +0200
+--- src/if_py_both.h	2013-04-24 13:10:20.000000000 +0200
+***************
+*** 738,743 ****
+--- 738,745 ----
+      tv->vval.v_dict = d;
+  
+      list = PyMapping_Items(obj);
++     if (list == NULL)
++ 	return -1;
+      lsize = PyList_Size(list);
+      while (lsize--)
+      {
+*** ../vim-7.3.907/src/version.c	2013-04-24 13:04:21.000000000 +0200
+--- src/version.c	2013-04-24 13:09:30.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     908,
+  /**/
+
+-- 
+How do I set the laser printer to stun? 
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

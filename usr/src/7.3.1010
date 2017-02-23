@@ -1,0 +1,174 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1010
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1010
+Problem:    New regexp: adding \Z makes every character match.
+Solution:   Only apply ireg_icombine for composing characters.
+	    Alsl add missing change from patch 1008. (Ken Takata)
+Files:	    src/regexp_nfa.c, src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.1009/src/regexp_nfa.c	2013-05-23 22:25:10.000000000 +0200
+--- src/regexp_nfa.c	2013-05-24 20:20:14.000000000 +0200
+***************
+*** 2859,2865 ****
+      List	*listtbl[2][2];
+      List	*ll;
+      int		listid = 1;
+!     int		endnode = 0;
+      List	*thislist;
+      List	*nextlist;
+      List	*neglist;
+--- 2859,2865 ----
+      List	*listtbl[2][2];
+      List	*ll;
+      int		listid = 1;
+!     int		endnode;
+      List	*thislist;
+      List	*nextlist;
+      List	*neglist;
+***************
+*** 3192,3204 ****
+  
+  	    case NFA_MULTIBYTE:
+  	    case NFA_COMPOSING:
+! 		switch (t->state->c)
+! 		{
+! 		    case NFA_MULTIBYTE:	    endnode = NFA_END_MULTIBYTE; break;
+! 		    case NFA_COMPOSING:	    endnode = NFA_END_COMPOSING; break;
+! 		    default:		    endnode = 0;
+! 		}
+! 
+  		result = OK;
+  		sta = t->state->out;
+  		len = 1;
+--- 3192,3198 ----
+  
+  	    case NFA_MULTIBYTE:
+  	    case NFA_COMPOSING:
+! 	        endnode = t->state->c + 1;
+  		result = OK;
+  		sta = t->state->out;
+  		len = 1;
+***************
+*** 3206,3212 ****
+  		{
+  		    if (reginput[len-1] != sta->c)
+  		    {
+! 			result = OK - 1;
+  			break;
+  		    }
+  		    len++;
+--- 3200,3206 ----
+  		{
+  		    if (reginput[len-1] != sta->c)
+  		    {
+! 			result = FAIL;
+  			break;
+  		    }
+  		    len++;
+***************
+*** 3215,3225 ****
+  
+  		/* if input char length doesn't match regexp char length */
+  		if (len -1 < n || sta->c != endnode)
+! 		    result = OK - 1;
+  		end = t->state->out1;	    /* NFA_END_MULTIBYTE or
+  					       NFA_END_COMPOSING */
+  		/* If \Z was present, then ignore composing characters */
+! 		if (regflags & RF_ICOMBINE)
+  		    result = 1 ^ sta->negated;
+  		ADD_POS_NEG_STATE(end);
+  		break;
+--- 3209,3219 ----
+  
+  		/* if input char length doesn't match regexp char length */
+  		if (len -1 < n || sta->c != endnode)
+! 		    result = FAIL;
+  		end = t->state->out1;	    /* NFA_END_MULTIBYTE or
+  					       NFA_END_COMPOSING */
+  		/* If \Z was present, then ignore composing characters */
+! 		if (ireg_icombine && endnode == NFA_END_COMPOSING)
+  		    result = 1 ^ sta->negated;
+  		ADD_POS_NEG_STATE(end);
+  		break;
+*** ../vim-7.3.1009/src/testdir/test95.in	2013-05-23 22:43:03.000000000 +0200
+--- src/testdir/test95.in	2013-05-24 20:18:13.000000000 +0200
+***************
+*** 7,13 ****
+  STARTTEST
+  :so small.vim
+  :so mbyte.vim
+! :set nocp encoding=utf-8 viminfo+=nviminfo
+  :" tl is a List of Lists with:
+  :"    regexp pattern
+  :"    text to test the pattern on
+--- 7,13 ----
+  STARTTEST
+  :so small.vim
+  :so mbyte.vim
+! :set nocp encoding=utf-8 viminfo+=nviminfo nomore
+  :" tl is a List of Lists with:
+  :"    regexp pattern
+  :"    text to test the pattern on
+***************
+*** 35,45 ****
+  :call add(tl, ['\f\+', '&*fname ', 'fname'])
+  :call add(tl, ['\%#=1\f\+', '&*fname ', 'fname'])
+  
+  :"""" Combining different tests and features
+  :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+  
+  :"""" Run the tests
+- 
+  :"
+  :for t in tl
+  :  let l = matchlist(t[1], t[0])
+--- 35,47 ----
+  :call add(tl, ['\f\+', '&*fname ', 'fname'])
+  :call add(tl, ['\%#=1\f\+', '&*fname ', 'fname'])
+  
++ :"""" Test \Z
++ :call add(tl, ['ú\Z', 'x'])
++ 
+  :"""" Combining different tests and features
+  :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+  
+  :"""" Run the tests
+  :"
+  :for t in tl
+  :  let l = matchlist(t[1], t[0])
+*** ../vim-7.3.1009/src/testdir/test95.ok	2013-05-23 22:43:03.000000000 +0200
+--- src/testdir/test95.ok	2013-05-24 20:18:55.000000000 +0200
+***************
+*** 9,12 ****
+--- 9,13 ----
+  OK - \%#=1\i\+
+  OK - \f\+
+  OK - \%#=1\f\+
++ OK - ú\Z
+  OK - [^[=a=]]\+
+*** ../vim-7.3.1009/src/version.c	2013-05-24 18:58:39.000000000 +0200
+--- src/version.c	2013-05-24 20:21:52.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1010,
+  /**/
+
+-- 
+Never under any circumstances take a sleeping pill
+and a laxative on the same night.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,134 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1159
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1159
+Problem:    The round() function is not always available. (Christ van
+	    Willegen)
+Solution:   Use the solution from f_round().
+Files:	    src/ex_cmds2.c, src/eval.c, src/proto/eval.pro
+
+
+*** ../vim-7.3.1158/src/ex_cmds2.c	2013-06-08 18:19:39.000000000 +0200
+--- src/ex_cmds2.c	2013-06-10 20:06:00.000000000 +0200
+***************
+*** 982,988 ****
+  	double usec = (tm->tv_sec * 1000000.0 + tm->tv_usec) / count;
+  
+  	tm2->tv_sec = floor(usec / 1000000.0);
+! 	tm2->tv_usec = round(usec - (tm2->tv_sec * 1000000.0));
+  # endif
+      }
+  }
+--- 982,988 ----
+  	double usec = (tm->tv_sec * 1000000.0 + tm->tv_usec) / count;
+  
+  	tm2->tv_sec = floor(usec / 1000000.0);
+! 	tm2->tv_usec = vim_round(usec - (tm2->tv_sec * 1000000.0));
+  # endif
+      }
+  }
+*** ../vim-7.3.1158/src/eval.c	2013-06-09 20:50:56.000000000 +0200
+--- src/eval.c	2013-06-10 20:05:59.000000000 +0200
+***************
+*** 15774,15779 ****
+--- 15774,15790 ----
+  }
+  
+  #ifdef FEAT_FLOAT
++ 
++ /*
++  * round() is not in C90, use ceil() or floor() instead.
++  */
++     float_T
++ vim_round(f)
++     float_T f;
++ {
++     return f > 0 ? floor(f + 0.5) : ceil(f - 0.5);
++ }
++ 
+  /*
+   * "round({float})" function
+   */
+***************
+*** 15786,15793 ****
+  
+      rettv->v_type = VAR_FLOAT;
+      if (get_float_arg(argvars, &f) == OK)
+! 	/* round() is not in C90, use ceil() or floor() instead. */
+! 	rettv->vval.v_float = f > 0 ? floor(f + 0.5) : ceil(f - 0.5);
+      else
+  	rettv->vval.v_float = 0.0;
+  }
+--- 15797,15803 ----
+  
+      rettv->v_type = VAR_FLOAT;
+      if (get_float_arg(argvars, &f) == OK)
+! 	rettv->vval.v_float = vim_round(f);
+      else
+  	rettv->vval.v_float = 0.0;
+  }
+*** ../vim-7.3.1158/src/proto/eval.pro	2013-05-30 13:37:23.000000000 +0200
+--- src/proto/eval.pro	2013-06-10 20:05:57.000000000 +0200
+***************
+*** 75,87 ****
+  dictitem_T *dict_find __ARGS((dict_T *d, char_u *key, int len));
+  char_u *get_dict_string __ARGS((dict_T *d, char_u *key, int save));
+  long get_dict_number __ARGS((dict_T *d, char_u *key));
+- void dict_extend __ARGS((dict_T *d1, dict_T *d2, char_u *action));
+  char_u *get_function_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expr_name __ARGS((expand_T *xp, int idx));
+- char_u *get_expanded_name __ARGS((char_u *name, int check));
+- int translated_function_exists __ARGS((char_u *name));
+  int func_call __ARGS((char_u *name, typval_T *args, dict_T *selfdict, typval_T *rettv));
+  void mzscheme_call_vim __ARGS((char_u *name, typval_T *args, typval_T *rettv));
+  long do_searchpair __ARGS((char_u *spat, char_u *mpat, char_u *epat, int dir, char_u *skip, int flags, pos_T *match_pos, linenr_T lnum_stop, long time_limit));
+  void set_vim_var_nr __ARGS((int idx, long val));
+  long get_vim_var_nr __ARGS((int idx));
+--- 75,86 ----
+  dictitem_T *dict_find __ARGS((dict_T *d, char_u *key, int len));
+  char_u *get_dict_string __ARGS((dict_T *d, char_u *key, int save));
+  long get_dict_number __ARGS((dict_T *d, char_u *key));
+  char_u *get_function_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expr_name __ARGS((expand_T *xp, int idx));
+  int func_call __ARGS((char_u *name, typval_T *args, dict_T *selfdict, typval_T *rettv));
++ void dict_extend __ARGS((dict_T *d1, dict_T *d2, char_u *action));
+  void mzscheme_call_vim __ARGS((char_u *name, typval_T *args, typval_T *rettv));
++ float_T vim_round __ARGS((float_T f));
+  long do_searchpair __ARGS((char_u *spat, char_u *mpat, char_u *epat, int dir, char_u *skip, int flags, pos_T *match_pos, linenr_T lnum_stop, long time_limit));
+  void set_vim_var_nr __ARGS((int idx, long val));
+  long get_vim_var_nr __ARGS((int idx));
+***************
+*** 110,115 ****
+--- 109,116 ----
+  void ex_execute __ARGS((exarg_T *eap));
+  void ex_function __ARGS((exarg_T *eap));
+  void free_all_functions __ARGS((void));
++ int translated_function_exists __ARGS((char_u *name));
++ char_u *get_expanded_name __ARGS((char_u *name, int check));
+  void func_dump_profile __ARGS((FILE *fd));
+  char_u *get_user_func_name __ARGS((expand_T *xp, int idx));
+  void ex_delfunction __ARGS((exarg_T *eap));
+*** ../vim-7.3.1158/src/version.c	2013-06-10 18:36:20.000000000 +0200
+--- src/version.c	2013-06-10 20:02:01.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1159,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+134. You consider bandwidth to be more important than carats.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

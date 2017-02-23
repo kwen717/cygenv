@@ -1,0 +1,50 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1009
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1009
+Problem:    Compiler warning for ambiguous else.
+Solution:   Add curly braces.
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1008/src/if_py_both.h	2013-05-21 22:38:14.000000000 +0200
+--- src/if_py_both.h	2013-05-24 18:54:32.000000000 +0200
+***************
+*** 2163,2169 ****
+--- 2163,2171 ----
+      TabPageObject	*tabObject = self->tabObject;
+  
+      if (tabObject)
++     {
+  	Py_DECREF((PyObject *)(tabObject));
++     }
+  
+      DESTRUCTOR_FINISH(self);
+  }
+*** ../vim-7.3.1008/src/version.c	2013-05-23 22:43:03.000000000 +0200
+--- src/version.c	2013-05-24 18:58:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1009,
+  /**/
+
+-- 
+BEDEVERE:        Why do you think she is a witch?
+SECOND VILLAGER: She turned me into a newt.
+BEDEVERE:        A newt?
+SECOND VILLAGER: (After looking at himself for some time) I got better.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,67 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1134
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1134
+Problem:    Running test 49 takes a long time.
+Solution:   Don't have it grep all files.
+Files:	    src/testdir/test49.vim
+
+
+*** ../vim-7.3.1133/src/testdir/test49.vim	2013-02-26 22:54:06.000000000 +0100
+--- src/testdir/test49.vim	2013-06-06 18:13:46.000000000 +0200
+***************
+*** 1,6 ****
+  " Vim script language tests
+  " Author:	Servatius Brandt <Servatius.Brandt@fujitsu-siemens.com>
+! " Last Change:	2012 Nov 23
+  
+  "-------------------------------------------------------------------------------
+  " Test environment							    {{{1
+--- 1,6 ----
+  " Vim script language tests
+  " Author:	Servatius Brandt <Servatius.Brandt@fujitsu-siemens.com>
+! " Last Change:	2013 Jun 06
+  
+  "-------------------------------------------------------------------------------
+  " Test environment							    {{{1
+***************
+*** 9612,9618 ****
+  func F
+      au BufUnload * :call setloclist(0, [{'bufnr':1, 'lnum':1, 'col':1, 'text': 'tango down'}])
+  
+!     :lvimgrep /.*/ *
+  endfunc
+  
+  XpathINIT
+--- 9612,9618 ----
+  func F
+      au BufUnload * :call setloclist(0, [{'bufnr':1, 'lnum':1, 'col':1, 'text': 'tango down'}])
+  
+!     :lvimgrep /.*/ *.mak
+  endfunc
+  
+  XpathINIT
+*** ../vim-7.3.1133/src/version.c	2013-06-06 18:46:00.000000000 +0200
+--- src/version.c	2013-06-06 18:55:21.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1134,
+  /**/
+
+-- 
+I AM THANKFUL...
+...for the taxes that I pay because it means that I am employed.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

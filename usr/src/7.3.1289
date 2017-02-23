@@ -1,0 +1,71 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1289
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1289
+Problem:    Get GLIB warning when removing a menu item.
+Solution:   Reference menu-id and also call gtk_container_remove().  (Ivan
+	    Krasilnikov)
+Files:	    src/gui_gtk.c
+
+
+*** ../vim-7.3.1288/src/gui_gtk.c	2012-10-18 05:18:27.000000000 +0200
+--- src/gui_gtk.c	2013-07-03 11:49:42.000000000 +0200
+***************
+*** 613,618 ****
+--- 613,629 ----
+      void
+  gui_mch_destroy_menu(vimmenu_T *menu)
+  {
++     /* Don't let gtk_container_remove automatically destroy menu->id. */
++     if (menu->id != NULL)
++ 	g_object_ref(menu->id);
++ 
++     /* Workaround for a spurious gtk warning in Ubuntu: "Trying to remove
++      * a child that doesn't believe we're it's parent."
++      * Remove widget from gui.menubar before destroying it. */
++     if (menu->id != NULL && gui.menubar != NULL
++ 			    && gtk_widget_get_parent(menu->id) == gui.menubar)
++ 	gtk_container_remove(GTK_CONTAINER(gui.menubar), menu->id);
++ 
+  # ifdef FEAT_TOOLBAR
+      if (menu->parent != NULL && menu_is_toolbar(menu->parent->name))
+      {
+***************
+*** 632,637 ****
+--- 643,650 ----
+  	    gtk_widget_destroy(menu->id);
+      }
+  
++     if (menu->id != NULL)
++ 	g_object_unref(menu->id);
+      menu->submenu_id = NULL;
+      menu->id = NULL;
+  }
+*** ../vim-7.3.1288/src/version.c	2013-07-03 12:45:25.000000000 +0200
+--- src/version.c	2013-07-03 13:03:54.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1289,
+  /**/
+
+-- 
+   [SIR LAUNCELOT runs back up the stairs, grabs a rope
+   of the wall and swings out over the heads of the CROWD in a
+   swashbuckling manner towards a large window.  He stops just short
+   of the window and is left swing pathetically back and forth.]
+LAUNCELOT: Excuse me ... could somebody give me a push ...
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,414 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.998
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.998
+Problem:    Python: garbage collection issues.
+Solution:   Fix the GC issues: Use proper DESTRUCTOR_FINISH: avoids negative
+	    refcounts, use PyObject_GC_* for objects with tp_traverse and
+	    tp_clear, add RangeTraverse and RangeClear, use Py_XDECREF in some
+	    places. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c
+
+
+*** ../vim-7.3.997/src/if_py_both.h	2013-05-21 20:40:35.000000000 +0200
+--- src/if_py_both.h	2013-05-21 20:44:44.000000000 +0200
+***************
+*** 461,467 ****
+  }
+  
+      static PyObject *
+! VimEval(PyObject *self UNUSED, PyObject *args UNUSED)
+  {
+      char	*expr;
+      typval_T	*our_tv;
+--- 461,467 ----
+  }
+  
+      static PyObject *
+! VimEval(PyObject *self UNUSED, PyObject *args)
+  {
+      char	*expr;
+      typval_T	*our_tv;
+***************
+*** 602,608 ****
+  {
+      IterObject *self;
+  
+!     self = PyObject_NEW(IterObject, &IterType);
+      self->cur = start;
+      self->next = next;
+      self->destruct = destruct;
+--- 602,608 ----
+  {
+      IterObject *self;
+  
+!     self = PyObject_GC_New(IterObject, &IterType);
+      self->cur = start;
+      self->next = next;
+      self->destruct = destruct;
+***************
+*** 615,623 ****
+      static void
+  IterDestructor(IterObject *self)
+  {
+      self->destruct(self->cur);
+! 
+!     DESTRUCTOR_FINISH(self);
+  }
+  
+      static int
+--- 615,623 ----
+      static void
+  IterDestructor(IterObject *self)
+  {
++     PyObject_GC_UnTrack((void *)(self));
+      self->destruct(self->cur);
+!     PyObject_GC_Del((void *)(self));
+  }
+  
+      static int
+***************
+*** 1414,1420 ****
+  {
+      OptionsObject	*self;
+  
+!     self = PyObject_NEW(OptionsObject, &OptionsType);
+      if (self == NULL)
+  	return NULL;
+  
+--- 1414,1420 ----
+  {
+      OptionsObject	*self;
+  
+!     self = PyObject_GC_New(OptionsObject, &OptionsType);
+      if (self == NULL)
+  	return NULL;
+  
+***************
+*** 1431,1439 ****
+      static void
+  OptionsDestructor(OptionsObject *self)
+  {
+!     if (self->fromObj)
+! 	Py_DECREF(self->fromObj);
+!     DESTRUCTOR_FINISH(self);
+  }
+  
+      static int
+--- 1431,1439 ----
+      static void
+  OptionsDestructor(OptionsObject *self)
+  {
+!     PyObject_GC_UnTrack((void *)(self));
+!     Py_XDECREF(self->fromObj);
+!     PyObject_GC_Del((void *)(self));
+  }
+  
+      static int
+***************
+*** 1869,1875 ****
+      }
+      else
+      {
+! 	self = PyObject_NEW(WindowObject, &WindowType);
+  	if (self == NULL)
+  	    return NULL;
+  	self->win = win;
+--- 1869,1875 ----
+      }
+      else
+      {
+! 	self = PyObject_GC_New(WindowObject, &WindowType);
+  	if (self == NULL)
+  	    return NULL;
+  	self->win = win;
+***************
+*** 1884,1895 ****
+      static void
+  WindowDestructor(WindowObject *self)
+  {
+      if (self->win && self->win != INVALID_WINDOW_VALUE)
+  	WIN_PYTHON_REF(self->win) = NULL;
+  
+!     Py_DECREF(((PyObject *)(self->tabObject)));
+  
+!     DESTRUCTOR_FINISH(self);
+  }
+  
+      static win_T *
+--- 1884,1908 ----
+      static void
+  WindowDestructor(WindowObject *self)
+  {
++     PyObject_GC_UnTrack((void *)(self));
+      if (self->win && self->win != INVALID_WINDOW_VALUE)
+  	WIN_PYTHON_REF(self->win) = NULL;
++      Py_XDECREF(((PyObject *)(self->tabObject)));
++     PyObject_GC_Del((void *)(self));
++ }
+  
+!     static int
+! WindowTraverse(WindowObject *self, visitproc visit, void *arg)
+! {
+!     Py_VISIT(((PyObject *)(self->tabObject)));
+!     return 0;
+! }
+  
+!     static int
+! WindowClear(WindowObject *self)
+! {
+!     Py_CLEAR(self->tabObject);
+!     return 0;
+  }
+  
+      static win_T *
+***************
+*** 1909,1927 ****
+      else
+  	return firstwin;
+  }
+-     static int
+- WindowTraverse(WindowObject *self, visitproc visit, void *arg)
+- {
+-     Py_VISIT(((PyObject *)(self->tabObject)));
+-     return 0;
+- }
+- 
+-     static int
+- WindowClear(WindowObject *self)
+- {
+-     Py_CLEAR(self->tabObject);
+-     return 0;
+- }
+  
+      static PyObject *
+  WindowAttr(WindowObject *self, char *name)
+--- 1922,1927 ----
+***************
+*** 2917,2923 ****
+  {
+      BufferObject *bufr;
+      RangeObject *self;
+!     self = PyObject_NEW(RangeObject, &RangeType);
+      if (self == NULL)
+  	return NULL;
+  
+--- 2917,2923 ----
+  {
+      BufferObject *bufr;
+      RangeObject *self;
+!     self = PyObject_GC_New(RangeObject, &RangeType);
+      if (self == NULL)
+  	return NULL;
+  
+***************
+*** 2939,2946 ****
+      static void
+  RangeDestructor(RangeObject *self)
+  {
+      Py_XDECREF(self->buf);
+!     DESTRUCTOR_FINISH(self);
+  }
+  
+      static PyInt
+--- 2939,2961 ----
+      static void
+  RangeDestructor(RangeObject *self)
+  {
++     PyObject_GC_UnTrack((void *)(self));
+      Py_XDECREF(self->buf);
+!     PyObject_GC_Del((void *)(self));
+! }
+! 
+!     static int
+! RangeTraverse(RangeObject *self, visitproc visit, void *arg)
+! {
+!     Py_VISIT(((PyObject *)(self->buf)));
+!     return 0;
+! }
+! 
+!     static int
+! RangeClear(RangeObject *self)
+! {
+!     Py_CLEAR(self->buf);
+!     return 0;
+  }
+  
+      static PyInt
+***************
+*** 3267,3280 ****
+      static int
+  BufMapIterTraverse(PyObject *buffer, visitproc visit, void *arg)
+  {
+!     Py_VISIT(buffer);
+      return 0;
+  }
+  
+      static int
+  BufMapIterClear(PyObject **buffer)
+  {
+!     Py_CLEAR(*buffer);
+      return 0;
+  }
+  
+--- 3282,3297 ----
+      static int
+  BufMapIterTraverse(PyObject *buffer, visitproc visit, void *arg)
+  {
+!     if (buffer)
+! 	Py_VISIT(buffer);
+      return 0;
+  }
+  
+      static int
+  BufMapIterClear(PyObject **buffer)
+  {
+!     if (*buffer)
+! 	Py_CLEAR(*buffer);
+      return 0;
+  }
+  
+***************
+*** 4144,4149 ****
+--- 4161,4168 ----
+      RangeType.tp_flags = Py_TPFLAGS_DEFAULT;
+      RangeType.tp_doc = "vim Range object";
+      RangeType.tp_methods = RangeMethods;
++     RangeType.tp_traverse = (traverseproc)RangeTraverse;
++     RangeType.tp_clear = (inquiry)RangeClear;
+  #if PY_MAJOR_VERSION >= 3
+      RangeType.tp_getattro = (getattrofunc)RangeGetattro;
+      RangeType.tp_alloc = call_PyType_GenericAlloc;
+*** ../vim-7.3.997/src/if_python3.c	2013-05-21 19:10:56.000000000 +0200
+--- src/if_python3.c	2013-05-21 20:44:44.000000000 +0200
+***************
+*** 213,218 ****
+--- 213,221 ----
+  #  define PyObject_Malloc py3_PyObject_Malloc
+  #  define PyObject_Free py3_PyObject_Free
+  # endif
++ # define _PyObject_GC_New py3__PyObject_GC_New
++ # define PyObject_GC_Del py3_PyObject_GC_Del
++ # define PyObject_GC_UnTrack py3_PyObject_GC_UnTrack
+  # define PyType_GenericAlloc py3_PyType_GenericAlloc
+  # define PyType_GenericNew py3_PyType_GenericNew
+  # define PyModule_Create2 py3_PyModule_Create2
+***************
+*** 334,339 ****
+--- 337,345 ----
+      static void (*py3_PyObject_Free)(void*);
+      static void* (*py3_PyObject_Malloc)(size_t);
+  # endif
++ static PyObject*(*py3__PyObject_GC_New)(PyTypeObject *);
++ static void(*py3_PyObject_GC_Del)(void *);
++ static void(*py3_PyObject_GC_UnTrack)(void *);
+  static int (*py3_PyType_IsSubtype)(PyTypeObject *, PyTypeObject *);
+  
+  static HINSTANCE hinstPy3 = 0; /* Instance of python.dll */
+***************
+*** 463,468 ****
+--- 469,477 ----
+      {"PyObject_Malloc", (PYTHON_PROC*)&py3_PyObject_Malloc},
+      {"PyObject_Free", (PYTHON_PROC*)&py3_PyObject_Free},
+  # endif
++     {"_PyObject_GC_New", (PYTHON_PROC*)&py3__PyObject_GC_New},
++     {"PyObject_GC_Del", (PYTHON_PROC*)&py3_PyObject_GC_Del},
++     {"PyObject_GC_UnTrack", (PYTHON_PROC*)&py3_PyObject_GC_UnTrack},
+      {"PyType_IsSubtype", (PYTHON_PROC*)&py3_PyType_IsSubtype},
+      {"PyCapsule_New", (PYTHON_PROC*)&py3_PyCapsule_New},
+      {"PyCapsule_GetPointer", (PYTHON_PROC*)&py3_PyCapsule_GetPointer},
+***************
+*** 638,644 ****
+      if (bytes != NULL) \
+  	Py_XDECREF(bytes);
+  
+! #define DESTRUCTOR_FINISH(self) Py_TYPE(self)->tp_free((PyObject*)self);
+  
+  #define WIN_PYTHON_REF(win) win->w_python3_ref
+  #define BUF_PYTHON_REF(buf) buf->b_python3_ref
+--- 647,653 ----
+      if (bytes != NULL) \
+  	Py_XDECREF(bytes);
+  
+! #define DESTRUCTOR_FINISH(self) Py_TYPE(self)->tp_free((PyObject*)self)
+  
+  #define WIN_PYTHON_REF(win) win->w_python3_ref
+  #define BUF_PYTHON_REF(buf) buf->b_python3_ref
+*** ../vim-7.3.997/src/if_python.c	2013-05-21 19:10:56.000000000 +0200
+--- src/if_python.c	2013-05-21 20:44:44.000000000 +0200
+***************
+*** 224,229 ****
+--- 224,232 ----
+  # define Py_Finalize dll_Py_Finalize
+  # define Py_IsInitialized dll_Py_IsInitialized
+  # define _PyObject_New dll__PyObject_New
++ # define _PyObject_GC_New dll__PyObject_GC_New
++ # define PyObject_GC_Del dll_PyObject_GC_Del
++ # define PyObject_GC_UnTrack dll_PyObject_GC_UnTrack
+  # if defined(PY_VERSION_HEX) && PY_VERSION_HEX >= 0x02070000
+  #  define _PyObject_NextNotImplemented (*dll__PyObject_NextNotImplemented)
+  # endif
+***************
+*** 331,336 ****
+--- 334,342 ----
+  static void(*dll_Py_Finalize)(void);
+  static int(*dll_Py_IsInitialized)(void);
+  static PyObject*(*dll__PyObject_New)(PyTypeObject *, PyObject *);
++ static PyObject*(*dll__PyObject_GC_New)(PyTypeObject *);
++ static void(*dll_PyObject_GC_Del)(void *);
++ static void(*dll_PyObject_GC_UnTrack)(void *);
+  static PyObject*(*dll__PyObject_Init)(PyObject *, PyTypeObject *);
+  static PyObject* (*dll_PyObject_GetIter)(PyObject *);
+  static int (*dll_PyObject_IsTrue)(PyObject *);
+***************
+*** 474,479 ****
+--- 480,488 ----
+      {"Py_Finalize", (PYTHON_PROC*)&dll_Py_Finalize},
+      {"Py_IsInitialized", (PYTHON_PROC*)&dll_Py_IsInitialized},
+      {"_PyObject_New", (PYTHON_PROC*)&dll__PyObject_New},
++     {"_PyObject_GC_New", (PYTHON_PROC*)&dll__PyObject_GC_New},
++     {"PyObject_GC_Del", (PYTHON_PROC*)&dll_PyObject_GC_Del},
++     {"PyObject_GC_UnTrack", (PYTHON_PROC*)&dll_PyObject_GC_UnTrack},
+      {"PyObject_Init", (PYTHON_PROC*)&dll__PyObject_Init},
+      {"PyObject_GetIter", (PYTHON_PROC*)&dll_PyObject_GetIter},
+      {"PyObject_IsTrue", (PYTHON_PROC*)&dll_PyObject_IsTrue},
+***************
+*** 632,638 ****
+  #define DICTKEY_UNREF
+  #define DICTKEY_DECL
+  
+! #define DESTRUCTOR_FINISH(self) Py_DECREF(self);
+  
+  #define WIN_PYTHON_REF(win) win->w_python_ref
+  #define BUF_PYTHON_REF(buf) buf->b_python_ref
+--- 641,647 ----
+  #define DICTKEY_UNREF
+  #define DICTKEY_DECL
+  
+! #define DESTRUCTOR_FINISH(self) Py_TYPE(self)->tp_free((PyObject*)self);
+  
+  #define WIN_PYTHON_REF(win) win->w_python_ref
+  #define BUF_PYTHON_REF(buf) buf->b_python_ref
+*** ../vim-7.3.997/src/version.c	2013-05-21 20:40:35.000000000 +0200
+--- src/version.c	2013-05-21 20:43:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     998,
+  /**/
+
+-- 
+The problem with political jokes is that they get elected.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

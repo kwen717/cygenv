@@ -1,0 +1,983 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.997
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.997
+Problem:    Vim and Python exceptions are different.
+Solution:   Make Vim exceptions be Python exceptions. (ZyX)
+Files:	    src/if_py_both.h, src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.996/src/if_py_both.h	2013-05-21 19:49:58.000000000 +0200
+--- src/if_py_both.h	2013-05-21 20:35:07.000000000 +0200
+***************
+*** 272,291 ****
+  /* Check to see whether a Vim error has been reported, or a keyboard
+   * interrupt has been detected.
+   */
+      static int
+! VimErrorCheck(void)
+  {
+      if (got_int)
+      {
+  	PyErr_SetNone(PyExc_KeyboardInterrupt);
+  	return 1;
+      }
+!     else if (did_emsg && !PyErr_Occurred())
+      {
+! 	PyErr_SetNone(VimError);
+  	return 1;
+      }
+  
+      return 0;
+  }
+  
+--- 272,313 ----
+  /* Check to see whether a Vim error has been reported, or a keyboard
+   * interrupt has been detected.
+   */
++ 
++     static void
++ VimTryStart(void)
++ {
++     ++trylevel;
++ }
++ 
+      static int
+! VimTryEnd(void)
+  {
++     --trylevel;
+      if (got_int)
+      {
+  	PyErr_SetNone(PyExc_KeyboardInterrupt);
+  	return 1;
+      }
+!     else if (!did_throw)
+! 	return 0;
+!     else if (PyErr_Occurred())
+! 	return 1;
+!     else
+      {
+! 	PyErr_SetVim((char *) current_exception->value);
+! 	discard_current_exception();
+  	return 1;
+      }
++ }
+  
++     static int
++ VimCheckInterrupt(void)
++ {
++     if (got_int)
++     {
++ 	PyErr_SetNone(PyExc_KeyboardInterrupt);
++ 	return 1;
++     }
+      return 0;
+  }
+  
+***************
+*** 306,322 ****
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+  
+      do_cmdline_cmd((char_u *)cmd);
+      update_screen(VALID);
+  
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     if (VimErrorCheck())
+  	result = NULL;
+      else
+  	result = Py_None;
+  
+      Py_XINCREF(result);
+      return result;
+  }
+--- 328,346 ----
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+  
++     VimTryStart();
+      do_cmdline_cmd((char_u *)cmd);
+      update_screen(VALID);
+  
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     if (VimTryEnd())
+  	result = NULL;
+      else
+  	result = Py_None;
+  
++ 
+      Py_XINCREF(result);
+      return result;
+  }
+***************
+*** 449,459 ****
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      our_tv = eval_expr((char_u *)expr, NULL);
+- 
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+      if (our_tv == NULL)
+      {
+  	PyErr_SetVim(_("invalid expression"));
+--- 473,486 ----
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
++     VimTryStart();
+      our_tv = eval_expr((char_u *)expr, NULL);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
++     if (VimTryEnd())
++ 	return NULL;
++ 
+      if (our_tv == NULL)
+      {
+  	PyErr_SetVim(_("invalid expression"));
+***************
+*** 490,500 ****
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      our_tv = eval_expr((char_u *)expr, NULL);
+- 
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+      if (our_tv == NULL)
+      {
+  	PyErr_SetVim(_("invalid expression"));
+--- 517,530 ----
+  
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
++     VimTryStart();
+      our_tv = eval_expr((char_u *)expr, NULL);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
++     if (VimTryEnd())
++ 	return NULL;
++ 
+      if (our_tv == NULL)
+      {
+  	PyErr_SetVim(_("invalid expression"));
+***************
+*** 1324,1335 ****
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+  
+      error = func_call(name, &args, selfdict, &rettv);
+  
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     if (error != OK)
+      {
+  	result = NULL;
+  	PyErr_SetVim(_("failed to run function"));
+--- 1354,1368 ----
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+  
++     VimTryStart();
+      error = func_call(name, &args, selfdict, &rettv);
+  
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     if (VimTryEnd())
+! 	result = NULL;
+!     else if (error != OK)
+      {
+  	result = NULL;
+  	PyErr_SetVim(_("failed to run function"));
+***************
+*** 1486,1499 ****
+      win_T	*save_curwin;
+      tabpage_T	*save_curtab;
+      buf_T	*save_curbuf;
+-     int		r = 0;
+  
+      switch (opt_type)
+      {
+  	case SREQ_WIN:
+  	    if (switch_win(&save_curwin, &save_curtab, (win_T *)from,
+  				     win_find_tabpage((win_T *)from)) == FAIL)
+  	    {
+  		PyErr_SetVim("Problem while switching windows.");
+  		return -1;
+  	    }
+--- 1519,1534 ----
+      win_T	*save_curwin;
+      tabpage_T	*save_curtab;
+      buf_T	*save_curbuf;
+  
++     VimTryStart();
+      switch (opt_type)
+      {
+  	case SREQ_WIN:
+  	    if (switch_win(&save_curwin, &save_curtab, (win_T *)from,
+  				     win_find_tabpage((win_T *)from)) == FAIL)
+  	    {
++ 		if (VimTryEnd())
++ 		    return -1;
+  		PyErr_SetVim("Problem while switching windows.");
+  		return -1;
+  	    }
+***************
+*** 1509,1515 ****
+  	    set_option_value(key, numval, stringval, opt_flags);
+  	    break;
+      }
+!     return r;
+  }
+  
+      static int
+--- 1544,1550 ----
+  	    set_option_value(key, numval, stringval, opt_flags);
+  	    break;
+      }
+!     return VimTryEnd();
+  }
+  
+      static int
+***************
+*** 1961,1967 ****
+  	}
+  
+  	/* Check for keyboard interrupts */
+! 	if (VimErrorCheck())
+  	    return -1;
+  
+  	self->win->w_cursor.lnum = lnum;
+--- 1996,2002 ----
+  	}
+  
+  	/* Check for keyboard interrupts */
+! 	if (VimCheckInterrupt())
+  	    return -1;
+  
+  	self->win->w_cursor.lnum = lnum;
+***************
+*** 1988,1998 ****
+  #endif
+  	savewin = curwin;
+  	curwin = self->win;
+  	win_setheight(height);
+  	curwin = savewin;
+! 
+! 	/* Check for keyboard interrupts */
+! 	if (VimErrorCheck())
+  	    return -1;
+  
+  	return 0;
+--- 2023,2033 ----
+  #endif
+  	savewin = curwin;
+  	curwin = self->win;
++ 
++ 	VimTryStart();
+  	win_setheight(height);
+  	curwin = savewin;
+! 	if (VimTryEnd())
+  	    return -1;
+  
+  	return 0;
+***************
+*** 2011,2021 ****
+  #endif
+  	savewin = curwin;
+  	curwin = self->win;
+  	win_setwidth(width);
+  	curwin = savewin;
+! 
+! 	/* Check for keyboard interrupts */
+! 	if (VimErrorCheck())
+  	    return -1;
+  
+  	return 0;
+--- 2046,2056 ----
+  #endif
+  	savewin = curwin;
+  	curwin = self->win;
++ 
++ 	VimTryStart();
+  	win_setwidth(width);
+  	curwin = savewin;
+! 	if (VimTryEnd())
+  	    return -1;
+  
+  	return 0;
+***************
+*** 2304,2309 ****
+--- 2339,2346 ----
+  	PyErr_Clear();
+  	switch_buffer(&savebuf, buf);
+  
++ 	VimTryStart();
++ 
+  	if (u_savedel((linenr_T)n, 1L) == FAIL)
+  	    PyErr_SetVim(_("cannot save undo information"));
+  	else if (ml_delete((linenr_T)n, FALSE) == FAIL)
+***************
+*** 2317,2323 ****
+  
+  	restore_buffer(savebuf);
+  
+! 	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+  
+  	if (len_change)
+--- 2354,2360 ----
+  
+  	restore_buffer(savebuf);
+  
+! 	if (VimTryEnd())
+  	    return FAIL;
+  
+  	if (len_change)
+***************
+*** 2333,2338 ****
+--- 2370,2377 ----
+  	if (save == NULL)
+  	    return FAIL;
+  
++ 	VimTryStart();
++ 
+  	/* We do not need to free "save" if ml_replace() consumes it. */
+  	PyErr_Clear();
+  	switch_buffer(&savebuf, buf);
+***************
+*** 2356,2362 ****
+  	if (buf == savebuf)
+  	    check_cursor_col();
+  
+! 	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+  
+  	if (len_change)
+--- 2395,2401 ----
+  	if (buf == savebuf)
+  	    check_cursor_col();
+  
+! 	if (VimTryEnd())
+  	    return FAIL;
+  
+  	if (len_change)
+***************
+*** 2395,2400 ****
+--- 2434,2440 ----
+  	buf_T	*savebuf;
+  
+  	PyErr_Clear();
++ 	VimTryStart();
+  	switch_buffer(&savebuf, buf);
+  
+  	if (u_savedel((linenr_T)lo, (long)n) == FAIL)
+***************
+*** 2416,2422 ****
+  
+  	restore_buffer(savebuf);
+  
+! 	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+  
+  	if (len_change)
+--- 2456,2462 ----
+  
+  	restore_buffer(savebuf);
+  
+! 	if (VimTryEnd())
+  	    return FAIL;
+  
+  	if (len_change)
+***************
+*** 2459,2464 ****
+--- 2499,2505 ----
+  	    }
+  	}
+  
++ 	VimTryStart();
+  	PyErr_Clear();
+  
+  	// START of region without "return".  Must call restore_buffer()!
+***************
+*** 2545,2551 ****
+  	// END of region without "return".
+  	restore_buffer(savebuf);
+  
+! 	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+  
+  	if (len_change)
+--- 2586,2592 ----
+  	// END of region without "return".
+  	restore_buffer(savebuf);
+  
+! 	if (VimTryEnd())
+  	    return FAIL;
+  
+  	if (len_change)
+***************
+*** 2583,2588 ****
+--- 2624,2630 ----
+  	    return FAIL;
+  
+  	PyErr_Clear();
++ 	VimTryStart();
+  	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)n, (linenr_T)(n+1)) == FAIL)
+***************
+*** 2596,2602 ****
+  	restore_buffer(savebuf);
+  	update_screen(VALID);
+  
+! 	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+  
+  	if (len_change)
+--- 2638,2644 ----
+  	restore_buffer(savebuf);
+  	update_screen(VALID);
+  
+! 	if (VimTryEnd())
+  	    return FAIL;
+  
+  	if (len_change)
+***************
+*** 2633,2638 ****
+--- 2675,2681 ----
+  	}
+  
+  	PyErr_Clear();
++ 	VimTryStart();
+  	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)n, (linenr_T)(n + 1)) == FAIL)
+***************
+*** 2666,2672 ****
+  	restore_buffer(savebuf);
+  	update_screen(VALID);
+  
+! 	if (PyErr_Occurred() || VimErrorCheck())
+  	    return FAIL;
+  
+  	if (len_change)
+--- 2709,2715 ----
+  	restore_buffer(savebuf);
+  	update_screen(VALID);
+  
+! 	if (VimTryEnd())
+  	    return FAIL;
+  
+  	if (len_change)
+***************
+*** 2896,2902 ****
+      static void
+  RangeDestructor(RangeObject *self)
+  {
+!     Py_DECREF(self->buf);
+      DESTRUCTOR_FINISH(self);
+  }
+  
+--- 2939,2945 ----
+      static void
+  RangeDestructor(RangeObject *self)
+  {
+!     Py_XDECREF(self->buf);
+      DESTRUCTOR_FINISH(self);
+  }
+  
+***************
+*** 3078,3086 ****
+--- 3121,3132 ----
+  	return NULL;
+      mark = *pmark;
+  
++     VimTryStart();
+      switch_buffer(&savebuf, self->buf);
+      posp = getmark(mark, FALSE);
+      restore_buffer(savebuf);
++     if (VimTryEnd())
++ 	return NULL;
+  
+      if (posp == NULL)
+      {
+***************
+*** 3088,3097 ****
+  	return NULL;
+      }
+  
+-     /* Check for keyboard interrupt */
+-     if (VimErrorCheck())
+- 	return NULL;
+- 
+      if (posp->lnum <= 0)
+      {
+  	/* Or raise an error? */
+--- 3134,3139 ----
+***************
+*** 3330,3342 ****
+  	    return -1;
+  	count = ((BufferObject *)(value))->buf->b_fnum;
+  
+  	if (do_buffer(DOBUF_GOTO, DOBUF_FIRST, FORWARD, count, 0) == FAIL)
+  	{
+  	    PyErr_SetVim(_("failed to switch to given buffer"));
+  	    return -1;
+  	}
+  
+! 	return 0;
+      }
+      else if (strcmp(name, "window") == 0)
+      {
+--- 3372,3387 ----
+  	    return -1;
+  	count = ((BufferObject *)(value))->buf->b_fnum;
+  
++ 	VimTryStart();
+  	if (do_buffer(DOBUF_GOTO, DOBUF_FIRST, FORWARD, count, 0) == FAIL)
+  	{
++ 	    if (VimTryEnd())
++ 		return -1;
+  	    PyErr_SetVim(_("failed to switch to given buffer"));
+  	    return -1;
+  	}
+  
+! 	return VimTryEnd();
+      }
+      else if (strcmp(name, "window") == 0)
+      {
+***************
+*** 3359,3373 ****
+  	    return -1;
+  	}
+  
+  	win_goto(((WindowObject *)(value))->win);
+  	if (((WindowObject *)(value))->win != curwin)
+  	{
+  	    PyErr_SetString(PyExc_RuntimeError,
+  		    _("did not switch to the specified window"));
+  	    return -1;
+  	}
+  
+! 	return 0;
+      }
+      else if (strcmp(name, "tabpage") == 0)
+      {
+--- 3404,3421 ----
+  	    return -1;
+  	}
+  
++ 	VimTryStart();
+  	win_goto(((WindowObject *)(value))->win);
+  	if (((WindowObject *)(value))->win != curwin)
+  	{
++ 	    if (VimTryEnd())
++ 		return -1;
+  	    PyErr_SetString(PyExc_RuntimeError,
+  		    _("did not switch to the specified window"));
+  	    return -1;
+  	}
+  
+! 	return VimTryEnd();
+      }
+      else if (strcmp(name, "tabpage") == 0)
+      {
+***************
+*** 3380,3394 ****
+  	if (CheckTabPage((TabPageObject *)(value)))
+  	    return -1;
+  
+  	goto_tabpage_tp(((TabPageObject *)(value))->tab, TRUE, TRUE);
+  	if (((TabPageObject *)(value))->tab != curtab)
+  	{
+  	    PyErr_SetString(PyExc_RuntimeError,
+  		    _("did not switch to the specified tab page"));
+  	    return -1;
+  	}
+  
+! 	return 0;
+      }
+      else
+      {
+--- 3428,3445 ----
+  	if (CheckTabPage((TabPageObject *)(value)))
+  	    return -1;
+  
++ 	VimTryStart();
+  	goto_tabpage_tp(((TabPageObject *)(value))->tab, TRUE, TRUE);
+  	if (((TabPageObject *)(value))->tab != curtab)
+  	{
++ 	    if (VimTryEnd())
++ 		return -1;
+  	    PyErr_SetString(PyExc_RuntimeError,
+  		    _("did not switch to the specified tab page"));
+  	    return -1;
+  	}
+  
+! 	return VimTryEnd();
+      }
+      else
+      {
+*** ../vim-7.3.996/src/testdir/test86.in	2013-05-21 19:49:58.000000000 +0200
+--- src/testdir/test86.in	2013-05-21 20:34:32.000000000 +0200
+***************
+*** 380,399 ****
+      try:
+          exec(s, g, l)
+      except:
+!         vim.command('throw ' + repr(sys.exc_type.__name__))
+  
+  def ev(s, g=globals(), l=locals()):
+      try:
+          return eval(s, g, l)
+      except:
+!         vim.command('throw ' + repr(sys.exc_type.__name__))
+          return 0
+  EOF
+  :function E(s)
+  :   python e(vim.eval('a:s'))
+  :endfunction
+  :function Ev(s)
+! :   return pyeval('ev(vim.eval("a:s"))')
+  :endfunction
+  :py gopts1=vim.options
+  :py wopts1=vim.windows[2].options
+--- 380,403 ----
+      try:
+          exec(s, g, l)
+      except:
+!         vim.command('return ' + repr(sys.exc_type.__name__))
+  
+  def ev(s, g=globals(), l=locals()):
+      try:
+          return eval(s, g, l)
+      except:
+!         vim.command('let exc=' + repr(sys.exc_type.__name__))
+          return 0
+  EOF
+  :function E(s)
+  :   python e(vim.eval('a:s'))
+  :endfunction
+  :function Ev(s)
+! :   let r=pyeval('ev(vim.eval("a:s"))')
+! :   if exists('exc')
+! :       throw exc
+! :   endif
+! :   return r
+  :endfunction
+  :py gopts1=vim.options
+  :py wopts1=vim.windows[2].options
+***************
+*** 437,463 ****
+  :       catch
+  :           put ='  p/'.v.'! '.v:exception
+  :       endtry
+! :       try
+! :           call E(v.'["'.oname.'"]=invval')
+! :       catch
+! :           put ='  inv: '.string(invval).'! '.v:exception
+! :       endtry
+  :       for vv in (v is# 'gopts1' ? [v] : [v, v[:-2].'2', v[:-2].'3'])
+  :           let val=substitute(vv, '^.opts', 'oval', '')
+! :           try
+! :               call E(vv.'["'.oname.'"]='.val)
+! :           catch
+! :               put ='  '.vv.'! '.v:exception
+! :           endtry
+  :       endfor
+  :   endfor
+  :   call RecVars(oname)
+  :   for v in ['wopts3', 'bopts3']
+! :       try
+! :           call E('del '.v.'["'.oname.'"]')
+! :       catch
+! :           put ='  del '.v.'! '.v:exception
+! :       endtry
+  :   endfor
+  :   call RecVars(oname)
+  :endfor
+--- 441,464 ----
+  :       catch
+  :           put ='  p/'.v.'! '.v:exception
+  :       endtry
+! :       let r=E(v.'['''.oname.''']=invval')
+! :       if r isnot 0
+! :           put ='  inv: '.string(invval).'! '.r
+! :       endif
+  :       for vv in (v is# 'gopts1' ? [v] : [v, v[:-2].'2', v[:-2].'3'])
+  :           let val=substitute(vv, '^.opts', 'oval', '')
+! :           let r=E(vv.'['''.oname.''']='.val)
+! :           if r isnot 0
+! :               put ='  '.vv.'! '.r
+! :           endif
+  :       endfor
+  :   endfor
+  :   call RecVars(oname)
+  :   for v in ['wopts3', 'bopts3']
+! :       let r=E('del '.v.'["'.oname.'"]')
+! :       if r isnot 0
+! :           put ='  del '.v.'! '.r
+! :       endif
+  :   endfor
+  :   call RecVars(oname)
+  :endfor
+***************
+*** 651,656 ****
+--- 652,676 ----
+  ):
+      cb.append(expr + ':' + attr + ':' + repr(type(eval(expr)) is getattr(vim, attr)))
+  EOF
++ :"
++ :" Test exceptions
++ :fun Exe(e)
++ :   execute a:e
++ :endfun
++ py << EOF
++ def ee(expr, g=globals(), l=locals()):
++     try:
++         exec(expr, g, l)
++     except:
++         cb.append(repr(sys.exc_info()[:2]))
++ Exe = vim.bindeval('function("Exe")')
++ ee('vim.command("throw \'abc\'")')
++ ee('Exe("throw \'def\'")')
++ ee('vim.eval("Exe(\'throw \'\'ghi\'\'\')")')
++ ee('vim.eval("Exe(\'echoerr \'\'jkl\'\'\')")')
++ ee('vim.eval("Exe(\'xxx_non_existent_command_xxx\')")')
++ ee('vim.bindeval("Exe(\'xxx_non_existent_command_xxx\')")')
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.996/src/testdir/test86.ok	2013-05-21 19:49:58.000000000 +0200
+--- src/testdir/test86.ok	2013-05-21 20:38:29.000000000 +0200
+***************
+*** 333,339 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (970, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 333,339 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test86.in>; cursor is at (990, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+***************
+*** 368,370 ****
+--- 368,376 ----
+  vim.current.range:Range:True
+  vim.current.window:Window:True
+  vim.current.tabpage:TabPage:True
++ (<class 'vim.error'>, error('abc',))
++ (<class 'vim.error'>, error('def',))
++ (<class 'vim.error'>, error('ghi',))
++ (<class 'vim.error'>, error('Vim(echoerr):jkl',))
++ (<class 'vim.error'>, error('Vim:E492: Not an editor command: xxx_non_existent_command_xxx',))
++ (<class 'vim.error'>, error('Vim:E492: Not an editor command: xxx_non_existent_command_xxx',))
+*** ../vim-7.3.996/src/testdir/test87.in	2013-05-21 19:49:58.000000000 +0200
+--- src/testdir/test87.in	2013-05-21 20:34:32.000000000 +0200
+***************
+*** 367,386 ****
+      try:
+          exec(s, g, l)
+      except Exception as e:
+!         vim.command('throw ' + repr(e.__class__.__name__))
+  
+  def ev(s, g=globals(), l=locals()):
+      try:
+          return eval(s, g, l)
+      except Exception as e:
+!         vim.command('throw ' + repr(e.__class__.__name__))
+          return 0
+  EOF
+  :function E(s)
+  :   python3 e(vim.eval('a:s'))
+  :endfunction
+  :function Ev(s)
+! :   return py3eval('ev(vim.eval("a:s"))')
+  :endfunction
+  :py3 gopts1=vim.options
+  :py3 wopts1=vim.windows[2].options
+--- 367,390 ----
+      try:
+          exec(s, g, l)
+      except Exception as e:
+!         vim.command('return ' + repr(e.__class__.__name__))
+  
+  def ev(s, g=globals(), l=locals()):
+      try:
+          return eval(s, g, l)
+      except Exception as e:
+!         vim.command('let exc=' + repr(e.__class__.__name__))
+          return 0
+  EOF
+  :function E(s)
+  :   python3 e(vim.eval('a:s'))
+  :endfunction
+  :function Ev(s)
+! :   let r=py3eval('ev(vim.eval("a:s"))')
+! :   if exists('exc')
+! :       throw exc
+! :   endif
+! :   return r
+  :endfunction
+  :py3 gopts1=vim.options
+  :py3 wopts1=vim.windows[2].options
+***************
+*** 424,450 ****
+  :       catch
+  :           put ='  p/'.v.'! '.v:exception
+  :       endtry
+! :       try
+! :           call E(v.'["'.oname.'"]=invval')
+! :       catch
+! :           put ='  inv: '.string(invval).'! '.v:exception
+! :       endtry
+  :       for vv in (v is# 'gopts1' ? [v] : [v, v[:-2].'2', v[:-2].'3'])
+  :           let val=substitute(vv, '^.opts', 'oval', '')
+! :           try
+! :               call E(vv.'["'.oname.'"]='.val)
+! :           catch
+! :               put ='  '.vv.'! '.v:exception
+! :           endtry
+  :       endfor
+  :   endfor
+  :   call RecVars(oname)
+  :   for v in ['wopts3', 'bopts3']
+! :       try
+! :           call E('del '.v.'["'.oname.'"]')
+! :       catch
+! :           put ='  del '.v.'! '.v:exception
+! :       endtry
+  :   endfor
+  :   call RecVars(oname)
+  :endfor
+--- 428,451 ----
+  :       catch
+  :           put ='  p/'.v.'! '.v:exception
+  :       endtry
+! :       let r=E(v.'['''.oname.''']=invval')
+! :       if r isnot 0
+! :           put ='  inv: '.string(invval).'! '.r
+! :       endif
+  :       for vv in (v is# 'gopts1' ? [v] : [v, v[:-2].'2', v[:-2].'3'])
+  :           let val=substitute(vv, '^.opts', 'oval', '')
+! :           let r=E(vv.'['''.oname.''']='.val)
+! :           if r isnot 0
+! :               put ='  '.vv.'! '.r
+! :           endif
+  :       endfor
+  :   endfor
+  :   call RecVars(oname)
+  :   for v in ['wopts3', 'bopts3']
+! :       let r=E('del '.v.'["'.oname.'"]')
+! :       if r isnot 0
+! :           put ='  del '.v.'! '.r
+! :       endif
+  :   endfor
+  :   call RecVars(oname)
+  :endfor
+***************
+*** 638,643 ****
+--- 639,663 ----
+  ):
+      cb.append(expr + ':' + attr + ':' + repr(type(eval(expr)) is getattr(vim, attr)))
+  EOF
++ :"
++ :" Test exceptions
++ :fun Exe(e)
++ :   execute a:e
++ :endfun
++ py3 << EOF
++ def ee(expr, g=globals(), l=locals()):
++     try:
++         exec(expr, g, l)
++     except Exception as e:
++         cb.append(repr((e.__class__, e)))
++ Exe = vim.bindeval('function("Exe")')
++ ee('vim.command("throw \'abc\'")')
++ ee('Exe("throw \'def\'")')
++ ee('vim.eval("Exe(\'throw \'\'ghi\'\'\')")')
++ ee('vim.eval("Exe(\'echoerr \'\'jkl\'\'\')")')
++ ee('vim.eval("Exe(\'xxx_non_existent_command_xxx\')")')
++ ee('vim.bindeval("Exe(\'xxx_non_existent_command_xxx\')")')
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.996/src/testdir/test87.ok	2013-05-21 19:49:58.000000000 +0200
+--- src/testdir/test87.ok	2013-05-21 20:38:46.000000000 +0200
+***************
+*** 322,328 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (946, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 322,328 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(1): displays buffer <buffer test87.in>; cursor is at (966, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(1): displays buffer <buffer 0>; cursor is at (1, 0)
+***************
+*** 357,359 ****
+--- 357,365 ----
+  vim.current.range:Range:True
+  vim.current.window:Window:True
+  vim.current.tabpage:TabPage:True
++ (<class 'vim.error'>, error('abc',))
++ (<class 'vim.error'>, error('def',))
++ (<class 'vim.error'>, error('ghi',))
++ (<class 'vim.error'>, error('Vim(echoerr):jkl',))
++ (<class 'vim.error'>, error('Vim:E492: Not an editor command: xxx_non_existent_command_xxx',))
++ (<class 'vim.error'>, error('Vim:E492: Not an editor command: xxx_non_existent_command_xxx',))
+*** ../vim-7.3.996/src/version.c	2013-05-21 19:49:58.000000000 +0200
+--- src/version.c	2013-05-21 20:32:46.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     997,
+  /**/
+
+-- 
+ARTHUR: It is I, Arthur, son of Uther Pendragon, from the castle of Camelot.
+        King of all Britons, defeator of the Saxons, sovereign of all England!
+   [Pause]
+SOLDIER: Get away!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

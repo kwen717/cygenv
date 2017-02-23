@@ -1,0 +1,2562 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1232
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1232
+Problem:    Python: inconsistencies in variable names.
+Solution:   Rename variables. (ZyX)
+Files:	    src/eval.c, src/if_py_both.h
+
+
+*** ../vim-7.3.1231/src/eval.c	2013-06-16 17:32:33.000000000 +0200
+--- src/eval.c	2013-06-23 14:29:13.000000000 +0200
+***************
+*** 3228,3234 ****
+      void	*fi_void;
+      char_u	*arg;
+  {
+!     forinfo_T    *fi = (forinfo_T *)fi_void;
+      int		result;
+      listitem_T	*item;
+  
+--- 3228,3234 ----
+      void	*fi_void;
+      char_u	*arg;
+  {
+!     forinfo_T	*fi = (forinfo_T *)fi_void;
+      int		result;
+      listitem_T	*item;
+  
+*** ../vim-7.3.1231/src/if_py_both.h	2013-06-23 14:16:53.000000000 +0200
+--- src/if_py_both.h	2013-06-23 14:29:13.000000000 +0200
+***************
+*** 107,134 ****
+   * Use Py_XDECREF to decrement reference count.
+   */
+      static char_u *
+! StringToChars(PyObject *object, PyObject **todecref)
+  {
+!     char_u	*p;
+  
+!     if (PyBytes_Check(object))
+      {
+  
+! 	if (PyBytes_AsStringAndSize(object, (char **) &p, NULL) == -1
+! 		|| p == NULL)
+  	    return NULL;
+  
+  	*todecref = NULL;
+      }
+!     else if (PyUnicode_Check(object))
+      {
+  	PyObject	*bytes;
+  
+! 	if (!(bytes = PyUnicode_AsEncodedString(object, ENC_OPT, NULL)))
+  	    return NULL;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, (char **) &p, NULL) == -1
+! 		|| p == NULL)
+  	{
+  	    Py_DECREF(bytes);
+  	    return NULL;
+--- 107,134 ----
+   * Use Py_XDECREF to decrement reference count.
+   */
+      static char_u *
+! StringToChars(PyObject *obj, PyObject **todecref)
+  {
+!     char_u	*str;
+  
+!     if (PyBytes_Check(obj))
+      {
+  
+! 	if (PyBytes_AsStringAndSize(obj, (char **) &str, NULL) == -1
+! 		|| str == NULL)
+  	    return NULL;
+  
+  	*todecref = NULL;
+      }
+!     else if (PyUnicode_Check(obj))
+      {
+  	PyObject	*bytes;
+  
+! 	if (!(bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL)))
+  	    return NULL;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, (char **) &str, NULL) == -1
+! 		|| str == NULL)
+  	{
+  	    Py_DECREF(bytes);
+  	    return NULL;
+***************
+*** 144,154 ****
+  #else
+  		"expected bytes() or str() instance, but got %s"
+  #endif
+! 		, Py_TYPE_NAME(object));
+  	return NULL;
+      }
+  
+!     return (char_u *) p;
+  }
+  
+  #define NUMBER_LONG     1
+--- 144,154 ----
+  #else
+  		"expected bytes() or str() instance, but got %s"
+  #endif
+! 		, Py_TYPE_NAME(obj));
+  	return NULL;
+      }
+  
+!     return (char_u *) str;
+  }
+  
+  #define NUMBER_LONG     1
+***************
+*** 263,297 ****
+  {
+      PyMethodDef	*method;
+      char	**attr;
+!     PyObject	*r;
+  
+!     if (!(r = PyList_New(0)))
+  	return NULL;
+  
+      if (self)
+  	for (method = self->ob_type->tp_methods ; method->ml_name != NULL ; ++method)
+! 	    if (add_string(r, (char *) method->ml_name))
+  	    {
+! 		Py_DECREF(r);
+  		return NULL;
+  	    }
+  
+      for (attr = attributes ; *attr ; ++attr)
+! 	if (add_string(r, *attr))
+  	{
+! 	    Py_DECREF(r);
+  	    return NULL;
+  	}
+  
+  #if PY_MAJOR_VERSION < 3
+!     if (add_string(r, "__members__"))
+      {
+! 	Py_DECREF(r);
+  	return NULL;
+      }
+  #endif
+  
+!     return r;
+  }
+  
+  /* Output buffer management
+--- 263,297 ----
+  {
+      PyMethodDef	*method;
+      char	**attr;
+!     PyObject	*ret;
+  
+!     if (!(ret = PyList_New(0)))
+  	return NULL;
+  
+      if (self)
+  	for (method = self->ob_type->tp_methods ; method->ml_name != NULL ; ++method)
+! 	    if (add_string(ret, (char *) method->ml_name))
+  	    {
+! 		Py_DECREF(ret);
+  		return NULL;
+  	    }
+  
+      for (attr = attributes ; *attr ; ++attr)
+! 	if (add_string(ret, *attr))
+  	{
+! 	    Py_DECREF(ret);
+  	    return NULL;
+  	}
+  
+  #if PY_MAJOR_VERSION < 3
+!     if (add_string(ret, "__members__"))
+      {
+! 	Py_DECREF(ret);
+  	return NULL;
+      }
+  #endif
+  
+!     return ret;
+  }
+  
+  /* Output buffer management
+***************
+*** 321,329 ****
+  }
+  
+      static int
+! OutputSetattr(OutputObject *self, char *name, PyObject *val)
+  {
+!     if (val == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+  		"can't delete OutputObject attributes");
+--- 321,329 ----
+  }
+  
+      static int
+! OutputSetattr(OutputObject *self, char *name, PyObject *valObject)
+  {
+!     if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+  		"can't delete OutputObject attributes");
+***************
+*** 332,338 ****
+  
+      if (strcmp(name, "softspace") == 0)
+      {
+! 	if (NumberToLong(val, &(self->softspace), NUMBER_UNSIGNED))
+  	    return -1;
+  	return 0;
+      }
+--- 332,338 ----
+  
+      if (strcmp(name, "softspace") == 0)
+      {
+! 	if (NumberToLong(valObject, &(self->softspace), NUMBER_UNSIGNED))
+  	    return -1;
+  	return 0;
+      }
+***************
+*** 518,527 ****
+      static PyObject *
+  LoaderLoadModule(LoaderObject *self, PyObject *args UNUSED)
+  {
+!     PyObject	*r = self->module;
+  
+!     Py_INCREF(r);
+!     return r;
+  }
+  
+  static struct PyMethodDef LoaderMethods[] = {
+--- 518,527 ----
+      static PyObject *
+  LoaderLoadModule(LoaderObject *self, PyObject *args UNUSED)
+  {
+!     PyObject	*ret = self->module;
+  
+!     Py_INCREF(ret);
+!     return ret;
+  }
+  
+  static struct PyMethodDef LoaderMethods[] = {
+***************
+*** 579,585 ****
+  VimCommand(PyObject *self UNUSED, PyObject *string)
+  {
+      char_u	*cmd;
+!     PyObject	*result;
+      PyObject	*todecref;
+  
+      if (!(cmd = StringToChars(string, &todecref)))
+--- 579,585 ----
+  VimCommand(PyObject *self UNUSED, PyObject *string)
+  {
+      char_u	*cmd;
+!     PyObject	*ret;
+      PyObject	*todecref;
+  
+      if (!(cmd = StringToChars(string, &todecref)))
+***************
+*** 596,608 ****
+      Py_END_ALLOW_THREADS
+  
+      if (VimTryEnd())
+! 	result = NULL;
+      else
+! 	result = Py_None;
+  
+!     Py_XINCREF(result);
+      Py_XDECREF(todecref);
+!     return result;
+  }
+  
+  /*
+--- 596,608 ----
+      Py_END_ALLOW_THREADS
+  
+      if (VimTryEnd())
+! 	ret = NULL;
+      else
+! 	ret = Py_None;
+  
+!     Py_XINCREF(ret);
+      Py_XDECREF(todecref);
+!     return ret;
+  }
+  
+  /*
+***************
+*** 615,621 ****
+      static PyObject *
+  VimToPython(typval_T *our_tv, int depth, PyObject *lookup_dict)
+  {
+!     PyObject	*result;
+      PyObject	*newObj;
+      char	ptrBuf[sizeof(void *) * 2 + 3];
+  
+--- 615,621 ----
+      static PyObject *
+  VimToPython(typval_T *our_tv, int depth, PyObject *lookup_dict)
+  {
+!     PyObject	*ret;
+      PyObject	*newObj;
+      char	ptrBuf[sizeof(void *) * 2 + 3];
+  
+***************
+*** 623,630 ****
+      if (depth > 100)
+      {
+  	Py_INCREF(Py_None);
+! 	result = Py_None;
+! 	return result;
+      }
+  
+      /* Check if we run into a recursive loop.  The item must be in lookup_dict
+--- 623,630 ----
+      if (depth > 100)
+      {
+  	Py_INCREF(Py_None);
+! 	ret = Py_None;
+! 	return ret;
+      }
+  
+      /* Check if we run into a recursive loop.  The item must be in lookup_dict
+***************
+*** 636,650 ****
+  		our_tv->v_type == VAR_LIST ? (void *)our_tv->vval.v_list
+  					   : (void *)our_tv->vval.v_dict);
+  
+! 	if ((result = PyDict_GetItemString(lookup_dict, ptrBuf)))
+  	{
+! 	    Py_INCREF(result);
+! 	    return result;
+  	}
+      }
+  
+      if (our_tv->v_type == VAR_STRING)
+! 	result = PyString_FromString(our_tv->vval.v_string == NULL
+  					? "" : (char *)our_tv->vval.v_string);
+      else if (our_tv->v_type == VAR_NUMBER)
+      {
+--- 636,650 ----
+  		our_tv->v_type == VAR_LIST ? (void *)our_tv->vval.v_list
+  					   : (void *)our_tv->vval.v_dict);
+  
+! 	if ((ret = PyDict_GetItemString(lookup_dict, ptrBuf)))
+  	{
+! 	    Py_INCREF(ret);
+! 	    return ret;
+  	}
+      }
+  
+      if (our_tv->v_type == VAR_STRING)
+! 	ret = PyString_FromString(our_tv->vval.v_string == NULL
+  					? "" : (char *)our_tv->vval.v_string);
+      else if (our_tv->v_type == VAR_NUMBER)
+      {
+***************
+*** 652,658 ****
+  
+  	/* For backwards compatibility numbers are stored as strings. */
+  	sprintf(buf, "%ld", (long)our_tv->vval.v_number);
+! 	result = PyString_FromString((char *) buf);
+      }
+  # ifdef FEAT_FLOAT
+      else if (our_tv->v_type == VAR_FLOAT)
+--- 652,658 ----
+  
+  	/* For backwards compatibility numbers are stored as strings. */
+  	sprintf(buf, "%ld", (long)our_tv->vval.v_number);
+! 	ret = PyString_FromString((char *) buf);
+      }
+  # ifdef FEAT_FLOAT
+      else if (our_tv->v_type == VAR_FLOAT)
+***************
+*** 660,666 ****
+  	char buf[NUMBUFLEN];
+  
+  	sprintf(buf, "%f", our_tv->vval.v_float);
+! 	result = PyString_FromString((char *) buf);
+      }
+  # endif
+      else if (our_tv->v_type == VAR_LIST)
+--- 660,666 ----
+  	char buf[NUMBUFLEN];
+  
+  	sprintf(buf, "%f", our_tv->vval.v_float);
+! 	ret = PyString_FromString((char *) buf);
+      }
+  # endif
+      else if (our_tv->v_type == VAR_LIST)
+***************
+*** 671,682 ****
+  	if (list == NULL)
+  	    return NULL;
+  
+! 	if (!(result = PyList_New(0)))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookup_dict, ptrBuf, result))
+  	{
+! 	    Py_DECREF(result);
+  	    return NULL;
+  	}
+  
+--- 671,682 ----
+  	if (list == NULL)
+  	    return NULL;
+  
+! 	if (!(ret = PyList_New(0)))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookup_dict, ptrBuf, ret))
+  	{
+! 	    Py_DECREF(ret);
+  	    return NULL;
+  	}
+  
+***************
+*** 684,696 ****
+  	{
+  	    if (!(newObj = VimToPython(&curr->li_tv, depth + 1, lookup_dict)))
+  	    {
+! 		Py_DECREF(result);
+  		return NULL;
+  	    }
+! 	    if (PyList_Append(result, newObj))
+  	    {
+  		Py_DECREF(newObj);
+! 		Py_DECREF(result);
+  		return NULL;
+  	    }
+  	    Py_DECREF(newObj);
+--- 684,696 ----
+  	{
+  	    if (!(newObj = VimToPython(&curr->li_tv, depth + 1, lookup_dict)))
+  	    {
+! 		Py_DECREF(ret);
+  		return NULL;
+  	    }
+! 	    if (PyList_Append(ret, newObj))
+  	    {
+  		Py_DECREF(newObj);
+! 		Py_DECREF(ret);
+  		return NULL;
+  	    }
+  	    Py_DECREF(newObj);
+***************
+*** 706,717 ****
+  	if (our_tv->vval.v_dict == NULL)
+  	    return NULL;
+  
+! 	if (!(result = PyDict_New()))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookup_dict, ptrBuf, result))
+  	{
+! 	    Py_DECREF(result);
+  	    return NULL;
+  	}
+  
+--- 706,717 ----
+  	if (our_tv->vval.v_dict == NULL)
+  	    return NULL;
+  
+! 	if (!(ret = PyDict_New()))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookup_dict, ptrBuf, ret))
+  	{
+! 	    Py_DECREF(ret);
+  	    return NULL;
+  	}
+  
+***************
+*** 724,735 ****
+  		di = dict_lookup(hi);
+  		if (!(newObj = VimToPython(&di->di_tv, depth + 1, lookup_dict)))
+  		{
+! 		    Py_DECREF(result);
+  		    return NULL;
+  		}
+! 		if (PyDict_SetItemString(result, (char *)hi->hi_key, newObj))
+  		{
+! 		    Py_DECREF(result);
+  		    Py_DECREF(newObj);
+  		    return NULL;
+  		}
+--- 724,735 ----
+  		di = dict_lookup(hi);
+  		if (!(newObj = VimToPython(&di->di_tv, depth + 1, lookup_dict)))
+  		{
+! 		    Py_DECREF(ret);
+  		    return NULL;
+  		}
+! 		if (PyDict_SetItemString(ret, (char *)hi->hi_key, newObj))
+  		{
+! 		    Py_DECREF(ret);
+  		    Py_DECREF(newObj);
+  		    return NULL;
+  		}
+***************
+*** 739,748 ****
+      else
+      {
+  	Py_INCREF(Py_None);
+! 	result = Py_None;
+      }
+  
+!     return result;
+  }
+  
+      static PyObject *
+--- 739,748 ----
+      else
+      {
+  	Py_INCREF(Py_None);
+! 	ret = Py_None;
+      }
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 752,758 ****
+      typval_T	*our_tv;
+      PyObject	*string;
+      PyObject	*todecref;
+!     PyObject	*result;
+      PyObject	*lookup_dict;
+  
+      if (!PyArg_ParseTuple(args, "O", &string))
+--- 752,758 ----
+      typval_T	*our_tv;
+      PyObject	*string;
+      PyObject	*todecref;
+!     PyObject	*ret;
+      PyObject	*lookup_dict;
+  
+      if (!PyArg_ParseTuple(args, "O", &string))
+***************
+*** 782,791 ****
+      /* Convert the Vim type into a Python type.  Create a dictionary that's
+       * used to check for recursive loops. */
+      if (!(lookup_dict = PyDict_New()))
+! 	result = NULL;
+      else
+      {
+! 	result = VimToPython(our_tv, 1, lookup_dict);
+  	Py_DECREF(lookup_dict);
+      }
+  
+--- 782,791 ----
+      /* Convert the Vim type into a Python type.  Create a dictionary that's
+       * used to check for recursive loops. */
+      if (!(lookup_dict = PyDict_New()))
+! 	ret = NULL;
+      else
+      {
+! 	ret = VimToPython(our_tv, 1, lookup_dict);
+  	Py_DECREF(lookup_dict);
+      }
+  
+***************
+*** 796,802 ****
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     return result;
+  }
+  
+  static PyObject *ConvertToPyObject(typval_T *);
+--- 796,802 ----
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     return ret;
+  }
+  
+  static PyObject *ConvertToPyObject(typval_T *);
+***************
+*** 805,811 ****
+  VimEvalPy(PyObject *self UNUSED, PyObject *string)
+  {
+      typval_T	*our_tv;
+!     PyObject	*result;
+      char_u	*expr;
+      PyObject	*todecref;
+  
+--- 805,811 ----
+  VimEvalPy(PyObject *self UNUSED, PyObject *string)
+  {
+      typval_T	*our_tv;
+!     PyObject	*ret;
+      char_u	*expr;
+      PyObject	*todecref;
+  
+***************
+*** 830,843 ****
+  	return NULL;
+      }
+  
+!     result = ConvertToPyObject(our_tv);
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      free_tv(our_tv);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     return result;
+  }
+  
+      static PyObject *
+--- 830,843 ----
+  	return NULL;
+      }
+  
+!     ret = ConvertToPyObject(our_tv);
+      Py_BEGIN_ALLOW_THREADS
+      Python_Lock_Vim();
+      free_tv(our_tv);
+      Python_Release_Vim();
+      Py_END_ALLOW_THREADS
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 845,888 ****
+  {
+      char_u	*str;
+      PyObject	*todecref;
+!     int		result;
+  
+      if (!(str = StringToChars(string, &todecref)))
+  	return NULL;
+  
+  #ifdef FEAT_MBYTE
+!     result = mb_string2cells(str, (int)STRLEN(str));
+  #else
+!     result = STRLEN(str);
+  #endif
+  
+      Py_XDECREF(todecref);
+  
+!     return PyLong_FromLong(result);
+  }
+  
+      static PyObject *
+  _VimChdir(PyObject *_chdir, PyObject *args, PyObject *kwargs)
+  {
+!     PyObject	*r;
+      PyObject	*newwd;
+      PyObject	*todecref;
+      char_u	*new_dir;
+  
+      if (_chdir == NULL)
+  	return NULL;
+!     if (!(r = PyObject_Call(_chdir, args, kwargs)))
+  	return NULL;
+  
+      if (!(newwd = PyObject_CallFunctionObjArgs(py_getcwd, NULL)))
+      {
+! 	Py_DECREF(r);
+  	return NULL;
+      }
+  
+      if (!(new_dir = StringToChars(newwd, &todecref)))
+      {
+! 	Py_DECREF(r);
+  	Py_DECREF(newwd);
+  	return NULL;
+      }
+--- 845,888 ----
+  {
+      char_u	*str;
+      PyObject	*todecref;
+!     int		len;
+  
+      if (!(str = StringToChars(string, &todecref)))
+  	return NULL;
+  
+  #ifdef FEAT_MBYTE
+!     len = mb_string2cells(str, (int)STRLEN(str));
+  #else
+!     len = STRLEN(str);
+  #endif
+  
+      Py_XDECREF(todecref);
+  
+!     return PyLong_FromLong(len);
+  }
+  
+      static PyObject *
+  _VimChdir(PyObject *_chdir, PyObject *args, PyObject *kwargs)
+  {
+!     PyObject	*ret;
+      PyObject	*newwd;
+      PyObject	*todecref;
+      char_u	*new_dir;
+  
+      if (_chdir == NULL)
+  	return NULL;
+!     if (!(ret = PyObject_Call(_chdir, args, kwargs)))
+  	return NULL;
+  
+      if (!(newwd = PyObject_CallFunctionObjArgs(py_getcwd, NULL)))
+      {
+! 	Py_DECREF(ret);
+  	return NULL;
+      }
+  
+      if (!(new_dir = StringToChars(newwd, &todecref)))
+      {
+! 	Py_DECREF(ret);
+  	Py_DECREF(newwd);
+  	return NULL;
+      }
+***************
+*** 891,897 ****
+  
+      if (vim_chdir(new_dir))
+      {
+! 	Py_DECREF(r);
+  	Py_DECREF(newwd);
+  	Py_XDECREF(todecref);
+  
+--- 891,897 ----
+  
+      if (vim_chdir(new_dir))
+      {
+! 	Py_DECREF(ret);
+  	Py_DECREF(newwd);
+  	Py_XDECREF(todecref);
+  
+***************
+*** 909,919 ****
+  
+      if (VimTryEnd())
+      {
+! 	Py_DECREF(r);
+  	return NULL;
+      }
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 909,919 ----
+  
+      if (VimTryEnd())
+      {
+! 	Py_DECREF(ret);
+  	return NULL;
+      }
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1052,1071 ****
+      static PyObject *
+  Vim_GetPaths(PyObject *self UNUSED)
+  {
+!     PyObject	*r;
+  
+!     if (!(r = PyList_New(0)))
+  	return NULL;
+  
+!     do_in_runtimepath(NULL, FALSE, &map_finder_callback, r);
+  
+      if (PyErr_Occurred())
+      {
+! 	Py_DECREF(r);
+  	return NULL;
+      }
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 1052,1071 ----
+      static PyObject *
+  Vim_GetPaths(PyObject *self UNUSED)
+  {
+!     PyObject	*ret;
+  
+!     if (!(ret = PyList_New(0)))
+  	return NULL;
+  
+!     do_in_runtimepath(NULL, FALSE, &map_finder_callback, ret);
+  
+      if (PyErr_Occurred())
+      {
+! 	Py_DECREF(ret);
+  	return NULL;
+      }
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1400,1415 ****
+      static dict_T *
+  py_dict_alloc(void)
+  {
+!     dict_T	*r;
+  
+!     if (!(r = dict_alloc()))
+      {
+  	PyErr_NoMemory();
+  	return NULL;
+      }
+!     ++r->dv_refcount;
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 1400,1415 ----
+      static dict_T *
+  py_dict_alloc(void)
+  {
+!     dict_T	*ret;
+  
+!     if (!(ret = dict_alloc()))
+      {
+  	PyErr_NoMemory();
+  	return NULL;
+      }
+!     ++ret->dv_refcount;
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1461,1469 ****
+  }
+  
+      static int
+! DictionarySetattr(DictionaryObject *self, char *name, PyObject *val)
+  {
+!     if (val == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+  		"cannot delete vim.Dictionary attributes");
+--- 1461,1469 ----
+  }
+  
+      static int
+! DictionarySetattr(DictionaryObject *self, char *name, PyObject *valObject)
+  {
+!     if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+  		"cannot delete vim.Dictionary attributes");
+***************
+*** 1479,1485 ****
+  	}
+  	else
+  	{
+! 	    int		istrue = PyObject_IsTrue(val);
+  	    if (istrue == -1)
+  		return -1;
+  	    else if (istrue)
+--- 1479,1485 ----
+  	}
+  	else
+  	{
+! 	    int		istrue = PyObject_IsTrue(valObject);
+  	    if (istrue == -1)
+  		return -1;
+  	    else if (istrue)
+***************
+*** 1513,1519 ****
+  {
+      PyObject	*keyObject;
+      PyObject	*defObject = ((flags & DICT_FLAG_NONE_DEFAULT)? Py_None : NULL);
+!     PyObject	*r;
+      char_u	*key;
+      dictitem_T	*di;
+      dict_T	*dict = self->dict;
+--- 1513,1519 ----
+  {
+      PyObject	*keyObject;
+      PyObject	*defObject = ((flags & DICT_FLAG_NONE_DEFAULT)? Py_None : NULL);
+!     PyObject	*ret;
+      char_u	*key;
+      dictitem_T	*di;
+      dict_T	*dict = self->dict;
+***************
+*** 1566,1572 ****
+  
+      di = dict_lookup(hi);
+  
+!     if (!(r = ConvertToPyObject(&di->di_tv)))
+  	return NULL;
+  
+      if (flags & DICT_FLAG_POP)
+--- 1566,1572 ----
+  
+      di = dict_lookup(hi);
+  
+!     if (!(ret = ConvertToPyObject(&di->di_tv)))
+  	return NULL;
+  
+      if (flags & DICT_FLAG_POP)
+***************
+*** 1574,1580 ****
+  	if (dict->dv_lock)
+  	{
+  	    RAISE_LOCKED_DICTIONARY;
+! 	    Py_DECREF(r);
+  	    return NULL;
+  	}
+  
+--- 1574,1580 ----
+  	if (dict->dv_lock)
+  	{
+  	    RAISE_LOCKED_DICTIONARY;
+! 	    Py_DECREF(ret);
+  	    return NULL;
+  	}
+  
+***************
+*** 1582,1588 ****
+  	dictitem_free(di);
+      }
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 1582,1588 ----
+  	dictitem_free(di);
+      }
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1595,1607 ****
+  DictionaryContains(DictionaryObject *self, PyObject *keyObject)
+  {
+      PyObject	*rObj = _DictionaryItem(self, keyObject, DICT_FLAG_RETURN_BOOL);
+!     int		r;
+  
+!     r = (rObj == Py_True);
+  
+      Py_DECREF(Py_True);
+  
+!     return r;
+  }
+  
+  typedef struct
+--- 1595,1607 ----
+  DictionaryContains(DictionaryObject *self, PyObject *keyObject)
+  {
+      PyObject	*rObj = _DictionaryItem(self, keyObject, DICT_FLAG_RETURN_BOOL);
+!     int		ret;
+  
+!     ret = (rObj == Py_True);
+  
+      Py_DECREF(Py_True);
+  
+!     return ret;
+  }
+  
+  typedef struct
+***************
+*** 1616,1622 ****
+      static PyObject *
+  DictionaryIterNext(dictiterinfo_T **dii)
+  {
+!     PyObject	*r;
+  
+      if (!(*dii)->todo)
+  	return NULL;
+--- 1616,1622 ----
+      static PyObject *
+  DictionaryIterNext(dictiterinfo_T **dii)
+  {
+!     PyObject	*ret;
+  
+      if (!(*dii)->todo)
+  	return NULL;
+***************
+*** 1634,1643 ****
+  
+      --((*dii)->todo);
+  
+!     if (!(r = PyBytes_FromString((char *) (*dii)->hi->hi_key)))
+  	return NULL;
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 1634,1643 ----
+  
+      --((*dii)->todo);
+  
+!     if (!(ret = PyBytes_FromString((char *) (*dii)->hi->hi_key)))
+  	return NULL;
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1753,1778 ****
+      dict_T	*dict = self->dict;
+      long_u	todo = dict->dv_hashtab.ht_used;
+      Py_ssize_t	i = 0;
+!     PyObject	*r;
+      hashitem_T	*hi;
+      PyObject	*newObj;
+  
+!     r = PyList_New(todo);
+      for (hi = dict->dv_hashtab.ht_array; todo > 0; ++hi)
+      {
+  	if (!HASHITEM_EMPTY(hi))
+  	{
+  	    if (!(newObj = hiconvert(hi)))
+  	    {
+! 		Py_DECREF(r);
+  		return NULL;
+  	    }
+! 	    PyList_SET_ITEM(r, i, newObj);
+  	    --todo;
+  	    ++i;
+  	}
+      }
+!     return r;
+  }
+  
+      static PyObject *
+--- 1753,1778 ----
+      dict_T	*dict = self->dict;
+      long_u	todo = dict->dv_hashtab.ht_used;
+      Py_ssize_t	i = 0;
+!     PyObject	*ret;
+      hashitem_T	*hi;
+      PyObject	*newObj;
+  
+!     ret = PyList_New(todo);
+      for (hi = dict->dv_hashtab.ht_array; todo > 0; ++hi)
+      {
+  	if (!HASHITEM_EMPTY(hi))
+  	{
+  	    if (!(newObj = hiconvert(hi)))
+  	    {
+! 		Py_DECREF(ret);
+  		return NULL;
+  	    }
+! 	    PyList_SET_ITEM(ret, i, newObj);
+  	    --todo;
+  	    ++i;
+  	}
+      }
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1807,1813 ****
+  {
+      PyObject	*keyObject;
+      PyObject	*valObject;
+!     PyObject	*r;
+  
+      if (!(keyObject = dict_key(hi)))
+  	return NULL;
+--- 1807,1813 ----
+  {
+      PyObject	*keyObject;
+      PyObject	*valObject;
+!     PyObject	*ret;
+  
+      if (!(keyObject = dict_key(hi)))
+  	return NULL;
+***************
+*** 1818,1829 ****
+  	return NULL;
+      }
+  
+!     r = Py_BuildValue("(OO)", keyObject, valObject);
+  
+      Py_DECREF(keyObject);
+      Py_DECREF(valObject);
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 1818,1829 ----
+  	return NULL;
+      }
+  
+!     ret = Py_BuildValue("(OO)", keyObject, valObject);
+  
+      Py_DECREF(keyObject);
+      Py_DECREF(valObject);
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 1858,1876 ****
+      }
+      else
+      {
+! 	PyObject	*object;
+  
+! 	if (!PyArg_ParseTuple(args, "O", &object))
+  	    return NULL;
+  
+! 	if (PyObject_HasAttrString(object, "keys"))
+! 	    return DictionaryUpdate(self, NULL, object);
+  	else
+  	{
+  	    PyObject	*iterator;
+  	    PyObject	*item;
+  
+! 	    if (!(iterator = PyObject_GetIter(object)))
+  		return NULL;
+  
+  	    while ((item = PyIter_Next(iterator)))
+--- 1858,1876 ----
+      }
+      else
+      {
+! 	PyObject	*obj;
+  
+! 	if (!PyArg_ParseTuple(args, "O", &obj))
+  	    return NULL;
+  
+! 	if (PyObject_HasAttrString(obj, "keys"))
+! 	    return DictionaryUpdate(self, NULL, obj);
+  	else
+  	{
+  	    PyObject	*iterator;
+  	    PyObject	*item;
+  
+! 	    if (!(iterator = PyObject_GetIter(obj)))
+  		return NULL;
+  
+  	    while ((item = PyIter_Next(iterator)))
+***************
+*** 1974,1980 ****
+  DictionaryPopItem(DictionaryObject *self)
+  {
+      hashitem_T	*hi;
+!     PyObject	*r;
+      PyObject	*valObject;
+      dictitem_T	*di;
+  
+--- 1974,1980 ----
+  DictionaryPopItem(DictionaryObject *self)
+  {
+      hashitem_T	*hi;
+!     PyObject	*ret;
+      PyObject	*valObject;
+      dictitem_T	*di;
+  
+***************
+*** 1993,1999 ****
+      if (!(valObject = ConvertToPyObject(&di->di_tv)))
+  	return NULL;
+  
+!     if (!(r = Py_BuildValue("(" Py_bytes_fmt "O)", hi->hi_key, valObject)))
+      {
+  	Py_DECREF(valObject);
+  	return NULL;
+--- 1993,1999 ----
+      if (!(valObject = ConvertToPyObject(&di->di_tv)))
+  	return NULL;
+  
+!     if (!(ret = Py_BuildValue("(" Py_bytes_fmt "O)", hi->hi_key, valObject)))
+      {
+  	Py_DECREF(valObject);
+  	return NULL;
+***************
+*** 2002,2008 ****
+      hash_remove(&self->dict->dv_hashtab, hi);
+      dictitem_free(di);
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 2002,2008 ----
+      hash_remove(&self->dict->dv_hashtab, hi);
+      dictitem_free(di);
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 2075,2090 ****
+      static list_T *
+  py_list_alloc()
+  {
+!     list_T	*r;
+  
+!     if (!(r = list_alloc()))
+      {
+  	PyErr_NoMemory();
+  	return NULL;
+      }
+!     ++r->lv_refcount;
+  
+!     return r;
+  }
+  
+      static int
+--- 2075,2090 ----
+      static list_T *
+  py_list_alloc()
+  {
+!     list_T	*ret;
+  
+!     if (!(ret = list_alloc()))
+      {
+  	PyErr_NoMemory();
+  	return NULL;
+      }
+!     ++ret->lv_refcount;
+  
+!     return ret;
+  }
+  
+      static int
+***************
+*** 2272,2288 ****
+      static PyObject *
+  ListIterNext(listiterinfo_T **lii)
+  {
+!     PyObject	*r;
+  
+      if (!((*lii)->lw.lw_item))
+  	return NULL;
+  
+!     if (!(r = ConvertToPyObject(&((*lii)->lw.lw_item->li_tv))))
+  	return NULL;
+  
+      (*lii)->lw.lw_item = (*lii)->lw.lw_item->li_next;
+  
+!     return r;
+  }
+  
+      static PyObject *
+--- 2272,2288 ----
+      static PyObject *
+  ListIterNext(listiterinfo_T **lii)
+  {
+!     PyObject	*ret;
+  
+      if (!((*lii)->lw.lw_item))
+  	return NULL;
+  
+!     if (!(ret = ConvertToPyObject(&((*lii)->lw.lw_item->li_tv))))
+  	return NULL;
+  
+      (*lii)->lw.lw_item = (*lii)->lw.lw_item->li_next;
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 2319,2325 ****
+  	RAISE_LOCKED_LIST;
+  	return -1;
+      }
+!     if (index>length || (index==length && obj==NULL))
+      {
+  	PyErr_SET_STRING(PyExc_IndexError, "list index out of range");
+  	return -1;
+--- 2319,2325 ----
+  	RAISE_LOCKED_LIST;
+  	return -1;
+      }
+!     if (index > length || (index == length && obj == NULL))
+      {
+  	PyErr_SET_STRING(PyExc_IndexError, "list index out of range");
+  	return -1;
+***************
+*** 2463,2471 ****
+  }
+  
+      static int
+! ListSetattr(ListObject *self, char *name, PyObject *val)
+  {
+!     if (val == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+  		"cannot delete vim.List attributes");
+--- 2463,2471 ----
+  }
+  
+      static int
+! ListSetattr(ListObject *self, char *name, PyObject *valObject)
+  {
+!     if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+  		"cannot delete vim.List attributes");
+***************
+*** 2481,2487 ****
+  	}
+  	else
+  	{
+! 	    int		istrue = PyObject_IsTrue(val);
+  	    if (istrue == -1)
+  		return -1;
+  	    else if (istrue)
+--- 2481,2487 ----
+  	}
+  	else
+  	{
+! 	    int		istrue = PyObject_IsTrue(valObject);
+  	    if (istrue == -1)
+  		return -1;
+  	    else if (istrue)
+***************
+*** 2599,2605 ****
+      typval_T	rettv;
+      dict_T	*selfdict = NULL;
+      PyObject	*selfdictObject;
+!     PyObject	*result;
+      int		error;
+  
+      if (ConvertFromPyObject(argsObject, &args) == -1)
+--- 2599,2605 ----
+      typval_T	rettv;
+      dict_T	*selfdict = NULL;
+      PyObject	*selfdictObject;
+!     PyObject	*ret;
+      int		error;
+  
+      if (ConvertFromPyObject(argsObject, &args) == -1)
+***************
+*** 2629,2649 ****
+      Py_END_ALLOW_THREADS
+  
+      if (VimTryEnd())
+! 	result = NULL;
+      else if (error != OK)
+      {
+! 	result = NULL;
+  	PyErr_VIM_FORMAT("failed to run function %s", (char *)name);
+      }
+      else
+! 	result = ConvertToPyObject(&rettv);
+  
+      clear_tv(&args);
+      clear_tv(&rettv);
+      if (selfdict != NULL)
+  	clear_tv(&selfdicttv);
+  
+!     return result;
+  }
+  
+      static PyObject *
+--- 2629,2649 ----
+      Py_END_ALLOW_THREADS
+  
+      if (VimTryEnd())
+! 	ret = NULL;
+      else if (error != OK)
+      {
+! 	ret = NULL;
+  	PyErr_VIM_FORMAT("failed to run function %s", (char *)name);
+      }
+      else
+! 	ret = ConvertToPyObject(&rettv);
+  
+      clear_tv(&args);
+      clear_tv(&rettv);
+      if (selfdict != NULL)
+  	clear_tv(&selfdicttv);
+  
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 2761,2770 ****
+      }
+      else if (flags & SOPT_BOOL)
+      {
+! 	PyObject	*r;
+! 	r = numval ? Py_True : Py_False;
+! 	Py_INCREF(r);
+! 	return r;
+      }
+      else if (flags & SOPT_NUM)
+  	return PyInt_FromLong(numval);
+--- 2761,2770 ----
+      }
+      else if (flags & SOPT_BOOL)
+      {
+! 	PyObject	*ret;
+! 	ret = numval ? Py_True : Py_False;
+! 	Py_INCREF(ret);
+! 	return ret;
+      }
+      else if (flags & SOPT_NUM)
+  	return PyInt_FromLong(numval);
+***************
+*** 2772,2780 ****
+      {
+  	if (stringval)
+  	{
+! 	    PyObject	*r = PyBytes_FromString((char *) stringval);
+  	    vim_free(stringval);
+! 	    return r;
+  	}
+  	else
+  	{
+--- 2772,2780 ----
+      {
+  	if (stringval)
+  	{
+! 	    PyObject	*ret = PyBytes_FromString((char *) stringval);
+  	    vim_free(stringval);
+! 	    return ret;
+  	}
+  	else
+  	{
+***************
+*** 2817,2823 ****
+      win_T	*save_curwin = NULL;
+      tabpage_T	*save_curtab = NULL;
+      buf_T	*save_curbuf = NULL;
+!     int		r = 0;
+  
+      VimTryStart();
+      switch (opt_type)
+--- 2817,2823 ----
+      win_T	*save_curwin = NULL;
+      tabpage_T	*save_curtab = NULL;
+      buf_T	*save_curbuf = NULL;
+!     int		set_ret = 0;
+  
+      VimTryStart();
+      switch (opt_type)
+***************
+*** 2831,2854 ****
+  		PyErr_SET_VIM("problem while switching windows");
+  		return -1;
+  	    }
+! 	    r = set_option_value_err(key, numval, stringval, opt_flags);
+! 	    restore_win(save_curwin, save_curtab, FALSE);
+! 	    if (r == FAIL)
+! 		return -1;
+  	    break;
+  	case SREQ_BUF:
+  	    switch_buffer(&save_curbuf, (buf_T *)from);
+! 	    r = set_option_value_err(key, numval, stringval, opt_flags);
+  	    restore_buffer(save_curbuf);
+- 	    if (r == FAIL)
+- 		return -1;
+  	    break;
+  	case SREQ_GLOBAL:
+! 	    r = set_option_value_err(key, numval, stringval, opt_flags);
+! 	    if (r == FAIL)
+! 		return -1;
+  	    break;
+      }
+      return VimTryEnd();
+  }
+  
+--- 2831,2850 ----
+  		PyErr_SET_VIM("problem while switching windows");
+  		return -1;
+  	    }
+! 	    set_ret = set_option_value_err(key, numval, stringval, opt_flags);
+! 	    restore_win(save_curwin, save_curtab, TRUE);
+  	    break;
+  	case SREQ_BUF:
+  	    switch_buffer(&save_curbuf, (buf_T *)from);
+! 	    set_ret = set_option_value_err(key, numval, stringval, opt_flags);
+  	    restore_buffer(save_curbuf);
+  	    break;
+  	case SREQ_GLOBAL:
+! 	    set_ret = set_option_value_err(key, numval, stringval, opt_flags);
+  	    break;
+      }
++     if (set_ret == FAIL)
++ 	return -1;
+      return VimTryEnd();
+  }
+  
+***************
+*** 2858,2864 ****
+      char_u	*key;
+      int		flags;
+      int		opt_flags;
+!     int		r = 0;
+      PyObject	*todecref;
+  
+      if (self->Check(self->from))
+--- 2854,2860 ----
+      char_u	*key;
+      int		flags;
+      int		opt_flags;
+!     int		ret = 0;
+      PyObject	*todecref;
+  
+      if (self->Check(self->from))
+***************
+*** 2916,2924 ****
+  	int	istrue = PyObject_IsTrue(valObject);
+  
+  	if (istrue == -1)
+! 	    r = -1;
+  	else
+! 	    r = set_option_value_for(key, istrue, NULL,
+  				    opt_flags, self->opt_type, self->from);
+      }
+      else if (flags & SOPT_NUM)
+--- 2912,2920 ----
+  	int	istrue = PyObject_IsTrue(valObject);
+  
+  	if (istrue == -1)
+! 	    ret = -1;
+  	else
+! 	    ret = set_option_value_for(key, istrue, NULL,
+  				    opt_flags, self->opt_type, self->from);
+      }
+      else if (flags & SOPT_NUM)
+***************
+*** 2931,2954 ****
+  	    return -1;
+  	}
+  
+! 	r = set_option_value_for(key, (int) val, NULL, opt_flags,
+  				self->opt_type, self->from);
+      }
+      else
+      {
+! 	char_u	*val;
+  	PyObject	*todecref;
+  
+  	if ((val = StringToChars(valObject, &todecref)))
+! 	    r = set_option_value_for(key, 0, val, opt_flags,
+  				    self->opt_type, self->from);
+  	else
+! 	    r = -1;
+      }
+  
+      Py_XDECREF(todecref);
+  
+!     return r;
+  }
+  
+  static PyMappingMethods OptionsAsMapping = {
+--- 2927,2950 ----
+  	    return -1;
+  	}
+  
+! 	ret = set_option_value_for(key, (int) val, NULL, opt_flags,
+  				self->opt_type, self->from);
+      }
+      else
+      {
+! 	char_u		*val;
+  	PyObject	*todecref;
+  
+  	if ((val = StringToChars(valObject, &todecref)))
+! 	    ret = set_option_value_for(key, 0, val, opt_flags,
+  				    self->opt_type, self->from);
+  	else
+! 	    ret = -1;
+      }
+  
+      Py_XDECREF(todecref);
+  
+!     return ret;
+  }
+  
+  static PyMappingMethods OptionsAsMapping = {
+***************
+*** 3027,3040 ****
+      static PyObject *
+  TabPageAttrValid(TabPageObject *self, char *name)
+  {
+!     PyObject *r;
+  
+      if (strcmp(name, "valid") != 0)
+  	return NULL;
+  
+!     r = ((self->tab == INVALID_TABPAGE_VALUE) ? Py_False : Py_True);
+!     Py_INCREF(r);
+!     return r;
+  }
+  
+      static PyObject *
+--- 3023,3036 ----
+      static PyObject *
+  TabPageAttrValid(TabPageObject *self, char *name)
+  {
+!     PyObject	*ret;
+  
+      if (strcmp(name, "valid") != 0)
+  	return NULL;
+  
+!     ret = ((self->tab == INVALID_TABPAGE_VALUE) ? Py_False : Py_True);
+!     Py_INCREF(ret);
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 3243,3256 ****
+      static PyObject *
+  WindowAttrValid(WindowObject *self, char *name)
+  {
+!     PyObject *r;
+  
+      if (strcmp(name, "valid") != 0)
+  	return NULL;
+  
+!     r = ((self->win == INVALID_WINDOW_VALUE) ? Py_False : Py_True);
+!     Py_INCREF(r);
+!     return r;
+  }
+  
+      static PyObject *
+--- 3239,3252 ----
+      static PyObject *
+  WindowAttrValid(WindowObject *self, char *name)
+  {
+!     PyObject	*ret;
+  
+      if (strcmp(name, "valid") != 0)
+  	return NULL;
+  
+!     ret = ((self->win == INVALID_WINDOW_VALUE) ? Py_False : Py_True);
+!     Py_INCREF(ret);
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 3300,3306 ****
+  }
+  
+      static int
+! WindowSetattr(WindowObject *self, char *name, PyObject *val)
+  {
+      if (CheckWindow(self))
+  	return -1;
+--- 3296,3302 ----
+  }
+  
+      static int
+! WindowSetattr(WindowObject *self, char *name, PyObject *valObject)
+  {
+      if (CheckWindow(self))
+  	return -1;
+***************
+*** 3315,3321 ****
+  	long lnum;
+  	long col;
+  
+! 	if (!PyArg_Parse(val, "(ll)", &lnum, &col))
+  	    return -1;
+  
+  	if (lnum <= 0 || lnum > self->win->w_buffer->b_ml.ml_line_count)
+--- 3311,3317 ----
+  	long lnum;
+  	long col;
+  
+! 	if (!PyArg_Parse(valObject, "(ll)", &lnum, &col))
+  	    return -1;
+  
+  	if (lnum <= 0 || lnum > self->win->w_buffer->b_ml.ml_line_count)
+***************
+*** 3344,3350 ****
+  	long	height;
+  	win_T	*savewin;
+  
+! 	if (NumberToLong(val, &height, NUMBER_INT))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+--- 3340,3346 ----
+  	long	height;
+  	win_T	*savewin;
+  
+! 	if (NumberToLong(valObject, &height, NUMBER_INT))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+***************
+*** 3367,3373 ****
+  	long	width;
+  	win_T	*savewin;
+  
+! 	if (NumberToLong(val, &width, NUMBER_INT))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+--- 3363,3369 ----
+  	long	width;
+  	win_T	*savewin;
+  
+! 	if (NumberToLong(valObject, &width, NUMBER_INT))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+***************
+*** 3584,3608 ****
+      static PyObject *
+  GetBufferLineList(buf_T *buf, PyInt lo, PyInt hi)
+  {
+!     PyInt i;
+!     PyInt n = hi - lo;
+!     PyObject *list = PyList_New(n);
+  
+      if (list == NULL)
+  	return NULL;
+  
+      for (i = 0; i < n; ++i)
+      {
+! 	PyObject *str = LineToString((char *)ml_get_buf(buf, (linenr_T)(lo+i), FALSE));
+  
+  	/* Error check - was the Python string creation OK? */
+! 	if (str == NULL)
+  	{
+  	    Py_DECREF(list);
+  	    return NULL;
+  	}
+  
+! 	PyList_SET_ITEM(list, i, str);
+      }
+  
+      /* The ownership of the Python list is passed to the caller (ie,
+--- 3580,3605 ----
+      static PyObject *
+  GetBufferLineList(buf_T *buf, PyInt lo, PyInt hi)
+  {
+!     PyInt	i;
+!     PyInt	n = hi - lo;
+!     PyObject	*list = PyList_New(n);
+  
+      if (list == NULL)
+  	return NULL;
+  
+      for (i = 0; i < n; ++i)
+      {
+! 	PyObject	*string = LineToString(
+! 		(char *)ml_get_buf(buf, (linenr_T)(lo+i), FALSE));
+  
+  	/* Error check - was the Python string creation OK? */
+! 	if (string == NULL)
+  	{
+  	    Py_DECREF(list);
+  	    return NULL;
+  	}
+  
+! 	PyList_SET_ITEM(list, i, string);
+      }
+  
+      /* The ownership of the Python list is passed to the caller (ie,
+***************
+*** 3662,3668 ****
+       */
+      if (line == Py_None || line == NULL)
+      {
+! 	buf_T *savebuf;
+  
+  	PyErr_Clear();
+  	switch_buffer(&savebuf, buf);
+--- 3659,3665 ----
+       */
+      if (line == Py_None || line == NULL)
+      {
+! 	buf_T	*savebuf;
+  
+  	PyErr_Clear();
+  	switch_buffer(&savebuf, buf);
+***************
+*** 3747,3753 ****
+   * is set to the change in the buffer length.
+   */
+      static int
+! SetBufferLineList(buf_T *buf, PyInt lo, PyInt hi, PyObject *list, PyInt *len_change)
+  {
+      /* First of all, we check the type of the supplied Python object.
+       * There are three cases:
+--- 3744,3755 ----
+   * is set to the change in the buffer length.
+   */
+      static int
+! SetBufferLineList(
+! 	buf_T *buf,
+! 	PyInt lo,
+! 	PyInt hi,
+! 	PyObject *list,
+! 	PyInt *len_change)
+  {
+      /* First of all, we check the type of the supplied Python object.
+       * There are three cases:
+***************
+*** 4124,4130 ****
+  }
+  
+      static PyInt
+! RBAsItem(BufferObject *self, PyInt n, PyObject *val, PyInt start, PyInt end, PyInt *new_end)
+  {
+      PyInt len_change;
+  
+--- 4126,4138 ----
+  }
+  
+      static PyInt
+! RBAsItem(
+! 	BufferObject *self,
+! 	PyInt n,
+! 	PyObject *valObject,
+! 	PyInt start,
+! 	PyInt end,
+! 	PyInt *new_end)
+  {
+      PyInt len_change;
+  
+***************
+*** 4143,4149 ****
+  	return -1;
+      }
+  
+!     if (SetBufferLine(self->buf, n+start, val, &len_change) == FAIL)
+  	return -1;
+  
+      if (new_end)
+--- 4151,4157 ----
+  	return -1;
+      }
+  
+!     if (SetBufferLine(self->buf, n+start, valObject, &len_change) == FAIL)
+  	return -1;
+  
+      if (new_end)
+***************
+*** 4153,4159 ****
+  }
+  
+      static PyInt
+! RBAsSlice(BufferObject *self, PyInt lo, PyInt hi, PyObject *val, PyInt start, PyInt end, PyInt *new_end)
+  {
+      PyInt size;
+      PyInt len_change;
+--- 4161,4174 ----
+  }
+  
+      static PyInt
+! RBAsSlice(
+! 	BufferObject *self,
+! 	PyInt lo,
+! 	PyInt hi,
+! 	PyObject *valObject,
+! 	PyInt start,
+! 	PyInt end,
+! 	PyInt *new_end)
+  {
+      PyInt size;
+      PyInt len_change;
+***************
+*** 4180,4186 ****
+  	hi = size;
+  
+      if (SetBufferLineList(self->buf, lo + start, hi + start,
+! 						    val, &len_change) == FAIL)
+  	return -1;
+  
+      if (new_end)
+--- 4195,4201 ----
+  	hi = size;
+  
+      if (SetBufferLineList(self->buf, lo + start, hi + start,
+! 						valObject, &len_change) == FAIL)
+  	return -1;
+  
+      if (new_end)
+***************
+*** 4191,4197 ****
+  
+  
+      static PyObject *
+! RBAppend(BufferObject *self, PyObject *args, PyInt start, PyInt end, PyInt *new_end)
+  {
+      PyObject *lines;
+      PyInt len_change;
+--- 4206,4217 ----
+  
+  
+      static PyObject *
+! RBAppend(
+! 	BufferObject *self,
+! 	PyObject *args,
+! 	PyInt start,
+! 	PyInt end,
+! 	PyInt *new_end)
+  {
+      PyObject *lines;
+      PyInt len_change;
+***************
+*** 4438,4451 ****
+      static PyObject *
+  BufferAttrValid(BufferObject *self, char *name)
+  {
+!     PyObject *r;
+  
+      if (strcmp(name, "valid") != 0)
+  	return NULL;
+  
+!     r = ((self->buf == INVALID_BUFFER_VALUE) ? Py_False : Py_True);
+!     Py_INCREF(r);
+!     return r;
+  }
+  
+      static PyObject *
+--- 4458,4471 ----
+      static PyObject *
+  BufferAttrValid(BufferObject *self, char *name)
+  {
+!     PyObject	*ret;
+  
+      if (strcmp(name, "valid") != 0)
+  	return NULL;
+  
+!     ret = ((self->buf == INVALID_BUFFER_VALUE) ? Py_False : Py_True);
+!     Py_INCREF(ret);
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 4475,4483 ****
+  
+      if (strcmp(name, "name") == 0)
+      {
+! 	char_u	*val;
+  	aco_save_T	aco;
+! 	int	r;
+  	PyObject	*todecref;
+  
+  	if (!(val = StringToChars(valObject, &todecref)))
+--- 4495,4503 ----
+  
+      if (strcmp(name, "name") == 0)
+      {
+! 	char_u		*val;
+  	aco_save_T	aco;
+! 	int		ren_ret;
+  	PyObject	*todecref;
+  
+  	if (!(val = StringToChars(valObject, &todecref)))
+***************
+*** 4486,4498 ****
+  	VimTryStart();
+  	/* Using aucmd_*: autocommands will be executed by rename_buffer */
+  	aucmd_prepbuf(&aco, self->buf);
+! 	r = rename_buffer(val);
+  	aucmd_restbuf(&aco);
+  	Py_XDECREF(todecref);
+  	if (VimTryEnd())
+  	    return -1;
+  
+! 	if (r == FAIL)
+  	{
+  	    PyErr_SET_VIM("failed to rename buffer");
+  	    return -1;
+--- 4506,4518 ----
+  	VimTryStart();
+  	/* Using aucmd_*: autocommands will be executed by rename_buffer */
+  	aucmd_prepbuf(&aco, self->buf);
+! 	ren_ret = rename_buffer(val);
+  	aucmd_restbuf(&aco);
+  	Py_XDECREF(todecref);
+  	if (VimTryEnd())
+  	    return -1;
+  
+! 	if (ren_ret == FAIL)
+  	{
+  	    PyErr_SET_VIM("failed to rename buffer");
+  	    return -1;
+***************
+*** 4677,4703 ****
+  BufMapIterNext(PyObject **buffer)
+  {
+      PyObject	*next;
+!     PyObject	*r;
+  
+      if (!*buffer)
+  	return NULL;
+  
+!     r = *buffer;
+  
+!     if (CheckBuffer((BufferObject *)(r)))
+      {
+  	*buffer = NULL;
+  	return NULL;
+      }
+  
+!     if (!((BufferObject *)(r))->buf->b_next)
+  	next = NULL;
+!     else if (!(next = BufferNew(((BufferObject *)(r))->buf->b_next)))
+  	return NULL;
+      *buffer = next;
+      /* Do not increment reference: we no longer hold it (decref), but whoever
+       * on other side will hold (incref). Decref+incref = nothing. */
+!     return r;
+  }
+  
+      static PyObject *
+--- 4697,4723 ----
+  BufMapIterNext(PyObject **buffer)
+  {
+      PyObject	*next;
+!     PyObject	*ret;
+  
+      if (!*buffer)
+  	return NULL;
+  
+!     ret = *buffer;
+  
+!     if (CheckBuffer((BufferObject *)(ret)))
+      {
+  	*buffer = NULL;
+  	return NULL;
+      }
+  
+!     if (!((BufferObject *)(ret))->buf->b_next)
+  	next = NULL;
+!     else if (!(next = BufferNew(((BufferObject *)(ret))->buf->b_next)))
+  	return NULL;
+      *buffer = next;
+      /* Do not increment reference: we no longer hold it (decref), but whoever
+       * on other side will hold (incref). Decref+incref = nothing. */
+!     return ret;
+  }
+  
+      static PyObject *
+***************
+*** 4755,4765 ****
+  }
+  
+      static int
+! CurrentSetattr(PyObject *self UNUSED, char *name, PyObject *value)
+  {
+      if (strcmp(name, "line") == 0)
+      {
+! 	if (SetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum, value, NULL) == FAIL)
+  	    return -1;
+  
+  	return 0;
+--- 4775,4786 ----
+  }
+  
+      static int
+! CurrentSetattr(PyObject *self UNUSED, char *name, PyObject *valObject)
+  {
+      if (strcmp(name, "line") == 0)
+      {
+! 	if (SetBufferLine(curbuf, (PyInt)curwin->w_cursor.lnum, valObject,
+! 			  NULL) == FAIL)
+  	    return -1;
+  
+  	return 0;
+***************
+*** 4768,4784 ****
+      {
+  	int count;
+  
+! 	if (value->ob_type != &BufferType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+  		    "expected vim.Buffer object, but got %s",
+! 		    Py_TYPE_NAME(value));
+  	    return -1;
+  	}
+  
+! 	if (CheckBuffer((BufferObject *)(value)))
+  	    return -1;
+! 	count = ((BufferObject *)(value))->buf->b_fnum;
+  
+  	VimTryStart();
+  	if (do_buffer(DOBUF_GOTO, DOBUF_FIRST, FORWARD, count, 0) == FAIL)
+--- 4789,4805 ----
+      {
+  	int count;
+  
+! 	if (valObject->ob_type != &BufferType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+  		    "expected vim.Buffer object, but got %s",
+! 		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+  
+! 	if (CheckBuffer((BufferObject *)(valObject)))
+  	    return -1;
+! 	count = ((BufferObject *)(valObject))->buf->b_fnum;
+  
+  	VimTryStart();
+  	if (do_buffer(DOBUF_GOTO, DOBUF_FIRST, FORWARD, count, 0) == FAIL)
+***************
+*** 4795,4811 ****
+      {
+  	int count;
+  
+! 	if (value->ob_type != &WindowType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+  		    "expected vim.Window object, but got %s",
+! 		    Py_TYPE_NAME(value));
+  	    return -1;
+  	}
+  
+! 	if (CheckWindow((WindowObject *)(value)))
+  	    return -1;
+! 	count = get_win_number(((WindowObject *)(value))->win, firstwin);
+  
+  	if (!count)
+  	{
+--- 4816,4832 ----
+      {
+  	int count;
+  
+! 	if (valObject->ob_type != &WindowType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+  		    "expected vim.Window object, but got %s",
+! 		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+  
+! 	if (CheckWindow((WindowObject *)(valObject)))
+  	    return -1;
+! 	count = get_win_number(((WindowObject *)(valObject))->win, firstwin);
+  
+  	if (!count)
+  	{
+***************
+*** 4815,4822 ****
+  	}
+  
+  	VimTryStart();
+! 	win_goto(((WindowObject *)(value))->win);
+! 	if (((WindowObject *)(value))->win != curwin)
+  	{
+  	    if (VimTryEnd())
+  		return -1;
+--- 4836,4843 ----
+  	}
+  
+  	VimTryStart();
+! 	win_goto(((WindowObject *)(valObject))->win);
+! 	if (((WindowObject *)(valObject))->win != curwin)
+  	{
+  	    if (VimTryEnd())
+  		return -1;
+***************
+*** 4829,4848 ****
+      }
+      else if (strcmp(name, "tabpage") == 0)
+      {
+! 	if (value->ob_type != &TabPageType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+  		    "expected vim.TabPage object, but got %s",
+! 		    Py_TYPE_NAME(value));
+  	    return -1;
+  	}
+  
+! 	if (CheckTabPage((TabPageObject *)(value)))
+  	    return -1;
+  
+  	VimTryStart();
+! 	goto_tabpage_tp(((TabPageObject *)(value))->tab, TRUE, TRUE);
+! 	if (((TabPageObject *)(value))->tab != curtab)
+  	{
+  	    if (VimTryEnd())
+  		return -1;
+--- 4850,4869 ----
+      }
+      else if (strcmp(name, "tabpage") == 0)
+      {
+! 	if (valObject->ob_type != &TabPageType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+  		    "expected vim.TabPage object, but got %s",
+! 		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+  
+! 	if (CheckTabPage((TabPageObject *)(valObject)))
+  	    return -1;
+  
+  	VimTryStart();
+! 	goto_tabpage_tp(((TabPageObject *)(valObject))->tab, TRUE, TRUE);
+! 	if (((TabPageObject *)(valObject))->tab != curtab)
+  	{
+  	    if (VimTryEnd())
+  		return -1;
+***************
+*** 4934,4940 ****
+  
+      for (lnum = RangeStart; lnum <= RangeEnd; ++lnum)
+      {
+! 	PyObject	*line, *linenr, *ret;
+  
+  #ifdef PY_CAN_RECURSE
+  	*pygilstate = PyGILState_Ensure();
+--- 4955,4963 ----
+  
+      for (lnum = RangeStart; lnum <= RangeEnd; ++lnum)
+      {
+! 	PyObject	*line;
+! 	PyObject	*linenr;
+! 	PyObject	*ret;
+  
+  #ifdef PY_CAN_RECURSE
+  	*pygilstate = PyGILState_Ensure();
+***************
+*** 4990,4999 ****
+  #endif
+  	)
+  {
+!     PyObject	*r;
+  
+!     r = PyRun_String((char *) cmd, Py_eval_input, globals, globals);
+!     if (r == NULL)
+      {
+  	if (PyErr_Occurred() && !msg_silent)
+  	    PyErr_PrintEx(0);
+--- 5013,5022 ----
+  #endif
+  	)
+  {
+!     PyObject	*run_ret;
+  
+!     run_ret = PyRun_String((char *) cmd, Py_eval_input, globals, globals);
+!     if (run_ret == NULL)
+      {
+  	if (PyErr_Occurred() && !msg_silent)
+  	    PyErr_PrintEx(0);
+***************
+*** 5001,5009 ****
+      }
+      else
+      {
+! 	if (ConvertFromPyObject(r, rettv) == -1)
+  	    EMSG(_("E859: Failed to convert returned python object to vim value"));
+! 	Py_DECREF(r);
+      }
+      PyErr_Clear();
+  }
+--- 5024,5032 ----
+      }
+      else
+      {
+! 	if (ConvertFromPyObject(run_ret, rettv) == -1)
+  	    EMSG(_("E859: Failed to convert returned python object to vim value"));
+! 	Py_DECREF(run_ret);
+      }
+      PyErr_Clear();
+  }
+***************
+*** 5306,5312 ****
+  ConvertFromPyMapping(PyObject *obj, typval_T *tv)
+  {
+      PyObject	*lookup_dict;
+!     int		r;
+  
+      if (!(lookup_dict = PyDict_New()))
+  	return -1;
+--- 5329,5335 ----
+  ConvertFromPyMapping(PyObject *obj, typval_T *tv)
+  {
+      PyObject	*lookup_dict;
+!     int		ret;
+  
+      if (!(lookup_dict = PyDict_New()))
+  	return -1;
+***************
+*** 5316,5349 ****
+  	tv->v_type = VAR_DICT;
+  	tv->vval.v_dict = (((DictionaryObject *)(obj))->dict);
+  	++tv->vval.v_dict->dv_refcount;
+! 	r = 0;
+      }
+      else if (PyDict_Check(obj))
+! 	r = convert_dl(obj, tv, pydict_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+! 	r = convert_dl(obj, tv, pymap_to_tv, lookup_dict);
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+  		"unable to convert %s to vim dictionary",
+  		Py_TYPE_NAME(obj));
+! 	r = -1;
+      }
+      Py_DECREF(lookup_dict);
+!     return r;
+  }
+  
+      static int
+  ConvertFromPyObject(PyObject *obj, typval_T *tv)
+  {
+      PyObject	*lookup_dict;
+!     int		r;
+  
+      if (!(lookup_dict = PyDict_New()))
+  	return -1;
+!     r = _ConvertFromPyObject(obj, tv, lookup_dict);
+      Py_DECREF(lookup_dict);
+!     return r;
+  }
+  
+      static int
+--- 5339,5372 ----
+  	tv->v_type = VAR_DICT;
+  	tv->vval.v_dict = (((DictionaryObject *)(obj))->dict);
+  	++tv->vval.v_dict->dv_refcount;
+! 	ret = 0;
+      }
+      else if (PyDict_Check(obj))
+! 	ret = convert_dl(obj, tv, pydict_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+! 	ret = convert_dl(obj, tv, pymap_to_tv, lookup_dict);
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+  		"unable to convert %s to vim dictionary",
+  		Py_TYPE_NAME(obj));
+! 	ret = -1;
+      }
+      Py_DECREF(lookup_dict);
+!     return ret;
+  }
+  
+      static int
+  ConvertFromPyObject(PyObject *obj, typval_T *tv)
+  {
+      PyObject	*lookup_dict;
+!     int		ret;
+  
+      if (!(lookup_dict = PyDict_New()))
+  	return -1;
+!     ret = _ConvertFromPyObject(obj, tv, lookup_dict);
+      Py_DECREF(lookup_dict);
+!     return ret;
+  }
+  
+      static int
+***************
+*** 5371,5384 ****
+      }
+      else if (PyBytes_Check(obj))
+      {
+! 	char_u	*result;
+  
+! 	if (PyBytes_AsStringAndSize(obj, (char **) &result, NULL) == -1)
+  	    return -1;
+! 	if (result == NULL)
+  	    return -1;
+  
+! 	if (set_string_copy(result, tv) == -1)
+  	    return -1;
+  
+  	tv->v_type = VAR_STRING;
+--- 5394,5407 ----
+      }
+      else if (PyBytes_Check(obj))
+      {
+! 	char_u	*str;
+  
+! 	if (PyBytes_AsStringAndSize(obj, (char **) &str, NULL) == -1)
+  	    return -1;
+! 	if (str == NULL)
+  	    return -1;
+  
+! 	if (set_string_copy(str, tv) == -1)
+  	    return -1;
+  
+  	tv->v_type = VAR_STRING;
+***************
+*** 5386,5403 ****
+      else if (PyUnicode_Check(obj))
+      {
+  	PyObject	*bytes;
+! 	char_u	*result;
+  
+  	bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL);
+  	if (bytes == NULL)
+  	    return -1;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, (char **) &result, NULL) == -1)
+  	    return -1;
+! 	if (result == NULL)
+  	    return -1;
+  
+! 	if (set_string_copy(result, tv))
+  	{
+  	    Py_XDECREF(bytes);
+  	    return -1;
+--- 5409,5426 ----
+      else if (PyUnicode_Check(obj))
+      {
+  	PyObject	*bytes;
+! 	char_u	*str;
+  
+  	bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL);
+  	if (bytes == NULL)
+  	    return -1;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, (char **) &str, NULL) == -1)
+  	    return -1;
+! 	if (str == NULL)
+  	    return -1;
+  
+! 	if (set_string_copy(str, tv))
+  	{
+  	    Py_XDECREF(bytes);
+  	    return -1;
+***************
+*** 5852,5858 ****
+  
+  static struct numeric_constant {
+      char	*name;
+!     int		value;
+  } numeric_constants[] = {
+      {"VAR_LOCKED",	VAR_LOCKED},
+      {"VAR_FIXED",	VAR_FIXED},
+--- 5875,5881 ----
+  
+  static struct numeric_constant {
+      char	*name;
+!     int		val;
+  } numeric_constants[] = {
+      {"VAR_LOCKED",	VAR_LOCKED},
+      {"VAR_FIXED",	VAR_FIXED},
+***************
+*** 5862,5868 ****
+  
+  static struct object_constant {
+      char	*name;
+!     PyObject	*value;
+  } object_constants[] = {
+      {"buffers",  (PyObject *)(void *)&TheBufferMap},
+      {"windows",  (PyObject *)(void *)&TheWindowList},
+--- 5885,5891 ----
+  
+  static struct object_constant {
+      char	*name;
+!     PyObject	*valObject;
+  } object_constants[] = {
+      {"buffers",  (PyObject *)(void *)&TheBufferMap},
+      {"windows",  (PyObject *)(void *)&TheWindowList},
+***************
+*** 5889,5898 ****
+  
+  #define ADD_CHECKED_OBJECT(m, name, obj) \
+      { \
+! 	PyObject	*value = obj; \
+! 	if (!value) \
+  	    return -1; \
+! 	ADD_OBJECT(m, name, value); \
+      }
+  
+      static int
+--- 5912,5921 ----
+  
+  #define ADD_CHECKED_OBJECT(m, name, obj) \
+      { \
+! 	PyObject	*valObject = obj; \
+! 	if (!valObject) \
+  	    return -1; \
+! 	ADD_OBJECT(m, name, valObject); \
+      }
+  
+      static int
+***************
+*** 5907,5923 ****
+  					   / sizeof(struct numeric_constant));
+  	    ++i)
+  	ADD_CHECKED_OBJECT(m, numeric_constants[i].name,
+! 		PyInt_FromLong(numeric_constants[i].value));
+  
+      for (i = 0; i < (int)(sizeof(object_constants)
+  					    / sizeof(struct object_constant));
+  	    ++i)
+      {
+! 	PyObject	*value;
+  
+! 	value = object_constants[i].value;
+! 	Py_INCREF(value);
+! 	ADD_OBJECT(m, object_constants[i].name, value);
+      }
+  
+      if (!(VimError = PyErr_NewException("vim.error", NULL, NULL)))
+--- 5930,5946 ----
+  					   / sizeof(struct numeric_constant));
+  	    ++i)
+  	ADD_CHECKED_OBJECT(m, numeric_constants[i].name,
+! 		PyInt_FromLong(numeric_constants[i].val));
+  
+      for (i = 0; i < (int)(sizeof(object_constants)
+  					    / sizeof(struct object_constant));
+  	    ++i)
+      {
+! 	PyObject	*valObject;
+  
+! 	valObject = object_constants[i].valObject;
+! 	Py_INCREF(valObject);
+! 	ADD_OBJECT(m, object_constants[i].name, valObject);
+      }
+  
+      if (!(VimError = PyErr_NewException("vim.error", NULL, NULL)))
+*** ../vim-7.3.1231/src/version.c	2013-06-23 14:16:53.000000000 +0200
+--- src/version.c	2013-06-23 14:27:07.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1232,
+  /**/
+
+-- 
+Ten bugs in the hand is better than one as yet undetected.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

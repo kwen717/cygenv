@@ -1,0 +1,145 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.938
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.938
+Problem:    Python: not easy to get to window number.
+Solution:   Add vim.window.number. (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/if_py_both.h, src/proto/window.pro,
+	    src/window.c
+
+
+*** ../vim-7.3.937/runtime/doc/if_pyth.txt	2013-05-06 03:52:44.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-12 18:55:41.000000000 +0200
+***************
+*** 396,401 ****
+--- 396,405 ----
+  				|python-options|. If option is |global-local| 
+  				and local value is missing getting it will 
+  				return None.
++ 	number (read-only)	Window number.  The first window has number 1.
++ 				This is zero in case it cannot be determined
++ 				(e.g. when the window object belongs to other
++ 				tab page).
+  The height attribute is writable only if the screen is split horizontally.
+  The width attribute is writable only if the screen is split vertically.
+  
+*** ../vim-7.3.937/src/if_py_both.h	2013-05-12 18:44:44.000000000 +0200
+--- src/if_py_both.h	2013-05-12 18:48:07.000000000 +0200
+***************
+*** 1848,1856 ****
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_WIN, this->win, (checkfun) CheckWindow,
+  			(PyObject *) this);
+      else if (strcmp(name,"__members__") == 0)
+  	return Py_BuildValue("[ssssss]", "buffer", "cursor", "height", "vars",
+! 		"options");
+      else
+  	return NULL;
+  }
+--- 1848,1858 ----
+      else if (strcmp(name, "options") == 0)
+  	return OptionsNew(SREQ_WIN, this->win, (checkfun) CheckWindow,
+  			(PyObject *) this);
++     else if (strcmp(name, "number") == 0)
++ 	return PyLong_FromLong((long) get_win_number(this->win));
+      else if (strcmp(name,"__members__") == 0)
+  	return Py_BuildValue("[ssssss]", "buffer", "cursor", "height", "vars",
+! 		"options", "number");
+      else
+  	return NULL;
+  }
+***************
+*** 1974,1990 ****
+      }
+      else
+      {
+! 	int	i = 0;
+! 	win_T	*w;
+  
+! 	for (w = firstwin; w != NULL && w != this->win; w = W_NEXT(w))
+! 	    ++i;
+! 
+! 	if (w == NULL)
+  	    vim_snprintf(repr, 100, _("<window object (unknown) at %p>"),
+  								      (self));
+  	else
+! 	    vim_snprintf(repr, 100, _("<window %d>"), i);
+  
+  	return PyString_FromString(repr);
+      }
+--- 1976,1988 ----
+      }
+      else
+      {
+! 	int	w = get_win_number(this->win);
+  
+! 	if (w == 0)
+  	    vim_snprintf(repr, 100, _("<window object (unknown) at %p>"),
+  								      (self));
+  	else
+! 	    vim_snprintf(repr, 100, _("<window %d>"), w - 1);
+  
+  	return PyString_FromString(repr);
+      }
+*** ../vim-7.3.937/src/proto/window.pro	2013-05-06 04:50:26.000000000 +0200
+--- src/proto/window.pro	2013-05-12 18:48:07.000000000 +0200
+***************
+*** 74,77 ****
+--- 74,78 ----
+  int match_delete __ARGS((win_T *wp, int id, int perr));
+  void clear_matches __ARGS((win_T *wp));
+  matchitem_T *get_match __ARGS((win_T *wp, int id));
++ int get_win_number __ARGS((win_T *wp));
+  /* vim: set ft=c : */
+*** ../vim-7.3.937/src/window.c	2013-05-06 04:50:26.000000000 +0200
+--- src/window.c	2013-05-12 18:48:07.000000000 +0200
+***************
+*** 6731,6733 ****
+--- 6731,6750 ----
+      return cur;
+  }
+  #endif
++ 
++ #if defined(FEAT_PYTHON) || defined(FEAT_PYTHON3) || defined(PROTO)
++     int
++ get_win_number(win_T *wp)
++ {
++     int		i = 1;
++     win_T	*w;
++ 
++     for (w = firstwin; w != NULL && w != wp; w = W_NEXT(w))
++ 	++i;
++ 
++     if (w == NULL)
++ 	return 0;
++     else
++ 	return i;
++ }
++ #endif
+*** ../vim-7.3.937/src/version.c	2013-05-12 18:44:44.000000000 +0200
+--- src/version.c	2013-05-12 18:52:29.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     938,
+  /**/
+
+-- 
+ARTHUR:  I did say sorry about the `old woman,' but from the behind you
+         looked--
+DENNIS:  What I object to is you automatically treat me like an inferior!
+ARTHUR:  Well, I AM king...
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

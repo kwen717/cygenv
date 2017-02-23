@@ -1,0 +1,97 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1170
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1170
+Problem:    Patch 7.3.1058 breaks backwards compatibility, not possible to use
+	    a function reference as a string. (lilydjwg)
+Solution:   Instead of translating the function name only translate "s:".
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.1169/src/eval.c	2013-06-11 18:40:06.000000000 +0200
+--- src/eval.c	2013-06-12 13:31:26.000000000 +0200
+***************
+*** 10962,10986 ****
+      typval_T	*rettv;
+  {
+      char_u	*s;
+-     char_u	*name = NULL;
+  
+      s = get_tv_string(&argvars[0]);
+      if (s == NULL || *s == NUL || VIM_ISDIGIT(*s))
+  	EMSG2(_(e_invarg2), s);
+!     /* Don't check an autoload name for existence here, but still expand it 
+!      * checking for validity */
+!     else if ((name = get_expanded_name(s, vim_strchr(s, AUTOLOAD_CHAR) == NULL))
+! 									== NULL)
+  	EMSG2(_("E700: Unknown function: %s"), s);
+      else
+      {
+! 	if (name == NULL)
+! 	    /* Autoload function, need to copy string */
+! 	    rettv->vval.v_string = vim_strsave(s);
+  	else
+! 	    /* Function found by get_expanded_name, string allocated by 
+! 	     * trans_function_name: no need to copy */
+! 	    rettv->vval.v_string = name;
+  	rettv->v_type = VAR_FUNC;
+      }
+  }
+--- 10962,10994 ----
+      typval_T	*rettv;
+  {
+      char_u	*s;
+  
+      s = get_tv_string(&argvars[0]);
+      if (s == NULL || *s == NUL || VIM_ISDIGIT(*s))
+  	EMSG2(_(e_invarg2), s);
+!     /* Don't check an autoload name for existence here. */
+!     else if (vim_strchr(s, AUTOLOAD_CHAR) == NULL && !function_exists(s))
+  	EMSG2(_("E700: Unknown function: %s"), s);
+      else
+      {
+! 	if (STRNCMP(s, "s:", 2) == 0)
+! 	{
+! 	    char	sid_buf[25];
+! 
+! 	    /* Expand s: into <SNR>nr_, so that the function can also be
+! 	     * called from another script. Using trans_function_name() would
+! 	     * also work, but some plugins depend on the name being printable
+! 	     * text. */
+! 	    sprintf(sid_buf, "<SNR>%ld_", (long)current_SID);
+! 	    rettv->vval.v_string = alloc(STRLEN(sid_buf) + STRLEN(s + 2) + 1);
+! 	    if (rettv->vval.v_string != NULL)
+! 	    {
+! 		STRCPY(rettv->vval.v_string, sid_buf);
+! 		STRCAT(rettv->vval.v_string, s + 2);
+! 	    }
+! 	}
+  	else
+! 	    rettv->vval.v_string = vim_strsave(s);
+  	rettv->v_type = VAR_FUNC;
+      }
+  }
+*** ../vim-7.3.1169/src/version.c	2013-06-11 22:44:03.000000000 +0200
+--- src/version.c	2013-06-12 13:36:11.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1170,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+165. You have a web page burned into your glasses
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

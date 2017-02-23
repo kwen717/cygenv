@@ -1,0 +1,254 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1034
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1034
+Problem:    New regexp code using strange multi-byte code.
+Solution:   Use the normal code to advance and backup pointers.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1033/src/regexp_nfa.c	2013-05-28 22:03:13.000000000 +0200
+--- src/regexp_nfa.c	2013-05-28 22:25:28.000000000 +0200
+***************
+*** 188,195 ****
+  static int nfa_regcomp_start __ARGS((char_u*expr, int re_flags));
+  static int nfa_recognize_char_class __ARGS((char_u *start, char_u *end, int extra_newl));
+  static int nfa_emit_equi_class __ARGS((int c, int neg));
+- static void nfa_inc __ARGS((char_u **p));
+- static void nfa_dec __ARGS((char_u **p));
+  static int nfa_regatom __ARGS((void));
+  static int nfa_regpiece __ARGS((void));
+  static int nfa_regconcat __ARGS((void));
+--- 188,193 ----
+***************
+*** 554,601 ****
+   */
+  
+  /*
+-  * Increments the pointer "p" by one (multi-byte) character.
+-  */
+-     static void
+- nfa_inc(p)
+-     char_u **p;
+- {
+- #ifdef FEAT_MBYTE
+-     if (has_mbyte)
+- 	mb_ptr2char_adv(p);
+-     else
+- #endif
+- 	*p = *p + 1;
+- }
+- 
+- /*
+-  * Decrements the pointer "p" by one (multi-byte) character.
+-  */
+-     static void
+- nfa_dec(p)
+-     char_u **p;
+- {
+- #ifdef FEAT_MBYTE
+-     char_u *p2, *oldp;
+- 
+-     if (has_mbyte)
+-     {
+- 	oldp = *p;
+- 	/* Try to find the multibyte char that advances to the current
+- 	 * position. */
+- 	do
+- 	{
+- 	    *p = *p - 1;
+- 	    p2 = *p;
+- 	    mb_ptr2char_adv(&p2);
+- 	} while (p2 != oldp);
+-     }
+- #else
+-     *p = *p - 1;
+- #endif
+- }
+- 
+- /*
+   * Parse the lowest level.
+   *
+   * An atom can be one of a long list of items.  Many atoms match one character
+--- 552,557 ----
+***************
+*** 963,969 ****
+  			EMIT(NFA_OR);
+  		    }
+  		    regparse = endp;
+! 		    nfa_inc(&regparse);
+  		    return OK;
+  		}
+  		/*
+--- 919,925 ----
+  			EMIT(NFA_OR);
+  		    }
+  		    regparse = endp;
+! 		    mb_ptr_adv(regparse);
+  		    return OK;
+  		}
+  		/*
+***************
+*** 978,984 ****
+  		{
+  		    negated = TRUE;
+  		    glue = NFA_CONCAT;
+! 		    nfa_inc(&regparse);
+  		}
+  		if (*regparse == '-')
+  		{
+--- 934,940 ----
+  		{
+  		    negated = TRUE;
+  		    glue = NFA_CONCAT;
+! 		    mb_ptr_adv(regparse);
+  		}
+  		if (*regparse == '-')
+  		{
+***************
+*** 986,992 ****
+  		    EMIT(startc);
+  		    TRY_NEG();
+  		    EMIT_GLUE();
+! 		    nfa_inc(&regparse);
+  		}
+  		/* Emit the OR branches for each character in the [] */
+  		emit_range = FALSE;
+--- 942,948 ----
+  		    EMIT(startc);
+  		    TRY_NEG();
+  		    EMIT_GLUE();
+! 		    mb_ptr_adv(regparse);
+  		}
+  		/* Emit the OR branches for each character in the [] */
+  		emit_range = FALSE;
+***************
+*** 1090,1096 ****
+  		    {
+  			emit_range = TRUE;
+  			startc = oldstartc;
+! 			nfa_inc(&regparse);
+  			continue;	    /* reading the end of the range */
+  		    }
+  
+--- 1046,1052 ----
+  		    {
+  			emit_range = TRUE;
+  			startc = oldstartc;
+! 			mb_ptr_adv(regparse);
+  			continue;	    /* reading the end of the range */
+  		    }
+  
+***************
+*** 1110,1116 ****
+  			    )
+  			)
+  		    {
+! 			nfa_inc(&regparse);
+  
+  			if (*regparse == 'n')
+  			    startc = reg_string ? NL : NFA_NEWL;
+--- 1066,1072 ----
+  			    )
+  			)
+  		    {
+! 			mb_ptr_adv(regparse);
+  
+  			if (*regparse == 'n')
+  			    startc = reg_string ? NL : NFA_NEWL;
+***************
+*** 1125,1131 ****
+  				/* TODO(RE) This needs more testing */
+  				startc = coll_get_char();
+  				got_coll_char = TRUE;
+! 				nfa_dec(&regparse);
+  			    }
+  			    else
+  			    {
+--- 1081,1087 ----
+  				/* TODO(RE) This needs more testing */
+  				startc = coll_get_char();
+  				got_coll_char = TRUE;
+! 				mb_ptr_back(old_regparse, regparse);
+  			    }
+  			    else
+  			    {
+***************
+*** 1210,1226 ****
+  			EMIT_GLUE();
+  		    }
+  
+! 		    nfa_inc(&regparse);
+  		} /* while (p < endp) */
+  
+! 		nfa_dec(&regparse);
+  		if (*regparse == '-')	    /* if last, '-' is just a char */
+  		{
+  		    EMIT('-');
+  		    TRY_NEG();
+  		    EMIT_GLUE();
+  		}
+! 		nfa_inc(&regparse);
+  
+  		if (extra == ADD_NL)	    /* \_[] also matches \n */
+  		{
+--- 1166,1182 ----
+  			EMIT_GLUE();
+  		    }
+  
+! 		    mb_ptr_adv(regparse);
+  		} /* while (p < endp) */
+  
+! 		mb_ptr_back(old_regparse, regparse);
+  		if (*regparse == '-')	    /* if last, '-' is just a char */
+  		{
+  		    EMIT('-');
+  		    TRY_NEG();
+  		    EMIT_GLUE();
+  		}
+! 		mb_ptr_adv(regparse);
+  
+  		if (extra == ADD_NL)	    /* \_[] also matches \n */
+  		{
+***************
+*** 1231,1237 ****
+  
+  		/* skip the trailing ] */
+  		regparse = endp;
+! 		nfa_inc(&regparse);
+  		if (negated == TRUE)
+  		{
+  		    /* Mark end of negated char range */
+--- 1187,1193 ----
+  
+  		/* skip the trailing ] */
+  		regparse = endp;
+! 		mb_ptr_adv(regparse);
+  		if (negated == TRUE)
+  		{
+  		    /* Mark end of negated char range */
+*** ../vim-7.3.1033/src/version.c	2013-05-28 22:03:13.000000000 +0200
+--- src/version.c	2013-05-28 22:29:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1034,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+7. You finally do take that vacation, but only after buying a cellular modem
+   and a laptop.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

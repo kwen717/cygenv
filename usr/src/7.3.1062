@@ -1,0 +1,642 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1062
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1062
+Problem:    Python: List is not standard.
+Solution:   Python patch 21: Add standard methods and fields. (ZyX)
+Files:	    src/if_py_both.h, src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1061/src/if_py_both.h	2013-05-30 13:01:14.000000000 +0200
+--- src/if_py_both.h	2013-05-30 13:03:54.000000000 +0200
+***************
+*** 1530,1541 ****
+      pylinkedlist_T	ref;
+  } ListObject;
+  
+      static PyObject *
+! ListNew(list_T *list)
+  {
+      ListObject	*self;
+  
+!     self = PyObject_NEW(ListObject, &ListType);
+      if (self == NULL)
+  	return NULL;
+      self->list = list;
+--- 1530,1543 ----
+      pylinkedlist_T	ref;
+  } ListObject;
+  
++ #define NEW_LIST(list) ListNew(&ListType, list)
++ 
+      static PyObject *
+! ListNew(PyTypeObject *subtype, list_T *list)
+  {
+      ListObject	*self;
+  
+!     self = (ListObject *) subtype->tp_alloc(subtype, 0);
+      if (self == NULL)
+  	return NULL;
+      self->list = list;
+***************
+*** 1546,1589 ****
+      return (PyObject *)(self);
+  }
+  
+!     static void
+! ListDestructor(ListObject *self)
+  {
+!     pyll_remove(&self->ref, &lastlist);
+!     list_unref(self->list);
+  
+!     DESTRUCTOR_FINISH(self);
+  }
+  
+      static int
+  list_py_concat(list_T *l, PyObject *obj, PyObject *lookup_dict)
+  {
+!     Py_ssize_t	i;
+!     Py_ssize_t	lsize = PySequence_Size(obj);
+!     PyObject	*litem;
+      listitem_T	*li;
+  
+!     for(i=0; i<lsize; i++)
+      {
+! 	li = listitem_alloc();
+! 	if (li == NULL)
+  	{
+  	    PyErr_NoMemory();
+  	    return -1;
+  	}
+  	li->li_tv.v_lock = 0;
+  
+! 	litem = PySequence_GetItem(obj, i);
+! 	if (litem == NULL)
+! 	    return -1;
+! 	if (_ConvertFromPyObject(litem, &li->li_tv, lookup_dict) == -1)
+  	    return -1;
+  
+  	list_append(l, li);
+      }
+      return 0;
+  }
+  
+      static PyInt
+  ListLength(ListObject *self)
+  {
+--- 1548,1663 ----
+      return (PyObject *)(self);
+  }
+  
+!     static list_T *
+! py_list_alloc()
+  {
+!     list_T	*r;
+  
+!     if (!(r = list_alloc()))
+!     {
+! 	PyErr_NoMemory();
+! 	return NULL;
+!     }
+!     ++r->lv_refcount;
+! 
+!     return r;
+  }
+  
+      static int
+  list_py_concat(list_T *l, PyObject *obj, PyObject *lookup_dict)
+  {
+!     PyObject	*iterator;
+!     PyObject	*item;
+      listitem_T	*li;
+  
+!     if (!(iterator = PyObject_GetIter(obj)))
+! 	return -1;
+! 
+!     while ((item = PyIter_Next(iterator)))
+      {
+! 	if (!(li = listitem_alloc()))
+  	{
+  	    PyErr_NoMemory();
++ 	    Py_DECREF(item);
++ 	    Py_DECREF(iterator);
+  	    return -1;
+  	}
+  	li->li_tv.v_lock = 0;
++ 	li->li_tv.v_type = VAR_UNKNOWN;
+  
+! 	if (_ConvertFromPyObject(item, &li->li_tv, lookup_dict) == -1)
+! 	{
+! 	    Py_DECREF(item);
+! 	    Py_DECREF(iterator);
+! 	    listitem_free(li);
+  	    return -1;
++ 	}
++ 
++ 	Py_DECREF(item);
+  
+  	list_append(l, li);
+      }
++ 
++     Py_DECREF(iterator);
++ 
++     /* Iterator may have finished due to an exception */
++     if (PyErr_Occurred())
++ 	return -1;
++ 
+      return 0;
+  }
+  
++     static PyObject *
++ ListConstructor(PyTypeObject *subtype, PyObject *args, PyObject *kwargs)
++ {
++     list_T	*list;
++     PyObject	*obj = NULL;
++ 
++     if (kwargs)
++     {
++ 	PyErr_SetString(PyExc_TypeError,
++ 		_("list constructor does not accept keyword arguments"));
++ 	return NULL;
++     }
++ 
++     if (!PyArg_ParseTuple(args, "|O", &obj))
++ 	return NULL;
++ 
++     if (!(list = py_list_alloc()))
++ 	return NULL;
++ 
++     if (obj)
++     {
++ 	PyObject	*lookup_dict;
++ 
++ 	if (!(lookup_dict = PyDict_New()))
++ 	{
++ 	    list_unref(list);
++ 	    return NULL;
++ 	}
++ 
++ 	if (list_py_concat(list, obj, lookup_dict) == -1)
++ 	{
++ 	    Py_DECREF(lookup_dict);
++ 	    list_unref(list);
++ 	    return NULL;
++ 	}
++ 
++ 	Py_DECREF(lookup_dict);
++     }
++ 
++     return ListNew(subtype, list);
++ }
++ 
++     static void
++ ListDestructor(ListObject *self)
++ {
++     pyll_remove(&self->ref, &lastlist);
++     list_unref(self->list);
++ 
++     DESTRUCTOR_FINISH(self);
++ }
++ 
+      static PyInt
+  ListLength(ListObject *self)
+  {
+***************
+*** 1747,1753 ****
+  	if (list_append_tv(l, &tv) == FAIL)
+  	{
+  	    clear_tv(&tv);
+! 	    PyErr_SetVim(_("Failed to add item to list"));
+  	    return -1;
+  	}
+      }
+--- 1821,1827 ----
+  	if (list_append_tv(l, &tv) == FAIL)
+  	{
+  	    clear_tv(&tv);
+! 	    PyErr_SetVim(_("failed to add item to list"));
+  	    return -1;
+  	}
+      }
+***************
+*** 1765,1777 ****
+  ListAssSlice(ListObject *self, Py_ssize_t first, Py_ssize_t last, PyObject *obj)
+  {
+      PyInt	size = ListLength(self);
+!     Py_ssize_t	i;
+!     Py_ssize_t	lsize;
+!     PyObject	*litem;
+      listitem_T	*li;
+      listitem_T	*next;
+      typval_T	v;
+      list_T	*l = self->list;
+  
+      if (l->lv_lock)
+      {
+--- 1839,1851 ----
+  ListAssSlice(ListObject *self, Py_ssize_t first, Py_ssize_t last, PyObject *obj)
+  {
+      PyInt	size = ListLength(self);
+!     PyObject	*iterator;
+!     PyObject	*item;
+      listitem_T	*li;
+      listitem_T	*next;
+      typval_T	v;
+      list_T	*l = self->list;
++     PyInt	i;
+  
+      if (l->lv_lock)
+      {
+***************
+*** 1806,1826 ****
+      if (obj == NULL)
+  	return 0;
+  
+!     if (!PyList_Check(obj))
+!     {
+! 	PyErr_SetString(PyExc_TypeError, _("can only assign lists to slice"));
+  	return -1;
+-     }
+- 
+-     lsize = PyList_Size(obj);
+  
+!     for(i=0; i<lsize; i++)
+      {
+! 	litem = PyList_GetItem(obj, i);
+! 	if (litem == NULL)
+! 	    return -1;
+! 	if (ConvertFromPyObject(litem, &v) == -1)
+  	    return -1;
+  	if (list_insert_tv(l, &v, li) == FAIL)
+  	{
+  	    clear_tv(&v);
+--- 1880,1897 ----
+      if (obj == NULL)
+  	return 0;
+  
+!     if (!(iterator = PyObject_GetIter(obj)))
+  	return -1;
+  
+!     while ((item = PyIter_Next(iterator)))
+      {
+! 	if (ConvertFromPyObject(item, &v) == -1)
+! 	{
+! 	    Py_DECREF(iterator);
+! 	    Py_DECREF(item);
+  	    return -1;
++ 	}
++ 	Py_DECREF(item);
+  	if (list_insert_tv(l, &v, li) == FAIL)
+  	{
+  	    clear_tv(&v);
+***************
+*** 1829,1834 ****
+--- 1900,1906 ----
+  	}
+  	clear_tv(&v);
+      }
++     Py_DECREF(iterator);
+      return 0;
+  }
+  
+***************
+*** 1844,1855 ****
+  	return NULL;
+      }
+  
+-     if (!PySequence_Check(obj))
+-     {
+- 	PyErr_SetString(PyExc_TypeError, _("can only concatenate with lists"));
+- 	return NULL;
+-     }
+- 
+      if (!(lookup_dict = PyDict_New()))
+  	return NULL;
+  
+--- 1916,1921 ----
+***************
+*** 1881,1887 ****
+      if (val == NULL)
+      {
+  	PyErr_SetString(PyExc_AttributeError,
+! 		_("cannot delete vim.dictionary attributes"));
+  	return -1;
+      }
+  
+--- 1947,1953 ----
+      if (val == NULL)
+      {
+  	PyErr_SetString(PyExc_AttributeError,
+! 		_("cannot delete vim.List attributes"));
+  	return -1;
+      }
+  
+***************
+*** 4591,4611 ****
+      return 0;
+  }
+  
+-     static list_T *
+- py_list_alloc()
+- {
+-     list_T	*r;
+- 
+-     if (!(r = list_alloc()))
+-     {
+- 	PyErr_NoMemory();
+- 	return NULL;
+-     }
+-     ++r->lv_refcount;
+- 
+-     return r;
+- }
+- 
+      static int
+  pyseq_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+--- 4657,4662 ----
+***************
+*** 4627,4691 ****
+      return 0;
+  }
+  
+-     static int
+- pyiter_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+- {
+-     PyObject	*iterator;
+-     PyObject	*item;
+-     list_T	*l;
+-     listitem_T	*li;
+- 
+-     if (!(l = py_list_alloc()))
+- 	return -1;
+- 
+-     tv->vval.v_list = l;
+-     tv->v_type = VAR_LIST;
+- 
+-     if (!(iterator = PyObject_GetIter(obj)))
+-     {
+- 	list_unref(l);
+- 	return -1;
+-     }
+- 
+-     while ((item = PyIter_Next(iterator)))
+-     {
+- 	li = listitem_alloc();
+- 	if (li == NULL)
+- 	{
+- 	    list_unref(l);
+- 	    Py_DECREF(iterator);
+- 	    PyErr_NoMemory();
+- 	    return -1;
+- 	}
+- 	li->li_tv.v_lock = 0;
+- 
+- 	if (_ConvertFromPyObject(item, &li->li_tv, lookup_dict) == -1)
+- 	{
+- 	    list_unref(l);
+- 	    listitem_free(li);
+- 	    Py_DECREF(item);
+- 	    Py_DECREF(iterator);
+- 	    return -1;
+- 	}
+- 
+- 	list_append(l, li);
+- 
+- 	Py_DECREF(item);
+-     }
+- 
+-     Py_DECREF(iterator);
+- 
+-     /* Iterator may have finished due to an exception */
+-     if (PyErr_Occurred())
+-     {
+- 	list_unref(l);
+- 	return -1;
+-     }
+- 
+-     --l->lv_refcount;
+-     return 0;
+- }
+- 
+  typedef int (*pytotvfunc)(PyObject *, typval_T *, PyObject *);
+  
+      static int
+--- 4678,4683 ----
+***************
+*** 4866,4874 ****
+  	tv->vval.v_float = (float_T) PyFloat_AsDouble(obj);
+      }
+  #endif
+!     else if (PyIter_Check(obj))
+! 	return convert_dl(obj, tv, pyiter_to_tv, lookup_dict);
+!     else if (PySequence_Check(obj))
+  	return convert_dl(obj, tv, pyseq_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+  	return convert_dl(obj, tv, pymap_to_tv, lookup_dict);
+--- 4858,4864 ----
+  	tv->vval.v_float = (float_T) PyFloat_AsDouble(obj);
+      }
+  #endif
+!     else if (PyIter_Check(obj) || PySequence_Check(obj))
+  	return convert_dl(obj, tv, pyseq_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+  	return convert_dl(obj, tv, pymap_to_tv, lookup_dict);
+***************
+*** 4901,4907 ****
+  	    return PyFloat_FromDouble((double) tv->vval.v_float);
+  #endif
+  	case VAR_LIST:
+! 	    return ListNew(tv->vval.v_list);
+  	case VAR_DICT:
+  	    return NEW_DICTIONARY(tv->vval.v_dict);
+  	case VAR_FUNC:
+--- 4891,4897 ----
+  	    return PyFloat_FromDouble((double) tv->vval.v_float);
+  #endif
+  	case VAR_LIST:
+! 	    return NEW_LIST(tv->vval.v_list);
+  	case VAR_DICT:
+  	    return NEW_DICTIONARY(tv->vval.v_dict);
+  	case VAR_FUNC:
+***************
+*** 5096,5105 ****
+      ListType.tp_basicsize = sizeof(ListObject);
+      ListType.tp_as_sequence = &ListAsSeq;
+      ListType.tp_as_mapping = &ListAsMapping;
+!     ListType.tp_flags = Py_TPFLAGS_DEFAULT;
+      ListType.tp_doc = "list pushing modifications to vim structure";
+      ListType.tp_methods = ListMethods;
+      ListType.tp_iter = (getiterfunc)ListIter;
+  #if PY_MAJOR_VERSION >= 3
+      ListType.tp_getattro = (getattrofunc)ListGetattro;
+      ListType.tp_setattro = (setattrofunc)ListSetattro;
+--- 5086,5097 ----
+      ListType.tp_basicsize = sizeof(ListObject);
+      ListType.tp_as_sequence = &ListAsSeq;
+      ListType.tp_as_mapping = &ListAsMapping;
+!     ListType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE;
+      ListType.tp_doc = "list pushing modifications to vim structure";
+      ListType.tp_methods = ListMethods;
+      ListType.tp_iter = (getiterfunc)ListIter;
++     ListType.tp_new = (newfunc)ListConstructor;
++     ListType.tp_alloc = (allocfunc)PyType_GenericAlloc;
+  #if PY_MAJOR_VERSION >= 3
+      ListType.tp_getattro = (getattrofunc)ListGetattro;
+      ListType.tp_setattro = (setattrofunc)ListSetattro;
+*** ../vim-7.3.1061/src/testdir/test86.in	2013-05-30 13:01:14.000000000 +0200
+--- src/testdir/test86.in	2013-05-30 13:03:54.000000000 +0200
+***************
+*** 735,740 ****
+--- 735,742 ----
+  :$put =string(pyeval('vim.Dictionary({})'))
+  :$put =string(pyeval('vim.Dictionary(a=1)'))
+  :$put =string(pyeval('vim.Dictionary(((''a'', 1),))'))
++ :$put =string(pyeval('vim.List()'))
++ :$put =string(pyeval('vim.List(iter(''abc''))'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+***************
+*** 752,759 ****
+--- 754,771 ----
+          super(DupDict, self).__setitem__('dup_' + key, value)
+  dd = DupDict()
+  dd['a'] = 'b'
++ 
++ class DupList(vim.List):
++     def __getitem__(self, idx):
++         return [super(DupList, self).__getitem__(idx)] * 2
++ 
++ dl = DupList()
++ dl2 = DupList(iter('abc'))
++ dl.extend(dl2[0])
+  EOF
+  :$put =string(sort(keys(pyeval('dd'))))
++ :$put =string(pyeval('dl'))
++ :$put =string(pyeval('dl2'))
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1061/src/testdir/test86.ok	2013-05-30 13:01:14.000000000 +0200
+--- src/testdir/test86.ok	2013-05-30 13:03:54.000000000 +0200
+***************
+*** 412,417 ****
+--- 412,419 ----
+  {}
+  {'a': 1}
+  {'a': 1}
++ []
++ ['a', 'b', 'c']
+  '
+  abcdef
+  line  :
+***************
+*** 420,425 ****
+--- 422,429 ----
+  line  :
+  abc'
+  ['a', 'dup_a']
++ ['a', 'a']
++ ['a', 'b', 'c']
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1061/src/testdir/test87.in	2013-05-30 13:01:14.000000000 +0200
+--- src/testdir/test87.in	2013-05-30 13:03:54.000000000 +0200
+***************
+*** 692,701 ****
+  del o
+  EOF
+  :"
+! :" Test vim.Dictionary.__new__
+  :$put =string(py3eval('vim.Dictionary({})'))
+  :$put =string(py3eval('vim.Dictionary(a=1)'))
+  :$put =string(py3eval('vim.Dictionary(((''a'', 1),))'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+--- 692,703 ----
+  del o
+  EOF
+  :"
+! :" Test vim.*.__new__
+  :$put =string(py3eval('vim.Dictionary({})'))
+  :$put =string(py3eval('vim.Dictionary(a=1)'))
+  :$put =string(py3eval('vim.Dictionary(((''a'', 1),))'))
++ :$put =string(py3eval('vim.List()'))
++ :$put =string(py3eval('vim.List(iter(''abc''))'))
+  :"
+  :" Test stdout/stderr
+  :redir => messages
+***************
+*** 713,720 ****
+--- 715,732 ----
+          super(DupDict, self).__setitem__('dup_' + key, value)
+  dd = DupDict()
+  dd['a'] = 'b'
++ 
++ class DupList(vim.List):
++     def __getitem__(self, idx):
++         return [super(DupList, self).__getitem__(idx)] * 2
++ 
++ dl = DupList()
++ dl2 = DupList(iter('abc'))
++ dl.extend(dl2[0])
+  EOF
+  :$put =string(sort(keys(py3eval('dd'))))
++ :$put =string(py3eval('dl'))
++ :$put =string(py3eval('dl2'))
+  :"
+  :" Test exceptions
+  :fun Exe(e)
+*** ../vim-7.3.1061/src/testdir/test87.ok	2013-05-30 13:01:14.000000000 +0200
+--- src/testdir/test87.ok	2013-05-30 13:03:54.000000000 +0200
+***************
+*** 401,406 ****
+--- 401,408 ----
+  {}
+  {'a': 1}
+  {'a': 1}
++ []
++ ['a', 'b', 'c']
+  '
+  abcdef
+  line  :
+***************
+*** 409,414 ****
+--- 411,418 ----
+  line  :
+  abc'
+  ['a', 'dup_a']
++ ['a', 'a']
++ ['a', 'b', 'c']
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1061/src/version.c	2013-05-30 13:01:14.000000000 +0200
+--- src/version.c	2013-05-30 13:02:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1062,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+5. Put decaf in the coffee maker for 3 weeks. Once everyone has gotten
+   over their caffeine addictions, switch to espresso.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

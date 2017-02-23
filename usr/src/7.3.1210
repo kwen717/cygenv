@@ -1,0 +1,69 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1210
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1210 (after 7.3.1182)
+Problem:    'backupcopy' default on MS-Windows is wrong when 'encoding' equals
+	    the current codepage.
+Solution:   Change the #else block. (Ken Takata)
+Files:	    src/os_win32.c
+
+
+*** ../vim-7.3.1209/src/os_win32.c	2013-06-12 22:41:30.000000000 +0200
+--- src/os_win32.c	2013-06-16 16:29:34.000000000 +0200
+***************
+*** 2789,2802 ****
+  	    reparseTag = findDataW.dwReserved0;
+  	}
+      }
+! #else
+!     hFind = FindFirstFile(fname, &findDataA);
+!     if (hFind != INVALID_HANDLE_VALUE)
+      {
+! 	fileFlags = findDataA.dwFileAttributes;
+! 	reparseTag = findDataA.dwReserved0;
+      }
+- #endif
+  
+      if (hFind != INVALID_HANDLE_VALUE)
+  	FindClose(hFind);
+--- 2789,2804 ----
+  	    reparseTag = findDataW.dwReserved0;
+  	}
+      }
+!     else
+! #endif
+      {
+! 	hFind = FindFirstFile(fname, &findDataA);
+! 	if (hFind != INVALID_HANDLE_VALUE)
+! 	{
+! 	    fileFlags = findDataA.dwFileAttributes;
+! 	    reparseTag = findDataA.dwReserved0;
+! 	}
+      }
+  
+      if (hFind != INVALID_HANDLE_VALUE)
+  	FindClose(hFind);
+*** ../vim-7.3.1209/src/version.c	2013-06-16 16:13:59.000000000 +0200
+--- src/version.c	2013-06-16 16:31:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1210,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+233. You start dreaming about web pages...in html.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

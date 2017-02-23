@@ -1,0 +1,51 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.920
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.920
+Problem:    Compiler warning for size_t to int.
+Solution:   Add a type cast. (Mike Williams)
+Files:	    src/misc1.c
+
+
+*** ../vim-7.3.919/src/misc1.c	2013-04-24 17:34:15.000000000 +0200
+--- src/misc1.c	2013-04-29 22:33:49.000000000 +0200
+***************
+*** 10139,10145 ****
+  # if defined(MSWIN) || defined(MSDOS)
+  	/* Avoid the path ending in a backslash, it fails when a comma is
+  	 * appended. */
+! 	len = STRLEN(buf);
+  	if (buf[len - 1] == '\\')
+  	    buf[len - 1] = '/';
+  # endif
+--- 10139,10145 ----
+  # if defined(MSWIN) || defined(MSDOS)
+  	/* Avoid the path ending in a backslash, it fails when a comma is
+  	 * appended. */
+! 	len = (int)STRLEN(buf);
+  	if (buf[len - 1] == '\\')
+  	    buf[len - 1] = '/';
+  # endif
+*** ../vim-7.3.919/src/version.c	2013-05-04 03:37:03.000000000 +0200
+--- src/version.c	2013-05-04 03:39:44.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     920,
+  /**/
+
+-- 
+Women are probably the main cause of free software starvation.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

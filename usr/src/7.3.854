@@ -1,0 +1,49 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.854
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.854
+Problem:    After using backspace in insert mode completion, CTRL-N and CTRL-P
+	    do not highlight the right entry. (Olivier Teuliere)
+Solution:   Set the current item to the shown item after using backspace.
+Files:	    src/edit.c
+
+
+*** ../vim-7.3.853/src/edit.c	2013-02-26 13:30:28.000000000 +0100
+--- src/edit.c	2013-03-07 19:31:46.000000000 +0100
+***************
+*** 3380,3385 ****
+--- 3380,3388 ----
+      if (compl_leader != NULL)
+      {
+  	ins_compl_new_leader();
++ 	if (compl_shown_match != NULL)
++ 	    /* Make sure current match is not a hidden item. */
++ 	    compl_curr_match = compl_shown_match;
+  	return NUL;
+      }
+      return K_BS;
+*** ../vim-7.3.853/src/version.c	2013-03-07 18:50:52.000000000 +0100
+--- src/version.c	2013-03-07 19:34:32.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     854,
+  /**/
+
+-- 
+If you put 7 of the most talented OSS developers in a room for a week
+and asked them to fix a bug in a spreadsheet program, in 1 week
+you'd have 2 new mail readers and a text-based web browser.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,185 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.950
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.950
+Problem:    Python: Stack trace printer can't handle messages.
+Solution:   Make KeyErrors use PyErr_SetObject. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c
+
+
+*** ../vim-7.3.949/src/if_py_both.h	2013-05-15 15:12:25.000000000 +0200
+--- src/if_py_both.h	2013-05-15 15:16:23.000000000 +0200
+***************
+*** 734,740 ****
+  
+      if (di == NULL)
+      {
+! 	PyErr_SetString(PyExc_KeyError, _("no such key in dictionary"));
+  	return NULL;
+      }
+  
+--- 734,740 ----
+  
+      if (di == NULL)
+      {
+! 	PyErr_SetObject(PyExc_KeyError, keyObject);
+  	return NULL;
+      }
+  
+***************
+*** 767,773 ****
+  	if (di == NULL)
+  	{
+  	    DICTKEY_UNREF
+! 	    PyErr_SetString(PyExc_IndexError, _("no such key in dictionary"));
+  	    return -1;
+  	}
+  	hi = hash_find(&d->dv_hashtab, di->di_key);
+--- 767,773 ----
+  	if (di == NULL)
+  	{
+  	    DICTKEY_UNREF
+! 	    PyErr_SetObject(PyExc_KeyError, keyObject);
+  	    return -1;
+  	}
+  	hi = hash_find(&d->dv_hashtab, di->di_key);
+***************
+*** 1353,1359 ****
+  
+      if (flags == 0)
+      {
+! 	PyErr_SetString(PyExc_KeyError, "Option does not exist in given scope");
+  	return NULL;
+      }
+  
+--- 1353,1359 ----
+  
+      if (flags == 0)
+      {
+! 	PyErr_SetObject(PyExc_KeyError, keyObject);
+  	return NULL;
+      }
+  
+***************
+*** 1447,1453 ****
+  
+      if (flags == 0)
+      {
+! 	PyErr_SetString(PyExc_KeyError, "Option does not exist in given scope");
+  	return -1;
+      }
+  
+--- 1447,1453 ----
+  
+      if (flags == 0)
+      {
+! 	PyErr_SetObject(PyExc_KeyError, keyObject);
+  	return -1;
+      }
+  
+***************
+*** 3145,3151 ****
+  	return BufferNew(b);
+      else
+      {
+! 	PyErr_SetString(PyExc_KeyError, _("no such buffer"));
+  	return NULL;
+      }
+  }
+--- 3145,3151 ----
+  	return BufferNew(b);
+      else
+      {
+! 	PyErr_SetObject(PyExc_KeyError, keyObject);
+  	return NULL;
+      }
+  }
+*** ../vim-7.3.949/src/if_python3.c	2013-05-15 15:12:25.000000000 +0200
+--- src/if_python3.c	2013-05-15 15:16:23.000000000 +0200
+***************
+*** 128,133 ****
+--- 128,134 ----
+  # define PyErr_Occurred py3_PyErr_Occurred
+  # define PyErr_SetNone py3_PyErr_SetNone
+  # define PyErr_SetString py3_PyErr_SetString
++ # define PyErr_SetObject py3_PyErr_SetObject
+  # define PyEval_InitThreads py3_PyEval_InitThreads
+  # define PyEval_RestoreThread py3_PyEval_RestoreThread
+  # define PyEval_SaveThread py3_PyEval_SaveThread
+***************
+*** 250,255 ****
+--- 251,257 ----
+  static PyObject* (*py3_PyErr_NoMemory)(void);
+  static void (*py3_Py_Finalize)(void);
+  static void (*py3_PyErr_SetString)(PyObject *, const char *);
++ static void (*py3_PyErr_SetObject)(PyObject *, PyObject *);
+  static int (*py3_PyRun_SimpleString)(char *);
+  static PyObject* (*py3_PyRun_String)(char *, int, PyObject *, PyObject *);
+  static PyObject* (*py3_PyList_GetItem)(PyObject *, Py_ssize_t);
+***************
+*** 379,384 ****
+--- 381,387 ----
+      {"PyErr_NoMemory", (PYTHON_PROC*)&py3_PyErr_NoMemory},
+      {"Py_Finalize", (PYTHON_PROC*)&py3_Py_Finalize},
+      {"PyErr_SetString", (PYTHON_PROC*)&py3_PyErr_SetString},
++     {"PyErr_SetObject", (PYTHON_PROC*)&py3_PyErr_SetObject},
+      {"PyRun_SimpleString", (PYTHON_PROC*)&py3_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&py3_PyRun_String},
+      {"PyList_GetItem", (PYTHON_PROC*)&py3_PyList_GetItem},
+*** ../vim-7.3.949/src/if_python.c	2013-05-15 15:12:25.000000000 +0200
+--- src/if_python.c	2013-05-15 15:16:23.000000000 +0200
+***************
+*** 155,160 ****
+--- 155,161 ----
+  # define PyErr_Occurred dll_PyErr_Occurred
+  # define PyErr_SetNone dll_PyErr_SetNone
+  # define PyErr_SetString dll_PyErr_SetString
++ # define PyErr_SetObject dll_PyErr_SetObject
+  # define PyEval_InitThreads dll_PyEval_InitThreads
+  # define PyEval_RestoreThread dll_PyEval_RestoreThread
+  # define PyEval_SaveThread dll_PyEval_SaveThread
+***************
+*** 260,265 ****
+--- 261,267 ----
+  static PyObject*(*dll_PyErr_Occurred)(void);
+  static void(*dll_PyErr_SetNone)(PyObject *);
+  static void(*dll_PyErr_SetString)(PyObject *, const char *);
++ static void(*dll_PyErr_SetObject)(PyObject *, PyObject *);
+  static void(*dll_PyEval_InitThreads)(void);
+  static void(*dll_PyEval_RestoreThread)(PyThreadState *);
+  static PyThreadState*(*dll_PyEval_SaveThread)(void);
+***************
+*** 393,398 ****
+--- 395,401 ----
+      {"PyErr_Occurred", (PYTHON_PROC*)&dll_PyErr_Occurred},
+      {"PyErr_SetNone", (PYTHON_PROC*)&dll_PyErr_SetNone},
+      {"PyErr_SetString", (PYTHON_PROC*)&dll_PyErr_SetString},
++     {"PyErr_SetObject", (PYTHON_PROC*)&dll_PyErr_SetObject},
+      {"PyEval_InitThreads", (PYTHON_PROC*)&dll_PyEval_InitThreads},
+      {"PyEval_RestoreThread", (PYTHON_PROC*)&dll_PyEval_RestoreThread},
+      {"PyEval_SaveThread", (PYTHON_PROC*)&dll_PyEval_SaveThread},
+*** ../vim-7.3.949/src/version.c	2013-05-15 15:12:25.000000000 +0200
+--- src/version.c	2013-05-15 15:17:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     950,
+  /**/
+
+-- 
+-rwxr-xr-x  1 root          24 Oct 29  1929 /bin/ed
+-rwxr-xr-t  4 root      131720 Jan  1  1970 /usr/ucb/vi
+-rwxr-xr-x  1 root  5.89824e37 Oct 22  1990 /usr/bin/emacs
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

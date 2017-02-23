@@ -1,0 +1,209 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1130
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1130 (after 7.3.1129)
+Problem:    Can't build with anything but huge features.
+Solution:   Check for FEAT_PROFILE. (Yasuhiro Matsumoto)
+Files:	    src/ex_docmd.c, src/structs.h, src/syntax.c
+
+
+*** ../vim-7.3.1129/src/ex_docmd.c	2013-06-06 14:01:35.000000000 +0200
+--- src/ex_docmd.c	2013-06-06 14:49:26.000000000 +0200
+***************
+*** 242,248 ****
+  # define ex_syntax		ex_ni
+  # define ex_ownsyntax		ex_ni
+  #endif
+! #if !defined(FEAT_SYN_HL) || !defined(FEAT_RELTIME)
+  # define ex_syntime		ex_ni
+  #endif
+  #ifndef FEAT_SPELL
+--- 242,248 ----
+  # define ex_syntax		ex_ni
+  # define ex_ownsyntax		ex_ni
+  #endif
+! #if !defined(FEAT_SYN_HL) || !defined(FEAT_PROFILE)
+  # define ex_syntime		ex_ni
+  #endif
+  #ifndef FEAT_SPELL
+*** ../vim-7.3.1129/src/structs.h	2013-06-06 14:01:35.000000000 +0200
+--- src/structs.h	2013-06-06 14:49:26.000000000 +0200
+***************
+*** 1206,1212 ****
+  typedef struct qf_info_S qf_info_T;
+  #endif
+  
+! #ifdef FEAT_RELTIME
+  /*
+   * Used for :syntime: timing of executing a syntax pattern.
+   */
+--- 1206,1212 ----
+  typedef struct qf_info_S qf_info_T;
+  #endif
+  
+! #ifdef FEAT_PROFILE
+  /*
+   * Used for :syntime: timing of executing a syntax pattern.
+   */
+***************
+*** 1242,1248 ****
+      long	b_syn_sync_linebreaks;	/* offset for multi-line pattern */
+      char_u	*b_syn_linecont_pat;	/* line continuation pattern */
+      regprog_T	*b_syn_linecont_prog;	/* line continuation program */
+! #ifdef FEAT_RELTIME
+      syn_time_T  b_syn_linecont_time;
+  #endif
+      int		b_syn_linecont_ic;	/* ignore-case flag for above */
+--- 1242,1248 ----
+      long	b_syn_sync_linebreaks;	/* offset for multi-line pattern */
+      char_u	*b_syn_linecont_pat;	/* line continuation pattern */
+      regprog_T	*b_syn_linecont_prog;	/* line continuation program */
+! #ifdef FEAT_PROFILE
+      syn_time_T  b_syn_linecont_time;
+  #endif
+      int		b_syn_linecont_ic;	/* ignore-case flag for above */
+*** ../vim-7.3.1129/src/syntax.c	2013-06-06 14:01:35.000000000 +0200
+--- src/syntax.c	2013-06-06 14:49:26.000000000 +0200
+***************
+*** 153,159 ****
+      short	 sp_syn_match_id;	/* highlight group ID of pattern */
+      char_u	*sp_pattern;		/* regexp to match, pattern */
+      regprog_T	*sp_prog;		/* regexp to match, program */
+! #ifdef FEAT_RELTIME
+      syn_time_T	 sp_time;
+  #endif
+      int		 sp_ic;			/* ignore-case flag for sp_prog */
+--- 153,159 ----
+      short	 sp_syn_match_id;	/* highlight group ID of pattern */
+      char_u	*sp_pattern;		/* regexp to match, pattern */
+      regprog_T	*sp_prog;		/* regexp to match, program */
+! #ifdef FEAT_PROFILE
+      syn_time_T	 sp_time;
+  #endif
+      int		 sp_ic;			/* ignore-case flag for sp_prog */
+***************
+*** 400,406 ****
+  static int in_id_list __ARGS((stateitem_T *item, short *cont_list, struct sp_syn *ssp, int contained));
+  static int push_current_state __ARGS((int idx));
+  static void pop_current_state __ARGS((void));
+! #ifdef FEAT_RELTIME
+  static void syn_clear_time __ARGS((syn_time_T *tt));
+  static void syntime_clear __ARGS((void));
+  #ifdef __BORLANDC__
+--- 400,406 ----
+  static int in_id_list __ARGS((stateitem_T *item, short *cont_list, struct sp_syn *ssp, int contained));
+  static int push_current_state __ARGS((int idx));
+  static void pop_current_state __ARGS((void));
+! #ifdef FEAT_PROFILE
+  static void syn_clear_time __ARGS((syn_time_T *tt));
+  static void syntime_clear __ARGS((void));
+  #ifdef __BORLANDC__
+***************
+*** 3261,3267 ****
+      syn_time_T  *st;
+  {
+      int r;
+! #ifdef FEAT_RELTIME
+      proftime_T	pt;
+  
+      if (syn_time_on)
+--- 3261,3267 ----
+      syn_time_T  *st;
+  {
+      int r;
+! #ifdef FEAT_PROFILE
+      proftime_T	pt;
+  
+      if (syn_time_on)
+***************
+*** 3271,3277 ****
+      rmp->rmm_maxcol = syn_buf->b_p_smc;
+      r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, NULL);
+  
+! #ifdef FEAT_RELTIME
+      if (syn_time_on)
+      {
+  	profile_end(&pt);
+--- 3271,3277 ----
+      rmp->rmm_maxcol = syn_buf->b_p_smc;
+      r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, NULL);
+  
+! #ifdef FEAT_PROFILE
+      if (syn_time_on)
+      {
+  	profile_end(&pt);
+***************
+*** 5658,5664 ****
+      if (ci->sp_prog == NULL)
+  	return NULL;
+      ci->sp_ic = curwin->w_s->b_syn_ic;
+! #ifdef FEAT_RELTIME
+      syn_clear_time(&ci->sp_time);
+  #endif
+  
+--- 5658,5664 ----
+      if (ci->sp_prog == NULL)
+  	return NULL;
+      ci->sp_ic = curwin->w_s->b_syn_ic;
+! #ifdef FEAT_PROFILE
+      syn_clear_time(&ci->sp_time);
+  #endif
+  
+***************
+*** 5837,5843 ****
+  		curwin->w_s->b_syn_linecont_prog =
+  		       vim_regcomp(curwin->w_s->b_syn_linecont_pat, RE_MAGIC);
+  		p_cpo = cpo_save;
+! #ifdef FEAT_RELTIME
+  		syn_clear_time(&curwin->w_s->b_syn_linecont_time);
+  #endif
+  
+--- 5837,5843 ----
+  		curwin->w_s->b_syn_linecont_prog =
+  		       vim_regcomp(curwin->w_s->b_syn_linecont_pat, RE_MAGIC);
+  		p_cpo = cpo_save;
+! #ifdef FEAT_PROFILE
+  		syn_clear_time(&curwin->w_s->b_syn_linecont_time);
+  #endif
+  
+***************
+*** 6526,6532 ****
+  }
+  #endif
+  
+! #ifdef FEAT_RELTIME
+  /*
+   * ":syntime".
+   */
+--- 6526,6532 ----
+  }
+  #endif
+  
+! #ifdef FEAT_PROFILE
+  /*
+   * ":syntime".
+   */
+*** ../vim-7.3.1129/src/version.c	2013-06-06 14:01:36.000000000 +0200
+--- src/version.c	2013-06-06 14:54:31.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1130,
+  /**/
+
+-- 
+From "know your smileys":
+ @:-()	Elvis Presley
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

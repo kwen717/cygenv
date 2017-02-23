@@ -1,0 +1,331 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1095
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1095
+Problem:    Compiler warnings for shadowed variables. (Christian Brabandt)
+Solution:   Rename new_state() to alloc_state().  Remove unnecessary
+	    declaration.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1094/src/regexp_nfa.c	2013-06-02 16:34:14.000000000 +0200
+--- src/regexp_nfa.c	2013-06-02 16:38:44.000000000 +0200
+***************
+*** 247,253 ****
+  
+  static int nstate;	/* Number of states in the NFA. Also used when
+  			 * executing. */
+! static int istate;	/* Index in the state vector, used in new_state() */
+  
+  /* If not NULL match must end at this position */
+  static save_se_T *nfa_endp = NULL;
+--- 247,253 ----
+  
+  static int nstate;	/* Number of states in the NFA. Also used when
+  			 * executing. */
+! static int istate;	/* Index in the state vector, used in alloc_state() */
+  
+  /* If not NULL match must end at this position */
+  static save_se_T *nfa_endp = NULL;
+***************
+*** 268,274 ****
+  static void nfa_dump __ARGS((nfa_regprog_T *prog));
+  #endif
+  static int *re2post __ARGS((void));
+! static nfa_state_T *new_state __ARGS((int c, nfa_state_T *out, nfa_state_T *out1));
+  static nfa_state_T *post2nfa __ARGS((int *postfix, int *end, int nfa_calc_size));
+  static int check_char_class __ARGS((int class, int c));
+  static void st_error __ARGS((int *postfix, int *end, int *p));
+--- 268,274 ----
+  static void nfa_dump __ARGS((nfa_regprog_T *prog));
+  #endif
+  static int *re2post __ARGS((void));
+! static nfa_state_T *alloc_state __ARGS((int c, nfa_state_T *out, nfa_state_T *out1));
+  static nfa_state_T *post2nfa __ARGS((int *postfix, int *end, int nfa_calc_size));
+  static int check_char_class __ARGS((int class, int c));
+  static void st_error __ARGS((int *postfix, int *end, int *p));
+***************
+*** 2134,2140 ****
+   * Allocate and initialize nfa_state_T.
+   */
+      static nfa_state_T *
+! new_state(c, out, out1)
+      int		c;
+      nfa_state_T	*out;
+      nfa_state_T	*out1;
+--- 2134,2140 ----
+   * Allocate and initialize nfa_state_T.
+   */
+      static nfa_state_T *
+! alloc_state(c, out, out1)
+      int		c;
+      nfa_state_T	*out;
+      nfa_state_T	*out1;
+***************
+*** 2431,2437 ****
+  	    }
+  	    e2 = POP();
+  	    e1 = POP();
+! 	    s = new_state(NFA_SPLIT, e1.start, e2.start);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, append(e1.out, e2.out)));
+--- 2431,2437 ----
+  	    }
+  	    e2 = POP();
+  	    e1 = POP();
+! 	    s = alloc_state(NFA_SPLIT, e1.start, e2.start);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, append(e1.out, e2.out)));
+***************
+*** 2445,2451 ****
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = new_state(NFA_SPLIT, e.start, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    patch(e.out, s);
+--- 2445,2451 ----
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = alloc_state(NFA_SPLIT, e.start, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    patch(e.out, s);
+***************
+*** 2460,2466 ****
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = new_state(NFA_SPLIT, NULL, e.start);
+  	    if (s == NULL)
+  		goto theend;
+  	    patch(e.out, s);
+--- 2460,2466 ----
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = alloc_state(NFA_SPLIT, NULL, e.start);
+  	    if (s == NULL)
+  		goto theend;
+  	    patch(e.out, s);
+***************
+*** 2475,2481 ****
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = new_state(NFA_SPLIT, e.start, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, append(e.out, list1(&s->out1))));
+--- 2475,2481 ----
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = alloc_state(NFA_SPLIT, e.start, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, append(e.out, list1(&s->out1))));
+***************
+*** 2489,2495 ****
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = new_state(NFA_SPLIT, NULL, e.start);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, append(e.out, list1(&s->out))));
+--- 2489,2495 ----
+  		break;
+  	    }
+  	    e = POP();
+! 	    s = alloc_state(NFA_SPLIT, NULL, e.start);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, append(e.out, list1(&s->out))));
+***************
+*** 2503,2509 ****
+  		nstate++;
+  		break;
+  	    }
+! 	    s = new_state(NFA_SKIP_CHAR, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, list1(&s->out)));
+--- 2503,2509 ----
+  		nstate++;
+  		break;
+  	    }
+! 	    s = alloc_state(NFA_SKIP_CHAR, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, list1(&s->out)));
+***************
+*** 2526,2537 ****
+  		break;
+  	    }
+  	    e = POP();
+! 	    s1 = new_state(NFA_END_INVISIBLE, NULL, NULL);
+  	    if (s1 == NULL)
+  		goto theend;
+  	    patch(e.out, s1);
+  
+! 	    s = new_state(NFA_START_INVISIBLE, e.start, s1);
+  	    if (s == NULL)
+  		goto theend;
+  	    if (*p == NFA_PREV_ATOM_NO_WIDTH_NEG
+--- 2526,2537 ----
+  		break;
+  	    }
+  	    e = POP();
+! 	    s1 = alloc_state(NFA_END_INVISIBLE, NULL, NULL);
+  	    if (s1 == NULL)
+  		goto theend;
+  	    patch(e.out, s1);
+  
+! 	    s = alloc_state(NFA_START_INVISIBLE, e.start, s1);
+  	    if (s == NULL)
+  		goto theend;
+  	    if (*p == NFA_PREV_ATOM_NO_WIDTH_NEG
+***************
+*** 2622,2631 ****
+  	     * empty groups of parenthesis, and empty mbyte chars */
+  	    if (stackp == stack)
+  	    {
+! 		s = new_state(mopen, NULL, NULL);
+  		if (s == NULL)
+  		    goto theend;
+! 		s1 = new_state(mclose, NULL, NULL);
+  		if (s1 == NULL)
+  		    goto theend;
+  		patch(list1(&s->out), s1);
+--- 2622,2631 ----
+  	     * empty groups of parenthesis, and empty mbyte chars */
+  	    if (stackp == stack)
+  	    {
+! 		s = alloc_state(mopen, NULL, NULL);
+  		if (s == NULL)
+  		    goto theend;
+! 		s1 = alloc_state(mclose, NULL, NULL);
+  		if (s1 == NULL)
+  		    goto theend;
+  		patch(list1(&s->out), s1);
+***************
+*** 2636,2646 ****
+  	    /* At least one node was emitted before NFA_MOPEN, so
+  	     * at least one node will be between NFA_MOPEN and NFA_MCLOSE */
+  	    e = POP();
+! 	    s = new_state(mopen, e.start, NULL);   /* `(' */
+  	    if (s == NULL)
+  		goto theend;
+  
+! 	    s1 = new_state(mclose, NULL, NULL);   /* `)' */
+  	    if (s1 == NULL)
+  		goto theend;
+  	    patch(e.out, s1);
+--- 2636,2646 ----
+  	    /* At least one node was emitted before NFA_MOPEN, so
+  	     * at least one node will be between NFA_MOPEN and NFA_MCLOSE */
+  	    e = POP();
+! 	    s = alloc_state(mopen, e.start, NULL);   /* `(' */
+  	    if (s == NULL)
+  		goto theend;
+  
+! 	    s1 = alloc_state(mclose, NULL, NULL);   /* `)' */
+  	    if (s1 == NULL)
+  		goto theend;
+  	    patch(e.out, s1);
+***************
+*** 2679,2688 ****
+  		nstate += 2;
+  		break;
+  	    }
+! 	    s = new_state(*p, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+! 	    s1 = new_state(NFA_SKIP, NULL, NULL);
+  	    if (s1 == NULL)
+  		goto theend;
+  	    patch(list1(&s->out), s1);
+--- 2679,2688 ----
+  		nstate += 2;
+  		break;
+  	    }
+! 	    s = alloc_state(*p, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+! 	    s1 = alloc_state(NFA_SKIP, NULL, NULL);
+  	    if (s1 == NULL)
+  		goto theend;
+  	    patch(list1(&s->out), s1);
+***************
+*** 2704,2710 ****
+  		break;
+  	    }
+  	    e1 = POP();
+! 	    s = new_state(*p, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    s->val = e1.start->c;
+--- 2704,2710 ----
+  		break;
+  	    }
+  	    e1 = POP();
+! 	    s = alloc_state(*p, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    s->val = e1.start->c;
+***************
+*** 2720,2726 ****
+  		nstate++;
+  		break;
+  	    }
+! 	    s = new_state(*p, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, list1(&s->out)));
+--- 2720,2726 ----
+  		nstate++;
+  		break;
+  	    }
+! 	    s = alloc_state(*p, NULL, NULL);
+  	    if (s == NULL)
+  		goto theend;
+  	    PUSH(frag(s, list1(&s->out)));
+***************
+*** 4742,4749 ****
+  
+      if (prog->reghasz == REX_SET)
+      {
+- 	int		i;
+- 
+  	cleanup_zsubexpr();
+  	re_extmatch_out = make_extmatch();
+  	for (i = 0; i < subs.synt.in_use; i++)
+--- 4742,4747 ----
+*** ../vim-7.3.1094/src/version.c	2013-06-02 16:34:14.000000000 +0200
+--- src/version.c	2013-06-02 16:39:59.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1095,
+  /**/
+
+-- 
+Microsoft is to software what McDonalds is to gourmet cooking
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

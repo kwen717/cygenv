@@ -1,0 +1,54 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1001
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1001
+Problem:    Duplicate condition in if.
+Solution:   Remove one condition.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1000/src/regexp_nfa.c	2013-05-21 21:20:16.000000000 +0200
+--- src/regexp_nfa.c	2013-05-21 21:56:45.000000000 +0200
+***************
+*** 1091,1097 ****
+  		    {
+  			nfa_inc(&regparse);
+  
+! 			if (*regparse == 'n' || *regparse == 'n')
+  			    startc = reg_string ? NL : NFA_NEWL;
+  			else
+  			    if  (*regparse == 'd'
+--- 1091,1097 ----
+  		    {
+  			nfa_inc(&regparse);
+  
+! 			if (*regparse == 'n')
+  			    startc = reg_string ? NL : NFA_NEWL;
+  			else
+  			    if  (*regparse == 'd'
+*** ../vim-7.3.1000/src/version.c	2013-05-21 21:37:01.000000000 +0200
+--- src/version.c	2013-05-21 21:59:09.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1001,
+  /**/
+
+-- 
+SECOND SOLDIER: It could be carried by an African swallow!
+FIRST SOLDIER:  Oh  yes! An African swallow maybe ... but not a European
+                swallow. that's my point.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,163 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1058
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1058
+Problem:    Call of funcref does not succeed in other script.
+Solution:   Python patch 17: add get_expanded_name(). (ZyX)
+Files:	    src/eval.c, src/proto/eval.pro
+
+
+*** ../vim-7.3.1057/src/eval.c	2013-05-30 12:14:44.000000000 +0200
+--- src/eval.c	2013-05-30 12:31:55.000000000 +0200
+***************
+*** 810,816 ****
+  # endif
+  	prof_self_cmp __ARGS((const void *s1, const void *s2));
+  #endif
+- static int script_autoload __ARGS((char_u *name, int reload));
+  static char_u *autoload_name __ARGS((char_u *name));
+  static void cat_func_name __ARGS((char_u *buf, ufunc_T *fp));
+  static void func_free __ARGS((ufunc_T *fp));
+--- 810,815 ----
+***************
+*** 10946,10961 ****
+      typval_T	*rettv;
+  {
+      char_u	*s;
+  
+      s = get_tv_string(&argvars[0]);
+      if (s == NULL || *s == NUL || VIM_ISDIGIT(*s))
+  	EMSG2(_(e_invarg2), s);
+!     /* Don't check an autoload name for existence here. */
+!     else if (vim_strchr(s, AUTOLOAD_CHAR) == NULL && !function_exists(s))
+  	EMSG2(_("E700: Unknown function: %s"), s);
+      else
+      {
+! 	rettv->vval.v_string = vim_strsave(s);
+  	rettv->v_type = VAR_FUNC;
+      }
+  }
+--- 10945,10969 ----
+      typval_T	*rettv;
+  {
+      char_u	*s;
++     char_u	*name = NULL;
+  
+      s = get_tv_string(&argvars[0]);
+      if (s == NULL || *s == NUL || VIM_ISDIGIT(*s))
+  	EMSG2(_(e_invarg2), s);
+!     /* Don't check an autoload name for existence here, but still expand it 
+!      * checking for validity */
+!     else if ((name = get_expanded_name(s, vim_strchr(s, AUTOLOAD_CHAR) == NULL))
+! 									== NULL)
+  	EMSG2(_("E700: Unknown function: %s"), s);
+      else
+      {
+! 	if (name == NULL)
+! 	    /* Autoload function, need to copy string */
+! 	    rettv->vval.v_string = vim_strsave(s);
+! 	else
+! 	    /* Function found by get_expanded_name, string allocated by 
+! 	     * trans_function_name: no need to copy */
+! 	    rettv->vval.v_string = name;
+  	rettv->v_type = VAR_FUNC;
+      }
+  }
+***************
+*** 21938,21943 ****
+--- 21946,21978 ----
+      return n;
+  }
+  
++     char_u *
++ get_expanded_name(name, check)
++     char_u	*name;
++     int		check;
++ {
++     char_u	*nm = name;
++     char_u	*p;
++ 
++     p = trans_function_name(&nm, FALSE, TFN_INT|TFN_QUIET, NULL);
++ 
++     if (p != NULL && *nm == NUL)
++     {
++ 	if (!check)
++ 	    return p;
++ 	else if (builtin_function(p))
++ 	{
++ 	    if (find_internal_func(p) >= 0)
++ 		return p;
++ 	}
++ 	else
++ 	    if (find_func(p) != NULL)
++ 		return p;
++     }
++     vim_free(p);
++     return NULL;
++ }
++ 
+  /*
+   * Return TRUE if "name" looks like a builtin function name: starts with a
+   * lower case letter and doesn't contain a ':' or AUTOLOAD_CHAR.
+***************
+*** 22146,22152 ****
+   * If "name" has a package name try autoloading the script for it.
+   * Return TRUE if a package was loaded.
+   */
+!     static int
+  script_autoload(name, reload)
+      char_u	*name;
+      int		reload;	    /* load script again when already loaded */
+--- 22181,22187 ----
+   * If "name" has a package name try autoloading the script for it.
+   * Return TRUE if a package was loaded.
+   */
+!     int
+  script_autoload(name, reload)
+      char_u	*name;
+      int		reload;	    /* load script again when already loaded */
+*** ../vim-7.3.1057/src/proto/eval.pro	2013-05-30 12:14:44.000000000 +0200
+--- src/proto/eval.pro	2013-05-30 12:31:55.000000000 +0200
+***************
+*** 77,82 ****
+--- 77,83 ----
+  long get_dict_number __ARGS((dict_T *d, char_u *key));
+  char_u *get_function_name __ARGS((expand_T *xp, int idx));
+  char_u *get_expr_name __ARGS((expand_T *xp, int idx));
++ char_u *get_expanded_name __ARGS((char_u *name, int check));
+  int func_call __ARGS((char_u *name, typval_T *args, dict_T *selfdict, typval_T *rettv));
+  void mzscheme_call_vim __ARGS((char_u *name, typval_T *args, typval_T *rettv));
+  long do_searchpair __ARGS((char_u *spat, char_u *mpat, char_u *epat, int dir, char_u *skip, int flags, pos_T *match_pos, linenr_T lnum_stop, long time_limit));
+***************
+*** 129,132 ****
+--- 130,134 ----
+  void ex_oldfiles __ARGS((exarg_T *eap));
+  int modify_fname __ARGS((char_u *src, int *usedlen, char_u **fnamep, char_u **bufp, int *fnamelen));
+  char_u *do_string_sub __ARGS((char_u *str, char_u *pat, char_u *sub, char_u *flags));
++ int script_autoload __ARGS((char_u *name, int reload));
+  /* vim: set ft=c : */
+*** ../vim-7.3.1057/src/version.c	2013-05-30 12:26:52.000000000 +0200
+--- src/version.c	2013-05-30 12:29:55.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1058,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+1. At lunch time, sit in your parked car with sunglasses on and point
+   a hair dryer at passing cars. See if they slow down.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

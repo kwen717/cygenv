@@ -1,0 +1,205 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1057
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1057
+Problem:    Python: not enough compatibilty.
+Solution:   Python patch 16: Make OutputWritelines support any sequence object
+	    (ZyX) Note: tests fail
+Files:	    src/if_py_both.h, src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1056/src/if_py_both.h	2013-05-30 12:14:44.000000000 +0200
+--- src/if_py_both.h	2013-05-30 12:18:09.000000000 +0200
+***************
+*** 312,347 ****
+      static PyObject *
+  OutputWritelines(OutputObject *self, PyObject *args)
+  {
+!     PyInt n;
+!     PyInt i;
+!     PyObject *list;
+      int error = self->error;
+  
+!     if (!PyArg_ParseTuple(args, "O", &list))
+  	return NULL;
+-     Py_INCREF(list);
+  
+!     if (!PyList_Check(list))
+!     {
+! 	PyErr_SetString(PyExc_TypeError, _("writelines() requires list of strings"));
+! 	Py_DECREF(list);
+  	return NULL;
+-     }
+- 
+-     n = PyList_Size(list);
+  
+!     for (i = 0; i < n; ++i)
+      {
+- 	PyObject *line = PyList_GetItem(list, i);
+  	char *str = NULL;
+  	PyInt len;
+  
+! 	if (!PyArg_Parse(line, "et#", ENC_OPT, &str, &len))
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("writelines() requires list of strings"));
+! 	    Py_DECREF(list);
+  	    return NULL;
+  	}
+  
+  	Py_BEGIN_ALLOW_THREADS
+  	Python_Lock_Vim();
+--- 312,341 ----
+      static PyObject *
+  OutputWritelines(OutputObject *self, PyObject *args)
+  {
+!     PyObject	*seq;
+!     PyObject	*iterator;
+!     PyObject	*item;
+      int error = self->error;
+  
+!     if (!PyArg_ParseTuple(args, "O", &seq))
+  	return NULL;
+  
+!     if (!(iterator = PyObject_GetIter(seq)))
+  	return NULL;
+  
+!     while ((item = PyIter_Next(iterator)))
+      {
+  	char *str = NULL;
+  	PyInt len;
+  
+! 	if (!PyArg_Parse(item, "et#", ENC_OPT, &str, &len))
+  	{
+  	    PyErr_SetString(PyExc_TypeError, _("writelines() requires list of strings"));
+! 	    Py_DECREF(iterator);
+! 	    Py_DECREF(item);
+  	    return NULL;
+  	}
++ 	Py_DECREF(item);
+  
+  	Py_BEGIN_ALLOW_THREADS
+  	Python_Lock_Vim();
+***************
+*** 351,357 ****
+  	PyMem_Free(str);
+      }
+  
+!     Py_DECREF(list);
+      Py_INCREF(Py_None);
+      return Py_None;
+  }
+--- 345,356 ----
+  	PyMem_Free(str);
+      }
+  
+!     Py_DECREF(iterator);
+! 
+!     /* Iterator may have finished due to an exception */
+!     if (PyErr_Occurred())
+! 	return NULL;
+! 
+      Py_INCREF(Py_None);
+      return Py_None;
+  }
+*** ../vim-7.3.1056/src/testdir/test86.in	2013-05-29 22:36:06.000000000 +0200
+--- src/testdir/test86.in	2013-05-30 12:18:09.000000000 +0200
+***************
+*** 709,714 ****
+--- 709,724 ----
+  del o
+  EOF
+  :"
++ :"
++ :" Test stdout/stderr
++ :redir => messages
++ :py sys.stdout.write('abc') ; sys.stdout.write('def')
++ :py sys.stderr.write('abc') ; sys.stderr.write('def')
++ :py sys.stdout.writelines(iter('abc'))
++ :py sys.stderr.writelines(iter('abc'))
++ :redir END
++ :$put =string(substitute(messages, '\d\+', '', 'g'))
++ :"
+  :" Test exceptions
+  :fun Exe(e)
+  :   execute a:e
+*** ../vim-7.3.1056/src/testdir/test86.ok	2013-05-30 11:43:11.000000000 +0200
+--- src/testdir/test86.ok	2013-05-30 12:18:09.000000000 +0200
+***************
+*** 391,396 ****
+--- 391,403 ----
+  list:__dir__,__members__,extend,locked
+  function:__call__,__dir__,__members__,softspace
+  output:__dir__,__members__,flush,softspace,write,writelines
++ '
++ abcdef
++ line  :
++ abcdef
++ abc
++ line  :
++ abc'
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1056/src/testdir/test87.in	2013-05-29 22:36:06.000000000 +0200
+--- src/testdir/test87.in	2013-05-30 12:18:09.000000000 +0200
+***************
+*** 687,692 ****
+--- 687,702 ----
+  del o
+  EOF
+  :"
++ :"
++ :" Test stdout/stderr
++ :redir => messages
++ :py sys.stdout.write('abc') ; sys.stdout.write('def')
++ :py sys.stderr.write('abc') ; sys.stderr.write('def')
++ :py sys.stdout.writelines(iter('abc'))
++ :py sys.stderr.writelines(iter('abc'))
++ :redir END
++ :$put =string(substitute(messages, '\d\+', '', 'g'))
++ :"
+  :" Test exceptions
+  :fun Exe(e)
+  :   execute a:e
+*** ../vim-7.3.1056/src/testdir/test87.ok	2013-05-30 11:43:11.000000000 +0200
+--- src/testdir/test87.ok	2013-05-30 12:18:09.000000000 +0200
+***************
+*** 380,385 ****
+--- 380,392 ----
+  list:__dir__,extend,locked
+  function:__call__,__dir__,softspace
+  output:__dir__,flush,softspace,write,writelines
++ '
++ abcdef
++ line  :
++ abcdef
++ abc
++ line  :
++ abc'
+  (<class 'vim.error'>, error('abc',))
+  (<class 'vim.error'>, error('def',))
+  (<class 'vim.error'>, error('ghi',))
+*** ../vim-7.3.1056/src/version.c	2013-05-30 12:14:44.000000000 +0200
+--- src/version.c	2013-05-30 12:20:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1057,
+  /**/
+
+-- 
+I have a drinking problem -- I don't have a drink!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

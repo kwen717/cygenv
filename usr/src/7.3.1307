@@ -1,0 +1,241 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1307
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1307
+Problem:    MS-Windows build instructions are outdated.
+Solution:   Adjust for building on Windows 7.  Drop Windows 95/98/ME support.
+Files:	    Makefile, nsis/gvim.nsi
+
+
+*** ../vim-7.3.1306/Makefile	2011-02-15 15:27:00.000000000 +0100
+--- Makefile	2013-07-04 22:11:07.000000000 +0200
+***************
+*** 128,163 ****
+  # PC:
+  # - Run make on Unix to update the ".mo" files.
+  # - "make dossrc" and "make dosrt".  Unpack the archives on a PC.
+- # 16 bit DOS version: (OBSOLETE, 16 bit version doesn't build)
+- # - Set environment for compiling with Borland C++ 3.1.
+- # - "bmake -f Make_bc3.mak BOR=E:\borlandc" (compiling xxd might fail, in that
+- #   case set environment for compiling with Borland C++ 4.0 and do
+- #   "make -f make_bc3.mak BOR=E:\BC4 xxd/xxd.exe").
+- #   NOTE: this currently fails because Vim is too big.
+- # - "make test" and check the output.
+- # - Rename the executables to "vimd16.exe", "xxdd16.exe", "installd16.exe" and
+- #   "uninstald16.exe".
+- # 32 bit DOS version:
+- # - Set environment for compiling with DJGPP; "gmake -f Make_djg.mak".
+- # - "rm testdir/*.out", "gmake -f Make_djg.mak test" and check the output for
+- #   "ALL DONE".
+- # - Rename the executables to "vimd32.exe", "xxdd32.exe", "installd32.exe" and
+- #   "uninstald32.exe".
+  # Win32 console version:
+! # - Set environment for Visual C++ 2008, e.g.:
+! #   "E:\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat".  Or, when using the
+! #   Visual C++ Toolkit 2003: "msvcsetup.bat" (adjust the paths when necessary).
+! #   For Windows 98/ME the 2003 version is required, but then it won't work on
+! #   Windows 7 and 64 bit.
+! # - "nmake -f Make_mvc.mak"
+  # - "rm testdir/*.out", "nmake -f Make_mvc.mak test" and check the output.
+! # - Rename the executables to "vimw32.exe", "xxdw32.exe".
+  # - Rename vim.pdb to vimw32.pdb.
+! # - When building the Win32s version later, delete vimrun.exe, install.exe and
+! #   uninstal.exe.  Otherwise rename executables to installw32.exe and
+! #   uninstalw32.exe.
+  # Win32 GUI version:
+! # - "nmake -f Make_mvc.mak GUI=yes.
+  # - move "gvim.exe" to here (otherwise the OLE version will overwrite it).
+  # - Move gvim.pdb to here.
+  # - Delete vimrun.exe, install.exe and uninstal.exe.
+--- 128,147 ----
+  # PC:
+  # - Run make on Unix to update the ".mo" files.
+  # - "make dossrc" and "make dosrt".  Unpack the archives on a PC.
+  # Win32 console version:
+! # - Set environment for Visual C++ 2008, e.g.: "msvc2008.bat"  Or:
+! #   "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat".
+! #   Or, when using the Visual C++ Toolkit 2003: "msvcsetup.bat" (adjust the
+! #   paths when necessary).
+! #   For Windows 98/ME the 2003 version is required, but then the executable
+! #   won't work on Windows 7 and 64 bit.
+! # - "nmake -f Make_mvc.mak"  (use the same path as for vcvars32.bat)
+  # - "rm testdir/*.out", "nmake -f Make_mvc.mak test" and check the output.
+! # - Rename vim.exe to vimw32.exe, xxd/xxd.exe to xxdw32.exe.
+  # - Rename vim.pdb to vimw32.pdb.
+! # - Rename install.exe to installw32.exe and uninstal.exe to uninstalw32.exe.
+  # Win32 GUI version:
+! # - "nmake -f Make_mvc.mak GUI=yes"
+  # - move "gvim.exe" to here (otherwise the OLE version will overwrite it).
+  # - Move gvim.pdb to here.
+  # - Delete vimrun.exe, install.exe and uninstal.exe.
+***************
+*** 167,189 ****
+  # - Rename "gvim.exe" to "gvim_ole.exe".
+  # - Rename gvim.pdb to "gvim_ole.pdb".
+  # - Delete install.exe and uninstal.exe.
+- # - If building the Win32s version delete vimrun.exe.
+- # Win32s GUI version:
+- # - Set environment for Visual C++ 4.1 (requires a new console window):
+- #   "vcvars32.bat" (use the path for VC 4.1 e:\msdev\bin)
+- # - "nmake -f Make_mvc.mak GUI=yes INTL=no clean" (use the path for VC 4.1)
+- # - "nmake -f Make_mvc.mak GUI=yes INTL=no" (use the path for VC 4.1)
+- # - Rename "gvim.exe" to "gvim_w32s.exe".
+- # - Rename "install.exe" to "installw32.exe"
+- # - Rename "uninstal.exe" to "uninstalw32.exe"
+- # - The produced uninstalw32.exe and vimrun.exe are used.
+  # Create the archives:
+  # - Copy all the "*.exe" files to where this Makefile is.
+  # - Copy all the "*.pdb" files to where this Makefile is.
+  # - "make dosbin".
+  # NSIS self installing exe:
+  # - To get NSIS see http://nsis.sourceforge.net
+! # - Make sure gvim_ole.exe, vimd32.exe, vimw32.exe, installw32.exe,
+  #   uninstalw32.exe and xxdw32.exe have been build as mentioned above.
+  # - copy these files (get them from a binary archive or build them):
+  #	gvimext.dll in src/GvimExt
+--- 151,163 ----
+  # - Rename "gvim.exe" to "gvim_ole.exe".
+  # - Rename gvim.pdb to "gvim_ole.pdb".
+  # - Delete install.exe and uninstal.exe.
+  # Create the archives:
+  # - Copy all the "*.exe" files to where this Makefile is.
+  # - Copy all the "*.pdb" files to where this Makefile is.
+  # - "make dosbin".
+  # NSIS self installing exe:
+  # - To get NSIS see http://nsis.sourceforge.net
+! # - Make sure gvim_ole.exe, vimw32.exe, installw32.exe,
+  #   uninstalw32.exe and xxdw32.exe have been build as mentioned above.
+  # - copy these files (get them from a binary archive or build them):
+  #	gvimext.dll in src/GvimExt
+***************
+*** 196,202 ****
+  # - go to ../nsis and do "makensis gvim.nsi" (takes a few minutes).
+  # - Copy gvim##.exe to the dist directory.
+  #
+! # OS/2: (OBSOLETE, OS/2 version is no longer distributed)
+  # - Unpack the Unix archive.
+  # - "make -f Make_os2.mak".
+  # - Rename the executables to vimos2.exe, xxdos2.exe and teeos2.exe and copy
+--- 170,213 ----
+  # - go to ../nsis and do "makensis gvim.nsi" (takes a few minutes).
+  # - Copy gvim##.exe to the dist directory.
+  #
+! # 64 bit builds (these are not in the normal distribution, the 32 bit build
+! # works just fine on 64 bit systems).
+! # Like the console and GUI version, but first run vcvars64.bat or
+! #   "..\VC\vcvarsall.bat x86_amd64".
+! # - "nmake -f Make_mvc.mak"
+! # - "nmake -f Make_mvc.mak GUI=yes"
+! # Or run src/bigvim64.bat for an OLE version.
+! #
+! # OBSOLETE systems: You can build this if you have an appropriate system.
+! #
+! # 16 bit DOS version: (doesn't build anywhere)
+! # - Set environment for compiling with Borland C++ 3.1.
+! # - "bmake -f Make_bc3.mak BOR=E:\borlandc" (compiling xxd might fail, in that
+! #   case set environment for compiling with Borland C++ 4.0 and do
+! #   "make -f make_bc3.mak BOR=E:\BC4 xxd/xxd.exe").
+! #   NOTE: this currently fails because Vim is too big.
+! # - "make test" and check the output.
+! # - Rename the executables to "vimd16.exe", "xxdd16.exe", "installd16.exe" and
+! #   "uninstald16.exe".
+! #
+! # 32 bit DOS version: (requires Windows XP or earlier)
+! # - Set environment for compiling with DJGPP; "gmake -f Make_djg.mak".
+! # - "rm testdir/*.out", "gmake -f Make_djg.mak test" and check the output for
+! #   "ALL DONE".
+! # - Rename the executables to "vimd32.exe", "xxdd32.exe", "installd32.exe" and
+! #   "uninstald32.exe".
+! #
+! # Win32s GUI version: (requires very old compiler)
+! # - Set environment for Visual C++ 4.1 (requires a new console window):
+! #   "vcvars32.bat" (use the path for VC 4.1 e:\msdev\bin)
+! # - "nmake -f Make_mvc.mak GUI=yes INTL=no clean" (use the path for VC 4.1)
+! # - "nmake -f Make_mvc.mak GUI=yes INTL=no" (use the path for VC 4.1)
+! # - Rename "gvim.exe" to "gvim_w32s.exe".
+! # - Rename "install.exe" to "installw32.exe"
+! # - Rename "uninstal.exe" to "uninstalw32.exe"
+! # - The produced uninstalw32.exe and vimrun.exe are used.
+! #
+! # OS/2: (requires an OS/2 system)
+  # - Unpack the Unix archive.
+  # - "make -f Make_os2.mak".
+  # - Rename the executables to vimos2.exe, xxdos2.exe and teeos2.exe and copy
+***************
+*** 295,300 ****
+--- 306,313 ----
+  		$(LANG_SRC) \
+  		| (cd dist/$(VIMRTDIR); tar xf -)
+  # Need to use a "distclean" config.mk file
++ # Note: this file is not included in the repository to avoid problems, but it's
++ # OK to put it in the archive.
+  	cp -f src/config.mk.dist dist/$(VIMRTDIR)/src/auto/config.mk
+  # Create an empty config.h file, make dependencies require it
+  	touch dist/$(VIMRTDIR)/src/auto/config.h
+*** ../vim-7.3.1306/nsis/gvim.nsi	2010-08-15 21:56:43.000000000 +0200
+--- nsis/gvim.nsi	2013-07-04 22:12:22.000000000 +0200
+***************
+*** 5,11 ****
+  # WARNING: if you make changes to this script, look out for $0 to be valid,
+  # because uninstall deletes most files in $0.
+  
+! # Location of gvim_ole.exe, vimd32.exe, GvimExt/*, etc.
+  !define VIMSRC "..\src"
+  
+  # Location of runtime files
+--- 5,11 ----
+  # WARNING: if you make changes to this script, look out for $0 to be valid,
+  # because uninstall deletes most files in $0.
+  
+! # Location of gvim_ole.exe, vimw32.exe, GvimExt/*, etc.
+  !define VIMSRC "..\src"
+  
+  # Location of runtime files
+***************
+*** 247,257 ****
+  	ReadRegStr $R0 HKLM \
+  	   "SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
+  	IfErrors 0 lbl_winnt
+! 	    # Windows 95/98/ME
+! 	    File /oname=vim.exe ${VIMSRC}\vimd32.exe
+  	    Goto lbl_done
+  	lbl_winnt:
+! 	    # Windows NT/2000/XT
+  	    File /oname=vim.exe ${VIMSRC}\vimw32.exe
+  	lbl_done:
+  	StrCpy $2 "$2 vim view vimdiff"
+--- 247,256 ----
+  	ReadRegStr $R0 HKLM \
+  	   "SOFTWARE\Microsoft\Windows NT\CurrentVersion" CurrentVersion
+  	IfErrors 0 lbl_winnt
+! 	    # Windows 95/98/ME: not supported
+  	    Goto lbl_done
+  	lbl_winnt:
+! 	    # Windows NT/2000/XT and later
+  	    File /oname=vim.exe ${VIMSRC}\vimw32.exe
+  	lbl_done:
+  	StrCpy $2 "$2 vim view vimdiff"
+*** ../vim-7.3.1306/src/version.c	2013-07-04 22:30:59.000000000 +0200
+--- src/version.c	2013-07-04 22:33:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1307,
+  /**/
+
+-- 
+An indication you must be a manager:
+You feel sorry for Dilbert's boss.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

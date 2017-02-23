@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1304
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1304
+Problem:    Test 89 still fails on MS-Windows.
+Solution:   Set 'shellslash'. (Taro Muraoka)
+Files:	    src/testdir/test89.in
+
+
+*** ../vim-7.3.1303/src/testdir/test89.in	2013-07-03 17:13:56.000000000 +0200
+--- src/testdir/test89.in	2013-07-04 20:50:29.000000000 +0200
+***************
+*** 55,60 ****
+--- 55,61 ----
+  :$put =''
+  :$put ='Testing findfile'
+  :$put =''
++ :set ssl
+  :$put =findfile('test19.in','src/test*')
+  :exe "cd" cwd
+  :cd ..
+*** ../vim-7.3.1303/src/version.c	2013-07-04 20:25:34.000000000 +0200
+--- src/version.c	2013-07-04 20:41:59.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1304,
+  /**/
+
+-- 
+ARTHUR: Go on, Bors, chop its head off.
+BORS:   Right.  Silly little bleeder.  One rabbit stew coming up.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

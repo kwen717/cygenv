@@ -1,0 +1,103 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1053
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1053
+Problem:    Python: no flag for types with tp_traverse+tp_clear.
+Solution:   Python patch 14: Add Py_TPFLAGS_HAVE_GC. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1052/src/if_py_both.h	2013-05-29 22:52:29.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:55:08.000000000 +0200
+***************
+*** 4461,4467 ****
+      vim_memset(&IterType, 0, sizeof(IterType));
+      IterType.tp_name = "vim.iter";
+      IterType.tp_basicsize = sizeof(IterObject);
+!     IterType.tp_flags = Py_TPFLAGS_DEFAULT;
+      IterType.tp_doc = "generic iterator object";
+      IterType.tp_iter = (getiterfunc)IterIter;
+      IterType.tp_iternext = (iternextfunc)IterNext;
+--- 4461,4467 ----
+      vim_memset(&IterType, 0, sizeof(IterType));
+      IterType.tp_name = "vim.iter";
+      IterType.tp_basicsize = sizeof(IterObject);
+!     IterType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_GC;
+      IterType.tp_doc = "generic iterator object";
+      IterType.tp_iter = (getiterfunc)IterIter;
+      IterType.tp_iternext = (iternextfunc)IterNext;
+***************
+*** 4495,4501 ****
+      WindowType.tp_basicsize = sizeof(WindowObject);
+      WindowType.tp_dealloc = (destructor)WindowDestructor;
+      WindowType.tp_repr = (reprfunc)WindowRepr;
+!     WindowType.tp_flags = Py_TPFLAGS_DEFAULT;
+      WindowType.tp_doc = "vim Window object";
+      WindowType.tp_methods = WindowMethods;
+      WindowType.tp_traverse = (traverseproc)WindowTraverse;
+--- 4495,4501 ----
+      WindowType.tp_basicsize = sizeof(WindowObject);
+      WindowType.tp_dealloc = (destructor)WindowDestructor;
+      WindowType.tp_repr = (reprfunc)WindowRepr;
+!     WindowType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_GC;
+      WindowType.tp_doc = "vim Window object";
+      WindowType.tp_methods = WindowMethods;
+      WindowType.tp_traverse = (traverseproc)WindowTraverse;
+***************
+*** 4558,4564 ****
+      RangeType.tp_repr = (reprfunc)RangeRepr;
+      RangeType.tp_as_sequence = &RangeAsSeq;
+      RangeType.tp_as_mapping = &RangeAsMapping;
+!     RangeType.tp_flags = Py_TPFLAGS_DEFAULT;
+      RangeType.tp_doc = "vim Range object";
+      RangeType.tp_methods = RangeMethods;
+      RangeType.tp_traverse = (traverseproc)RangeTraverse;
+--- 4558,4564 ----
+      RangeType.tp_repr = (reprfunc)RangeRepr;
+      RangeType.tp_as_sequence = &RangeAsSeq;
+      RangeType.tp_as_mapping = &RangeAsMapping;
+!     RangeType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_GC;
+      RangeType.tp_doc = "vim Range object";
+      RangeType.tp_methods = RangeMethods;
+      RangeType.tp_traverse = (traverseproc)RangeTraverse;
+***************
+*** 4637,4643 ****
+      vim_memset(&OptionsType, 0, sizeof(OptionsType));
+      OptionsType.tp_name = "vim.options";
+      OptionsType.tp_basicsize = sizeof(OptionsObject);
+!     OptionsType.tp_flags = Py_TPFLAGS_DEFAULT;
+      OptionsType.tp_doc = "object for manipulating options";
+      OptionsType.tp_as_mapping = &OptionsAsMapping;
+      OptionsType.tp_dealloc = (destructor)OptionsDestructor;
+--- 4637,4643 ----
+      vim_memset(&OptionsType, 0, sizeof(OptionsType));
+      OptionsType.tp_name = "vim.options";
+      OptionsType.tp_basicsize = sizeof(OptionsObject);
+!     OptionsType.tp_flags = Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_GC;
+      OptionsType.tp_doc = "object for manipulating options";
+      OptionsType.tp_as_mapping = &OptionsAsMapping;
+      OptionsType.tp_dealloc = (destructor)OptionsDestructor;
+*** ../vim-7.3.1052/src/version.c	2013-05-29 22:52:29.000000000 +0200
+--- src/version.c	2013-05-29 22:54:46.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1053,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+26. You check your mail. It says "no new messages." So you check it again.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

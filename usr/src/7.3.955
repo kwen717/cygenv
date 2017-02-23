@@ -1,0 +1,339 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.955
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.955
+Problem:    Python: Not enough tests.
+Solution:   Add tests for vim.{current,window*,tabpage*}. (ZyX)
+Files:	    src/testdir/test86.in, src/testdir/test86.ok,
+	    src/testdir/test87.in, src/testdir/test87.ok
+
+
+*** ../vim-7.3.954/src/testdir/test86.in	2013-05-15 14:51:31.000000000 +0200
+--- src/testdir/test86.in	2013-05-15 16:15:25.000000000 +0200
+***************
+*** 334,339 ****
+--- 334,340 ----
+  :let g:foo = 'bac'
+  :let w:abc = 'def'
+  :let b:baz = 'bar'
++ :let t:bar = 'jkl'
+  :try
+  :  throw "Abc"
+  :catch
+***************
+*** 342,347 ****
+--- 343,349 ----
+  :put =pyeval('vim.vars[''foo'']')
+  :put =pyeval('vim.current.window.vars[''abc'']')
+  :put =pyeval('vim.current.buffer.vars[''baz'']')
++ :put =pyeval('vim.current.tabpage.vars[''bar'']')
+  :"
+  :" Options
+  :" paste:          boolean, global
+***************
+*** 561,566 ****
+--- 563,640 ----
+  except StopIteration:
+      cb.append('StopIteration')
+  EOF
++ :"
++ :" Test vim.{tabpage,window}list and vim.{tabpage,window} objects
++ :tabnew 0
++ :tabnew 1
++ :vnew a.1
++ :tabnew 2
++ :vnew a.2
++ :vnew b.2
++ :vnew c.2
++ py << EOF
++ cb.append('Number of tabs: ' + str(len(vim.tabpages)))
++ cb.append('Current tab pages:')
++ def W(w):
++     if '(unknown)' in repr(w):
++         return '<window object (unknown)>'
++     else:
++         return repr(w)
++ for t in vim.tabpages:
++     cb.append('  ' + repr(t) + '(' + str(t.number) + ')' + ': ' + str(len(t.windows)) + ' windows, current is ' + W(t.window))
++     cb.append('  Windows:')
++     for w in t.windows:
++         cb.append('    ' + W(w) + '(' + str(w.number) + ')' + ': displays buffer ' + repr(w.buffer) + '; cursor is at ' + repr(w.cursor))
++         # Other values depend on the size of the terminal, so they are checked partly:
++         for attr in ('height', 'row', 'width', 'col'):
++             try:
++                 aval = getattr(w, attr)
++                 if type(aval) is not long:
++                     raise TypeError
++                 if aval < 0:
++                     raise ValueError
++             except Exception:
++                 cb.append('!!!!!! Error while getting attribute ' + attr + ': ' + sys.exc_type.__name__)
++         w.cursor = (len(w.buffer), 0)
++ cb.append('Number of windows in current tab page: ' + str(len(vim.windows)))
++ if list(vim.windows) != list(vim.current.tabpage.windows):
++     cb.append('!!!!!! Windows differ')
++ EOF
++ :"
++ :" Test vim.current
++ py << EOF
++ def H(o):
++     return repr(o)
++ cb.append('Current tab page: ' + repr(vim.current.tabpage))
++ cb.append('Current window: ' + repr(vim.current.window) + ': ' + H(vim.current.window) + ' is ' + H(vim.current.tabpage.window))
++ cb.append('Current buffer: ' + repr(vim.current.buffer) + ': ' + H(vim.current.buffer) + ' is ' + H(vim.current.window.buffer)+ ' is ' + H(vim.current.tabpage.window.buffer))
++ # Assigning: fails
++ try:
++     vim.current.window = vim.tabpages[0].window
++ except ValueError:
++     cb.append('ValueError at assigning foreign tab window')
++ 
++ for attr in ('window', 'tabpage', 'buffer'):
++     try:
++         setattr(vim.current, attr, None)
++     except TypeError:
++         cb.append('Type error at assigning None to vim.current.' + attr)
++ 
++ # Assigning: success
++ vim.current.tabpage = vim.tabpages[-2]
++ vim.current.buffer = cb
++ vim.current.window = vim.windows[0]
++ vim.current.window.cursor = (len(vim.current.buffer), 0)
++ cb.append('Current tab page: ' + repr(vim.current.tabpage))
++ cb.append('Current window: ' + repr(vim.current.window))
++ cb.append('Current buffer: ' + repr(vim.current.buffer))
++ cb.append('Current line: ' + repr(vim.current.line))
++ for b in vim.buffers:
++     if b is not cb:
++         vim.command('bwipeout! ' + b.number)
++ EOF
++ :tabonly!
++ :only!
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.954/src/testdir/test86.ok	2013-05-15 15:44:24.000000000 +0200
+--- src/testdir/test86.ok	2013-05-15 16:22:06.000000000 +0200
+***************
+*** 80,85 ****
+--- 80,86 ----
+  bac
+  def
+  bar
++ jkl
+  >>> paste
+    p/gopts1: False
+    p/wopts1! KeyError
+***************
+*** 328,330 ****
+--- 329,361 ----
+  i4:<buffer test86.in>
+  i4:<buffer test86.in>
+  StopIteration
++ Number of tabs: 4
++ Current tab pages:
++   <tabpage 0>(1): 1 windows, current is <window object (unknown)>
++   Windows:
++     <window object (unknown)>(0): displays buffer <buffer test86.in>; cursor is at (954, 0)
++   <tabpage 1>(2): 1 windows, current is <window object (unknown)>
++   Windows:
++     <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
++   <tabpage 2>(3): 2 windows, current is <window object (unknown)>
++   Windows:
++     <window object (unknown)>(0): displays buffer <buffer a.1>; cursor is at (1, 0)
++     <window object (unknown)>(0): displays buffer <buffer 1>; cursor is at (1, 0)
++   <tabpage 3>(4): 4 windows, current is <window 0>
++   Windows:
++     <window 0>(1): displays buffer <buffer c.2>; cursor is at (1, 0)
++     <window 1>(2): displays buffer <buffer b.2>; cursor is at (1, 0)
++     <window 2>(3): displays buffer <buffer a.2>; cursor is at (1, 0)
++     <window 3>(4): displays buffer <buffer 2>; cursor is at (1, 0)
++ Number of windows in current tab page: 4
++ Current tab page: <tabpage 3>
++ Current window: <window 0>: <window 0> is <window 0>
++ Current buffer: <buffer c.2>: <buffer c.2> is <buffer c.2> is <buffer c.2>
++ ValueError at assigning foreign tab window
++ Type error at assigning None to vim.current.window
++ Type error at assigning None to vim.current.tabpage
++ Type error at assigning None to vim.current.buffer
++ Current tab page: <tabpage 2>
++ Current window: <window 0>
++ Current buffer: <buffer test86.in>
++ Current line: 'Type error at assigning None to vim.current.buffer'
+*** ../vim-7.3.954/src/testdir/test87.in	2013-05-15 14:39:47.000000000 +0200
+--- src/testdir/test87.in	2013-05-15 16:15:25.000000000 +0200
+***************
+*** 320,325 ****
+--- 320,326 ----
+  :let g:foo = 'bac'
+  :let w:abc = 'def'
+  :let b:baz = 'bar'
++ :let t:bar = 'jkl'
+  :try
+  :  throw "Abc"
+  :catch
+***************
+*** 328,333 ****
+--- 329,335 ----
+  :put =py3eval('vim.vars[''foo'']')
+  :put =py3eval('vim.current.window.vars[''abc'']')
+  :put =py3eval('vim.current.buffer.vars[''baz'']')
++ :put =py3eval('vim.current.tabpage.vars[''bar'']')
+  :"
+  :" Options
+  :" paste:          boolean, global
+***************
+*** 547,552 ****
+--- 549,626 ----
+  except StopIteration:
+      cb.append('StopIteration')
+  EOF
++ :"
++ :" Test vim.{tabpage,window}list and vim.{tabpage,window} objects
++ :tabnew 0
++ :tabnew 1
++ :vnew a.1
++ :tabnew 2
++ :vnew a.2
++ :vnew b.2
++ :vnew c.2
++ py3 << EOF
++ def W(w):
++     if '(unknown)' in repr(w):
++         return '<window object (unknown)>'
++     else:
++         return repr(w)
++ cb.append('Number of tabs: ' + str(len(vim.tabpages)))
++ cb.append('Current tab pages:')
++ for t in vim.tabpages:
++     cb.append('  ' + repr(t) + '(' + str(t.number) + ')' + ': ' + str(len(t.windows)) + ' windows, current is ' + W(t.window))
++     cb.append('  Windows:')
++     for w in t.windows:
++         cb.append('    ' + W(w) + '(' + str(w.number) + ')' + ': displays buffer ' + repr(w.buffer) + '; cursor is at ' + repr(w.cursor))
++         # Other values depend on the size of the terminal, so they are checked partly:
++         for attr in ('height', 'row', 'width', 'col'):
++             try:
++                 aval = getattr(w, attr)
++                 if type(aval) is not int:
++                     raise TypeError
++                 if aval < 0:
++                     raise ValueError
++             except Exception as e:
++                 cb.append('!!!!!! Error while getting attribute ' + attr + ': ' + e.__class__.__name__)
++         w.cursor = (len(w.buffer), 0)
++ cb.append('Number of windows in current tab page: ' + str(len(vim.windows)))
++ if list(vim.windows) != list(vim.current.tabpage.windows):
++     cb.append('!!!!!! Windows differ')
++ EOF
++ :"
++ :" Test vim.current
++ py3 << EOF
++ def H(o):
++     return repr(o)
++ cb.append('Current tab page: ' + repr(vim.current.tabpage))
++ cb.append('Current window: ' + repr(vim.current.window) + ': ' + H(vim.current.window) + ' is ' + H(vim.current.tabpage.window))
++ cb.append('Current buffer: ' + repr(vim.current.buffer) + ': ' + H(vim.current.buffer) + ' is ' + H(vim.current.window.buffer)+ ' is ' + H(vim.current.tabpage.window.buffer))
++ # Assigning: fails
++ try:
++     vim.current.window = vim.tabpages[0].window
++ except ValueError:
++     cb.append('ValueError at assigning foreign tab window')
++ 
++ for attr in ('window', 'tabpage', 'buffer'):
++     try:
++         setattr(vim.current, attr, None)
++     except TypeError:
++         cb.append('Type error at assigning None to vim.current.' + attr)
++ 
++ # Assigning: success
++ vim.current.tabpage = vim.tabpages[-2]
++ vim.current.buffer = cb
++ vim.current.window = vim.windows[0]
++ vim.current.window.cursor = (len(vim.current.buffer), 0)
++ cb.append('Current tab page: ' + repr(vim.current.tabpage))
++ cb.append('Current window: ' + repr(vim.current.window))
++ cb.append('Current buffer: ' + repr(vim.current.buffer))
++ cb.append('Current line: ' + repr(vim.current.line))
++ for b in vim.buffers:
++     if b is not cb:
++         vim.command('bwipeout! ' + str(b.number))
++ EOF
++ :tabonly!
++ :only!
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.954/src/testdir/test87.ok	2013-05-15 15:44:24.000000000 +0200
+--- src/testdir/test87.ok	2013-05-15 16:21:39.000000000 +0200
+***************
+*** 69,74 ****
+--- 69,75 ----
+  bac
+  def
+  bar
++ jkl
+  >>> paste
+    p/gopts1: False
+    p/wopts1! KeyError
+***************
+*** 317,319 ****
+--- 318,350 ----
+  i4:<buffer test87.in>
+  i4:<buffer test87.in>
+  StopIteration
++ Number of tabs: 4
++ Current tab pages:
++   <tabpage 0>(1): 1 windows, current is <window object (unknown)>
++   Windows:
++     <window object (unknown)>(0): displays buffer <buffer test87.in>; cursor is at (929, 0)
++   <tabpage 1>(2): 1 windows, current is <window object (unknown)>
++   Windows:
++     <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
++   <tabpage 2>(3): 2 windows, current is <window object (unknown)>
++   Windows:
++     <window object (unknown)>(0): displays buffer <buffer a.1>; cursor is at (1, 0)
++     <window object (unknown)>(0): displays buffer <buffer 1>; cursor is at (1, 0)
++   <tabpage 3>(4): 4 windows, current is <window 0>
++   Windows:
++     <window 0>(1): displays buffer <buffer c.2>; cursor is at (1, 0)
++     <window 1>(2): displays buffer <buffer b.2>; cursor is at (1, 0)
++     <window 2>(3): displays buffer <buffer a.2>; cursor is at (1, 0)
++     <window 3>(4): displays buffer <buffer 2>; cursor is at (1, 0)
++ Number of windows in current tab page: 4
++ Current tab page: <tabpage 3>
++ Current window: <window 0>: <window 0> is <window 0>
++ Current buffer: <buffer c.2>: <buffer c.2> is <buffer c.2> is <buffer c.2>
++ ValueError at assigning foreign tab window
++ Type error at assigning None to vim.current.window
++ Type error at assigning None to vim.current.tabpage
++ Type error at assigning None to vim.current.buffer
++ Current tab page: <tabpage 2>
++ Current window: <window 0>
++ Current buffer: <buffer test87.in>
++ Current line: 'Type error at assigning None to vim.current.buffer'
+*** ../vim-7.3.954/src/version.c	2013-05-15 16:11:46.000000000 +0200
+--- src/version.c	2013-05-15 16:14:46.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     955,
+  /**/
+
+-- 
+FATHER:    You only killed the bride's father - that's all -
+LAUNCELOT: Oh dear, I didn't really mean to...
+FATHER:    Didn't mean to?  You put your sword right through his head!
+LAUNCELOT: Gosh - Is he all right?
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

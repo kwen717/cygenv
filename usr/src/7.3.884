@@ -1,0 +1,73 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.884
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.884
+Problem:    Compiler warning for variable shadowing another. (John Little)
+Solution:   Rename the variable. (Christian Brabandt)
+Files:	    src/term.c
+
+
+*** ../vim-7.3.883/src/term.c	2013-04-05 19:50:12.000000000 +0200
+--- src/term.c	2013-04-06 13:27:59.000000000 +0200
+***************
+*** 4134,4151 ****
+  		/* eat it when it has 2 arguments and ends in 'R' */
+  		if (j == 1 && tp[i] == 'R')
+  		{
+! 		    char *p = NULL;
+  
+  		    u7_status = U7_GOT;
+  # ifdef FEAT_AUTOCMD
+  		    did_cursorhold = TRUE;
+  # endif
+  		    if (extra == 2)
+! 			p = "single";
+  		    else if (extra == 3)
+! 			p = "double";
+! 		    if (p != NULL)
+! 			set_option_value((char_u *)"ambw", 0L, (char_u *)p, 0);
+  		    key_name[0] = (int)KS_EXTRA;
+  		    key_name[1] = (int)KE_IGNORE;
+  		    slen = i + 1;
+--- 4134,4151 ----
+  		/* eat it when it has 2 arguments and ends in 'R' */
+  		if (j == 1 && tp[i] == 'R')
+  		{
+! 		    char *aw = NULL;
+  
+  		    u7_status = U7_GOT;
+  # ifdef FEAT_AUTOCMD
+  		    did_cursorhold = TRUE;
+  # endif
+  		    if (extra == 2)
+! 			aw = "single";
+  		    else if (extra == 3)
+! 			aw = "double";
+! 		    if (aw != NULL)
+! 			set_option_value((char_u *)"ambw", 0L, (char_u *)aw, 0);
+  		    key_name[0] = (int)KS_EXTRA;
+  		    key_name[1] = (int)KE_IGNORE;
+  		    slen = i + 1;
+*** ../vim-7.3.883/src/version.c	2013-04-06 14:28:56.000000000 +0200
+--- src/version.c	2013-04-06 14:30:05.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     884,
+  /**/
+
+-- 
+Don't drink and drive.  You might hit a bump and spill your beer.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

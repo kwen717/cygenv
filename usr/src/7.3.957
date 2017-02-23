@@ -1,0 +1,287 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.957
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.957
+Problem:    Python does not have a "do" command like Perl or Lua.
+Solution:   Add the ":py3do" command. (Lilydjwg)
+Files:	    runtime/doc/if_pyth.txt, src/ex_cmds.h, src/ex_docmd.c,
+	    src/if_python3.c, src/proto/if_python3.pro
+
+
+*** ../vim-7.3.956/runtime/doc/if_pyth.txt	2013-05-15 15:51:03.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-15 18:04:17.000000000 +0200
+***************
+*** 490,495 ****
+--- 490,510 ----
+  <							*:py3file*
+  The |:py3file| command works similar to |:pyfile|.
+  
++ 							*:py3do*
++ :[range]py3do {body}	Execute Python function "def _vim_pydo(line, linenr):
++ 			{body}" for each line in the [range], with the
++ 			function arguments being set to the text of each line
++ 			in turn, without a trailing <EOL>, and the current
++ 			line number. The function should return a string or
++ 			None. If a string is returned, it becomes the text of
++ 			the line in the current turn. The default for [range]
++ 			is the whole file: "1,$".
++ 			{not in Vi}
++ 
++ Examples:
++ >
++ 	:py3do return "%s\t%d" % (line[::-1], len(line))
++ 	:py3do if line: return "%4d: %s" % (linenr, line)
+  
+  Vim can be built in four ways (:version output):
+  1. No Python support	    (-python, -python3)
+*** ../vim-7.3.956/src/ex_cmds.h	2012-11-14 20:52:22.000000000 +0100
+--- src/ex_cmds.h	2013-05-15 18:01:55.000000000 +0200
+***************
+*** 743,748 ****
+--- 743,750 ----
+  			RANGE|FILE1|NEEDARG|CMDWIN),
+  EX(CMD_py3,		"py3",		ex_py3,
+  			RANGE|EXTRA|NEEDARG|CMDWIN),
++ EX(CMD_py3do,		"py3do",	ex_py3do,
++ 			RANGE|DFLALL|EXTRA|NEEDARG|CMDWIN),
+  EX(CMD_python3,		"python3",	ex_py3,
+  			RANGE|EXTRA|NEEDARG|CMDWIN),
+  EX(CMD_py3file,		"py3file",	ex_py3file,
+*** ../vim-7.3.956/src/ex_docmd.c	2013-05-07 05:18:15.000000000 +0200
+--- src/ex_docmd.c	2013-05-15 18:01:55.000000000 +0200
+***************
+*** 272,277 ****
+--- 272,278 ----
+  #endif
+  #ifndef FEAT_PYTHON3
+  # define ex_py3			ex_script_ni
++ # define ex_py3do		ex_ni
+  # define ex_py3file		ex_ni
+  #endif
+  #ifndef FEAT_TCL
+*** ../vim-7.3.956/src/if_python3.c	2013-05-15 17:49:00.000000000 +0200
+--- src/if_python3.c	2013-05-15 18:23:30.000000000 +0200
+***************
+*** 76,81 ****
+--- 76,82 ----
+  #else
+  # define CODEC_ERROR_HANDLER NULL
+  #endif
++ #define DOPY_FUNC "_vim_pydo"
+  
+  /* Python 3 does not support CObjects, always use Capsules */
+  #define PY_USE_CAPSULE
+***************
+*** 126,131 ****
+--- 127,133 ----
+  # define PyErr_PrintEx py3_PyErr_PrintEx
+  # define PyErr_NoMemory py3_PyErr_NoMemory
+  # define PyErr_Occurred py3_PyErr_Occurred
++ # define PyErr_PrintEx py3_PyErr_PrintEx
+  # define PyErr_SetNone py3_PyErr_SetNone
+  # define PyErr_SetString py3_PyErr_SetString
+  # define PyErr_SetObject py3_PyErr_SetObject
+***************
+*** 148,154 ****
+  # define PyTuple_GetItem py3_PyTuple_GetItem
+  # define PySlice_GetIndicesEx py3_PySlice_GetIndicesEx
+  # define PyImport_ImportModule py3_PyImport_ImportModule
+- # define PyImport_AddModule py3_PyImport_AddModule
+  # define PyObject_Init py3__PyObject_Init
+  # define PyDict_New py3_PyDict_New
+  # define PyDict_GetItemString py3_PyDict_GetItemString
+--- 150,155 ----
+***************
+*** 163,168 ****
+--- 164,174 ----
+  # define PyRun_SimpleString py3_PyRun_SimpleString
+  #undef PyRun_String
+  # define PyRun_String py3_PyRun_String
++ # define PyObject_GetAttrString py3_PyObject_GetAttrString
++ # define PyObject_SetAttrString py3_PyObject_SetAttrString
++ # define PyObject_CallFunctionObjArgs py3_PyObject_CallFunctionObjArgs
++ # define PyEval_GetLocals py3_PyEval_GetLocals
++ # define PyEval_GetGlobals py3_PyEval_GetGlobals
+  # define PySys_SetObject py3_PySys_SetObject
+  # define PySys_SetArgv py3_PySys_SetArgv
+  # define PyType_Ready py3_PyType_Ready
+***************
+*** 178,183 ****
+--- 184,190 ----
+  # define _PyObject_NextNotImplemented (*py3__PyObject_NextNotImplemented)
+  # define PyModule_AddObject py3_PyModule_AddObject
+  # define PyImport_AppendInittab py3_PyImport_AppendInittab
++ # define PyImport_AddModule py3_PyImport_AddModule
+  # if PY_VERSION_HEX >= 0x030300f0
+  #  undef _PyUnicode_AsString
+  #  define _PyUnicode_AsString py3_PyUnicode_AsUTF8
+***************
+*** 254,259 ****
+--- 261,271 ----
+  static void (*py3_PyErr_SetObject)(PyObject *, PyObject *);
+  static int (*py3_PyRun_SimpleString)(char *);
+  static PyObject* (*py3_PyRun_String)(char *, int, PyObject *, PyObject *);
++ static PyObject* (*py3_PyObject_GetAttrString)(PyObject *, const char *);
++ static PyObject* (*py3_PyObject_SetAttrString)(PyObject *, const char *, PyObject *);
++ static PyObject* (*py3_PyObject_CallFunctionObjArgs)(PyObject *, ...);
++ static PyObject* (*py3_PyEval_GetGlobals)();
++ static PyObject* (*py3_PyEval_GetLocals)();
+  static PyObject* (*py3_PyList_GetItem)(PyObject *, Py_ssize_t);
+  static PyObject* (*py3_PyImport_ImportModule)(const char *);
+  static PyObject* (*py3_PyImport_AddModule)(const char *);
+***************
+*** 386,391 ****
+--- 398,408 ----
+      {"PyErr_SetObject", (PYTHON_PROC*)&py3_PyErr_SetObject},
+      {"PyRun_SimpleString", (PYTHON_PROC*)&py3_PyRun_SimpleString},
+      {"PyRun_String", (PYTHON_PROC*)&py3_PyRun_String},
++     {"PyObject_GetAttrString", (PYTHON_PROC*)&py3_PyObject_GetAttrString},
++     {"PyObject_SetAttrString", (PYTHON_PROC*)&py3_PyObject_SetAttrString},
++     {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&py3_PyObject_CallFunctionObjArgs},
++     {"PyEval_GetGlobals", (PYTHON_PROC*)&py3_PyEval_GetGlobals},
++     {"PyEval_GetLocals", (PYTHON_PROC*)&py3_PyEval_GetLocals},
+      {"PyList_GetItem", (PYTHON_PROC*)&py3_PyList_GetItem},
+      {"PyImport_ImportModule", (PYTHON_PROC*)&py3_PyImport_ImportModule},
+      {"PyImport_AddModule", (PYTHON_PROC*)&py3_PyImport_AddModule},
+***************
+*** 990,995 ****
+--- 1007,1106 ----
+      DoPy3Command(eap, buffer, NULL);
+  }
+  
++ void ex_py3do(exarg_T *eap)
++ {
++     linenr_T		i;
++     const char		*code_hdr = "def " DOPY_FUNC "(line, linenr):\n ";
++     const char		*s = (const char *) eap->arg;
++     size_t		len;
++     char		*code;
++     int			status;
++     PyObject		*pyfunc, *pymain;
++     PyGILState_STATE	pygilstate;
++ 
++     if (Python3_Init())
++ 	goto theend;
++ 
++     if (u_save(eap->line1 - 1, eap->line2 + 1) != OK)
++     {
++ 	EMSG(_("cannot save undo information"));
++ 	return;
++     }
++     len = strlen(code_hdr) + strlen(s);
++     code = malloc(len + 1);
++     STRCPY(code, code_hdr);
++     STRNCAT(code, s, len + 1);
++     pygilstate = PyGILState_Ensure();
++     status = PyRun_SimpleString(code);
++     vim_free(code);
++     if (status)
++     {
++ 	EMSG(_("failed to run the code"));
++ 	return;
++     }
++     status = 0; /* good */
++     pymain = PyImport_AddModule("__main__");
++     pyfunc = PyObject_GetAttrString(pymain, DOPY_FUNC);
++     PyGILState_Release(pygilstate);
++ 
++     for (i = eap->line1; i <= eap->line2; i++)
++     {
++ 	const char *line;
++ 	PyObject *pyline, *pylinenr, *pyret, *pybytes;
++ 
++ 	line = (char *)ml_get(i);
++ 	pygilstate = PyGILState_Ensure();
++ 	pyline = PyUnicode_Decode(line, strlen(line),
++ 		(char *)ENC_OPT, CODEC_ERROR_HANDLER);
++ 	pylinenr = PyLong_FromLong(i);
++ 	pyret = PyObject_CallFunctionObjArgs(pyfunc, pyline, pylinenr, NULL);
++ 	Py_DECREF(pyline);
++ 	Py_DECREF(pylinenr);
++ 	if (!pyret)
++ 	{
++ 	    PyErr_PrintEx(0);
++ 	    PythonIO_Flush();
++ 	    status = 1;
++ 	    goto out;
++ 	}
++ 
++ 	if (pyret && pyret != Py_None)
++ 	{
++ 	    if (!PyUnicode_Check(pyret))
++ 	    {
++ 		/* TODO: a proper error number */
++ 		EMSG(_("E000: return value must be an instance of str"));
++ 		Py_XDECREF(pyret);
++ 		status = 1;
++ 		goto out;
++ 	    }
++ 	    pybytes = PyUnicode_AsEncodedString(pyret,
++ 		    (char *)ENC_OPT, CODEC_ERROR_HANDLER);
++ 	    ml_replace(i, (char_u *) PyBytes_AsString(pybytes), 1);
++ 	    Py_DECREF(pybytes);
++ 	    changed();
++ #ifdef SYNTAX_HL
++ 	    syn_changed(i); /* recompute syntax hl. for this line */
++ #endif
++ 	}
++ 	Py_XDECREF(pyret);
++ 	PythonIO_Flush();
++ 	PyGILState_Release(pygilstate);
++     }
++     pygilstate = PyGILState_Ensure();
++ out:
++     Py_DECREF(pyfunc);
++     PyObject_SetAttrString(pymain, DOPY_FUNC, NULL);
++     PyGILState_Release(pygilstate);
++     if (status)
++ 	return;
++     check_cursor();
++     update_curbuf(NOT_VALID);
++ 
++ theend:
++     return;
++ }
++ 
+  /******************************************************
+   * 2. Python output stream: writes output via [e]msg().
+   */
+*** ../vim-7.3.956/src/proto/if_python3.pro	2013-05-15 15:12:25.000000000 +0200
+--- src/proto/if_python3.pro	2013-05-15 18:01:55.000000000 +0200
+***************
+*** 3,8 ****
+--- 3,9 ----
+  void python3_end __ARGS((void));
+  int python3_loaded __ARGS((void));
+  void ex_py3 __ARGS((exarg_T *eap));
++ void ex_py3do __ARGS((exarg_T *eap));
+  void ex_py3file __ARGS((exarg_T *eap));
+  void python3_buffer_free __ARGS((buf_T *buf));
+  void python3_window_free __ARGS((win_T *win));
+*** ../vim-7.3.956/src/version.c	2013-05-15 17:49:00.000000000 +0200
+--- src/version.c	2013-05-15 18:16:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     957,
+  /**/
+
+-- 
+FATHER: We are here today to witness the union of two young people in the
+        joyful bond of the holy wedlock.  Unfortunately, one of them, my son
+        Herbert, has just fallen to his death.
+   [Murmurs from CROWD;  the BRIDE smiles with relief, coughs.]
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1108
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1108
+Problem:    Error message for os.fchdir() (Charles Peacech)
+Solution:   Clear the error. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1107/src/if_py_both.h	2013-06-02 18:54:16.000000000 +0200
+--- src/if_py_both.h	2013-06-03 20:01:23.000000000 +0200
+***************
+*** 5413,5418 ****
+--- 5413,5420 ----
+  	if (PyObject_SetAttrString(os, "fchdir", get_attr(m, "fchdir")))
+  	    return -1;
+      }
++     else
++ 	PyErr_Clear();
+  
+      return 0;
+  }
+*** ../vim-7.3.1107/src/version.c	2013-06-03 19:41:01.000000000 +0200
+--- src/version.c	2013-06-03 20:00:42.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1108,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+71. You wonder how people walk
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

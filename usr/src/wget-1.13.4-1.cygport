@@ -1,0 +1,38 @@
+# wget.cygport - directions for packaging wget for cygwin
+
+# Copyright (C) 2006, 2008, 2010, 2011 Eric Blake
+# This file is free software; I give unlimited permission to copy and/or
+# distribute it, with or without modifications, as long as this notice is
+# preserved.
+
+DESCRIPTION="Utility to retrieve files from the WWW via HTTP and FTP"
+HOMEPAGE=http://wget.sunsite.dk/
+SRC_URI=mirror://gnu/$PN/$P.tar.xz
+SRC_URI+=" $SRC_URI.sig"
+
+CYGCONF_ARGS="--without-libintl-prefix --without-libiconv-prefix \
+  --with-ssl --without-libssl-prefix CC=gcc-4"
+
+DIFF_EXCLUDES='wget.1 wget.info wget.pod stamp-vti version.texi config.rpath'
+
+src_compile()
+{
+  cd "$B"
+  cygconf
+  cygmake
+}
+
+src_install()
+{
+  cd $B
+  cyginstall
+  mkdir -p $D/etc/preremove $D/etc/defaults/etc
+  mv $D/etc/wgetrc $D/etc/defaults/etc/wgetrc
+  cp $C/manifest.lst $D/etc/preremove/$PN-manifest.lst
+}
+
+# Local Variables:
+# fill-column: 72
+# mode: sh
+# sh-indentation: 2
+# End:

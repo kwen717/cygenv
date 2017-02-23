@@ -1,0 +1,614 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1048
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1048
+Problem:    Python: no consistent naming.
+Solution:   Python patch 9: Rename d to dict and lookupDict to lookup_dict.
+	    (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1047/src/if_py_both.h	2013-05-29 22:36:06.000000000 +0200
+--- src/if_py_both.h	2013-05-29 22:39:16.000000000 +0200
+***************
+*** 475,481 ****
+   * you call VimToPython.
+   */
+      static PyObject *
+! VimToPython(typval_T *our_tv, int depth, PyObject *lookupDict)
+  {
+      PyObject	*result;
+      PyObject	*newObj;
+--- 475,481 ----
+   * you call VimToPython.
+   */
+      static PyObject *
+! VimToPython(typval_T *our_tv, int depth, PyObject *lookup_dict)
+  {
+      PyObject	*result;
+      PyObject	*newObj;
+***************
+*** 489,495 ****
+  	return result;
+      }
+  
+!     /* Check if we run into a recursive loop.  The item must be in lookupDict
+       * then and we can use it again. */
+      if ((our_tv->v_type == VAR_LIST && our_tv->vval.v_list != NULL)
+  	    || (our_tv->v_type == VAR_DICT && our_tv->vval.v_dict != NULL))
+--- 489,495 ----
+  	return result;
+      }
+  
+!     /* Check if we run into a recursive loop.  The item must be in lookup_dict
+       * then and we can use it again. */
+      if ((our_tv->v_type == VAR_LIST && our_tv->vval.v_list != NULL)
+  	    || (our_tv->v_type == VAR_DICT && our_tv->vval.v_dict != NULL))
+***************
+*** 498,504 ****
+  		our_tv->v_type == VAR_LIST ? (void *)our_tv->vval.v_list
+  					   : (void *)our_tv->vval.v_dict);
+  
+! 	if ((result = PyDict_GetItemString(lookupDict, ptrBuf)))
+  	{
+  	    Py_INCREF(result);
+  	    return result;
+--- 498,504 ----
+  		our_tv->v_type == VAR_LIST ? (void *)our_tv->vval.v_list
+  					   : (void *)our_tv->vval.v_dict);
+  
+! 	if ((result = PyDict_GetItemString(lookup_dict, ptrBuf)))
+  	{
+  	    Py_INCREF(result);
+  	    return result;
+***************
+*** 538,544 ****
+  	if (!(result = PyList_New(0)))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookupDict, ptrBuf, result))
+  	{
+  	    Py_DECREF(result);
+  	    return NULL;
+--- 538,544 ----
+  	if (!(result = PyList_New(0)))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookup_dict, ptrBuf, result))
+  	{
+  	    Py_DECREF(result);
+  	    return NULL;
+***************
+*** 546,552 ****
+  
+  	for (curr = list->lv_first; curr != NULL; curr = curr->li_next)
+  	{
+! 	    if (!(newObj = VimToPython(&curr->li_tv, depth + 1, lookupDict)))
+  	    {
+  		Py_DECREF(result);
+  		return NULL;
+--- 546,552 ----
+  
+  	for (curr = list->lv_first; curr != NULL; curr = curr->li_next)
+  	{
+! 	    if (!(newObj = VimToPython(&curr->li_tv, depth + 1, lookup_dict)))
+  	    {
+  		Py_DECREF(result);
+  		return NULL;
+***************
+*** 573,579 ****
+  	if (!(result = PyDict_New()))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookupDict, ptrBuf, result))
+  	{
+  	    Py_DECREF(result);
+  	    return NULL;
+--- 573,579 ----
+  	if (!(result = PyDict_New()))
+  	    return NULL;
+  
+! 	if (PyDict_SetItemString(lookup_dict, ptrBuf, result))
+  	{
+  	    Py_DECREF(result);
+  	    return NULL;
+***************
+*** 586,592 ****
+  		--todo;
+  
+  		di = dict_lookup(hi);
+! 		if (!(newObj = VimToPython(&di->di_tv, depth + 1, lookupDict)))
+  		{
+  		    Py_DECREF(result);
+  		    return NULL;
+--- 586,592 ----
+  		--todo;
+  
+  		di = dict_lookup(hi);
+! 		if (!(newObj = VimToPython(&di->di_tv, depth + 1, lookup_dict)))
+  		{
+  		    Py_DECREF(result);
+  		    return NULL;
+***************
+*** 970,980 ****
+  {
+      char_u	*key;
+      typval_T	tv;
+!     dict_T	*d = self->dict;
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+!     if (d->dv_lock)
+      {
+  	PyErr_SetVim(_("dict is locked"));
+  	return -1;
+--- 970,980 ----
+  {
+      char_u	*key;
+      typval_T	tv;
+!     dict_T	*dict = self->dict;
+      dictitem_T	*di;
+      DICTKEY_DECL
+  
+!     if (dict->dv_lock)
+      {
+  	PyErr_SetVim(_("dict is locked"));
+  	return -1;
+***************
+*** 982,988 ****
+  
+      DICTKEY_GET_NOTEMPTY(-1)
+  
+!     di = dict_find(d, key, -1);
+  
+      if (valObject == NULL)
+      {
+--- 982,988 ----
+  
+      DICTKEY_GET_NOTEMPTY(-1)
+  
+!     di = dict_find(dict, key, -1);
+  
+      if (valObject == NULL)
+      {
+***************
+*** 994,1001 ****
+  	    PyErr_SetObject(PyExc_KeyError, keyObject);
+  	    return -1;
+  	}
+! 	hi = hash_find(&d->dv_hashtab, di->di_key);
+! 	hash_remove(&d->dv_hashtab, hi);
+  	dictitem_free(di);
+  	return 0;
+      }
+--- 994,1001 ----
+  	    PyErr_SetObject(PyExc_KeyError, keyObject);
+  	    return -1;
+  	}
+! 	hi = hash_find(&dict->dv_hashtab, di->di_key);
+! 	hash_remove(&dict->dv_hashtab, hi);
+  	dictitem_free(di);
+  	return 0;
+      }
+***************
+*** 1013,1019 ****
+  	}
+  	di->di_tv.v_lock = 0;
+  
+! 	if (dict_add(d, di) == FAIL)
+  	{
+  	    DICTKEY_UNREF
+  	    vim_free(di);
+--- 1013,1019 ----
+  	}
+  	di->di_tv.v_lock = 0;
+  
+! 	if (dict_add(dict, di) == FAIL)
+  	{
+  	    DICTKEY_UNREF
+  	    vim_free(di);
+***************
+*** 1102,1108 ****
+  }
+  
+      static int
+! list_py_concat(list_T *l, PyObject *obj, PyObject *lookupDict)
+  {
+      Py_ssize_t	i;
+      Py_ssize_t	lsize = PySequence_Size(obj);
+--- 1102,1108 ----
+  }
+  
+      static int
+! list_py_concat(list_T *l, PyObject *obj, PyObject *lookup_dict)
+  {
+      Py_ssize_t	i;
+      Py_ssize_t	lsize = PySequence_Size(obj);
+***************
+*** 1122,1128 ****
+  	litem = PySequence_GetItem(obj, i);
+  	if (litem == NULL)
+  	    return -1;
+! 	if (_ConvertFromPyObject(litem, &li->li_tv, lookupDict) == -1)
+  	    return -1;
+  
+  	list_append(l, li);
+--- 1122,1128 ----
+  	litem = PySequence_GetItem(obj, i);
+  	if (litem == NULL)
+  	    return -1;
+! 	if (_ConvertFromPyObject(litem, &li->li_tv, lookup_dict) == -1)
+  	    return -1;
+  
+  	list_append(l, li);
+***************
+*** 4009,4032 ****
+  }
+  
+      static int
+! pydict_to_tv(PyObject *obj, typval_T *tv, PyObject *lookupDict)
+  {
+!     dict_T	*d;
+      char_u	*key;
+      dictitem_T	*di;
+      PyObject	*keyObject;
+      PyObject	*valObject;
+      Py_ssize_t	iter = 0;
+  
+!     d = dict_alloc();
+!     if (d == NULL)
+      {
+  	PyErr_NoMemory();
+  	return -1;
+      }
+  
+      tv->v_type = VAR_DICT;
+!     tv->vval.v_dict = d;
+  
+      while (PyDict_Next(obj, &iter, &keyObject, &valObject))
+      {
+--- 4009,4032 ----
+  }
+  
+      static int
+! pydict_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+!     dict_T	*dict;
+      char_u	*key;
+      dictitem_T	*di;
+      PyObject	*keyObject;
+      PyObject	*valObject;
+      Py_ssize_t	iter = 0;
+  
+!     dict = dict_alloc();
+!     if (dict == NULL)
+      {
+  	PyErr_NoMemory();
+  	return -1;
+      }
+  
+      tv->v_type = VAR_DICT;
+!     tv->vval.v_dict = dict;
+  
+      while (PyDict_Next(obj, &iter, &keyObject, &valObject))
+      {
+***************
+*** 4050,4061 ****
+  	}
+  	di->di_tv.v_lock = 0;
+  
+! 	if (_ConvertFromPyObject(valObject, &di->di_tv, lookupDict) == -1)
+  	{
+  	    vim_free(di);
+  	    return -1;
+  	}
+! 	if (dict_add(d, di) == FAIL)
+  	{
+  	    vim_free(di);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+--- 4050,4062 ----
+  	}
+  	di->di_tv.v_lock = 0;
+  
+! 	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
+  	    vim_free(di);
+  	    return -1;
+  	}
+! 
+! 	if (dict_add(dict, di) == FAIL)
+  	{
+  	    vim_free(di);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+***************
+*** 4066,4074 ****
+  }
+  
+      static int
+! pymap_to_tv(PyObject *obj, typval_T *tv, PyObject *lookupDict)
+  {
+!     dict_T	*d;
+      char_u	*key;
+      dictitem_T	*di;
+      PyObject	*list;
+--- 4067,4075 ----
+  }
+  
+      static int
+! pymap_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+!     dict_T	*dict;
+      char_u	*key;
+      dictitem_T	*di;
+      PyObject	*list;
+***************
+*** 4077,4091 ****
+      PyObject	*valObject;
+      Py_ssize_t	lsize;
+  
+!     d = dict_alloc();
+!     if (d == NULL)
+      {
+  	PyErr_NoMemory();
+  	return -1;
+      }
+  
+      tv->v_type = VAR_DICT;
+!     tv->vval.v_dict = d;
+  
+      list = PyMapping_Items(obj);
+      if (list == NULL)
+--- 4078,4092 ----
+      PyObject	*valObject;
+      Py_ssize_t	lsize;
+  
+!     dict = dict_alloc();
+!     if (dict == NULL)
+      {
+  	PyErr_NoMemory();
+  	return -1;
+      }
+  
+      tv->v_type = VAR_DICT;
+!     tv->vval.v_dict = dict;
+  
+      list = PyMapping_Items(obj);
+      if (list == NULL)
+***************
+*** 4133,4146 ****
+  	}
+  	di->di_tv.v_lock = 0;
+  
+! 	if (_ConvertFromPyObject(valObject, &di->di_tv, lookupDict) == -1)
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    return -1;
+  	}
+! 	if (dict_add(d, di) == FAIL)
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+--- 4134,4147 ----
+  	}
+  	di->di_tv.v_lock = 0;
+  
+! 	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+  	    Py_DECREF(litem);
+  	    return -1;
+  	}
+! 	if (dict_add(dict, di) == FAIL)
+  	{
+  	    vim_free(di);
+  	    Py_DECREF(list);
+***************
+*** 4155,4161 ****
+  }
+  
+      static int
+! pyseq_to_tv(PyObject *obj, typval_T *tv, PyObject *lookupDict)
+  {
+      list_T	*l;
+  
+--- 4156,4162 ----
+  }
+  
+      static int
+! pyseq_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+      list_T	*l;
+  
+***************
+*** 4169,4182 ****
+      tv->v_type = VAR_LIST;
+      tv->vval.v_list = l;
+  
+!     if (list_py_concat(l, obj, lookupDict) == -1)
+  	return -1;
+  
+      return 0;
+  }
+  
+      static int
+! pyiter_to_tv(PyObject *obj, typval_T *tv, PyObject *lookupDict)
+  {
+      PyObject	*iterator = PyObject_GetIter(obj);
+      PyObject	*item;
+--- 4170,4183 ----
+      tv->v_type = VAR_LIST;
+      tv->vval.v_list = l;
+  
+!     if (list_py_concat(l, obj, lookup_dict) == -1)
+  	return -1;
+  
+      return 0;
+  }
+  
+      static int
+! pyiter_to_tv(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+      PyObject	*iterator = PyObject_GetIter(obj);
+      PyObject	*item;
+***************
+*** 4208,4214 ****
+  	}
+  	li->li_tv.v_lock = 0;
+  
+! 	if (_ConvertFromPyObject(item, &li->li_tv, lookupDict) == -1)
+  	    return -1;
+  
+  	list_append(l, li);
+--- 4209,4215 ----
+  	}
+  	li->li_tv.v_lock = 0;
+  
+! 	if (_ConvertFromPyObject(item, &li->li_tv, lookup_dict) == -1)
+  	    return -1;
+  
+  	list_append(l, li);
+***************
+*** 4224,4230 ****
+  
+      static int
+  convert_dl(PyObject *obj, typval_T *tv,
+! 				    pytotvfunc py_to_tv, PyObject *lookupDict)
+  {
+      PyObject	*capsule;
+      char	hexBuf[sizeof(void *) * 2 + 3];
+--- 4225,4231 ----
+  
+      static int
+  convert_dl(PyObject *obj, typval_T *tv,
+! 				    pytotvfunc py_to_tv, PyObject *lookup_dict)
+  {
+      PyObject	*capsule;
+      char	hexBuf[sizeof(void *) * 2 + 3];
+***************
+*** 4232,4240 ****
+      sprintf(hexBuf, "%p", obj);
+  
+  # ifdef PY_USE_CAPSULE
+!     capsule = PyDict_GetItemString(lookupDict, hexBuf);
+  # else
+!     capsule = (PyObject *)PyDict_GetItemString(lookupDict, hexBuf);
+  # endif
+      if (capsule == NULL)
+      {
+--- 4233,4241 ----
+      sprintf(hexBuf, "%p", obj);
+  
+  # ifdef PY_USE_CAPSULE
+!     capsule = PyDict_GetItemString(lookup_dict, hexBuf);
+  # else
+!     capsule = (PyObject *)PyDict_GetItemString(lookup_dict, hexBuf);
+  # endif
+      if (capsule == NULL)
+      {
+***************
+*** 4243,4251 ****
+  # else
+  	capsule = PyCObject_FromVoidPtr(tv, NULL);
+  # endif
+! 	PyDict_SetItemString(lookupDict, hexBuf, capsule);
+  	Py_DECREF(capsule);
+! 	if (py_to_tv(obj, tv, lookupDict) == -1)
+  	{
+  	    tv->v_type = VAR_UNKNOWN;
+  	    return -1;
+--- 4244,4252 ----
+  # else
+  	capsule = PyCObject_FromVoidPtr(tv, NULL);
+  # endif
+! 	PyDict_SetItemString(lookup_dict, hexBuf, capsule);
+  	Py_DECREF(capsule);
+! 	if (py_to_tv(obj, tv, lookup_dict) == -1)
+  	{
+  	    tv->v_type = VAR_UNKNOWN;
+  	    return -1;
+***************
+*** 4285,4291 ****
+  }
+  
+      static int
+! _ConvertFromPyObject(PyObject *obj, typval_T *tv, PyObject *lookupDict)
+  {
+      if (obj->ob_type == &DictionaryType)
+      {
+--- 4286,4292 ----
+  }
+  
+      static int
+! _ConvertFromPyObject(PyObject *obj, typval_T *tv, PyObject *lookup_dict)
+  {
+      if (obj->ob_type == &DictionaryType)
+      {
+***************
+*** 4357,4363 ****
+  	tv->vval.v_number = (varnumber_T) PyLong_AsLong(obj);
+      }
+      else if (PyDict_Check(obj))
+! 	return convert_dl(obj, tv, pydict_to_tv, lookupDict);
+  #ifdef FEAT_FLOAT
+      else if (PyFloat_Check(obj))
+      {
+--- 4358,4364 ----
+  	tv->vval.v_number = (varnumber_T) PyLong_AsLong(obj);
+      }
+      else if (PyDict_Check(obj))
+! 	return convert_dl(obj, tv, pydict_to_tv, lookup_dict);
+  #ifdef FEAT_FLOAT
+      else if (PyFloat_Check(obj))
+      {
+***************
+*** 4366,4376 ****
+      }
+  #endif
+      else if (PyIter_Check(obj))
+! 	return convert_dl(obj, tv, pyiter_to_tv, lookupDict);
+      else if (PySequence_Check(obj))
+! 	return convert_dl(obj, tv, pyseq_to_tv, lookupDict);
+      else if (PyMapping_Check(obj))
+! 	return convert_dl(obj, tv, pymap_to_tv, lookupDict);
+      else
+      {
+  	PyErr_SetString(PyExc_TypeError,
+--- 4367,4377 ----
+      }
+  #endif
+      else if (PyIter_Check(obj))
+! 	return convert_dl(obj, tv, pyiter_to_tv, lookup_dict);
+      else if (PySequence_Check(obj))
+! 	return convert_dl(obj, tv, pyseq_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+! 	return convert_dl(obj, tv, pymap_to_tv, lookup_dict);
+      else
+      {
+  	PyErr_SetString(PyExc_TypeError,
+*** ../vim-7.3.1047/src/version.c	2013-05-29 22:36:06.000000000 +0200
+--- src/version.c	2013-05-29 22:38:23.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1048,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+23. You can't call your mother...she doesn't have a modem.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

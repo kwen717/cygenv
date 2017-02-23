@@ -1,0 +1,70 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1245
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1245
+Problem:    MS-Windows: confirm() dialog text may still not fit.
+Solution:   Use GetTextWidthEnc() instead of GetTextWidth() in two more
+            places. (Yasuhiro Matsumoto)
+Files:      src/gui_w32.c
+
+
+*** ../vim-7.3.1244/src/gui_w32.c	2013-06-26 12:58:28.000000000 +0200
+--- src/gui_w32.c	2013-06-26 13:13:43.000000000 +0200
+***************
+*** 3282,3288 ****
+  	    pend = vim_strchr(pstart, DLG_BUTTON_SEP);
+  	    if (pend == NULL)
+  		pend = pstart + STRLEN(pstart);	// Last button name.
+! 	    textWidth = GetTextWidth(hdc, pstart, (int)(pend - pstart));
+  	    if (textWidth < minButtonWidth)
+  		textWidth = minButtonWidth;
+  	    textWidth += dlgPaddingX;	    /* Padding within button */
+--- 3282,3288 ----
+  	    pend = vim_strchr(pstart, DLG_BUTTON_SEP);
+  	    if (pend == NULL)
+  		pend = pstart + STRLEN(pstart);	// Last button name.
+! 	    textWidth = GetTextWidthEnc(hdc, pstart, (int)(pend - pstart));
+  	    if (textWidth < minButtonWidth)
+  		textWidth = minButtonWidth;
+  	    textWidth += dlgPaddingX;	    /* Padding within button */
+***************
+*** 3307,3313 ****
+  	    pend = vim_strchr(pstart, DLG_BUTTON_SEP);
+  	    if (pend == NULL)
+  		pend = pstart + STRLEN(pstart);	// Last button name.
+! 	    textWidth = GetTextWidth(hdc, pstart, (int)(pend - pstart));
+  	    textWidth += dlgPaddingX;		/* Padding within button */
+  	    textWidth += DLG_VERT_PADDING_X * 2; /* Padding around button */
+  	    if (textWidth > dlgwidth)
+--- 3307,3313 ----
+  	    pend = vim_strchr(pstart, DLG_BUTTON_SEP);
+  	    if (pend == NULL)
+  		pend = pstart + STRLEN(pstart);	// Last button name.
+! 	    textWidth = GetTextWidthEnc(hdc, pstart, (int)(pend - pstart));
+  	    textWidth += dlgPaddingX;		/* Padding within button */
+  	    textWidth += DLG_VERT_PADDING_X * 2; /* Padding around button */
+  	    if (textWidth > dlgwidth)
+*** ../vim-7.3.1244/src/version.c	2013-06-26 12:58:28.000000000 +0200
+--- src/version.c	2013-06-26 13:14:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1245,
+  /**/
+
+-- 
+TALL KNIGHT OF NI: Ni!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

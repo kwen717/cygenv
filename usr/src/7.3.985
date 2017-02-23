@@ -1,0 +1,51 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.985
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.985
+Problem:    GTK vim not started as gvim doesn't set WM_CLASS property to a
+            useful value.
+Solution:   Call g_set_prgname() on startup. (James McCoy)
+Files:      src/gui_gtk_x11.c
+
+
+*** ../vim-7.3.984/src/gui_gtk_x11.c	2013-05-06 04:21:35.000000000 +0200
+--- src/gui_gtk_x11.c	2013-05-21 12:48:16.000000000 +0200
+***************
+*** 1447,1452 ****
+--- 1447,1457 ----
+  	using_gnome = 1;
+  #endif
+  
++     /* This defaults to argv[0], but we want it to match the name of the
++      * shipped gvim.desktop so that Vim's windows can be associated with this
++      * file. */
++     g_set_prgname("gvim");
++ 
+      /* Don't use gtk_init() or gnome_init(), it exits on failure. */
+      if (!gtk_init_check(&gui_argc, &gui_argv))
+      {
+*** ../vim-7.3.984/src/version.c	2013-05-21 12:45:54.000000000 +0200
+--- src/version.c	2013-05-21 12:50:04.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     985,
+  /**/
+
+-- 
+A disclaimer for the disclaimer:
+"and before I get a huge amount of complaints , I have no control over the
+disclaimer at the end of this mail :-)" (Timothy Aldrich)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

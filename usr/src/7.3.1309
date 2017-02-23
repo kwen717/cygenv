@@ -1,0 +1,77 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1309
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1309
+Problem:    When a script defines a function the flag to wait for the user to
+	    hit enter is reset.
+Solution:   Restore the flag. (Yasuhiro Matsumoto)  Except when the user was
+	    typing the function.
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.1308/src/eval.c	2013-07-04 20:25:34.000000000 +0200
+--- src/eval.c	2013-07-05 18:23:42.000000000 +0200
+***************
+*** 21108,21113 ****
+--- 21108,21114 ----
+      int		j;
+      int		c;
+      int		saved_did_emsg;
++     int		saved_wait_return = need_wait_return;
+      char_u	*name = NULL;
+      char_u	*p;
+      char_u	*arg;
+***************
+*** 21439,21445 ****
+--- 21440,21449 ----
+      for (;;)
+      {
+  	if (KeyTyped)
++ 	{
+  	    msg_scroll = TRUE;
++ 	    saved_wait_return = FALSE;
++ 	}
+  	need_wait_return = FALSE;
+  	sourcing_lnum_off = sourcing_lnum;
+  
+***************
+*** 21750,21755 ****
+--- 21754,21760 ----
+      vim_free(fudi.fd_newkey);
+      vim_free(name);
+      did_emsg |= saved_did_emsg;
++     need_wait_return |= saved_wait_return;
+  }
+  
+  /*
+*** ../vim-7.3.1308/src/version.c	2013-07-04 22:50:33.000000000 +0200
+--- src/version.c	2013-07-05 18:25:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1309,
+  /**/
+
+-- 
+BROTHER MAYNARD: Armaments Chapter Two Verses Nine to Twenty One.
+ANOTHER MONK:    And St.  Attila raised his hand grenade up on high saying "O
+                 Lord bless this thy hand grenade that with it thou mayest
+                 blow thine enemies to tiny bits, in thy mercy. "and the Lord
+                 did grin and people did feast upon the lambs and sloths and
+                 carp and anchovies and orang-utans and breakfast cereals and
+                 fruit bats and...
+BROTHER MAYNARD: Skip a bit brother ...
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

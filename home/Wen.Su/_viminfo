@@ -1,0 +1,3328 @@
+# 本 viminfo 檔案是由 Vim 7.3 所產生.
+# 如果想要自行修改請特別小心！
+
+# 'encoding' 在此檔建立時的值
+*encoding=utf-8
+
+
+# hlsearch on (H) or off (h):
+~h
+# Last Search Pattern:
+~Msle0~/\<uLCurMaxWindows\>
+
+# Last Substitute Search Pattern:
+~MSle0&
+
+# 前一組替代字串:
+$
+
+# 命令列 歷史記錄 (新到舊):
+:tabe VMSync.c
+:tabe spmr.c
+:tabe SMCRTDEL.C
+:tabe VOL.C
+:tabe VOL
+:tabe SMVOLCFG.C
+:tabe ioioctlcreate
+:tabe IOCTL.C
+:tabe IOCTL
+:tabe FSIO.C
+:s
+:tabe SSCRTDEL.C
+:tabe SSVOLCFG.C
+:tabe offlineLD.c
+:tabe SMBASIC.C
+:tabe SS.C
+:tabe VVReclaim.c
+:tabe RemReplTimOut.c
+:tabe FSVOLIO.C
+:tabe FSBUF.C
+:tabe sstst.c
+:tabe fsvolcfg.c
+:tabe inc/ChgCodFixBug.h
+:tabe ssbasic.c
+:tabe IOCTLMultiThrd.c
+:tabe sys/undeclared/m100undef.h
+:tabe FS.C
+:tabe txt
+:tabe src/qla_tgt.c
+:tabe src/qla_27xx.c
+:tabe src/fcintf.c
+:tabe src/qla_init.c
+:tabe ../88Emulex411A/sys/lpfc/lpfc_scsi.h
+:tabe ../8CBAK/oridriver/qla_os.c
+:tabe src/qla_os.c
+:tabe sys/qla/qla_fw.h
+:tabe src/qla_ioctl.c
+:tabe src/fiminit.c
+:tabe sys/qla/qla_tmp.h
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_fw.h
+:tabe ../88Emulex411A/src/lpfc_initiator_api.c
+:tabe ../88Emulex411A/src/lpfc_
+:%s/IftElxIssueCommand/IftQlaIssueCommand/g
+:tabe src/qla_isr.c
+:tabe sys/ift.h
+:tabe sys/qla/qla_glbl.h
+:tabe src/qla_mbx.c
+:tabe src/qla_2700fw.c
+:tabe src/qla_25xx.c
+:tabe ../8CBAK/oridriver/qla_27xx.c
+:tabe ../8CBAK/oridriver/qla_27xx.
+:tabe src/lpfc_init_api.c
+:tabe src/qla_dbg.c
+:tabe src/ift.c
+:tabe src/2700fc.c
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_iocb.c
+:tabe ../88Emulex411A/sys/lpfc/lpfc_hw.h
+:tabe ../88Emulex411A/src/lpfc_ct.c
+:tabe sys/qla/qla_def.h
+:tabe sys/qla/qla_fc.h
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_gs.c
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_os.c
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_init.c
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_mbx.c
+:tabe sys/qla/qla_ini
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_def.h
+:q!
+:tabe tmp
+:tabe ../421qlogic/src/qla_tgt.c
+:tabe src/qla_init.ci
+:tabe src/qla_flash.c
+:tabe src/ini
+:tabe ../88Emulex411A/src/lpfc_tm_main.c
+:tabe ../88Emulex411A/src/
+:tabe ../88Emulex411A/src/lpfc_hbadisc.c
+:tabe ../qlogic/src/fcintf.c
+:tabe src/lpfc_target_api.c
+:tabe src/lpfc_tm_main.c
+:tabe src/lpfc_initiator_api.c
+:tabe src/lpfc_hbadisc.c
+:tabe src/fc_remote_port.c
+:tabe src/lpfc_ct.c
+:tabe src/lpfc_els.c
+:tabe src/lpfc_nportdisc.c
+:tabe src/lpfc_sli.c
+:tabe EmulexFCIntf_411_.txt
+:tabe src/lpfc_init.c
+:tabe qla_mr.c
+:tabe qla_mr.h
+:tabe qla_mr.
+:tabe qla_iocb.c
+:tabe qla_fw.h
+:tabe qla_init.c
+:tabe qla_target.c
+:tabe qla_target.
+:tabe qla_mbx.c
+:tabe ../libfc/fc_disc.c
+:tabe qla_os.c
+:tabe qla_gs.c
+:tabe qla_def.h
+:tabe qla_isr.c
+:tabe qla_os.c'
+:tabe qla_sup.c
+:tabe qla_mid.c
+:tabe 
+:tabe src/lpfc_tm_scsi.c
+:tabe qla_target.h
+:tabe qla_bsg.c
+:tabe qla_bsg.
+:tabe ../linux/linux/drivers/scsi/qla2xxx/qla_inline.h
+:tabe sys/qla/qla_27xx.h
+:tabe QlogicFCIntf_411A12.ld.
+:%s/lpfc_im_prep/qla_im_prep/g
+:%s/lpfc_im_prep
+:tabe src/qla_im_api.c
+:tabe sys/usermode.h
+:tabe sys/task.h
+:tabe sys/pmemall.h
+:tabe sys/MTask.h
+:tabe ../8CBAK/oridriver/qla_ioctl.h
+:tabe sys/qla/qla_tgt.h
+:tabe sys/qla/qla_ioctl.h
+:tabe ../421qlogic/sys/ift.h
+:%s/IftElxImGetScsiID/IftQlaImGetScsiID/g
+:%s/IftElxImFreeScsiID/IftQlaImFreeScsiID/g
+:%s/write_firmware_lock/load_fw_lock/g
+:tabe ../88Emulex411A/src/lpfc_init.c
+:tabe ../88Emulex411A/src/lpfc_init
+:tabe sys/allocbuf.h
+:tabe ../88Emulex411A/src/oce_mbox.c
+:tabe ../88Emulex411A/src/oce_if.c
+:tabe ../8CBAK/oridriver/qla_mbx.c
+:tabe ../bakqlogic/src/qla_init.c
+:q
+:tabe src/lpfc_init
+:tabe sys/qla/qla_os.h
+:tabe q
+:tabe Makefile
+:tabe sys/genscsi.h
+:tabe FSMETDAT.C
+:tabe fstier.c
+:tabe VPMig.c
+:tabe fsmig.c
+:tabe fswai
+:tabe DSChanMap.c
+:tabe FSMOD.C
+:tabe FSSASCHK.C
+:tabe SSBAATTR.C
+:tabe VMResource.c
+:tabe fssctexch.c
+:tabe sys/types.h
+:tabe sys/undeclared/m42undef.h
+:tabe DSChanMap
+:tabe ssmig.c
+:tabe fssebasic.c
+:tabe DSEvent.c
+:tabe inc/fstrcorg.h
+:tabe inc/prototype/SS_BASICDEF.H
+:%s/IFTELX_MODFLG/IFTQLA_MODFLG/g
+:%s/IftElxTrgIntDelay/IftQlaTrgIntDelay/g
+:%s/IftElxImTimerRoutine/IftQlaImTimerRoutine/g
+:tabe src/qla_initiator_api.c
+:tabe sys/qla/qla_inline.h
+:tabe ../8CBAK/oridriver/qla_reg.h
+:tabe sys/qla/qla_reg.h
+:tabe ../88Emulex411A/src/fcintf.c
+:tabe ../8CBAK/oridriver/qla_inline.h
+:tabe sys/profile.h
+:tabe sys/CFG.H
+:tabe ../8CBAK/oridriver/qla_init.c
+:tabe sys/ift.c
+:tabe ../58frank.UnifyCloud_421B64/FSMOD.C
+:tabe src/qla_i
+:tabe ../88Emulex411A/src/oce_util.c
+:tabe ../8CBAK/oridriver/qla_tgt.c
+:tabe ../8CBAK/oridriver/qla_tgt
+:tabe src/nvmeSSD.c
+:tabe src/nvmeUtil.c
+:tabe src/nvmeInit.c
+:tabe src/nvmeCoreInit.c
+:tabe src/NVMeDriver.vui
+:tabe ../88Emulex411A/src/lpfc_tm_scsi.c
+:tabe ../88Emulex411A/src/lpfc_target_api.c
+:tabe src/oce_if.c
+:tabe sys/IL.H
+:tabe src/Makefile
+:tabe sys/qla/qla_dbg.h
+:tabe ../88Emulex411A/src/lpfc_nportdisc.c
+:tabe ../88Emulex411A/src/lpfc_sli.c
+:tabe ../88Emulex411A/sys/lpfc/lpfc_tm.h
+:set wrapscan
+:tabe src/ioc
+:tabe sys/extern.h
+:tabe sys/undeclared/m4dundef.h
+:tabe src/qla_tg
+:tabe sys/undeclared/m61undef.h
+:tabe src/lpfc_mbox.c
+:tabe src/lpfc_scsi.c
+:tabe src/lpfc_debugfs.c
+:tabe sys/oce/oce_if.h
+:tabe src/oce_hw.c
+:tabe src/oce_queue.c
+:tabe sys/oce/oce_ift.h
+:tabe src/oce_sysctl.c
+:tabe ../8CBAK/oridriver/qla_os.
+:tabe src/systrclb.c
+:w
+:tabe sys/qla/
+:tabe ../88Emulex411A/src/ift.c
+:tabe src/fcintf.c.bak
+:%s/IftElxTmRemoveInitiator/IftQlaTmRemoveInitiator/g
+:tabe ../88Emulex411A/sys/lpfc/lpfc_disc.h
+:%s/IftElxTmAddInitiator/IftQlaTmAddInitiator/g
+:tabe sys/undeclared/m4aundef.h
+:tabe sys/undeclared/m65undef.h
+:tabe sys/m65undef.h
+:%s/IftElxPwrOnEventDone/IftQlaPwrOnEventDone/g
+:%s/pwronevt_lock/qla_pwronevt_lock/g
+:%s/IftElxHCRec/IftQlaHCRec/g
+:%s/IftElxHCRecWWNCnt/IftQlaHCRecWWNCnt/g
+:%s/IftElxGetLBASec/IftQlaGetLBASec/g
+:%s/IftElxTmCheckHostIOTimeout/IftQlaTmCheckHostIOTimeout/g
+:%s/IftElxTmCheckIntrDelay/IftQlaTmCheckIntrDelay/g
+:%s/tm_process_/qla_tm_/g
+:.,.+4
+:tabe src/qla_os
+:%s/load_firmware_done/g_fw_start_addr/g
+:tabe sys/fimi
+:tabe src/xxx
+:tabe ../88Emulex411A/sys/lpfc/lpfc.h
+:%s/IftElxTransferDataStatus/IftQlaTransferDataStatus/g
+:%s/__packed/__attribute__((__packed__))/g
+:tabe models/Organisation.js
+:tabe sys/qla/qla_scsi.h
+:tabe sys/qla/qla_81xx.h
+:tabe sys/qla/qla_25xx.h
+:tabe sys/qla/qla_flash.h
+:tabe ../linux/linux/drivers/scsi/qla4xxx/ql4_83xx.h
+:tabe ../linux/linux/drivers/scsi/qla4xxx/ql4_fw.h
+:tabe ../58frank.UnifyCloud_421B64/inc/comthrd.h
+:tabe ../
+:%s/IftElxMiscCommand/IftQlaMiscCommand/
+:tabe 2700fc.bal
+:tabe ../8CEmulexFCIntf_391I06/src/fcintf.c
+:%s/IftElxConfirmLinkDown/IftQlaConfirmLinkDown/g
+:tabe ../88Emulex411A/src/lpfc_mbox.c
+:tabe ../8CBAK/oridriver/qla_isr.c
+:tabe sys/qla/qla_isr
+:tabe modify.txt
+:tabe ../88Emulex411A/src/fiminit.c
+:tabe sys/kernel.h
+:tabe 1064/elxfcintf.exp
+:tabe 1064/elxfcintf.vui
+:tabe sys/qla/qla_err.h
+:tabe sys/qla/qla_83xx.h
+:%s/__packed//g
+:tabe sys/x86/platform/CnvtData.h
+:tabe sys/TYPES.H
+:tabe src/qla_
+:tabe src/ift.h
+:tabe ../88Emulex411A/src/oce_hw.c
+:tabe ../88Emulex411A/sys/ift.h
+:tabe ../8CBAK/0831/sys/ift.h
+:%s/IftElxAbortCommand/IftQlaAbortCommand/g
+:%s/IftElxResourceSetup/IftQlaResourceSetup/g
+:%s/IftElxInitChannel/IftQlaInitChannel/g
+:%s/QLA_MAX_CHANNELS/IFT_MAX_CHANNELS/g
+:%s/QLA_MAX_CHANNELS/IFT_MAX_CHANNELS/
+:%s/ELX_MAX_CHANNELS/QLA_MAX_CHANNELS/
+:%s/IftElxGetSLIPortInfo/IftQlaGetPortInfo/g
+:%s/pSLI_PORT/pFC_PORT/g
+:%/pSLI_PORT/pFC_PORT/g
+:%s/ElxDiagGet/QlaDiagGet/g
+:tabe ../0831/src/ift.h
+:tabe ../8CBAK/qlogic/ift.c
+:tabe ../0831/src/ift.c
+:tabe 10
+:tabe ../88Emulex411A/Makefile
+:%s/EmulexFCIntf/QlogicFCIntf/g
+:tabe make.inc
+:tabe ../58frank.UnifyCloud_421B64/vuifile
+:%s/struct qla/qla/g
+:%/struct qla/qla/g
+:tabe %s/struct qla_host_t/qla_host_t/g
+:tabe sys/qla/qla_tgt
+:tabe sys/qla/qla_
+:tabe ../8CEmulexFCIntf_391I06/sys/CfgSync.h
+:tabe ../8CEmulexFCIntf_391I06/sys/CFGINTF.H
+:tabe ../8CEmulexFCIntf_391I06/src/lpfc_init.c
+:tabe src/2700fw
+:tabe src/2500midq.c
+:tabe src/qla_2500fw.c
+:%s/ELX_MAX_CHANNELS/QLA_MAX_CHANNELS/g
+:tabe sys/qla/qla_ver.h
+:tabe ../8CEmulexFCIntf_391I06/Makefile
+:tabe ../8CEmulexFCIntf_391I06/makfile
+:tabe driver/ift.c
+:tabe sys/CFGINTF.H
+:tabe driver/ift.h
+:tabe driver/fcintf.c
+:tabe driver/fiminit.c
+:tabe driver/tmp.c
+:tabe driver/systrclb.c
+:tabe driver/qla_init.c
+:tabe mak.rdb/x86/1064r.ld
+:tabe EmulexFCIntf_391_.txt
+:.tabe 1064/tachyon.old.vui
+:tabe driver/qla_os.c
+:tabe driver/qla_ioctl.c
+:tabe driver/sys/qla_reg.h
+:tabe driver/qla_25xx.c
+:tabe driver/todo
+:tabe driver/qla_tgt.c
+:tabe driver/sys/qla_def.h
+:tabe driver/sys/qla_os.h
+:tabe driver/qla_isr.c
+:tabe driver/qla_mbx.c
+:tabe driver/qla_27xx.c
+:tabe driver/2500midq.c
+:tabe driver/qla_2500fw.c
+:tabe driver/qla_flash.c
+:tabe src/qlogic/tmp.c
+:tabe src/qlogic/fiminit.c
+:%s/Elx/Qla/g
+:tabe lpfc_init.c
+:tabe qlogic/ift.c
+:tabe qlogic/ift.h
+:tabe ift.c
+:tabe ift.h
+:tabe ift.
+:tabe qlogic/fiminit.c
+:tabe driver/sys/qla_flash.h
+:tabe driver/sys/qla_inline.h
+:tabe gen_DEB.bat
+:tabe SS.EXP
+:tabe fsmodl.
+:tabe inc/prototype/BAHandle.h
+:tabe inc/prototype/sscrtdel.h
+:tabe gen_RLS.bat
+:tabe fcintf.c
+:tabe fiminit.c
+:tabe output
+:tabe qla__/make.inc
+:tabe qla__/Makefile
+:tabe sys/memory.h
+:tabe qla_ioctl.c
+:tabe qla_tgt.c
+:tabe todo
+:tabe qla_tgt.h
+:tabe qla_dbg.h
+:tabe qla_dbg.c
+:tabe qla_err.h
+:tabe 2700fc.c
+:tabe qla_os.h
+:tabe qla_2700fw.c
+:tabe qla_27xx.c
+:tabe makefile
+:%s///g
+:%s//\r/g
+:%s/^M/\r/g
+:tabe lpfc_sli.c
+:tabe lpfc_init
+:tabe lpfc_debugfs.c
+:tabe unify.bat
+:tabe cloud.bat
+:tabe sys/cmd.h
+:tabe inc/ChgCodFixBug.h.unify
+:tabe inc/ChgCodFixBug.h.cloud
+:tabe GetDatLoc.c
+:tabe pntbas
+:tabe inc/meif.h
+:tabe FSATTR.C
+:tabe VMRRMngr.c
+:tabe inc/prototype/FSIO_FUNC.h
+:tabe sys/vmem.h
+:tabe sys/mem.h
+:tabe VVSynCache.c
+:tabe src/nvmeCore.c
+:tabe fsmod
+:tabe src/nvmeBackup.c
+:tabe include/hwreg.h
+:tabe include/nvmeCore.h
+:tabe include/nvme.h
+:tabe inc/nvme.h
+:tabe sys/extlun.h
+:tabe sys/lvpart.h
+:tabe inc/prototype/vol.h
+:tabe inc/comthrd.h
+:tabe SS.EXP.unify
+:tabe SS.EXP.cloud
+:tabe INC/ChgCodFixBug.h.cloud
+:tabe sys/ldif.h
+:tabe sys/ldcfg.h
+:tabe inc/prototype/VMSync.h
+:tabe ../12frank.421Unify_721A06/inc/prototype/VMSync.h
+:tabe ProvStatus.c
+:tabe batier.c
+:tabe SSBA
+:tabe inc/IOCTL.H
+:tabe inc/prototype/IOCTL.h
+:tabe inc/prototype/SSBAATTR.h
+:tabe ss.c
+:tabe ../bak11frank.Gateway_821B11/SS.C
+:tabe inc/SS.H
+:tabe ../bak11frank.Gateway_821B11/SSBAATTR.C
+:tabe ../12frank.421Unify_721A06/INC/comthrd.h
+:tabe ../51frank.UnifyCloud_821A51/spmr.c
+:tabe ../51frank.UnifyCloud_821A51/SMVOLCFG.C
+:tabe ../bak11frank.Gateway_821B11/FSATTR.C
+:tabe ../bak11frank.Gateway_821B11/
+:tabe BSCDSIF.C
+:tabe BSCDSIF.
+:tabe inc/VVReclaim.h
+:tabe inc/prototype/DSFSBASIC.h
+:tabe inc/prototype/FSVOLIO.h
+:tabe fsvol
+:tabe FSTHREAD.C
+:tabe issuevscn.c
+:tabe DSChanMap2.c
+:tabe FSMOD
+:tabe VOLRCSYN.C
+:tabe fsme
+:tabe SSIO.C
+:tabe SSIO
+:tabe ../11frank.Gateway_821B11/inc/ChgCodFixBug.h
+:tabe inc/prototype/fssebasic.h
+:tabe inc/prototype/SMVOLCFG.h
+:tabe ../frank.Gateway_821B10/spmr.c
+:tabe ../11frank.Gateway_821B10/spmr.c
+:tabe ../spmr.c
+:tabe ../11frank.Gateway_821B10/SSVOLCFG.C
+:tabe inc/EIDataType.h
+:tabe inc/TimVVIntf.h
+:tabe inc/prototype/ssvolcf
+:tabe FSBASIC.C
+:tabe DSDebug.c
+:tabe xxx
+:tabe ../33frank.G7Multicore_392I01/INC/ChgCodFixBug.h
+:tabe gen_
+:tabe 22frank.421Unify_421A03/INC/ChgCodFixBug.h
+:tabe ../22frank.Gateway_821B10/INC/ChgCodFixBug.h
+:tabe sys/undeclared/m1undef.h
+:tabe sys/undeclared/m43undef.h
+:tabe xxx.c
+:tabe inc/prototype/ssbasic.h
+:tabe IOCTL_sm.C
+:tabe SSLIC.C
+:tabe vvmig
+:tabe systrclb.c
+:tabe inc/fssctexch.h
+:tabe ../rwtest_v3.0.0/rwtest.c
+:tabe INC/comthrd.h
+:tabe dbas
+:tabe sstst
+:tabe MultiTrgChkWaitPstEnd.c
+:tabe sys/genevt.h
+:tabe ../11frank.Gateway_821A37/inc/ChgCodFixBug.h
+:tabe ../11frank.Gateway_821A37/FSIO.C
+:tabe inc/ssvolcfg.h
+:tabe inc/FS.H
+:tabe ../11frank.Gateway_821A37/spmr.c
+:tabe ../11frank.Gateway_821A37/SSVOLCFG.C
+:tabe ../11frank.Gateway_821A37/ssbasic.c
+:tabe ../11frank.Gateway_821A37/SS.EXP
+:tabe ../11frank.Gateway_821A37/FSMOD.C
+:tabe ../11frank.Gateway_821A37/SS.C
+:tabe ../11frank.Gateway_821A37/VVReclaim.c
+:tabe ../11frank.Gateway_821A37/INC/ChgCodFixBug.h
+:tabe ILTHREAD.C
+:tabe 11frank.Gateway_821A37/FSIO.C
+:tabe 22frank.Gateway_821B05/FSIO.C
+:tabe sys/dmemall.h
+:tabe sys/cachest.h
+:tabe iocmd/HSTIF.C
+:tabe iocmd/HSTLUN.C
+:tabe iocmd/iocmd.exp
+:tabe sys/rastream.h
+:tabe iocmd/CMDMOD.C
+:tabe iocmd/CMDDBCOD.C
+:tabe iocmd/CMDIF.C
+:tabe iocmd/reroutiq.c
+:tabe iocmd/systrclb.c
+:tabe iocmd/trc.h
+:tabe SS.c
+:tabe fsio
+:tabe  SS.EXP
+:tabe ../frank.Gateway_821A27/FSIO.C
+:tabe VVSC.c
+:tabe INC/prototype/undef.
+:tabe INC/prototype/undef.h
+:tabe readBAT.c
+:tabe inc/prototype/spmr.h
+:tabe ../frank.Gateway_821A30/GetDatLoc.c
+:tabe ../411frank.411Broadwell_411B17/GetDatLoc.c
+:tabe aaa
+:tabe ../frank.Gateway_821A30/spmr.c
+:tabe FSS
+:tabe INC/VVReclaim.h
+:tabe ../frank.Gateway_821A30/VMSync.c
+:tabe tags
+
+# 搜尋字串 歷史記錄 (新到舊):
+? \<uLCurMaxWindows\>
+? \<VMSyncCheckMultiBlockCopy\>
+?/feature_eon_migration
+?/migration
+?/smfreesms
+?/voltyp
+?/smfreesmsre
+? \<VOLUMEIOVOLTYP_BLKASSOCTBL\>
+? \<VolumeIOCheckVolumeType\>
+?/freevoldsctbl
+?/TYE = 
+?/SPL
+?/typ
+? \<MediaID8\>
+? \<dschanmap1\>
+? \<MediaID\>
+?/chkpartisdschanmap
+?/getlvldidx
+?/generategeneric
+? \<VolumeIOIOCTLCreateFileSystem\>
+?/execirio
+?/ioioctlcreatefilesystem
+?/createfilesystem
+? \<IOExecCBPtr\>
+?/volumeioexecrdwtdataio
+?/add s
+? \<chkasrt\>
+? \<mapvmvv\>
+?/volmngbaremovebavoldscfmactlst
+?/deletes
+?/unmount
+? \<ChkFlag\>
+? \<VolumeIOMountAllSpltMirVolumes\>
+?/splitmi
+?/mount
+?/dsms
+?/un
+?/smpent
+?/dsms2
+?/dummy
+?/SMPEnt
+?/\<SMPEnt\>
+?/\<smpent\>
+? \<SMPairdscentptr\>
+? \<smpent\>
+? \<SMPEnt\>
+? \<VolMngBAIncAvailSectionList\>
+? \<FilSysTotSctCnt\>
+?/incavai
+?/incava
+? \<VOLIOPSTIOREQRCVRETVAL_LOCVOLIO\>
+?/locvolio
+? \<RetVal\>
+? \<VOLIOPSTIOREQRCVRETVAL_PASSTHRU\>
+? \<VolumeIOGetMappedVolumeHandle\>
+?/removerrto
+? \<VolMngsetRRTOVal\>
+?/setrrtoval
+? \<RR_TIMEOUT_BLKCPY\>
+?/RRTOList
+? \<RdskTimeoutValue\>
+?/simpleio
+?/allocate
+?/sendclk
+?/execrdwt
+? \<VOLMNGFSFSDSCSTATFLGS_FSOLDSIBLKSIZE\>
+?/siblksizeu
+? \<PostCompleteRoutine\>
+?/fsrdwtda
+? \<VolMngBADCODCopyBlock\>
+? \<FEATURE_SI_ENHANCE\>
+?/dcodcopyblock
+? \<pBufLst\>
+? \<VolMngFSAllocateMemoryBuffers\>
+?/fsa
+?/freebuf
+? \<createbat\>
+? \<CreateBAT\>
+?/createbas
+? \<BASConDeleteBlockAssocTable\>
+?/deletebas
+?/feature_siblksize
+?/feature_si
+?/siblk
+? \<BATDscTblEntPtr\>
+?/badiffcopyorigdata
+?/basi
+? \<VOLMNGBAVOLDSCSTATFLGS_SIBLKSIZEUSED\>
+?/basidiff
+? \<FEATURE_SIBLKSIZE\>
+? \<UpdatedBlockCountFlushThreshold\>
+?/checkwait
+? \<JournalSectionSize\>
+?/journalsection
+?/SIBL
+?/journalsectionsize
+? \<SMPDESCENTFLAG_PREDEL\>
+?/PREDEL
+? \<SS_ILLREQ\>
+?/sensekey
+?/ille
+?/sense_key
+? \<CommitToMedia\>
+?/committomedia
+? \<CurrentVolumeSectorCount\>
+? \<VOLIOIOCTLRBOPCOD_GETBATBLPRMS\>
+? \<VolumeIOSngThrdGetBlkAssTblPrms\>
+?/getbatp
+?/get
+?/postinter
+? \<qla_tm_io_complete\>
+? \<STIPSTEVENTOPCOD_IOCOMPLETE\>
+?/_IOCOMPLETE
+?/io_complete
+?/postio
+?/post_io
+?/pot_io
+?/oristrb
+? \<sense_key\>
+?/send_status
+? \<SenseKey\>
+? \<pstrb\>
+? \<en_init_mode\>
+?/todo
+?/RELEASE
+?/misccommand
+?/command
+?/misc
+?/misccomand
+?/send_scsi_status
+?/CHECK
+?/check con
+?/en_
+? \<qla_im_issue_scsi_cmd\>
+?/gpn_ft
+? \<cur_iocbq\>
+? \<pdb\>
+?/issue_scsi
+?/cmd_7
+? \<msix_count\>
+?/pci_attach
+?/msi
+?/pci_
+?/interrup
+? \<pci_alloc_msi\>
+?/pci_att
+?/probe
+?/issue_scsi_cmd
+? \<exchng_offload\>
+? \<qla_exchng_offload\>
+? \<qla_alloc_extmem_dump\>
+? \<qla_alloc_dmabuf\>
+?/ha->dma_buf.flags.ext_mem
+? \<qla_alloc_dma\>
+? \<qla_init_extend_login_buffer\>
+? \<qla_init_exchg_buffer\>
+? \<qla_hw_init\>
+? \<qla_init_tgt\>
+? \<qla_alloc_lun\>
+?/allocperm
+? \<qla_alloc_hba_dump\>
+? \<IftQlaResourceSetup\>
+?/enablech
+? \<EXECUSERMODEMODS_MODULEEXEC\>
+?/MODULE
+?/ex
+?/initchannel
+? \<cmd_7\>
+?/0x18
+? \<qla81xx_cmd6_t\>
+? \<qla81xx_cmd7_t\>
+? \<ini_exchg\>
+?/max_cmd
+? \<iocb_ds_t\>
+?/cmd_type
+? \<qla81xx_cmd7\>
+?/CMD6
+? \<IOCB_TYPE_CMD7\>
+? \<LOGINOUT_PORT_IOCB_TYPE\>
+?/entry_type
+? \<qla_pdb_t\>
+? ;
+? \<IftQlaIssueCommand\>
+? \<err\>
+? \<FCICCBPtr\>
+? \<qla_tgt\>
+? \<IftQlaImGetScsiID\>
+? \<NPortID\>
+? \<TODO\>
+?/imgetscsiid
+? \<pLocalPort\>
+? \<ScsiId\>
+?/qla_get_pdb
+?/get_pdb
+?/pdb
+?/ndlp
+? \<target_reset_in_prog\>
+?/target
+?/qla_pdb
+? \<vport\>
+? \<phba\>
+? \<QLA_INIT_MODE\>
+? IftElxIssueCommand
+? \<IftElxIssueCommand\>
+?/calldebug
+?/iftqlaissuecommand
+?/imparm.targetinfo
+? \<MAX_SCSIID_PER_TGT_CHANNEL\>
+?/initiatorinfo
+? \<IftQlaImDIBReady\>
+?/hw_init
+?/qla_init
+? \<qla_gpn_ft\>
+?/dibread
+?/fixme
+? \<qla_mbx_issue_iocb_a64\>
+?/portid
+? \<IftQlaImFreeScsiID\>
+? \<IftElxImFreeScsiID\>
+? \<cl_state\>
+?/cl_state
+? \<buf\>
+?/update_pdb
+?/gpn
+?/lsl_state
+? \<NLP_STE_MAPPED_NODE\>
+?/freescsiid
+? \<IDSTATE_CONNECTED\>
+? \<spin_lock_irqsave\>
+?/qla_tgt_t
+? \<_FC_PORT_INFO\>
+?/plocalpo
+?/pdb = 
+? \<next_ndlp\>
+? \<cs\>
+?/pdb->port
+? \<pPermLoopMap\>
+? \<MaxDriveIDCount\>
+? \<LoopIdIdx\>
+? \<IftElxImGetScsiID\>
+? \<IFTELX_MODFLG_INI_CH_INIT_DONE\>
+?/if
+?/dibready
+? \<IftQlaPreInitChannel\>
+? \<IftElxPreInitChannel\>
+?/preinitchannel
+?/reinitchannel
+?/iftelxre
+?/iftqlareinitchannel
+?/imparm.readyforio
+? \<LinkDownStartTimeTick\>
+?/linkdown
+? \<IFTELX_LINKSTAT_DOWN\>
+? \<IftQlaImTimerRoutine\>
+?/dibrea
+? \<IftElxImGetNextLoginDevice\>
+?/issuecommand
+?/diag
+?/diagno
+?/link
+?/diago
+?/insert_pdb
+? \<IftQlaTmAddInitiator\>
+?/addinitiator
+?/add
+?/tm_scsi_id
+? \<node_name\>
+? \<port_name\>
+? \<qla_be32_to_host\>
+?/to_host
+?/be32
+?/be32_to
+?/cpu_to_be
+? \<cpu_to_be16\>
+? \<cpu_to_be32\>
+?/cpu_
+? \<port_id\>
+? \<nphdl\>
+? \<qla_insert_pdb\>
+? \<qla_llo_rsp\>
+?/llo_rsp
+?/pdb\[i\].portid
+?/PLOGI:
+?/init_pdb
+?/OP_PLO
+?/QLA_INIT_MODE
+?/INIT_
+? \<FCP_ELS_OP_ACC\>
+?/addinit
+? \<qla_chk_ctp_status\>
+? \<qla_issue_logo\>
+? \<ctl_flags\>
+? \<LLO_PLOGI_SKIP_PRLI\>
+?/issue_log
+?/issue_login
+? \<LLO_PLOGI_COND_PLOGI\>
+?/issue_login_iocb
+?/log
+?/ABCD
+? \<qla_issue_login_iocb\>
+? \<switch\>
+? \<rscn\>
+?/rscn
+? \<qla_ct_rsp\>
+?/plocalport = 
+?/asyn
+? \<IOCB_TYPE_LOGIN_LOGOUT\>
+?/qla_isr
+?/llo_done
+?/flags
+?/SNS
+?/ha->flags
+? \<qla_imm_notify\>
+? \<qla_imm_notify_login_effecting_els_rcvd\>
+?/login_eff
+?/issue_lo
+?/logo
+?/issue
+? \<qla_mbx_get_pdb\>
+? \<MBOX_GET_PORT_DB\>
+?/64
+?/40
+?/NPORT
+? \<qla_mbx_get_id\>
+?/get_id
+?/loop
+?/gid_pt
+?/nport_handle
+? \<ctio\>
+?/send_req
+?/qla_tm_rd
+? \<qla_send_req\>
+? \<llo\>
+? \<nport_handle\>
+? \<NPORT_HANDLE_SNS\>
+? \<isDiscoverNeed\>
+?/ha->pci_dev->ficbp->physchlno
+?/trace
+?/insert_
+?/taskawaken
+?/qla_gpn
+? \<ChlOptions\>
+?/en_init
+? \<pnt_snsmsg\>
+?/pnt_sns
+?/send gid
+? \<ASYNC_CHANGE_NOTIFY\>
+?/callde
+?/qla_issue
+? \<IftQlaTmRemoveInitiator\>
+? \<qla_gid_pt\>
+? \<calldebug_\>
+?/log_in
+? \<FCP_ELS_OP_LOGO\>
+?/gpnt
+? \<max_vp_count\>
+? \<vp_count\>
+? \<ifwcb_mid\>
+? \<vp_config\>
+? \<initial_vp_count\>
+? \<g_ifwcb_mid\>
+? \<IFT_MAX_CHANNELS\>
+? \<qla_init_pdb\>
+?/g_
+? \<qla27xx_init_fwcb\>
+?/fw_op
+?/fw_state
+?/setupwwn
+? \<fw_options\>
+? \<fwoptions1\>
+?/nodename
+? \<ifwcb\>
+? \<i_buf\>
+? \<nodename\>
+?/portname
+? \<portname\>
+? \<ICB_OPT1_INIT_DISABLE\>
+?/INIT_DISAB
+?/node_name
+?/qla_pcno
+? \<IftQlaSetupWWN\>
+?/port_name
+?/name
+? \<GSI_ENABLE_TARGET_MODE\>
+? \<PortName\>
+? \<NodeName\>
+?/pLocalPort->PhysChlNo
+? \<AltPortName\>
+? \<phychl\>
+?/SEND
+?/node
+?/PhysChlNo
+?/NodeName[1
+?/PortName[1
+?/issue_l
+? \<cpu_to_le16\>
+?/\<nphdl\>
+? \<lio\>
+? \<io_parameter\>
+? \<io_param\>
+? \<flags\>
+? \<control_flags\>
+? \<LLO_LOGO_EXPLICIT\>
+?/issue_logo
+?/LOGINOUT_
+? \<IftQlaImNPortDiscoverNeeded\>
+? \<gpn_data\>
+? \<pci_dev\>
+?/nportdis
+?/lpfc_name
+?/nportdi
+? \<discover_needed\>
+? \<IftQlaNPortDiscoverNeeded\>
+? \<pFC_PORT_INFO\>
+? \<IftElxImNPortDiscoverNeeded\>
+? \<IFT_COMPANY_ID_0\>
+? \<CId0\>
+? \<IEEECompanyId\>
+?/gpn_
+?/gpn_data
+? \<gpn_ft\>
+? \<ct_rsp\>
+? \<gid_data\>
+?/sns
+?/PRLI
+?/remove
+?/ASYNC_PDB
+?/printf
+?/pnt_snsmsg
+? \<MAX_FIBRE_DEVICES\>
+? \<MAX_PDB_ENTRIES\>
+?/fc4_type
+?/area
+?/domain
+? \<ct_sns_rsp\>
+? \<lun_params\>
+? \<ctp\>
+? \<ct_sns_rsp_t\>
+? \<ct_sns_gid_pt_data\>
+? \<domain\>
+? \<fc4_type\>
+? \<fc4_types\>
+? \<GPN_FT\>
+?/gid
+? \<rval\>
+? \<qla_rft_id2\>
+?/rft
+?/scr
+? \<qla_rnn_id\>
+? \<qla_tgt_report_id\>
+?/qla_rft_id
+?/qla_tgt
+? \<vp_index\>
+? \<ha\>
+?/abort_
+?/async_pdb
+?/port_id
+?/FF
+? \<pimm_notify\>
+?/insert
+?/kthread
+?/k_threa
+?/worker
+? \<find\>
+? \<portid\>
+? \<list\>
+?/device_info
+? \<i\>
+? \<Routine\>
+? \<routine\>
+? \<ct_rsp_hdr\>
+?/test
+? \<NS_NX_PORT_TYPE\>
+?/ct
+?/status
+? \<CT_ACCEPT_RESPONSE\>
+? \<MBS_INVALID_COMMAND\>
+? \<MBS_COMMAND_COMPLETE\>
+?/CS_COM
+? \<comp_status\>
+?/pass
+?/git_pt
+?/RSCN
+? \<testtest\>
+? \<ModuleTask_QueueProc\>
+?/moduletask_queueproc
+? \<qla_ioctl_mbx_send_data_mb_2_3_6_7\>
+?/iocb
+? \<qla_ioctl\>
+? \<data\>
+? \<qla_ioctl_mbx_cmd\>
+? \<QLA_IOCTL_MBX_CMD\>
+? \<qla_ioctl_mbx_load_dump_mpi_ram\>
+? \<mbx_cmd\>
+? \<qla_ioctl_mbx_read_data_mb_2_3_6_7\>
+? \<MBOX_EXEC_COMMAND_IOCB_A64\>
+? \<phys_addr\>
+? \<qla_ct_passthru_t\>
+? \<offset\>
+? \<ctp_iocb\>
+
+# 運算式 歷史記錄 (新到舊):
+=acp#onPopupPost()
+
+# 輸入行  歷史記錄 (新到舊):
+
+# 輸入行  歷史記錄 (新到舊):
+
+# 暫存器:
+"0	LINE	0
+		    else if (free_cr)
+			    qla_free_cmd_rsp(ha, cr);
+"1	LINE	0
+	#endif 
+"2	LINE	0
+	#if v421
+"3	LINE	0
+	#elif v411
+"4	LINE	0
+	    printf("version:911A06\n");
+"5	LINE	0
+	    //FIXME
+"6	LINE	0
+	
+"7	BLOCK	1
+	//
+	//
+"8	LINE	0
+	            //qla_msleep(10);
+"9	LINE	0
+	
+"l	CHAR	0
+	7113
+<a/qla_main_task??kN??kN??kN??kN??kN??kN??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kudd??kl??kr??krd;wi//;w????,????.;tsr	??kb??kb??kb??kb??kb??kb??kb??kb??kb??kb????,????.????,????.;tsr	ql	o	????,????.????,????.????,????.????L;q;q;q;tsr	ql	os	??kd??kd??kd??kd??kd??kd??ku??ku??ku??kd??@7??kl??kri??kb0;w??kl??kl??kl??kl??kl/todonnnnNdd;w??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kl??kl??kl??kuu;w??????kP;tsf??kb??kbsrcf??kb/fcin	????,????.gg????L????L????,????.????L????L????,????.????,????.????,????.????,????.;q;tsr	fc??kb??kbql	tg	??kl????,????.;q;tsf??kbr	ql	ir??kbl	??kb??kbisr	??kN??kN??kN????,????.????K????K????K????K????K????K????K????K????K????K/abts????L????L????L????L????L????L????L????L????L????L????,????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????,????.????,????.????,????.#????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????,????.????,????.#????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????K????K????,????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????,????.????,????.????,????.????,????.????,????.????K????K????K????Kgg????,????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????,????.????,????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????,????.????,????.????K????K????,????.????L????L/hosttime##############??kN??kN????,????.????,????.????L????L????L????L????L????L????L????L????L????L????L????L????K????K????K????K????K????K????K????K????K????L????L????L????L????L????L????L????L????K????L????L????L????L????L????L????L????L????L????L????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????K????,????.***##????L????L????L????L????,????.????K????K????K????K????,????.??kd??ku??kl*????K????K????K????K????,????.#????L????L????L????L????,????-????.????,????.##????K????K????K????,????.#####*###*????,????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L??????kN??kd??kd??ku??ku??ku??ku??ku??ku??ku??kuyy??????kP??kP??kP??kP??kP??kd??kd??kd??kd??kd??kd??kd??kd??ku??ku??ku??kr??kd??kr??kr??kr??krpi			??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kD??kD??kD??kD??kD??kD??kD_IOABORTED;wyy????,????.#????L????L????L????L????L????L????,????.pi??kb????,????.??kl??kD??kD??kD??kD??kD??kD??kD??kD??kDSemd??kb??kbndIOA??kb??kb??kb??kb??kb??kb??kb??kbsend abort request;w????,????.????,????.????,????.????L????L????L????L????K????K????K;w????L????L????L????L????L????L????K????K????,????.;tsr	ql	tg	/tgt_ction??kN??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??ku??ku??ku??ku??ku??ku??ku??ku??ku??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??kd??kd??kr??ku??kr??kr??kr??kd??ku??ku??ku??ku??ku??ku??ku??ku??ku??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??kd??kddddddddddddddddddddddddddddddddddddd;w????K????K????,????.??kudd;w??kd??kd??kdyy??ku??kupu;w??ku??kd??ku*77??kNnnnnnnnnnnnnnNNnnNN??ku??ku??kunnNn??kN??ku??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kdNN??ku??ku??kd????,????.????K????K????K????K????K????K????K????K????K????K????K????K????,????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????,????.#/abtsnn??kN??kP??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??ku??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr#??@7??kl??kl??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr????,????.????,????.????,????./sri_??kb??kb??kb??kborig/continue????,????.????,????.????K????L????,????.????L????L????L????,????.????,????-????.????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????K????K????K????K????K????L????L????L????L????L????L????L????L????L????L????K????K????K????K????,????.????L????L??kd??kd??kd??kd??kd??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kr??kr??ku??ku??ku??ku??ku??ku??kd??kd??kd??@7??kl#??????kNnn??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??ku??kd??kd??kd??kd??kd??kdn*ggn??kPnn??kP??kNnn??kP??kP??kN??kN????K????K????,????.#####????K????,????.????,????.#????,????-????-????-????.????,????.??????kP??????kP??????kPlts;tsr	fcin	gg??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kd??kddd??krd;w????,????.??kN??kN??kN??kN??kN??kN/123i??kl??kl??kr??kr123??kb??kb??kb456??kD??kD??kD;w????,????.????,????./__funcyy/taskma/task mannnn/task m??kd??kd??kd??kl??kl??kl??kl??kl??kl??kl??kl###??ku??ku??ku??ku??ku??ku??kd###??kN??kN??kP??ku??ku??ku??ku??ku??ku??ku??kr??krpi??kb??kb??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kr#??kl??kl????,????.ipLo??kd??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kD??kr??kr??kr??kr??kr??kr??kr??kl??kl??kr??kr??kD??kD??kD??kD??kD??kD??kD??kD??kD??kDtask_mgmt:%x??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kr??kl??kr, atio_cm??kd->cmd??kbnd.task??kd;w??ku??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kl??kri??kb2;w????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????L????,????.????,????.????,????.#????K????K????K????K????K????K????K????K????,????.dddd????K????K????K????,????.dddd????,????.o??kd??kr??kr??@7 remove;w????,????.
+""-	CHAR	0
+	(
+
+# 檔案標記:
+'M  11  0  /cygdrive/c/Hotness_HC_frank.G7_792E20/ssmig.c
+'N  330  8  /cygdrive/c/Documents and Settings/wen.su/桌面/RWTEST/Alonso/auto pair rwtest  v1.0.0/control -rwtest_with_pairs/diskpart.cpp
+'U  1296  8  /cygdrive/c/Hotness_HC_frank.G7_792E20/SSCRTDEL.C
+'0  1  0  /cygdrive/c/58frank.UnifyCloud_421B64/makefile
+'1  3402  0  /cygdrive/c/421qlogic/src/qla_tgt.c
+'2  474  7  /cygdrive/c/88Emulex411A/src/fcintf.c
+'3  1  0  /cygdrive/c/umodlst_122.bat
+'4  46  10  /cygdrive/c/qlogic/Makefile
+'5  27  0  /cygdrive/c/88Emulex411A/Makefile
+'6  1064  9  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+'7  195  0  /cygdrive/c/qlogic1006/src/qla_isr.c
+'8  171  12  /cygdrive/c/qlogic1006/src/qla_mbx.c
+'9  174  1  /cygdrive/c/qlogic/src/qla_mbx.c
+
+# Jumplist (由新到舊):
+-'  1  0  /cygdrive/c/58frank.UnifyCloud_421B64/makefile
+-'  3402  0  /cygdrive/c/421qlogic/src/qla_tgt.c
+-'  3389  5  /cygdrive/c/421qlogic/src/qla_tgt.c
+-'  662  6  /cygdrive/c/421qlogic/src/qla_tgt.c
+-'  1372  4  /cygdrive/c/421qlogic/src/fcintf.c
+-'  203  1  /cygdrive/c/421qlogic/src/fcintf.c
+-'  46  10  /cygdrive/c/421qlogic/Makefile
+-'  474  7  /cygdrive/c/88Emulex411A/src/fcintf.c
+-'  1  0  /cygdrive/c/umodlst_122.bat
+-'  46  10  /cygdrive/c/qlogic/Makefile
+-'  60  7  /cygdrive/c/qlogic/Makefile
+-'  27  0  /cygdrive/c/88Emulex411A/Makefile
+-'  1064  9  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  2680  3  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  2700  3  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  259  3  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  269  0  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  979  5  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  950  9  /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+-'  195  0  /cygdrive/c/qlogic1006/src/qla_isr.c
+-'  171  12  /cygdrive/c/qlogic1006/src/qla_mbx.c
+-'  174  1  /cygdrive/c/qlogic/src/qla_mbx.c
+-'  1  0  /cygdrive/c/qlogic/src/qla_mbx.c
+-'  907  2  /cygdrive/c/qlogic/src/qla_isr.c
+-'  217  22  /cygdrive/c/qlogic/src/qla_isr.c
+-'  10  22  /cygdrive/c/88Emulex411A/Makefile
+-'  8  29  /cygdrive/c/88Emulex411A/Makefile
+-'  117  8  /cygdrive/c/88Emulex411A/Makefile
+-'  25  29  /cygdrive/c/88Emulex411A/Makefile
+-'  166  0  /cygdrive/c/88Emulex411A/Makefile
+-'  5721  3  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  5642  22  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  5627  25  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  5522  11  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  305  11  /cygdrive/c/88Emulex411A/sys/lpfc/lpfc.h
+-'  75  16  /cygdrive/c/88Emulex411A/sys/lpfc/lpfc.h
+-'  74  16  /cygdrive/c/88Emulex411A/sys/lpfc/lpfc.h
+-'  1165  0  /cygdrive/c/88Emulex411A/sys/lpfc/lpfc.h
+-'  2457  1  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  160  3  /cygdrive/c/88Emulex411A/sys/oce/oce_ift.h
+-'  921  0  /cygdrive/c/88Emulex411A/sys/ift.h
+-'  5560  7  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  428  1  /cygdrive/c/88Emulex411A/sys/lpfc/lpfc_sli4.h
+-'  5561  10  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  7127  30  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  6975  11  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  7001  12  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  6995  0  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  951  20  /cygdrive/c/88Emulex411A/sys/ift.h
+-'  5588  33  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  5585  28  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  7697  20  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  7663  12  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  7169  18  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  4635  35  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  1  0  /cygdrive/c/88Emulex411A/src/lpfc_init.c
+-'  1963  1  /cygdrive/c/88Emulex411A/src/fcintf.c
+-'  83  0  /cygdrive/c/8CEmulexFCIntf_391I06/Makefile
+-'  93  1  /cygdrive/c/88Emulex411A/src/fiminit.c
+-'  222  0  /cygdrive/c/0831/src/ift.c
+-'  2  0  /cygdrive/c/qlogic/src/ift.c
+-'  1  0  /cygdrive/c/qlogic/src/ift.c
+-'  1  0  /cygdrive/c/qlogic/src/ift.h
+-'  553  2  /cygdrive/c/qlogic/src/ift.h
+-'  549  0  /cygdrive/c/8CBAK/qlogic/ift.h
+-'  1  0  /cygdrive/c/8CBAK/ift.h
+-'  77  0  /cygdrive/c/qlogic/src/ift.c
+-'  42  0  /cygdrive/c/88Emulex411A/sys/ift.h
+-'  52  0  /cygdrive/c/qlogic/sys/ift.h
+-'  607  0  /cygdrive/c/qlogic/sys/ift.h
+-'  2  0  /cygdrive/c/0831/src/ift.c
+-'  97  0  /cygdrive/c/0831/sys/usermode.h
+-'  63  0  /cygdrive/c/qlogic/sys/ift.h
+-'  1  0  /cygdrive/c/qlogic/sys/ift.h
+-'  1  0  /cygdrive/c/88Emulex411A/sys/ift.h
+-'  158  3  /cygdrive/c/qlogic/src/ift.c
+-'  1673  2  /cygdrive/c/88EmulexFCIntfMod8C-411A-f52015c972759d3204820aff635534d6c8b6f7df/src/fcintf.c
+-'  1298  0  /cygdrive/c/88EmulexFCIntfMod8C-411A-f52015c972759d3204820aff635534d6c8b6f7df/src/fcintf.c
+-'  1166  0  /cygdrive/c/8CEmulexFCIntf_391I06/src/fcintf.c
+-'  6900  9  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  4013  0  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  6924  9  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  81  32  /cygdrive/c/8CEmulexFCIntf_391I06/sys/linuxlist.h
+-'  6937  10  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  4575  7  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  1724  0  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  32  17  /cygdrive/c/8CEmulexFCIntf_391I06/sys/IL.H
+-'  1705  1  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  14  8  /cygdrive/c/8CEmulexFCIntf_391I06/src/ift.c
+-'  1721  1  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  4582  9  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  6949  9  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  38  6  /cygdrive/c/8CEmulexFCIntf_391I06/sys/linuxlist.h
+-'  1873  0  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  6958  1  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  6881  33  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  7055  7  /cygdrive/c/8CEmulexFCIntf_391I06/src/lpfc_init.c
+-'  43  10  /cygdrive/c/qlogic/Makefile
+
+# 檔案內 Mark 記錄 (由新到舊):
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/makefile
+	"	1	0
+	^	16	12
+	.	16	11
+	+	16	11
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/FSIO.C
+	"	2781	17
+	^	2985	29
+	.	2971	0
+	+	2973	30
+	+	2973	0
+	+	6615	0
+	+	6615	0
+	+	2971	2
+	+	2971	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/FS.C
+	"	12539	26
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/sys/undeclared/m100undef.h
+	"	87	32
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/IOCTLMultiThrd.c
+	"	1047	25
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/IOCTL.C
+	"	2351	21
+	.	3160	0
+	+	3160	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/comthrd.h
+	"	550	8
+	^	615	17
+	.	615	0
+	+	615	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/SSVOLCFG.C
+	"	2366	3
+	.	10988	0
+	+	10987	2
+	+	10970	2
+	+	10953	2
+	+	10944	2
+	+	10941	2
+	+	10928	2
+	+	10916	2
+	+	10988	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/ChgCodFixBug.h
+	"	35	98
+	^	957	41
+	.	957	0
+	+	957	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/IOCTL.H
+	"	632	15
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/sys/scsi.h
+	"	79	8
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/spmr.c
+	"	2673	7
+	^	1834	46
+	.	1837	0
+	+	1837	5
+	+	1837	0
+	n	11511	43
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/SSCRTDEL.C
+	"	7840	2
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/SS.C
+	"	3805	30
+	.	3981	0
+	+	3980	0
+	+	3981	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/ssbasic.c
+	"	21	4
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/prototype/SS_BASICDEF.H
+	"	43	13
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/SMVOLCFG.C
+	"	1457	8
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/fsvolcfg.c
+	"	1	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/FS.H
+	"	203	12
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/sstst.c
+	"	9351	4
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/FSBUF.C
+	"	1025	14
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/RemReplTimOut.c
+	"	443	43
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/FSVOLIO.C
+	"	1070	30
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/VVReclaim.c
+	"	268	12
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/VOL.C
+	"	3277	28
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/offlineLD.c
+	"	4420	3
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/SMBASIC.C
+	"	1	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/SMCRTDEL.C
+	"	1431	4
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/smvc.h
+	"	143	17
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/IOCTL
+	"	1	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/ioioctlcreate
+	"	1	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/DSChanMap.c
+	"	378	71
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/VOL
+	"	1	0
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/INC/prototype/smvc_STRUCT.h
+	"	23	32
+
+> /cygdrive/c/58frank.UnifyCloud_421B64/VMSync.c
+	"	2528	1
+
+> /cygdrive/c/qlogic/Makefile
+	"	43	10
+	^	43	11
+	.	43	10
+	+	79	2
+	+	94	2
+	+	67	19
+	+	82	11
+	+	41	35
+	+	79	2
+	+	79	0
+	+	94	0
+	+	79	20
+	+	69	0
+	+	93	11
+	+	78	0
+	+	69	16
+	+	67	22
+	+	77	0
+	+	69	16
+	+	67	24
+	+	82	16
+	+	93	8
+	+	77	0
+	+	69	18
+	+	87	0
+	+	77	0
+	+	69	9
+	+	77	17
+	+	73	0
+	+	77	0
+	+	69	18
+	+	67	23
+	+	69	0
+	+	69	17
+	+	67	23
+	+	74	0
+	+	69	0
+	+	74	17
+	+	82	15
+	+	88	0
+	+	89	0
+	+	87	9
+	+	88	7
+	+	89	8
+	+	72	0
+	+	69	19
+	+	71	0
+	+	69	17
+	+	70	0
+	+	69	19
+	+	70	0
+	+	70	0
+	+	70	0
+	+	70	0
+	+	87	0
+	+	84	0
+	+	87	0
+	+	84	11
+	+	85	9
+	+	86	11
+	+	69	0
+	+	68	18
+	+	84	0
+	+	83	8
+	+	77	0
+	+	75	16
+	+	90	11
+	+	77	0
+	+	75	19
+	+	77	0
+	+	68	0
+	+	68	19
+	+	75	20
+	+	68	0
+	+	90	11
+	+	69	0
+	+	68	0
+	+	77	0
+	+	76	18
+	+	92	0
+	+	92	0
+	+	91	13
+	+	43	10
+	+	44	11
+	+	46	10
+	+	44	10
+	+	46	11
+	+	47	0
+	+	43	10
+	+	46	10
+	+	43	10
+	+	46	11
+	+	43	10
+	+	46	11
+	+	43	10
+	+	46	11
+	+	43	10
+	+	46	11
+	+	43	10
+	+	43	10
+	+	46	11
+	+	43	11
+	+	43	10
+
+> /cygdrive/c/qlogic/src/qla_tgt.c
+	"	2751	63
+	^	3896	133
+	.	3896	132
+	+	1047	0
+	+	3799	39
+	+	3806	19
+	+	3831	12
+	+	3800	0
+	+	3789	186
+	+	3789	24
+	+	3801	0
+	+	3803	0
+	+	3799	39
+	+	3799	58
+	+	3814	13
+	+	3825	13
+	+	3807	0
+	+	3807	9
+	+	3807	0
+	+	3813	0
+	+	3814	15
+	+	3825	3
+	+	3826	7
+	+	3827	11
+	+	3828	3
+	+	3829	7
+	+	3830	8
+	+	3790	65
+	+	3798	19
+	+	3799	3
+	+	3800	3
+	+	3801	4
+	+	3802	8
+	+	3803	9
+	+	3805	3
+	+	3806	0
+	+	3807	0
+	+	3817	3
+	+	3818	7
+	+	3819	11
+	+	3820	3
+	+	3821	36
+	+	3822	12
+	+	3791	12
+	+	3792	0
+	+	3798	0
+	+	3794	0
+	+	3789	152
+	+	3789	24
+	+	3334	4
+	+	3328	6
+	+	3268	0
+	+	3268	9
+	+	3312	0
+	+	3313	0
+	+	3314	3
+	+	3328	7
+	+	3314	9
+	+	3266	6
+	+	3269	0
+	+	3269	5
+	+	3269	0
+	+	3269	0
+	+	3269	0
+	+	3269	5
+	+	3289	0
+	+	3289	34
+	+	3294	0
+	+	3289	40
+	+	3290	2
+	+	3291	0
+	+	3269	0
+	+	3269	0
+	+	3269	0
+	+	3300	0
+	+	3269	0
+	+	3288	29
+	+	3266	4
+	+	3267	19
+	+	3268	0
+	+	3290	5
+	+	3292	5
+	+	3291	59
+	+	3293	15
+	+	3291	15
+	+	3314	0
+	+	3290	33
+	+	3292	32
+	+	3287	26
+	+	3289	28
+	+	3291	39
+	+	3293	0
+	+	3267	83
+	+	3266	0
+	+	3882	0
+	+	3288	22
+	+	3289	0
+	+	3265	14
+	+	3266	0
+	+	3265	14
+	+	3265	14
+	+	3898	29
+	+	3896	132
+	c	4200	0
+
+> /cygdrive/c/qlogic/sys/ift.h
+	"	711	8
+	^	42	29
+	.	42	28
+	+	1009	25
+	+	187	68
+	+	188	68
+	+	187	1
+	+	188	1
+	+	191	71
+	+	190	57
+	+	127	19
+	+	128	16
+	+	129	18
+	+	130	25
+	+	129	24
+	+	128	25
+	+	127	25
+	+	126	33
+	+	120	21
+	+	126	0
+	+	121	0
+	+	122	0
+	+	123	0
+	+	121	19
+	+	122	18
+	+	123	18
+	+	120	24
+	+	121	24
+	+	122	24
+	+	123	24
+	+	124	0
+	+	125	0
+	+	124	24
+	+	125	18
+	+	124	20
+	+	118	31
+	+	126	0
+	+	127	0
+	+	119	4
+	+	126	0
+	+	41	4
+	+	41	19
+	+	41	0
+	+	785	1
+	+	784	1
+	+	784	0
+	+	784	4
+	+	784	47
+	+	785	0
+	+	784	28
+	+	785	0
+	+	784	0
+	+	784	0
+	+	120	0
+	+	117	0
+	+	96	0
+	+	120	0
+	+	96	0
+	+	117	0
+	+	96	30
+	+	97	31
+	+	98	30
+	+	102	36
+	+	96	45
+	+	96	45
+	+	113	0
+	+	112	4
+	+	113	38
+	+	114	45
+	+	113	46
+	+	115	0
+	+	116	0
+	+	115	38
+	+	116	23
+	+	115	25
+	+	116	25
+	+	96	0
+	+	112	15
+	+	781	0
+	+	779	13
+	+	782	4
+	+	784	5
+	+	781	28
+	+	780	47
+	+	781	0
+	+	44	20
+	+	41	0
+	+	41	0
+	+	26	1
+	+	26	0
+	+	44	24
+	+	41	23
+	+	44	24
+	+	626	13
+	+	627	13
+	+	727	0
+	+	624	13
+	+	44	0
+	+	43	28
+	+	41	27
+	+	43	28
+	+	43	0
+	+	42	28
+
+> /cygdrive/c/qlogic/sys/tim.h
+	"	367	24
+
+> /cygdrive/c/421qlogic/src/qla_tgt.c
+	"	3724	0
+	^	3725	44
+	.	3627	0
+	+	1043	30
+	+	1043	4
+	+	1043	31
+	+	1043	0
+	+	1044	0
+	+	1064	0
+	+	1043	0
+	+	3423	0
+	+	3422	8
+	+	3725	0
+	+	3725	0
+	+	3734	0
+	+	3725	0
+	+	3751	0
+	+	3725	69
+	+	3726	0
+	+	3734	59
+	+	3734	3
+	+	3734	53
+	+	3734	12
+	+	3734	7
+	+	3735	0
+	+	3734	0
+	+	3746	0
+	+	3747	0
+	+	3748	0
+	+	3749	0
+	+	3725	0
+	+	3725	0
+	+	3725	0
+	+	3733	39
+	+	3733	0
+	+	3681	0
+	+	3750	6
+	+	1072	0
+	+	1043	4
+	+	1043	0
+	+	1043	4
+	+	1043	34
+	+	1043	6
+	+	1043	0
+	+	1043	0
+	+	1043	0
+	+	1043	26
+	+	1043	0
+	+	1043	0
+	+	1043	0
+	+	1043	0
+	+	1043	7
+	+	1043	4
+	+	1002	0
+	+	999	0
+	+	3624	0
+	+	3625	0
+	+	3638	0
+	+	3625	0
+	+	3638	3
+	+	3639	59
+	+	3640	12
+	+	3642	56
+	+	3648	8
+	+	3663	29
+	+	3648	37
+	+	3648	31
+	+	3648	0
+	+	3645	39
+	+	3646	38
+	+	3645	9
+	+	3646	15
+	+	3648	0
+	+	1043	0
+	+	1024	0
+	+	1024	0
+	+	1023	0
+	+	998	20
+	+	999	0
+	+	1002	0
+	+	999	0
+	+	1002	0
+	+	1020	60
+	+	1040	0
+	+	1062	0
+	+	1072	0
+	+	1068	0
+	+	1071	0
+	+	3725	43
+	+	3570	0
+	+	3569	0
+	+	3557	0
+	+	3558	0
+	+	3546	0
+	+	3530	0
+	+	3529	0
+	+	3529	0
+	+	3522	0
+	+	3505	0
+	+	3443	0
+	+	3631	0
+	+	3627	0
+	+	3627	0
+
+> /cygdrive/c/qlogic/tmp
+	"	2	19
+	^	8	38
+	.	9	0
+	+	2	8
+	+	9	0
+
+> /cygdrive/c/qlogic/src/qla_isr.c
+	"	53	62
+	^	1709	0
+	.	1709	0
+	+	1327	29
+	+	1327	29
+	+	1328	29
+	+	1331	3
+	+	1332	7
+	+	1333	11
+	+	1335	3
+	+	1335	85
+	+	1336	3
+	+	1366	8
+	+	1330	51
+	+	1331	15
+	+	1332	0
+	+	1337	12
+	+	1338	0
+	+	1330	24
+	+	1317	0
+	+	1329	47
+	+	1912	4
+	+	1364	12
+	+	1361	50
+	+	746	23
+	+	746	27
+	+	746	44
+	+	746	0
+	+	746	0
+	+	746	0
+	+	746	0
+	+	1	0
+	+	1361	65
+	+	1358	17
+	+	1364	28
+	+	1564	0
+	+	1642	0
+	+	1769	0
+	+	1473	0
+	+	1358	6
+	+	1359	7
+	+	1360	3
+	+	1358	0
+	+	1359	18
+	+	1346	42
+	+	1347	11
+	+	1321	0
+	+	1322	38
+	+	1356	0
+	+	1360	27
+	+	1356	49
+	+	1350	26
+	+	1351	22
+	+	1350	62
+	+	1351	62
+	+	1348	16
+	+	1349	16
+	+	1348	60
+	+	1349	60
+	+	1350	60
+	+	1351	60
+	+	1356	0
+	+	1359	0
+	+	1362	120
+	+	1323	73
+	+	1352	49
+	+	1353	34
+	+	1352	46
+	+	1353	47
+	+	1352	35
+	+	1353	36
+	+	1354	33
+	+	1355	34
+	+	1354	35
+	+	1352	35
+	+	1354	40
+	+	1355	0
+	+	1358	7
+	+	1360	41
+	+	1340	40
+	+	1341	0
+	+	1342	0
+	+	1341	4
+	+	1342	4
+	+	1341	0
+	+	1342	39
+	+	1341	34
+	+	1344	0
+	+	1363	17
+	+	1362	0
+	+	1722	0
+	+	1722	46
+	+	1723	0
+	+	75	0
+	+	1934	0
+	+	1934	25
+	+	1934	52
+	+	1934	69
+	+	1912	4
+	+	1933	0
+	+	1708	0
+	+	1710	0
+	+	1709	0
+
+> /cygdrive/c/qlogic/src/fcintf.c
+	"	147	93
+	^	1956	3
+	.	1243	0
+	+	1865	0
+	+	1895	13
+	+	1895	4
+	+	1905	6
+	+	1865	9
+	+	1897	28
+	+	1897	13
+	+	1897	29
+	+	1897	16
+	+	1895	4
+	+	1897	53
+	+	1895	0
+	+	1896	17
+	+	1895	0
+	+	1905	0
+	+	1895	0
+	+	1871	1
+	+	1895	0
+	+	1936	0
+	+	1936	0
+	+	1924	0
+	+	1936	0
+	+	1959	0
+	+	1946	18
+	+	1947	37
+	+	1951	57
+	+	1958	32
+	+	1958	2
+	+	1938	30
+	+	1938	9
+	+	1942	31
+	+	1941	141
+	+	1937	7
+	+	1936	23
+	+	1936	37
+	+	1936	81
+	+	1936	0
+	+	1937	0
+	+	1936	0
+	+	1958	2
+	+	1959	0
+	+	1955	9
+	+	1955	16
+	+	1957	0
+	+	1955	0
+	+	1869	0
+	+	1868	2
+	+	1865	0
+	+	1923	0
+	+	1869	0
+	+	1868	0
+	+	1938	28
+	+	1939	0
+	+	1938	0
+	+	1956	0
+	+	1860	7
+	+	1785	0
+	+	1787	24
+	+	1788	39
+	+	1852	0
+	+	1854	0
+	+	1854	8
+	+	1854	0
+	+	1855	0
+	+	1854	0
+	+	1852	0
+	+	1855	0
+	+	1853	1
+	+	1854	4
+	+	1840	0
+	+	1801	4
+	+	1855	6
+	+	1958	1
+	+	1790	19
+	+	1792	28
+	+	1800	0
+	+	1792	24
+	+	1795	40
+	+	1800	0
+	+	1799	0
+	+	1797	10
+	+	1798	0
+	+	1794	0
+	+	1792	24
+	+	1801	4
+	+	1790	28
+	+	1801	4
+	+	1791	0
+	+	1805	9
+	+	1806	2
+	+	1802	38
+	+	1821	20
+	+	1830	0
+	+	1824	9
+	+	1834	9
+	+	1837	9
+	+	1833	0
+	+	1784	4
+	+	1956	2
+	+	1243	0
+
+> /cygdrive/c/qlogic/src/qla_27xx.c
+	"	167	0
+	^	166	7
+	.	167	0
+	+	171	0
+	+	169	9
+	+	170	0
+	+	169	0
+	+	184	4
+	+	101	18
+	+	104	6
+	+	100	55
+	+	101	14
+	+	103	4
+	+	102	39
+	+	103	39
+	+	103	0
+	+	103	8
+	+	1379	5
+	+	1379	0
+	+	1399	57
+	+	1398	5
+	+	1379	0
+	+	1379	5
+	+	1379	1
+	+	1379	5
+	+	1390	21
+	+	1399	49
+	+	1390	19
+	+	1391	0
+	+	1379	0
+	+	1378	5
+	+	1379	0
+	+	1399	0
+	+	1398	4
+	+	155	0
+	+	156	0
+	+	157	5
+	+	156	56
+	+	59	23
+	+	163	6
+	+	165	0
+	+	163	0
+	+	165	40
+	+	165	0
+	+	167	0
+	+	165	20
+	+	165	3
+	+	165	18
+	+	58	20
+	+	165	4
+	+	167	6
+	+	72	0
+	+	71	8
+	+	167	40
+	+	167	0
+	+	167	64
+	+	167	7
+	+	167	63
+	+	167	0
+	+	167	0
+	+	167	42
+	+	167	0
+	+	167	39
+	+	162	4
+	+	165	0
+	+	167	0
+	+	165	0
+	+	167	9
+	+	58	19
+	+	103	0
+	+	87	0
+	+	103	0
+	+	102	2
+	+	103	45
+	+	103	36
+	+	103	47
+	+	103	33
+	+	103	0
+	+	102	1
+	+	103	30
+	+	101	0
+	+	102	28
+	+	103	28
+	+	168	0
+	+	168	0
+	+	160	31
+	+	168	0
+	+	159	41
+	+	101	0
+	+	102	0
+	+	103	0
+	+	79	29
+	+	79	29
+	+	79	5
+	+	57	41
+	+	79	0
+	+	199	8
+	+	201	0
+	+	58	1
+	+	165	4
+	+	161	0
+	+	166	6
+	+	167	0
+
+> /cygdrive/c/qlogic/sys/qla/qla_tgt.h
+	"	128	15
+	^	98	9
+	.	98	8
+	+	98	5
+	+	99	2
+	+	98	8
+
+> /cygdrive/c/qlogic/sys/qla/qla_def.h
+	"	133	0
+	^	309	24
+	.	309	23
+	+	502	36
+	+	503	0
+	+	409	17
+	+	195	13
+	+	198	0
+	+	198	0
+	+	198	4
+	+	198	0
+	+	195	4
+	+	195	3
+	+	198	0
+	+	195	4
+	+	195	57
+	+	195	4
+	+	195	0
+	+	198	6
+	+	195	4
+	+	195	3
+	+	195	0
+	+	195	54
+	+	167	0
+	+	160	12
+	+	182	0
+	+	195	0
+	+	195	0
+	+	168	0
+	+	172	0
+	+	171	6
+	+	172	6
+	+	173	4
+	+	174	6
+	+	175	3
+	+	176	3
+	+	177	3
+	+	178	3
+	+	179	3
+	+	176	0
+	+	177	0
+	+	181	0
+	+	195	0
+	+	186	6
+	+	195	0
+	+	195	0
+	+	187	6
+	+	195	13
+	+	195	56
+	+	166	29
+	+	266	6
+	+	266	12
+	+	266	12
+	+	266	12
+	+	266	12
+	+	266	0
+	+	501	34
+	+	500	36
+	+	192	31
+	+	193	25
+	+	194	22
+	+	499	0
+	+	499	37
+	+	188	21
+	+	130	0
+	+	130	0
+	+	266	0
+	+	73	0
+	+	252	0
+	+	499	0
+	+	195	55
+	+	198	0
+	+	195	0
+	+	161	7
+	+	162	7
+	+	163	4
+	+	164	3
+	+	163	6
+	+	164	6
+	+	497	0
+	+	498	0
+	+	197	16
+	+	195	55
+	+	197	0
+	+	195	55
+	+	197	3
+	+	195	54
+	+	196	14
+	+	165	17
+	+	261	37
+	+	143	35
+	+	212	30
+	+	228	46
+	+	212	18
+	+	228	23
+	+	73	0
+	+	72	0
+	+	130	0
+	+	102	0
+	+	101	13
+	+	128	6
+	+	102	10
+	+	309	23
+
+> /cygdrive/c/qlogic/sys/qla/qla_fc.h
+	"	105	0
+	^	424	6
+	.	151	0
+	+	363	0
+	+	362	5
+	+	151	0
+	+	362	0
+	+	162	0
+	+	165	0
+	+	165	0
+	+	166	0
+	+	273	0
+	+	272	0
+	+	362	0
+	+	150	62
+	+	218	0
+	+	151	0
+	+	160	0
+	+	161	0
+	+	162	0
+	+	149	14
+	+	150	0
+	+	271	8
+	+	282	13
+	+	274	7
+	+	271	12
+	+	160	7
+	+	208	0
+	+	207	3
+	+	208	0
+	+	284	0
+	+	282	2
+	+	361	2
+	+	361	1
+	+	362	0
+	+	284	0
+	+	301	0
+	+	338	0
+	+	356	9
+	+	357	0
+	+	326	58
+	+	320	0
+	+	326	60
+	+	319	35
+	+	326	30
+	+	319	9
+	+	326	46
+	+	274	0
+	+	296	7
+	+	319	0
+	+	326	39
+	+	297	22
+	+	179	16
+	+	180	0
+	+	178	19
+	+	175	27
+	+	178	29
+	+	179	0
+	+	178	27
+	+	285	27
+	+	290	2
+	+	289	24
+	+	288	22
+	+	324	0
+	+	323	16
+	+	322	64
+	+	416	11
+	+	424	5
+	+	422	25
+	+	415	22
+	+	417	15
+	+	418	30
+	+	419	21
+	+	421	15
+	+	422	30
+	+	423	19
+	+	418	35
+	+	422	35
+	+	415	0
+	+	424	5
+	+	151	0
+
+> /cygdrive/c/qlogic/src/qla_init.c
+	"	505	0
+	^	480	3
+	.	481	0
+	+	1192	6
+	+	1191	21
+	+	1192	0
+	+	1184	15
+	+	1185	0
+	+	1189	15
+	+	1190	16
+	+	1007	7
+	+	1007	1
+	+	1007	5
+	+	990	0
+	+	989	0
+	+	1007	0
+	+	996	0
+	+	990	2
+	+	996	4
+	+	1007	0
+	+	999	8
+	+	992	0
+	+	999	0
+	+	995	0
+	+	994	0
+	+	993	0
+	+	994	4
+	+	991	0
+	+	997	0
+	+	998	4
+	+	1007	0
+	+	1089	0
+	+	1090	0
+	+	1090	4
+	+	1078	6
+	+	1079	0
+	+	1080	5
+	+	1081	10
+	+	1090	0
+	+	1100	23
+	+	1097	28
+	+	1100	0
+	+	1300	0
+	+	1300	17
+	+	1300	26
+	+	1300	0
+	+	1300	16
+	+	1300	0
+	+	1088	5
+	+	1097	31
+	+	1097	0
+	+	1301	0
+	+	1301	16
+	+	1302	16
+	+	1301	17
+	+	1302	0
+	+	1100	15
+	+	1100	6
+	+	1100	19
+	+	51	22
+	+	52	0
+	+	1329	8
+	+	1331	0
+	+	1316	0
+	+	1319	11
+	+	1320	3
+	+	1321	7
+	+	1320	29
+	+	1319	0
+	+	1322	30
+	+	1329	36
+	+	1318	21
+	+	1292	8
+	+	1323	16
+	+	1324	0
+	+	1325	12
+	+	1324	12
+	+	1325	12
+	+	1329	0
+	+	1300	0
+	+	1301	0
+	+	1317	30
+	+	1329	0
+	+	1317	14
+	+	1329	6
+	+	1097	4
+	+	1100	0
+	+	1327	0
+	+	1328	40
+	+	1327	0
+	+	1098	12
+	+	1099	0
+	+	591	40
+	+	1099	5
+	+	417	0
+	+	433	4
+	+	434	0
+	+	505	23
+	+	507	0
+	+	432	12
+	+	527	5
+	+	528	0
+	+	481	0
+	n	256	0
+
+> /cygdrive/c/qlogic/src/qla_mbx.c
+	"	1235	22
+	^	1868	6
+	.	1869	0
+	+	1	12
+	+	1881	0
+	+	1	0
+	+	1	27
+	+	1	3
+	+	1	3
+	+	1	3
+	+	1	3
+	+	1	3
+	+	1	3
+	+	1	3
+	+	1	0
+	+	1	42
+	+	1	0
+	+	1	3
+	+	1	4
+	+	1	7
+	+	1	8
+	+	1	3
+	+	1	7
+	+	1	3
+	+	1	7
+	+	1	8
+	+	1	0
+	+	1	0
+	+	1	8
+	+	1	11
+	+	1	22
+	+	1	75
+	+	1	22
+	+	1881	0
+	+	1	0
+	+	1	6
+	+	1	0
+	+	1	1
+	+	1	1
+	+	1	1
+	+	1	1
+	+	1	0
+	+	1	2
+	+	1	0
+	+	1	0
+	+	1	0
+	+	1	39
+	+	1881	0
+	+	1	24
+	+	1	3
+	+	1	0
+	+	1	5
+	+	1	4
+	+	1881	6
+	+	1	4
+	+	1	60
+	+	1	60
+	+	1	0
+	+	1	0
+	+	1	21
+	+	1	44
+	+	1	0
+	+	1	0
+	+	1	19
+	+	1	0
+	+	1	31
+	+	1	17
+	+	1	0
+	+	1	12
+	+	1	12
+	+	1	37
+	+	1	35
+	+	1	0
+	+	1	0
+	+	1	3
+	+	1	0
+	+	1	0
+	+	1	6
+	+	1	5
+	+	1	0
+	+	1	9
+	+	1	34
+	+	1	25
+	+	1	0
+	+	1	1
+	+	1	0
+	+	1	0
+	+	1	22
+	+	1	52
+	+	1	52
+	+	1	0
+	+	1881	0
+	+	1	0
+	+	1856	5
+	+	1856	4
+	+	1860	6
+	+	1856	0
+	+	1843	53
+	+	1856	0
+	+	1860	0
+	+	1867	5
+	+	1869	2
+	+	1869	0
+
+> /cygdrive/c/qlogic/sys/qla/qla_fw.h
+	"	447	0
+	.	408	0
+	+	1090	0
+	+	1090	0
+	+	1087	0
+	+	1086	4
+	+	1127	8
+	+	1126	34
+	+	1133	8
+	+	1132	32
+	+	1126	32
+	+	1138	8
+	+	1136	0
+	+	1135	32
+	+	1136	32
+	+	1137	32
+	+	1144	31
+	+	1145	8
+	+	1144	32
+	+	1147	32
+	+	1148	8
+	+	1090	0
+	+	1090	0
+	+	366	0
+	+	357	31
+	+	470	6
+	+	496	0
+	+	487	0
+	+	496	23
+	+	498	24
+	+	499	21
+	+	482	0
+	+	366	0
+	+	481	0
+	+	448	0
+	+	404	0
+	+	450	0
+	+	454	0
+	+	454	0
+	+	458	0
+	+	454	0
+	+	458	0
+	+	456	0
+	+	455	12
+	+	456	0
+	+	458	0
+	+	458	0
+	+	456	0
+	+	458	0
+	+	457	12
+	+	458	0
+	+	458	0
+	+	458	0
+	+	460	26
+	+	461	27
+	+	462	33
+	+	464	0
+	+	465	0
+	+	466	10
+	+	467	9
+	+	465	30
+	+	466	30
+	+	470	33
+	+	470	0
+	+	468	0
+	+	470	0
+	+	470	0
+	+	468	52
+	+	470	0
+	+	454	0
+	+	462	0
+	+	402	0
+	+	403	0
+	+	403	0
+	+	358	4
+	+	404	6
+	+	359	13
+	+	476	31
+	+	476	0
+	+	464	34
+	+	449	26
+	+	469	0
+	+	470	0
+	+	469	41
+	+	476	0
+	+	464	34
+	+	405	0
+	+	445	0
+	+	444	0
+	+	445	0
+	+	443	2
+	+	442	9
+	+	431	0
+	+	432	9
+	+	434	0
+	+	425	0
+	+	409	0
+	+	409	0
+	+	408	9
+	+	408	24
+	+	409	0
+	+	408	0
+
+> /cygdrive/c/qlogic/src/qla_ioctl.c
+	"	1420	15
+
+> /cygdrive/c/qlogic/sys/qla/qla_err.h
+	"	61	2
+
+> /cygdrive/c/qlogic/sys/qla/qla_glbl.h
+	"	160	60
+	^	156	114
+	.	156	113
+	+	229	0
+	+	183	19
+	+	128	6
+	+	128	6
+	+	128	10
+	+	128	88
+	+	182	0
+	+	181	22
+	+	182	0
+	+	184	22
+	+	129	10
+	+	129	85
+	+	129	82
+	+	129	64
+	+	130	0
+	+	185	22
+	+	158	0
+	+	159	0
+	+	155	12
+	+	157	6
+	+	157	108
+	+	157	0
+	+	156	11
+	+	156	11
+	+	156	113
+
+> /cygdrive/c/qlogic/src/qla_os.c
+	"	1129	29
+	^	660	11
+	.	660	0
+	+	51	17
+	+	51	33
+	+	1125	46
+	+	402	0
+	+	401	0
+	+	403	5
+	+	1169	35
+	+	1171	2
+	+	1201	0
+	+	1169	4
+	+	972	31
+	+	971	0
+	+	972	0
+	+	970	8
+	+	1171	51
+	+	973	26
+	+	1169	0
+	+	1171	0
+	+	1169	14
+	+	1171	0
+	+	1170	29
+	+	1171	0
+	+	1172	0
+	+	1173	7
+	+	1174	0
+	+	1201	0
+	+	1175	11
+	+	1179	11
+	+	1183	11
+	+	1186	11
+	+	1189	11
+	+	1192	11
+	+	1196	11
+	+	1169	8
+	+	1201	4
+	+	1203	6
+	+	1201	0
+	+	1169	4
+	+	1195	0
+	+	1201	29
+	+	1202	11
+	+	49	33
+	+	1201	0
+	+	1199	0
+	+	1169	4
+	+	1200	24
+	+	391	0
+	+	391	0
+	+	391	0
+	+	391	0
+	+	392	0
+	+	391	0
+	+	390	0
+	+	393	0
+	+	657	0
+	+	1096	0
+	+	489	0
+	+	488	0
+	+	487	0
+	+	1100	0
+	+	1121	26
+	+	671	0
+	+	1444	0
+	+	1497	0
+	+	1497	10
+	+	1497	0
+	+	400	26
+	+	399	13
+	+	400	0
+	+	399	12
+	+	1497	0
+	+	52	28
+	+	1223	9
+	+	1222	34
+	+	52	27
+	+	1542	7
+	+	1543	0
+	+	1540	55
+	+	1541	0
+	+	1541	32
+	+	1061	0
+	+	1339	23
+	+	1337	8
+	+	1338	1
+	+	1339	0
+	+	1338	25
+	+	660	0
+	+	668	31
+	+	669	0
+	+	660	12
+	+	661	0
+	+	659	13
+	+	663	52
+	+	659	9
+	+	668	21
+	+	663	47
+	+	660	11
+	+	660	11
+	+	660	0
+	+	660	0
+	n	1109	0
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_def.h
+	"	252	1
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_init.c
+	"	3676	10
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_gs.c
+	"	251	38
+	^	139	31
+	.	136	0
+	+	145	0
+	+	145	0
+	+	144	33
+	+	133	0
+	+	130	0
+	+	130	24
+	+	130	0
+	+	130	0
+	+	136	18
+	+	139	0
+	+	136	0
+
+> /cygdrive/c/qlogic/src/qla_im_api.c
+	"	831	0
+	^	1763	28
+	.	1763	27
+	+	1310	66
+	+	1312	6
+	+	1523	0
+	+	1523	0
+	+	1523	0
+	+	1312	0
+	+	1248	0
+	+	1307	0
+	+	1248	0
+	+	1307	0
+	+	1111	0
+	+	1246	0
+	+	1593	17
+	+	1747	31
+	+	1748	3
+	+	1507	0
+	+	1506	0
+	+	1508	18
+	+	1749	30
+	+	1750	0
+	+	1752	0
+	+	1763	27
+
+> /cygdrive/c/qlogic/sys/GenSCSI.h
+	"	339	20
+	.	1250	0
+	+	1250	0
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_mbx.c
+	"	900	23
+
+> /cygdrive/c/qlogic/sys/qla/qla_ioctl.h
+	"	129	24
+	^	130	2
+	.	130	1
+	+	137	29
+	+	130	0
+	+	129	24
+	+	130	1
+
+> /cygdrive/c/qlogic/sys/qla/qla_ini
+	"	1	0
+
+> /cygdrive/c/qlogic/sys/qla/qla_os.h
+	"	98	43
+	^	87	2
+	.	85	0
+	+	92	45
+	+	82	0
+	+	92	0
+	+	111	0
+	+	111	0
+	+	94	0
+	+	93	0
+	+	94	28
+	+	95	0
+	+	94	5
+	+	97	1
+	+	98	1
+	+	98	1
+	+	99	30
+	+	98	30
+	+	98	30
+	+	97	29
+	+	97	35
+	+	98	35
+	+	97	35
+	+	97	0
+	+	97	29
+	+	96	35
+	+	95	35
+	+	94	35
+	+	97	0
+	+	98	0
+	+	99	0
+	+	94	0
+	+	125	0
+	+	94	34
+	+	95	34
+	+	96	0
+	+	94	0
+	+	99	0
+	+	98	47
+	+	99	0
+	+	101	0
+	+	99	0
+	+	102	0
+	+	99	0
+	+	185	0
+	+	187	47
+	+	35	0
+	+	92	33
+	+	110	0
+	+	108	0
+	+	92	32
+	+	186	4
+	+	83	0
+	+	82	25
+	+	82	64
+	+	83	0
+	+	82	61
+	+	83	27
+	+	83	68
+	+	84	0
+	+	83	67
+	+	84	0
+	+	82	31
+	+	90	28
+	+	90	29
+	+	90	31
+	+	91	73
+	+	90	68
+	+	91	73
+	+	85	67
+	+	86	73
+	+	85	55
+	+	82	63
+	+	83	68
+	+	82	33
+	+	83	33
+	+	82	32
+	+	83	32
+	+	82	33
+	+	83	33
+	+	86	0
+	+	85	41
+	+	86	45
+	+	85	31
+	+	86	0
+	+	85	29
+	+	82	0
+	+	86	32
+	+	85	65
+	+	89	0
+	+	82	31
+	+	83	31
+	+	85	67
+	+	86	72
+	+	85	31
+	+	90	0
+	+	92	1
+	+	85	0
+	+	87	0
+	+	86	0
+	+	87	1
+	+	88	0
+	+	85	0
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_os.c
+	"	1717	33
+
+> /cygdrive/c/qlogic/src/ift.c
+	"	206	1
+
+> /cygdrive/c/88Emulex411A/src/lpfc_ct.c
+	"	869	15
+
+> /cygdrive/c/88Emulex411A/sys/lpfc/lpfc_hw.h
+	"	307	0
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_iocb.c
+	"	1885	30
+
+> /cygdrive/c/linux/linux/drivers/scsi/qla2xxx/qla_fw.h
+	"	488	0
+
+> /cygdrive/c/qlogic/src/qla_2700fw.c
+	"	27	0
+
+> /cygdrive/c/qlogic/src/2700fc.c
+	"	23701	17
+
+> /cygdrive/c/qlogic/src/fiminit.c
+	"	69	7
+
+> /cygdrive/c/qlogic/src/qla_dbg.c
+	"	132	44
+
+> /cygdrive/c/qlogic/src/lpfc_init_api.c
+	"	1358	0
+	n	1358	0
+
+> /cygdrive/c/8CBAK/oridriver/qla_27xx.
+	"	1	0
+
+> /cygdrive/c/8CBAK/oridriver/qla_27xx.c
+	"	114	26
+
+> /cygdrive/c/qlogic/src/qla_25xx.c
+	"	355	13
+
+> /cygdrive/c/qlogic/sys/ppc/platform/cnvtdata.h
+	"	27	12
+
+> /cygdrive/c/88Emulex411A/src/lpfc_initiator_api.c
+	"	1593	0
+
+> /cygdrive/c/qlogic/sys/qla/qla_tmp.h
+	"	1	0
+	.	1	0
+	+	1	0
+
+> /cygdrive/c/8CBAK/oridriver/qla_os.c
+	"	1161	38
+	.	1192	0
+	+	1192	0
+
+> /cygdrive/c/88Emulex411A/sys/lpfc/lpfc_scsi.h
+	"	114	0
+
+> /cygdrive/c/qlogic/txt
+	"	1	8
+	^	1	9
+	.	1	8
+	+	1	8
+
+> /cygdrive/c/421qlogic/Makefile
+	"	25	35
+	^	43	11
+	.	43	10
+	+	44	10
+	+	46	10
+	+	43	10
+	+	46	11
+	+	43	10
+	+	46	11
+	+	43	10
+	+	46	11
+	+	43	0
+	+	46	11
+	+	43	10
+	+	46	11
+	+	43	10
+
+> /cygdrive/c/421qlogic/src/fcintf.c
+	"	2180	4
+	^	1994	3
+	.	1994	2
+	+	1	0
+	+	1	0
+	+	1	0
+	+	1	0
+	+	1	0
+	+	1	68
+	+	1	55
+	+	1	0
+	+	1	3
+	+	1	3
+	+	1	0
+	+	1	6
+	+	1	0
+	+	1	21
+	+	1	76
+	+	1	16
+	+	1	20
+	+	1	54
+	+	1	49
+	+	1	47
+	+	1	49
+	+	1	49
+	+	1	49
+	+	1	0
+	+	1	62
+	+	1	41
+	+	1	64
+	+	1	79
+	+	1	28
+	+	1	50
+	+	1	0
+	+	1	4
+	+	1	5
+	+	1	21
+	+	1	0
+	+	1	0
+	+	1	20
+	+	1	44
+	+	1	94
+	+	1	45
+	+	1	3
+	+	1	120
+	+	1	87
+	+	1	0
+	+	1	52
+	+	1	0
+	+	1	0
+	+	1	4
+	+	1	6
+	+	1	71
+	+	1	0
+	+	1	46
+	+	1	5
+	+	1	0
+	+	1	0
+	+	1	36
+	+	1	0
+	+	1	0
+	+	1	4
+	+	1	6
+	+	1	0
+	+	1	4
+	+	1	6
+	+	469	0
+	+	506	0
+	+	506	33
+	+	423	0
+	+	506	37
+	+	402	35
+	+	404	12
+	+	405	0
+	+	405	135
+	+	506	0
+	+	390	29
+	+	461	0
+	+	462	129
+	+	462	0
+	+	464	0
+	+	462	129
+	+	462	0
+	+	463	11
+	+	494	0
+	+	443	3
+	+	444	0
+	+	435	0
+	+	434	0
+	+	439	0
+	+	436	10
+	+	437	10
+	+	438	6
+	+	498	0
+	+	497	0
+	+	498	4
+	+	499	4
+	+	500	0
+	+	498	0
+	+	499	34
+	+	500	34
+	+	19	0
+	+	1994	2
+
+> /cygdrive/c/421qlogic/sys/GenSCSI.h
+	"	1129	9
+
+> /cygdrive/c/421qlogic/src/qla_isr.c
+	"	1912	4
+	^	1912	5
+	.	1912	0
+	+	166	48
+	+	170	0
+	+	168	47
+	+	165	13
+	+	169	6
+	+	112	0
+	+	123	0
+	+	131	0
+	+	129	6
+	+	124	44
+	+	125	3
+	+	126	4
+	+	127	3
+	+	130	0
+	+	123	0
+	+	128	30
+	+	661	0
+	+	662	5
+	+	662	133
+	+	669	0
+	+	668	12
+	+	668	9
+	+	662	0
+	+	668	0
+	+	665	0
+	+	668	0
+	+	631	0
+	+	666	0
+	+	667	0
+	+	666	30
+	+	667	0
+	+	102	100
+	+	102	82
+	+	837	16
+	+	789	0
+	+	866	0
+	+	1055	0
+	+	1188	0
+	+	1453	0
+	+	1543	0
+	+	1620	0
+	+	1691	0
+	+	1817	0
+	+	107	0
+	+	268	0
+	+	282	0
+	+	355	0
+	+	535	0
+	+	305	0
+	+	1371	0
+	+	1912	4
+	+	1912	0
+
+> /cygdrive/c/421qlogic/src/qla_init.c
+	"	447	8
+	^	1086	3
+	.	482	0
+	+	938	53
+	+	942	3
+	+	944	4
+	+	945	11
+	+	946	12
+	+	946	22
+	+	946	41
+	+	947	20
+	+	939	0
+	+	940	40
+	+	940	39
+	+	938	0
+	+	856	0
+	+	884	0
+	+	868	49
+	+	868	49
+	+	869	60
+	+	870	18
+	+	884	32
+	+	884	0
+	+	884	0
+	+	870	18
+	+	871	57
+	+	870	20
+	+	872	62
+	+	872	0
+	+	884	0
+	+	873	0
+	+	876	0
+	+	873	56
+	+	876	61
+	+	884	0
+	+	877	0
+	+	878	0
+	+	879	0
+	+	880	0
+	+	881	0
+	+	882	0
+	+	883	61
+	+	884	0
+	+	876	58
+	+	877	58
+	+	878	58
+	+	879	58
+	+	880	58
+	+	881	58
+	+	882	58
+	+	883	58
+	+	868	18
+	+	876	0
+	+	876	0
+	+	874	0
+	+	875	28
+	+	876	0
+	+	874	18
+	+	870	0
+	+	869	115
+	+	870	8
+	+	869	60
+	+	869	0
+	+	868	18
+	+	869	42
+	+	870	8
+	+	949	0
+	+	965	0
+	+	950	50
+	+	50	26
+	+	781	0
+	+	781	3
+	+	781	42
+	+	691	0
+	+	707	0
+	+	692	43
+	+	691	28
+	+	761	24
+	+	763	26
+	+	762	13
+	+	764	6
+	+	688	0
+	+	657	0
+	+	862	42
+	+	943	0
+	+	1105	3
+	+	1107	33
+	+	1105	3
+	+	1038	0
+	+	1101	0
+	+	1102	12
+	+	500	19
+	+	501	0
+	+	502	0
+	+	432	0
+	+	586	13
+	+	1087	0
+	+	482	0
+
+> /cygdrive/c/421qlogic/sys/qla/qla_fc.h
+	"	105	8
+
+> /cygdrive/c/421qlogic/src/qla_mbx.c
+	"	214	13
+	.	205	0
+	+	174	0
+	+	178	9
+	+	174	9
+	+	189	0
+	+	196	20
+	+	179	8
+	+	196	0
+	+	179	20
+	+	216	20
+	+	179	20
+	+	64	11
+	+	64	10
+	+	216	21
+	+	216	11
+	+	216	7
+	+	179	14
+	+	177	0
+	+	179	0
+	+	64	0
+	+	216	0
+	+	1880	0
+	+	123	0
+	+	205	0
+
+> /cygdrive/c/421qlogic/sys/ift.h
+	"	42	0
+	^	42	29
+	.	42	28
+	+	41	0
+	+	43	0
+	+	43	0
+	+	41	0
+	+	43	0
+	+	42	28
+
+> /cygdrive/c/421qlogic/sys/qla/qla_def.h
+	"	187	0
+	^	86	10
+	.	86	0
+	+	110	0
+	+	89	15
+	+	88	0
+	+	86	0
+
+> /cygdrive/c/88Emulex411A/src/lpfc_hbadisc.c
+	"	1129	5
+
+> /cygdrive/c/88Emulex411A/src/lpfc_tm_main.c
+	"	2855	1
+	.	1065	0
+	+	638	0
+	+	461	0
+	+	883	0
+	+	1065	0
+	+	1065	0
+
+> /cygdrive/c/421qlogic/src/qla_os.c
+	"	1372	4
+
+> /cygdrive/c/421qlogic/src/ini
+	"	1	0
+
+> /cygdrive/c/421qlogic/sys/qla/qla_fw.h
+	"	124	27
+
+> /cygdrive/c/421qlogic/src/qla_27xx.c
+	"	102	29
+	^	58	20
+	.	58	19
+	+	71	0
+	+	184	0
+	+	187	0
+	+	190	0
+	+	199	0
+	+	190	11
+	+	58	19
+
+> /cygdrive/c/421qlogic/sys/qla/qla_scsi.h
+	"	65	30
+
+> /cygdrive/c/421qlogic/src/qla_ioctl.c
+	"	490	40

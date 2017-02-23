@@ -1,0 +1,62 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1258
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1258
+Problem:    Using submatch() may crash Vim. (Ingo Karkat)
+Solution:   Restore the number of subexpressions used.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1257/src/regexp_nfa.c	2013-06-26 18:16:55.000000000 +0200
+--- src/regexp_nfa.c	2013-06-28 22:59:38.000000000 +0200
+***************
+*** 5198,5203 ****
+--- 5198,5205 ----
+  			 || t->state->c == NFA_START_INVISIBLE_BEFORE_FIRST
+  			 || t->state->c == NFA_START_INVISIBLE_BEFORE_NEG_FIRST)
+  		    {
++ 			int in_use = m->norm.in_use;
++ 
+  			/* Copy submatch info for the recursive call, so that
+  			 * \1 can be matched. */
+  			copy_sub_off(&m->norm, &t->subs.norm);
+***************
+*** 5231,5236 ****
+--- 5233,5239 ----
+  			    add_here = TRUE;
+  			    add_state = t->state->out1->out;
+  			}
++ 			m->norm.in_use = in_use;
+  		    }
+  		    else
+  		    {
+*** ../vim-7.3.1257/src/version.c	2013-06-28 20:36:26.000000000 +0200
+--- src/version.c	2013-06-28 23:00:55.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1258,
+  /**/
+
+
+-- 
+GUARD #1:  What, ridden on a horse?
+ARTHUR:    Yes!
+GUARD #1:  You're using coconuts!
+ARTHUR:    What?
+GUARD #1:  You've got two empty halves of coconut and you're bangin' 'em
+           together.
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

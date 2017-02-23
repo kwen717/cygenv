@@ -1,0 +1,70 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1201
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1201
+Problem:    When a startup script creates a preview window, it probably
+	    becomes the current window.
+Solution:   Make another window the current one. (Christian Brabandt)
+Files:	    src/main.c
+
+
+*** ../vim-7.3.1200/src/main.c	2013-06-12 20:35:46.000000000 +0200
+--- src/main.c	2013-06-15 21:46:31.000000000 +0200
+***************
+*** 2816,2822 ****
+  # ifdef FEAT_AUTOCMD
+      --autocmd_no_enter;
+  # endif
+!     win_enter(firstwin, FALSE);		/* back to first window */
+  # ifdef FEAT_AUTOCMD
+      --autocmd_no_leave;
+  # endif
+--- 2816,2840 ----
+  # ifdef FEAT_AUTOCMD
+      --autocmd_no_enter;
+  # endif
+! #if defined(FEAT_WINDOWS) && defined(FEAT_QUICKFIX)
+!     /*
+!      * Avoid making a preview window the current window.
+!      */
+!     if (firstwin->w_p_pvw)
+!     {
+!        win_T   *win;
+! 
+!        for (win = firstwin; win != NULL; win = win->w_next)
+!            if (!win->w_p_pvw)
+!            {
+!                firstwin = win;
+!                break;
+!            }
+!     }
+! #endif
+!     /* make the first window the current window */
+!     win_enter(firstwin, FALSE);
+! 
+  # ifdef FEAT_AUTOCMD
+      --autocmd_no_leave;
+  # endif
+*** ../vim-7.3.1200/src/version.c	2013-06-15 17:54:36.000000000 +0200
+--- src/version.c	2013-06-15 21:48:57.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1201,
+  /**/
+
+-- 
+How do I set the laser printer to stun? 
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

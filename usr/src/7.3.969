@@ -1,0 +1,55 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.969
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.969
+Problem:    Can't built with Python 3 and without Python 2.
+Solution:   Adjust #ifdef. (Xavier de Gaye)
+Files:	    src/window.c
+
+
+*** ../vim-7.3.968/src/window.c	2013-05-17 16:03:53.000000000 +0200
+--- src/window.c	2013-05-18 20:53:21.000000000 +0200
+***************
+*** 4058,4064 ****
+  }
+  #endif
+  
+! #if (defined(FEAT_WINDOWS) && defined(FEAT_PYTHON)) || defined(PROTO)
+  /*
+   * Find the tabpage for window "win".
+   */
+--- 4058,4065 ----
+  }
+  #endif
+  
+! #if (defined(FEAT_WINDOWS) && (defined(FEAT_PYTHON) || defined(FEAT_PYTHON3))) \
+! 	|| defined(PROTO)
+  /*
+   * Find the tabpage for window "win".
+   */
+*** ../vim-7.3.968/src/version.c	2013-05-18 20:45:51.000000000 +0200
+--- src/version.c	2013-05-18 20:54:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     969,
+  /**/
+
+-- 
+ROBIN:  (warily) And if you get a question wrong?
+ARTHUR: You are cast into the Gorge of Eternal Peril.
+ROBIN:  Oh ... wacho!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

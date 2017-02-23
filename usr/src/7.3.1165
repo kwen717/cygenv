@@ -1,0 +1,73 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1165
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1165
+Problem:    HP-UX compiler can't handle zero size array. (Charles Cooper)
+Solution:   Make the array one item big.
+Files:	    src/regexp.h, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1164/src/regexp.h	2013-06-08 18:19:39.000000000 +0200
+--- src/regexp.h	2013-06-11 10:53:14.000000000 +0200
+***************
+*** 101,107 ****
+  #endif
+      int			nsubexp;	/* number of () */
+      int			nstate;
+!     nfa_state_T		state[0];	/* actually longer.. */
+  } nfa_regprog_T;
+  
+  /*
+--- 101,107 ----
+  #endif
+      int			nsubexp;	/* number of () */
+      int			nstate;
+!     nfa_state_T		state[1];	/* actually longer.. */
+  } nfa_regprog_T;
+  
+  /*
+*** ../vim-7.3.1164/src/regexp_nfa.c	2013-06-10 16:35:11.000000000 +0200
+--- src/regexp_nfa.c	2013-06-11 11:19:17.000000000 +0200
+***************
+*** 6391,6398 ****
+       */
+      post2nfa(postfix, post_ptr, TRUE);
+  
+!     /* Space for compiled regexp */
+!     prog_size = sizeof(nfa_regprog_T) + sizeof(nfa_state_T) * nstate;
+      prog = (nfa_regprog_T *)lalloc(prog_size, TRUE);
+      if (prog == NULL)
+  	goto fail;
+--- 6391,6398 ----
+       */
+      post2nfa(postfix, post_ptr, TRUE);
+  
+!     /* allocate the regprog with space for the compiled regexp */
+!     prog_size = sizeof(nfa_regprog_T) + sizeof(nfa_state_T) * (nstate - 1);
+      prog = (nfa_regprog_T *)lalloc(prog_size, TRUE);
+      if (prog == NULL)
+  	goto fail;
+*** ../vim-7.3.1164/src/version.c	2013-06-11 18:40:06.000000000 +0200
+--- src/version.c	2013-06-11 18:41:47.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1165,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+145. You e-mail your boss, informing him you'll be late.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

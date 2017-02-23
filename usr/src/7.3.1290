@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1290
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1290 (after 7.3.1253)
+Problem:    CTRL-R = in Insert mode changes the start of the insert position.
+	    (Ingo Karkat)
+Solution:   Only break undo, don't start a new insert.
+Files:	    src/edit.c
+
+
+*** ../vim-7.3.1289/src/edit.c	2013-06-29 16:21:50.000000000 +0200
+--- src/edit.c	2013-07-03 13:12:36.000000000 +0200
+***************
+*** 8145,8151 ****
+  	if (im_on)
+  	    im_set_active(TRUE);
+  # endif
+- 	Insstart = curwin->w_cursor;
+      }
+      if (regname == NUL || !valid_yank_reg(regname, FALSE))
+      {
+--- 8145,8150 ----
+*** ../vim-7.3.1289/src/version.c	2013-07-03 13:04:24.000000000 +0200
+--- src/version.c	2013-07-03 13:16:13.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1290,
+  /**/
+
+-- 
+There are three kinds of people: Those who can count & those who can't.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

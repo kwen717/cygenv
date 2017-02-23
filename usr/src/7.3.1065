@@ -1,0 +1,381 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1065
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1065
+Problem:    Python: key mapping is not standard.
+Solution:   Puthon patch 24: use PyMapping_Keys. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c
+
+
+*** ../vim-7.3.1064/src/if_py_both.h	2013-05-30 13:17:13.000000000 +0200
+--- src/if_py_both.h	2013-05-30 13:19:50.000000000 +0200
+***************
+*** 4612,4621 ****
+      char_u	*key;
+      dictitem_T	*di;
+      PyObject	*list;
+!     PyObject	*litem;
+      PyObject	*keyObject;
+      PyObject	*valObject;
+-     Py_ssize_t	lsize;
+  
+      if (!(dict = dict_alloc()))
+  	return -1;
+--- 4612,4620 ----
+      char_u	*key;
+      dictitem_T	*di;
+      PyObject	*list;
+!     PyObject	*iterator;
+      PyObject	*keyObject;
+      PyObject	*valObject;
+  
+      if (!(dict = dict_alloc()))
+  	return -1;
+***************
+*** 4623,4683 ****
+      tv->v_type = VAR_DICT;
+      tv->vval.v_dict = dict;
+  
+!     list = PyMapping_Items(obj);
+!     if (list == NULL)
+      {
+  	dict_unref(dict);
+  	return -1;
+      }
+-     lsize = PyList_Size(list);
+-     while (lsize--)
+-     {
+- 	DICTKEY_DECL
+  
+! 	litem = PyList_GetItem(list, lsize);
+! 	if (litem == NULL)
+! 	{
+! 	    Py_DECREF(list);
+! 	    dict_unref(dict);
+! 	    return -1;
+! 	}
+  
+! 	if (!(keyObject = PyTuple_GetItem(litem, 0)))
+! 	{
+! 	    Py_DECREF(list);
+! 	    Py_DECREF(litem);
+! 	    dict_unref(dict);
+! 	    return -1;
+! 	}
+  
+  	if (!DICTKEY_SET_KEY)
+  	{
+  	    dict_unref(dict);
+- 	    Py_DECREF(list);
+- 	    Py_DECREF(litem);
+  	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  	DICTKEY_CHECK_EMPTY(-1)
+  
+! 	if (!(valObject = PyTuple_GetItem(litem, 1)))
+  	{
+! 	    Py_DECREF(list);
+! 	    Py_DECREF(litem);
+  	    dict_unref(dict);
+  	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  
+- 	Py_DECREF(litem);
+- 
+  	di = dictitem_alloc(key);
+  
+  	DICTKEY_UNREF
+  
+  	if (di == NULL)
+  	{
+! 	    Py_DECREF(list);
+  	    dict_unref(dict);
+  	    PyErr_NoMemory();
+  	    return -1;
+--- 4622,4673 ----
+      tv->v_type = VAR_DICT;
+      tv->vval.v_dict = dict;
+  
+!     if (!(list = PyMapping_Keys(obj)))
+      {
+  	dict_unref(dict);
+  	return -1;
+      }
+  
+!     if (!(iterator = PyObject_GetIter(list)))
+!     {
+! 	dict_unref(dict);
+! 	Py_DECREF(list);
+! 	return -1;
+!     }
+!     Py_DECREF(list);
+  
+!     while ((keyObject = PyIter_Next(iterator)))
+!     {
+! 	DICTKEY_DECL
+  
+  	if (!DICTKEY_SET_KEY)
+  	{
++ 	    Py_DECREF(iterator);
+  	    dict_unref(dict);
+  	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  	DICTKEY_CHECK_EMPTY(-1)
+  
+! 	if (!(valObject = PyObject_GetItem(obj, keyObject)))
+  	{
+! 	    Py_DECREF(keyObject);
+! 	    Py_DECREF(iterator);
+  	    dict_unref(dict);
+  	    DICTKEY_UNREF
+  	    return -1;
+  	}
+  
+  	di = dictitem_alloc(key);
+  
+  	DICTKEY_UNREF
+  
++ 	Py_DECREF(keyObject);
++ 
+  	if (di == NULL)
+  	{
+! 	    Py_DECREF(iterator);
+! 	    Py_DECREF(valObject);
+  	    dict_unref(dict);
+  	    PyErr_NoMemory();
+  	    return -1;
+***************
+*** 4686,4708 ****
+  
+  	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
+  	    vim_free(di);
+  	    dict_unref(dict);
+- 	    Py_DECREF(list);
+  	    return -1;
+  	}
+  
+  	if (dict_add(dict, di) == FAIL)
+  	{
+  	    dictitem_free(di);
+  	    dict_unref(dict);
+- 	    Py_DECREF(list);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+      }
+      --dict->dv_refcount;
+-     Py_DECREF(list);
+      return 0;
+  }
+  
+--- 4676,4701 ----
+  
+  	if (_ConvertFromPyObject(valObject, &di->di_tv, lookup_dict) == -1)
+  	{
++ 	    Py_DECREF(iterator);
++ 	    Py_DECREF(valObject);
+  	    vim_free(di);
+  	    dict_unref(dict);
+  	    return -1;
+  	}
+  
++ 	Py_DECREF(valObject);
++ 
+  	if (dict_add(dict, di) == FAIL)
+  	{
++ 	    Py_DECREF(iterator);
+  	    dictitem_free(di);
+  	    dict_unref(dict);
+  	    PyErr_SetVim(_("failed to add key to dictionary"));
+  	    return -1;
+  	}
+      }
++     Py_DECREF(iterator);
+      --dict->dv_refcount;
+      return 0;
+  }
+  
+***************
+*** 4907,4912 ****
+--- 4900,4907 ----
+  	tv->vval.v_float = (float_T) PyFloat_AsDouble(obj);
+      }
+  #endif
++     else if (PyObject_HasAttrString(obj, "keys"))
++ 	return convert_dl(obj, tv, pymap_to_tv, lookup_dict);
+      else if (PyIter_Check(obj) || PySequence_Check(obj))
+  	return convert_dl(obj, tv, pyseq_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+*** ../vim-7.3.1064/src/if_python3.c	2013-05-30 13:01:14.000000000 +0200
+--- src/if_python3.c	2013-05-30 13:19:50.000000000 +0200
+***************
+*** 160,168 ****
+  # define PyDict_GetItemString py3_PyDict_GetItemString
+  # define PyDict_Next py3_PyDict_Next
+  # define PyMapping_Check py3_PyMapping_Check
+! # define PyMapping_Items py3_PyMapping_Items
+  # define PyIter_Next py3_PyIter_Next
+  # define PyObject_GetIter py3_PyObject_GetIter
+  # define PyObject_IsTrue py3_PyObject_IsTrue
+  # define PyModule_GetDict py3_PyModule_GetDict
+  #undef PyRun_SimpleString
+--- 160,169 ----
+  # define PyDict_GetItemString py3_PyDict_GetItemString
+  # define PyDict_Next py3_PyDict_Next
+  # define PyMapping_Check py3_PyMapping_Check
+! # define PyMapping_Keys py3_PyMapping_Keys
+  # define PyIter_Next py3_PyIter_Next
+  # define PyObject_GetIter py3_PyObject_GetIter
++ # define PyObject_GetItem py3_PyObject_GetItem
+  # define PyObject_IsTrue py3_PyObject_IsTrue
+  # define PyModule_GetDict py3_PyModule_GetDict
+  #undef PyRun_SimpleString
+***************
+*** 276,282 ****
+  static Py_ssize_t (*py3_PyTuple_Size)(PyObject *);
+  static PyObject* (*py3_PyTuple_GetItem)(PyObject *, Py_ssize_t);
+  static int (*py3_PyMapping_Check)(PyObject *);
+! static PyObject* (*py3_PyMapping_Items)(PyObject *);
+  static int (*py3_PySlice_GetIndicesEx)(PyObject *r, Py_ssize_t length,
+  		     Py_ssize_t *start, Py_ssize_t *stop, Py_ssize_t *step, Py_ssize_t *slicelength);
+  static PyObject* (*py3_PyErr_NoMemory)(void);
+--- 277,283 ----
+  static Py_ssize_t (*py3_PyTuple_Size)(PyObject *);
+  static PyObject* (*py3_PyTuple_GetItem)(PyObject *, Py_ssize_t);
+  static int (*py3_PyMapping_Check)(PyObject *);
+! static PyObject* (*py3_PyMapping_Keys)(PyObject *);
+  static int (*py3_PySlice_GetIndicesEx)(PyObject *r, Py_ssize_t length,
+  		     Py_ssize_t *start, Py_ssize_t *stop, Py_ssize_t *step, Py_ssize_t *slicelength);
+  static PyObject* (*py3_PyErr_NoMemory)(void);
+***************
+*** 304,309 ****
+--- 305,311 ----
+  static PyObject* (*py3_PyDict_New)(void);
+  static PyObject* (*py3_PyIter_Next)(PyObject *);
+  static PyObject* (*py3_PyObject_GetIter)(PyObject *);
++ static PyObject* (*py3_PyObject_GetItem)(PyObject *, PyObject *);
+  static int (*py3_PyObject_IsTrue)(PyObject *);
+  static PyObject* (*py3_Py_BuildValue)(char *, ...);
+  static int (*py3_PyType_Ready)(PyTypeObject *type);
+***************
+*** 456,464 ****
+      {"PyDict_GetItemString", (PYTHON_PROC*)&py3_PyDict_GetItemString},
+      {"PyDict_Next", (PYTHON_PROC*)&py3_PyDict_Next},
+      {"PyMapping_Check", (PYTHON_PROC*)&py3_PyMapping_Check},
+!     {"PyMapping_Items", (PYTHON_PROC*)&py3_PyMapping_Items},
+      {"PyIter_Next", (PYTHON_PROC*)&py3_PyIter_Next},
+      {"PyObject_GetIter", (PYTHON_PROC*)&py3_PyObject_GetIter},
+      {"PyObject_IsTrue", (PYTHON_PROC*)&py3_PyObject_IsTrue},
+      {"PyLong_FromLong", (PYTHON_PROC*)&py3_PyLong_FromLong},
+      {"PyDict_New", (PYTHON_PROC*)&py3_PyDict_New},
+--- 458,467 ----
+      {"PyDict_GetItemString", (PYTHON_PROC*)&py3_PyDict_GetItemString},
+      {"PyDict_Next", (PYTHON_PROC*)&py3_PyDict_Next},
+      {"PyMapping_Check", (PYTHON_PROC*)&py3_PyMapping_Check},
+!     {"PyMapping_Keys", (PYTHON_PROC*)&py3_PyMapping_Keys},
+      {"PyIter_Next", (PYTHON_PROC*)&py3_PyIter_Next},
+      {"PyObject_GetIter", (PYTHON_PROC*)&py3_PyObject_GetIter},
++     {"PyObject_GetItem", (PYTHON_PROC*)&py3_PyObject_GetItem},
+      {"PyObject_IsTrue", (PYTHON_PROC*)&py3_PyObject_IsTrue},
+      {"PyLong_FromLong", (PYTHON_PROC*)&py3_PyLong_FromLong},
+      {"PyDict_New", (PYTHON_PROC*)&py3_PyDict_New},
+*** ../vim-7.3.1064/src/if_python.c	2013-05-30 13:01:14.000000000 +0200
+--- src/if_python.c	2013-05-30 13:19:50.000000000 +0200
+***************
+*** 197,207 ****
+  # define PyDict_GetItemString dll_PyDict_GetItemString
+  # define PyDict_Next dll_PyDict_Next
+  # define PyDict_Type (*dll_PyDict_Type)
+! # ifdef PyMapping_Items
+! #  define PY_NO_MAPPING_ITEMS
+  # else
+! #  define PyMapping_Items dll_PyMapping_Items
+  # endif
+  # define PyObject_CallMethod dll_PyObject_CallMethod
+  # define PyMapping_Check dll_PyMapping_Check
+  # define PyIter_Next dll_PyIter_Next
+--- 197,208 ----
+  # define PyDict_GetItemString dll_PyDict_GetItemString
+  # define PyDict_Next dll_PyDict_Next
+  # define PyDict_Type (*dll_PyDict_Type)
+! # ifdef PyMapping_Keys
+! #  define PY_NO_MAPPING_KEYS
+  # else
+! #  define PyMapping_Keys dll_PyMapping_Keys
+  # endif
++ # define PyObject_GetItem dll_PyObject_GetItem
+  # define PyObject_CallMethod dll_PyObject_CallMethod
+  # define PyMapping_Check dll_PyMapping_Check
+  # define PyIter_Next dll_PyIter_Next
+***************
+*** 331,339 ****
+  static PyObject*(*dll_PyDict_GetItemString)(PyObject *, const char *);
+  static int (*dll_PyDict_Next)(PyObject *, PyInt *, PyObject **, PyObject **);
+  static PyTypeObject* dll_PyDict_Type;
+! # ifndef PY_NO_MAPPING_ITEMS
+! static PyObject* (*dll_PyMapping_Items)(PyObject *);
+  # endif
+  static PyObject* (*dll_PyObject_CallMethod)(PyObject *, char *, PyObject *);
+  static int (*dll_PyMapping_Check)(PyObject *);
+  static PyObject* (*dll_PyIter_Next)(PyObject *);
+--- 332,341 ----
+  static PyObject*(*dll_PyDict_GetItemString)(PyObject *, const char *);
+  static int (*dll_PyDict_Next)(PyObject *, PyInt *, PyObject **, PyObject **);
+  static PyTypeObject* dll_PyDict_Type;
+! # ifndef PY_NO_MAPPING_KEYS
+! static PyObject* (*dll_PyMapping_Keys)(PyObject *);
+  # endif
++ static PyObject* (*dll_PyObject_GetItem)(PyObject *, PyObject *);
+  static PyObject* (*dll_PyObject_CallMethod)(PyObject *, char *, PyObject *);
+  static int (*dll_PyMapping_Check)(PyObject *);
+  static PyObject* (*dll_PyIter_Next)(PyObject *);
+***************
+*** 494,502 ****
+      {"PyDict_Next", (PYTHON_PROC*)&dll_PyDict_Next},
+      {"PyDict_New", (PYTHON_PROC*)&dll_PyDict_New},
+      {"PyDict_Type", (PYTHON_PROC*)&dll_PyDict_Type},
+! # ifndef PY_NO_MAPPING_ITEMS
+!     {"PyMapping_Items", (PYTHON_PROC*)&dll_PyMapping_Items},
+  # endif
+      {"PyObject_CallMethod", (PYTHON_PROC*)&dll_PyObject_CallMethod},
+      {"PyMapping_Check", (PYTHON_PROC*)&dll_PyMapping_Check},
+      {"PyIter_Next", (PYTHON_PROC*)&dll_PyIter_Next},
+--- 496,505 ----
+      {"PyDict_Next", (PYTHON_PROC*)&dll_PyDict_Next},
+      {"PyDict_New", (PYTHON_PROC*)&dll_PyDict_New},
+      {"PyDict_Type", (PYTHON_PROC*)&dll_PyDict_Type},
+! # ifndef PY_NO_MAPPING_KEYS
+!     {"PyMapping_Keys", (PYTHON_PROC*)&dll_PyMapping_Keys},
+  # endif
++     {"PyObject_GetItem", (PYTHON_PROC*)&dll_PyObject_GetItem},
+      {"PyObject_CallMethod", (PYTHON_PROC*)&dll_PyObject_CallMethod},
+      {"PyMapping_Check", (PYTHON_PROC*)&dll_PyMapping_Check},
+      {"PyIter_Next", (PYTHON_PROC*)&dll_PyIter_Next},
+*** ../vim-7.3.1064/src/version.c	2013-05-30 13:17:13.000000000 +0200
+--- src/version.c	2013-05-30 13:19:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1065,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+8. Don't use any punctuation marks.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

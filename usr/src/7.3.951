@@ -1,0 +1,666 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.951
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.951
+Problem:    Python exceptions have problems.
+Solution:   Change some IndexErrors to TypeErrors. Make “line number out of
+	    range” an IndexError.  Make “unable to get option value” a
+	    RuntimeError. Make all PyErr_SetString messages start with
+	    lowercase letter and use _(). (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c,
+	    src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.950/src/if_py_both.h	2013-05-15 15:35:05.000000000 +0200
+--- src/if_py_both.h	2013-05-15 15:38:57.000000000 +0200
+***************
+*** 71,77 ****
+  {
+      if (val == NULL)
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("can't delete OutputObject attributes"));
+  	return -1;
+      }
+  
+--- 71,78 ----
+  {
+      if (val == NULL)
+      {
+! 	PyErr_SetString(PyExc_AttributeError,
+! 		_("can't delete OutputObject attributes"));
+  	return -1;
+      }
+  
+***************
+*** 919,925 ****
+  
+      if (index>=ListLength(self))
+      {
+! 	PyErr_SetString(PyExc_IndexError, "list index out of range");
+  	return NULL;
+      }
+      li = list_find(((ListObject *) (self))->list, (long) index);
+--- 920,926 ----
+  
+      if (index>=ListLength(self))
+      {
+! 	PyErr_SetString(PyExc_IndexError, _("list index out of range"));
+  	return NULL;
+      }
+      li = list_find(((ListObject *) (self))->list, (long) index);
+***************
+*** 1047,1053 ****
+      }
+      if (index>length || (index==length && obj==NULL))
+      {
+! 	PyErr_SetString(PyExc_IndexError, "list index out of range");
+  	return -1;
+      }
+  
+--- 1048,1054 ----
+      }
+      if (index>length || (index==length && obj==NULL))
+      {
+! 	PyErr_SetString(PyExc_IndexError, _("list index out of range"));
+  	return -1;
+      }
+  
+***************
+*** 1186,1192 ****
+  
+      if (val == NULL)
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("Cannot delete DictionaryObject attributes"));
+  	return -1;
+      }
+  
+--- 1187,1194 ----
+  
+      if (val == NULL)
+      {
+! 	PyErr_SetString(PyExc_AttributeError,
+! 		_("cannot delete vim.dictionary attributes"));
+  	return -1;
+      }
+  
+***************
+*** 1194,1200 ****
+      {
+  	if (this->list->lv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("Cannot modify fixed list"));
+  	    return -1;
+  	}
+  	else
+--- 1196,1202 ----
+      {
+  	if (this->list->lv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("cannot modify fixed list"));
+  	    return -1;
+  	}
+  	else
+***************
+*** 1208,1214 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("Cannot set this attribute"));
+  	return -1;
+      }
+  }
+--- 1210,1216 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_AttributeError, _("cannot set this attribute"));
+  	return -1;
+      }
+  }
+***************
+*** 1377,1383 ****
+  	    return PyBytes_FromString((char *) stringval);
+  	else
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, "Unable to get option value");
+  	    return NULL;
+  	}
+      }
+--- 1379,1386 ----
+  	    return PyBytes_FromString((char *) stringval);
+  	else
+  	{
+! 	    PyErr_SetString(PyExc_RuntimeError,
+! 		    _("unable to get option value"));
+  	    return NULL;
+  	}
+      }
+***************
+*** 1455,1467 ****
+      {
+  	if (this->opt_type == SREQ_GLOBAL)
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, "Unable to unset global option");
+  	    return -1;
+  	}
+  	else if (!(flags & SOPT_GLOBAL))
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, "Unable to unset option without "
+! 						"global value");
+  	    return -1;
+  	}
+  	else
+--- 1458,1471 ----
+      {
+  	if (this->opt_type == SREQ_GLOBAL)
+  	{
+! 	    PyErr_SetString(PyExc_ValueError,
+! 		    _("unable to unset global option"));
+  	    return -1;
+  	}
+  	else if (!(flags & SOPT_GLOBAL))
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, _("unable to unset option "
+! 						"without global value"));
+  	    return -1;
+  	}
+  	else
+***************
+*** 1491,1497 ****
+  	    val = PyLong_AsLong(valObject);
+  	else
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, "Object must be integer");
+  	    return -1;
+  	}
+  
+--- 1495,1501 ----
+  	    val = PyLong_AsLong(valObject);
+  	else
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("object must be integer"));
+  	    return -1;
+  	}
+  
+***************
+*** 1529,1535 ****
+  	}
+  	else
+  	{
+! 	    PyErr_SetString(PyExc_ValueError, "Object must be string");
+  	    return -1;
+  	}
+  
+--- 1533,1539 ----
+  	}
+  	else
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("object must be string"));
+  	    return -1;
+  	}
+  
+***************
+*** 2766,2772 ****
+  
+      if (n < 0 || n > max)
+      {
+! 	PyErr_SetString(PyExc_ValueError, _("line number out of range"));
+  	return NULL;
+      }
+  
+--- 2770,2776 ----
+  
+      if (n < 0 || n > max)
+      {
+! 	PyErr_SetString(PyExc_IndexError, _("line number out of range"));
+  	return NULL;
+      }
+  
+***************
+*** 3135,3141 ****
+  	bnr = PyLong_AsLong(keyObject);
+      else
+      {
+! 	PyErr_SetString(PyExc_ValueError, _("key must be integer"));
+  	return NULL;
+      }
+  
+--- 3139,3145 ----
+  	bnr = PyLong_AsLong(keyObject);
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("key must be integer"));
+  	return NULL;
+      }
+  
+***************
+*** 3654,3660 ****
+  	return convert_dl(obj, tv, pymap_to_tv, lookupDict);
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("unable to convert to vim structure"));
+  	return -1;
+      }
+      return 0;
+--- 3658,3665 ----
+  	return convert_dl(obj, tv, pymap_to_tv, lookupDict);
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError,
+! 		_("unable to convert to vim structure"));
+  	return -1;
+      }
+      return 0;
+*** ../vim-7.3.950/src/if_python3.c	2013-05-15 15:35:05.000000000 +0200
+--- src/if_python3.c	2013-05-15 15:38:57.000000000 +0200
+***************
+*** 336,341 ****
+--- 336,342 ----
+  static PyObject *p3imp_PyExc_KeyboardInterrupt;
+  static PyObject *p3imp_PyExc_TypeError;
+  static PyObject *p3imp_PyExc_ValueError;
++ static PyObject *p3imp_PyExc_RuntimeError;
+  
+  # define PyExc_AttributeError p3imp_PyExc_AttributeError
+  # define PyExc_IndexError p3imp_PyExc_IndexError
+***************
+*** 343,348 ****
+--- 344,350 ----
+  # define PyExc_KeyboardInterrupt p3imp_PyExc_KeyboardInterrupt
+  # define PyExc_TypeError p3imp_PyExc_TypeError
+  # define PyExc_ValueError p3imp_PyExc_ValueError
++ # define PyExc_RuntimeError p3imp_PyExc_RuntimeError
+  
+  /*
+   * Table of name to function pointer of python.
+***************
+*** 580,591 ****
+--- 582,595 ----
+      p3imp_PyExc_KeyboardInterrupt = PyDict_GetItemString(exdict, "KeyboardInterrupt");
+      p3imp_PyExc_TypeError = PyDict_GetItemString(exdict, "TypeError");
+      p3imp_PyExc_ValueError = PyDict_GetItemString(exdict, "ValueError");
++     p3imp_PyExc_RuntimeError = PyDict_GetItemString(exdict, "RuntimeError");
+      Py_XINCREF(p3imp_PyExc_AttributeError);
+      Py_XINCREF(p3imp_PyExc_IndexError);
+      Py_XINCREF(p3imp_PyExc_KeyError);
+      Py_XINCREF(p3imp_PyExc_KeyboardInterrupt);
+      Py_XINCREF(p3imp_PyExc_TypeError);
+      Py_XINCREF(p3imp_PyExc_ValueError);
++     Py_XINCREF(p3imp_PyExc_RuntimeError);
+      Py_XDECREF(exmod);
+  }
+  #endif /* DYNAMIC_PYTHON3 */
+***************
+*** 1132,1138 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_IndexError, "Index must be int or slice");
+  	return NULL;
+      }
+  }
+--- 1136,1142 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("index must be int or slice"));
+  	return NULL;
+      }
+  }
+***************
+*** 1166,1172 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_IndexError, "Index must be int or slice");
+  	return -1;
+      }
+  }
+--- 1170,1176 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("index must be int or slice"));
+  	return -1;
+      }
+  }
+***************
+*** 1248,1254 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_IndexError, "Index must be int or slice");
+  	return NULL;
+      }
+  }
+--- 1252,1258 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("index must be int or slice"));
+  	return NULL;
+      }
+  }
+***************
+*** 1275,1281 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_IndexError, "Index must be int or slice");
+  	return -1;
+      }
+  }
+--- 1279,1285 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("index must be int or slice"));
+  	return -1;
+      }
+  }
+***************
+*** 1450,1456 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_IndexError, "Index must be int or slice");
+  	return NULL;
+      }
+  }
+--- 1454,1460 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("index must be int or slice"));
+  	return NULL;
+      }
+  }
+***************
+*** 1474,1480 ****
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_IndexError, "Index must be int or slice");
+  	return -1;
+      }
+  }
+--- 1478,1484 ----
+      }
+      else
+      {
+! 	PyErr_SetString(PyExc_TypeError, _("index must be int or slice"));
+  	return -1;
+      }
+  }
+*** ../vim-7.3.950/src/if_python.c	2013-05-15 15:35:05.000000000 +0200
+--- src/if_python.c	2013-05-15 15:38:57.000000000 +0200
+***************
+*** 358,363 ****
+--- 358,364 ----
+  static PyObject *imp_PyExc_KeyboardInterrupt;
+  static PyObject *imp_PyExc_TypeError;
+  static PyObject *imp_PyExc_ValueError;
++ static PyObject *imp_PyExc_RuntimeError;
+  
+  # define PyExc_AttributeError imp_PyExc_AttributeError
+  # define PyExc_IndexError imp_PyExc_IndexError
+***************
+*** 365,370 ****
+--- 366,372 ----
+  # define PyExc_KeyboardInterrupt imp_PyExc_KeyboardInterrupt
+  # define PyExc_TypeError imp_PyExc_TypeError
+  # define PyExc_ValueError imp_PyExc_ValueError
++ # define PyExc_RuntimeError imp_PyExc_RuntimeError
+  
+  /*
+   * Table of name to function pointer of python.
+***************
+*** 593,604 ****
+--- 595,608 ----
+      imp_PyExc_KeyboardInterrupt = PyDict_GetItemString(exdict, "KeyboardInterrupt");
+      imp_PyExc_TypeError = PyDict_GetItemString(exdict, "TypeError");
+      imp_PyExc_ValueError = PyDict_GetItemString(exdict, "ValueError");
++     imp_PyExc_RuntimeError = PyDict_GetItemString(exdict, "RuntimeError");
+      Py_XINCREF(imp_PyExc_AttributeError);
+      Py_XINCREF(imp_PyExc_IndexError);
+      Py_XINCREF(imp_PyExc_KeyError);
+      Py_XINCREF(imp_PyExc_KeyboardInterrupt);
+      Py_XINCREF(imp_PyExc_TypeError);
+      Py_XINCREF(imp_PyExc_ValueError);
++     Py_XINCREF(imp_PyExc_RuntimeError);
+      Py_XDECREF(exmod);
+  }
+  #endif /* DYNAMIC_PYTHON */
+*** ../vim-7.3.950/src/testdir/test86.ok	2013-05-15 14:51:31.000000000 +0200
+--- src/testdir/test86.ok	2013-05-15 15:38:57.000000000 +0200
+***************
+*** 102,108 ****
+    B: 1:1 2:1 3:1 4:1
+  >>> previewheight
+    p/gopts1: 12
+!   inv: 'a'! ValueError
+    p/wopts1! KeyError
+    inv: 'a'! KeyError
+    wopts1! KeyError
+--- 102,108 ----
+    B: 1:1 2:1 3:1 4:1
+  >>> previewheight
+    p/gopts1: 12
+!   inv: 'a'! TypeError
+    p/wopts1! KeyError
+    inv: 'a'! KeyError
+    wopts1! KeyError
+***************
+*** 123,129 ****
+    B: 1:5 2:5 3:5 4:5
+  >>> operatorfunc
+    p/gopts1: ''
+!   inv: 2! ValueError
+    p/wopts1! KeyError
+    inv: 2! KeyError
+    wopts1! KeyError
+--- 123,129 ----
+    B: 1:5 2:5 3:5 4:5
+  >>> operatorfunc
+    p/gopts1: ''
+!   inv: 2! TypeError
+    p/wopts1! KeyError
+    inv: 2! KeyError
+    wopts1! KeyError
+***************
+*** 198,206 ****
+    B: 1:'+2' 2:'+3' 3:'+1' 4:''
+  >>> statusline
+    p/gopts1: ''
+!   inv: 0! ValueError
+    p/wopts1: None
+!   inv: 0! ValueError
+    p/bopts1! KeyError
+    inv: 0! KeyError
+    bopts1! KeyError
+--- 198,206 ----
+    B: 1:'+2' 2:'+3' 3:'+1' 4:''
+  >>> statusline
+    p/gopts1: ''
+!   inv: 0! TypeError
+    p/wopts1: None
+!   inv: 0! TypeError
+    p/bopts1! KeyError
+    inv: 0! KeyError
+    bopts1! KeyError
+***************
+*** 259,265 ****
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: ''
+!   inv: 1! ValueError
+    G: ''
+    W: 1:'A' 2:'B' 3:'' 4:'C'
+    B: 1:'A' 2:'B' 3:'' 4:'C'
+--- 259,265 ----
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: ''
+!   inv: 1! TypeError
+    G: ''
+    W: 1:'A' 2:'B' 3:'' 4:'C'
+    B: 1:'A' 2:'B' 3:'' 4:'C'
+***************
+*** 288,301 ****
+    B: 1:0 2:1 3:0 4:1
+  >>> path
+    p/gopts1: '.,/usr/include,,'
+!   inv: 0! ValueError
+    p/wopts1! KeyError
+    inv: 0! KeyError
+    wopts1! KeyError
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: None
+!   inv: 0! ValueError
+    G: '.,,'
+    W: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+    B: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+--- 288,301 ----
+    B: 1:0 2:1 3:0 4:1
+  >>> path
+    p/gopts1: '.,/usr/include,,'
+!   inv: 0! TypeError
+    p/wopts1! KeyError
+    inv: 0! KeyError
+    wopts1! KeyError
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: None
+!   inv: 0! TypeError
+    G: '.,,'
+    W: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+    B: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+*** ../vim-7.3.950/src/testdir/test87.ok	2013-05-15 14:51:31.000000000 +0200
+--- src/testdir/test87.ok	2013-05-15 15:38:57.000000000 +0200
+***************
+*** 91,97 ****
+    B: 1:1 2:1 3:1 4:1
+  >>> previewheight
+    p/gopts1: 12
+!   inv: 'a'! ValueError
+    p/wopts1! KeyError
+    inv: 'a'! KeyError
+    wopts1! KeyError
+--- 91,97 ----
+    B: 1:1 2:1 3:1 4:1
+  >>> previewheight
+    p/gopts1: 12
+!   inv: 'a'! TypeError
+    p/wopts1! KeyError
+    inv: 'a'! KeyError
+    wopts1! KeyError
+***************
+*** 112,118 ****
+    B: 1:5 2:5 3:5 4:5
+  >>> operatorfunc
+    p/gopts1: b''
+!   inv: 2! ValueError
+    p/wopts1! KeyError
+    inv: 2! KeyError
+    wopts1! KeyError
+--- 112,118 ----
+    B: 1:5 2:5 3:5 4:5
+  >>> operatorfunc
+    p/gopts1: b''
+!   inv: 2! TypeError
+    p/wopts1! KeyError
+    inv: 2! KeyError
+    wopts1! KeyError
+***************
+*** 187,195 ****
+    B: 1:'+2' 2:'+3' 3:'+1' 4:''
+  >>> statusline
+    p/gopts1: b''
+!   inv: 0! ValueError
+    p/wopts1: None
+!   inv: 0! ValueError
+    p/bopts1! KeyError
+    inv: 0! KeyError
+    bopts1! KeyError
+--- 187,195 ----
+    B: 1:'+2' 2:'+3' 3:'+1' 4:''
+  >>> statusline
+    p/gopts1: b''
+!   inv: 0! TypeError
+    p/wopts1: None
+!   inv: 0! TypeError
+    p/bopts1! KeyError
+    inv: 0! KeyError
+    bopts1! KeyError
+***************
+*** 248,254 ****
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: b''
+!   inv: 1! ValueError
+    G: ''
+    W: 1:'A' 2:'B' 3:'' 4:'C'
+    B: 1:'A' 2:'B' 3:'' 4:'C'
+--- 248,254 ----
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: b''
+!   inv: 1! TypeError
+    G: ''
+    W: 1:'A' 2:'B' 3:'' 4:'C'
+    B: 1:'A' 2:'B' 3:'' 4:'C'
+***************
+*** 277,290 ****
+    B: 1:0 2:1 3:0 4:1
+  >>> path
+    p/gopts1: b'.,/usr/include,,'
+!   inv: 0! ValueError
+    p/wopts1! KeyError
+    inv: 0! KeyError
+    wopts1! KeyError
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: None
+!   inv: 0! ValueError
+    G: '.,,'
+    W: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+    B: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+--- 277,290 ----
+    B: 1:0 2:1 3:0 4:1
+  >>> path
+    p/gopts1: b'.,/usr/include,,'
+!   inv: 0! TypeError
+    p/wopts1! KeyError
+    inv: 0! KeyError
+    wopts1! KeyError
+    wopts2! KeyError
+    wopts3! KeyError
+    p/bopts1: None
+!   inv: 0! TypeError
+    G: '.,,'
+    W: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+    B: 1:'.,,' 2:',,' 3:'.,,' 4:'.'
+*** ../vim-7.3.950/src/version.c	2013-05-15 15:35:05.000000000 +0200
+--- src/version.c	2013-05-15 15:38:34.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     951,
+  /**/
+
+-- 
+5 out of 4 people have trouble with fractions.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

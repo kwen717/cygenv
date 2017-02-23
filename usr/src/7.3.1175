@@ -1,0 +1,99 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1175
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1175
+Problem:    Using isalpha() and isalnum() can be slow.
+Solution:   Use range checks. (Mike Williams)
+Files:	    src/ex_docmd.c, src/macros.h
+
+
+*** ../vim-7.3.1174/src/ex_docmd.c	2013-06-08 18:19:39.000000000 +0200
+--- src/ex_docmd.c	2013-06-12 16:50:50.000000000 +0200
+***************
+*** 3120,3126 ****
+  	for (j = 0; p[j] != NUL; ++j)
+  	    if (p[j] != cmdmods[i].name[j])
+  		break;
+! 	if (!isalpha(p[j]) && j >= cmdmods[i].minlen
+  					&& (p == cmd || cmdmods[i].has_count))
+  	    return j + (int)(p - cmd);
+      }
+--- 3120,3126 ----
+  	for (j = 0; p[j] != NUL; ++j)
+  	    if (p[j] != cmdmods[i].name[j])
+  		break;
+! 	if (!ASCII_ISALPHA(p[j]) && j >= cmdmods[i].minlen
+  					&& (p == cmd || cmdmods[i].has_count))
+  	    return j + (int)(p - cmd);
+      }
+*** ../vim-7.3.1174/src/macros.h	2013-06-12 14:10:23.000000000 +0200
+--- src/macros.h	2013-06-12 17:07:32.000000000 +0200
+***************
+*** 99,104 ****
+--- 99,109 ----
+  # define MB_TOUPPER(c)	TOUPPER_LOC(c)
+  #endif
+  
++ /* Use our own isdigit() replacement, because on MS-Windows isdigit() returns
++  * non-zero for superscript 1.  Also avoids that isdigit() crashes for numbers
++  * below 0 and above 255.  */
++ #define VIM_ISDIGIT(c) ((unsigned)(c) - '0' < 10)
++ 
+  /* Like isalpha() but reject non-ASCII characters.  Can't be used with a
+   * special key (negative value). */
+  #ifdef EBCDIC
+***************
+*** 107,123 ****
+  # define ASCII_ISLOWER(c) islower(c)
+  # define ASCII_ISUPPER(c) isupper(c)
+  #else
+- # define ASCII_ISALPHA(c) ((c) < 0x7f && isalpha(c))
+- # define ASCII_ISALNUM(c) ((c) < 0x7f && isalnum(c))
+  # define ASCII_ISLOWER(c) ((unsigned)(c) - 'a' < 26)
+  # define ASCII_ISUPPER(c) ((unsigned)(c) - 'A' < 26)
+  #endif
+  
+- /* Use our own isdigit() replacement, because on MS-Windows isdigit() returns
+-  * non-zero for superscript 1.  Also avoids that isdigit() crashes for numbers
+-  * below 0 and above 255.  */
+- #define VIM_ISDIGIT(c) ((unsigned)(c) - '0' < 10)
+- 
+  /* macro version of chartab().
+   * Only works with values 0-255!
+   * Doesn't work for UTF-8 mode with chars >= 0x80. */
+--- 112,123 ----
+  # define ASCII_ISLOWER(c) islower(c)
+  # define ASCII_ISUPPER(c) isupper(c)
+  #else
+  # define ASCII_ISLOWER(c) ((unsigned)(c) - 'a' < 26)
+  # define ASCII_ISUPPER(c) ((unsigned)(c) - 'A' < 26)
++ # define ASCII_ISALPHA(c) (ASCII_ISUPPER(c) || ASCII_ISLOWER(c))
++ # define ASCII_ISALNUM(c) (ASCII_ISALPHA(c) || VIM_ISDIGIT(c))
+  #endif
+  
+  /* macro version of chartab().
+   * Only works with values 0-255!
+   * Doesn't work for UTF-8 mode with chars >= 0x80. */
+*** ../vim-7.3.1174/src/version.c	2013-06-12 14:40:58.000000000 +0200
+--- src/version.c	2013-06-12 17:05:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1175,
+  /**/
+
+-- 
+"Hit any key to continue" is a lie.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

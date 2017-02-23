@@ -1,0 +1,54 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1249
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1249
+Problem:    Modeline not recognized when using "Vim" instead of "vim".
+Solution:   Also accept "Vim".
+Files:	    src/buffer.c
+
+
+*** ../vim-7.3.1248/src/buffer.c	2013-06-16 17:32:33.000000000 +0200
+--- src/buffer.c	2013-06-26 19:52:58.000000000 +0200
+***************
+*** 5096,5102 ****
+  	    if ((prev != -1 && STRNCMP(s, "ex:", (size_t)3) == 0)
+  		    || STRNCMP(s, "vi:", (size_t)3) == 0)
+  		break;
+! 	    if (STRNCMP(s, "vim", 3) == 0)
+  	    {
+  		if (s[3] == '<' || s[3] == '=' || s[3] == '>')
+  		    e = s + 4;
+--- 5096,5103 ----
+  	    if ((prev != -1 && STRNCMP(s, "ex:", (size_t)3) == 0)
+  		    || STRNCMP(s, "vi:", (size_t)3) == 0)
+  		break;
+! 	    /* Accept both "vim" and "Vim". */
+! 	    if ((s[0] == 'v' || s[0] == 'V') && s[1] == 'i' && s[2] == 'm')
+  	    {
+  		if (s[3] == '<' || s[3] == '=' || s[3] == '>')
+  		    e = s + 4;
+*** ../vim-7.3.1248/src/version.c	2013-06-26 19:17:58.000000000 +0200
+--- src/version.c	2013-06-26 19:53:37.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1249,
+  /**/
+
+-- 
+CONCORDE: Message for you, sir.
+   He falls forward revealing the arrow with the note.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

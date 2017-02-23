@@ -1,0 +1,50 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1203
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1203
+Problem:    Matches from matchadd() might be highlighted incorrectly when they
+	    are at a fixed position and inserting lines. (John Szakmeister)
+Solution:   Redraw all lines below a change if there are highlighted matches.
+	    (idea by Christian Brabandt)
+Files:	    src/screen.c
+
+
+*** ../vim-7.3.1202/src/screen.c	2013-06-08 18:19:40.000000000 +0200
+--- src/screen.c	2013-06-15 22:57:25.000000000 +0200
+***************
+*** 1638,1643 ****
+--- 1638,1647 ----
+  # endif
+  					syntax_check_changed(lnum)))
+  #endif
++ #ifdef FEAT_SEARCH_EXTRA
++ 				/* match in fixed position might need redraw */
++ 				||  wp->w_match_head != NULL
++ #endif
+  				)))))
+  	{
+  #ifdef FEAT_SEARCH_EXTRA
+*** ../vim-7.3.1202/src/version.c	2013-06-15 22:26:46.000000000 +0200
+--- src/version.c	2013-06-15 22:59:43.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1203,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+221. Your wife melts your keyboard in the oven.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

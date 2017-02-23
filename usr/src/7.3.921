@@ -1,0 +1,58 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.921
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.921 (after 7.3.697)
+Problem:    Trying to create a fontset handle when 'guifontset' is not set.
+Solution:   Add curly braces around the code block. (Max Kirillov)
+Files:	    src/syntax.c
+
+
+*** ../vim-7.3.920/src/syntax.c	2013-01-23 15:53:08.000000000 +0100
+--- src/syntax.c	2013-05-02 03:51:38.000000000 +0200
+***************
+*** 8082,8087 ****
+--- 8082,8088 ----
+  	|| do_tooltip
+  #  endif
+  	    )
++     {
+  	if (free_font)
+  	    gui_mch_free_fontset(HL_TABLE()[idx].sg_fontset);
+  	HL_TABLE()[idx].sg_fontset = fontset_name2handle(arg, 0
+***************
+*** 8092,8097 ****
+--- 8093,8099 ----
+  		|| do_tooltip
+  #  endif
+  		);
++     }
+      if (HL_TABLE()[idx].sg_fontset != NOFONTSET)
+      {
+  	/* If it worked and it's the Normal group, use it as the normal
+*** ../vim-7.3.920/src/version.c	2013-05-04 03:40:22.000000000 +0200
+--- src/version.c	2013-05-04 03:41:40.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     921,
+  /**/
+
+-- 
+Edison's greatest achievement came in 1879, when he invented the
+electric company.  Edison's design was a brilliant adaptation of the
+simple electrical circuit: the electric company sends electricity
+through a wire to a customer, then immediately gets the electricity
+back through another wire
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

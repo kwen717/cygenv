@@ -1,0 +1,321 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1059
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1059
+Problem:    Python: Using fixed size buffers.
+Solution:   Python patch 18: Use python's own formatter. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c
+
+
+*** ../vim-7.3.1058/src/if_py_both.h	2013-05-30 12:26:52.000000000 +0200
+--- src/if_py_both.h	2013-05-30 12:38:22.000000000 +0200
+***************
+*** 2006,2029 ****
+      static PyObject *
+  TabPageRepr(TabPageObject *self)
+  {
+-     static char repr[100];
+- 
+      if (self->tab == INVALID_TABPAGE_VALUE)
+!     {
+! 	vim_snprintf(repr, 100, _("<tabpage object (deleted) at %p>"), (self));
+! 	return PyString_FromString(repr);
+!     }
+      else
+      {
+  	int	t = get_tab_number(self->tab);
+  
+  	if (t == 0)
+! 	    vim_snprintf(repr, 100, _("<tabpage object (unknown) at %p>"),
+! 								      (self));
+  	else
+! 	    vim_snprintf(repr, 100, _("<tabpage %d>"), t - 1);
+! 
+! 	return PyString_FromString(repr);
+      }
+  }
+  
+--- 2006,2022 ----
+      static PyObject *
+  TabPageRepr(TabPageObject *self)
+  {
+      if (self->tab == INVALID_TABPAGE_VALUE)
+! 	return PyString_FromFormat("<tabpage object (deleted) at %p>", (self));
+      else
+      {
+  	int	t = get_tab_number(self->tab);
+  
+  	if (t == 0)
+! 	    return PyString_FromFormat("<tabpage object (unknown) at %p>",
+! 					(self));
+  	else
+! 	    return PyString_FromFormat("<tabpage %d>", t - 1);
+      }
+  }
+  
+***************
+*** 2344,2367 ****
+      static PyObject *
+  WindowRepr(WindowObject *self)
+  {
+-     static char repr[100];
+- 
+      if (self->win == INVALID_WINDOW_VALUE)
+!     {
+! 	vim_snprintf(repr, 100, _("<window object (deleted) at %p>"), (self));
+! 	return PyString_FromString(repr);
+!     }
+      else
+      {
+  	int	w = get_win_number(self->win, firstwin);
+  
+  	if (w == 0)
+! 	    vim_snprintf(repr, 100, _("<window object (unknown) at %p>"),
+  								      (self));
+  	else
+! 	    vim_snprintf(repr, 100, _("<window %d>"), w - 1);
+! 
+! 	return PyString_FromString(repr);
+      }
+  }
+  
+--- 2337,2353 ----
+      static PyObject *
+  WindowRepr(WindowObject *self)
+  {
+      if (self->win == INVALID_WINDOW_VALUE)
+! 	return PyString_FromFormat("<window object (deleted) at %p>", (self));
+      else
+      {
+  	int	w = get_win_number(self->win, firstwin);
+  
+  	if (w == 0)
+! 	    return PyString_FromFormat("<window object (unknown) at %p>",
+  								      (self));
+  	else
+! 	    return PyString_FromFormat("<window %d>", w - 1);
+      }
+  }
+  
+***************
+*** 3281,3311 ****
+      static PyObject *
+  RangeRepr(RangeObject *self)
+  {
+-     static char repr[100];
+- 
+      if (self->buf->buf == INVALID_BUFFER_VALUE)
+!     {
+! 	vim_snprintf(repr, 100, "<range object (for deleted buffer) at %p>",
+! 								      (self));
+! 	return PyString_FromString(repr);
+!     }
+      else
+      {
+  	char *name = (char *)self->buf->buf->b_fname;
+- 	int len;
+  
+  	if (name == NULL)
+  	    name = "";
+- 	len = (int)strlen(name);
+- 
+- 	if (len > 45)
+- 	    name = name + (45 - len);
+- 
+- 	vim_snprintf(repr, 100, "<range %s%s (%d:%d)>",
+- 		len > 45 ? "..." : "", name,
+- 		self->start, self->end);
+  
+! 	return PyString_FromString(repr);
+      }
+  }
+  
+--- 3267,3284 ----
+      static PyObject *
+  RangeRepr(RangeObject *self)
+  {
+      if (self->buf->buf == INVALID_BUFFER_VALUE)
+! 	return PyString_FromFormat("<range object (for deleted buffer) at %p>",
+! 				    (self));
+      else
+      {
+  	char *name = (char *)self->buf->buf->b_fname;
+  
+  	if (name == NULL)
+  	    name = "";
+  
+! 	return PyString_FromFormat("<range %s (%d:%d)>",
+! 				    name, self->start, self->end);
+      }
+  }
+  
+***************
+*** 3534,3561 ****
+      static PyObject *
+  BufferRepr(BufferObject *self)
+  {
+-     static char repr[100];
+- 
+      if (self->buf == INVALID_BUFFER_VALUE)
+!     {
+! 	vim_snprintf(repr, 100, _("<buffer object (deleted) at %p>"), (self));
+! 	return PyString_FromString(repr);
+!     }
+      else
+      {
+! 	char *name = (char *)self->buf->b_fname;
+! 	PyInt len;
+  
+  	if (name == NULL)
+  	    name = "";
+- 	len = strlen(name);
+- 
+- 	if (len > 35)
+- 	    name = name + (35 - len);
+- 
+- 	vim_snprintf(repr, 100, "<buffer %s%s>", len > 35 ? "..." : "", name);
+  
+! 	return PyString_FromString(repr);
+      }
+  }
+  
+--- 3507,3522 ----
+      static PyObject *
+  BufferRepr(BufferObject *self)
+  {
+      if (self->buf == INVALID_BUFFER_VALUE)
+! 	return PyString_FromFormat("<buffer object (deleted) at %p>", self);
+      else
+      {
+! 	char	*name = (char *)self->buf->b_fname;
+  
+  	if (name == NULL)
+  	    name = "";
+  
+! 	return PyString_FromFormat("<buffer %s>", name);
+      }
+  }
+  
+*** ../vim-7.3.1058/src/if_python3.c	2013-05-29 22:36:06.000000000 +0200
+--- src/if_python3.c	2013-05-30 12:39:25.000000000 +0200
+***************
+*** 90,95 ****
+--- 90,96 ----
+  #define PyString_AsString(obj) PyBytes_AsString(obj)
+  #define PyString_Size(obj) PyBytes_GET_SIZE(bytes)
+  #define PyString_FromString(repr) PyUnicode_FromString(repr)
++ #define PyString_FromFormat PyUnicode_FromFormat
+  #define PyString_AsStringAndSize(obj, buffer, len) PyBytes_AsStringAndSize(obj, buffer, len)
+  #define PyInt_Check(obj) PyLong_Check(obj)
+  #define PyInt_FromLong(i) PyLong_FromLong(i)
+***************
+*** 230,235 ****
+--- 231,246 ----
+  # define PyType_GenericNew py3_PyType_GenericNew
+  # undef PyUnicode_FromString
+  # define PyUnicode_FromString py3_PyUnicode_FromString
++ # ifndef PyUnicode_FromFormat
++ #  define PyUnicode_FromFormat py3_PyUnicode_FromFormat
++ # else
++ #  define Py_UNICODE_USE_UCS_FUNCTIONS
++ #  ifdef Py_UNICODE_WIDE
++ #   define PyUnicodeUCS4_FromFormat py3_PyUnicodeUCS4_FromFormat
++ #  else
++ #   define PyUnicodeUCS2_FromFormat py3_PyUnicodeUCS2_FromFormat
++ #  endif
++ # endif
+  # undef PyUnicode_Decode
+  # define PyUnicode_Decode py3_PyUnicode_Decode
+  # define PyType_IsSubtype py3_PyType_IsSubtype
+***************
+*** 293,298 ****
+--- 304,318 ----
+  static int (*py3_PyType_Ready)(PyTypeObject *type);
+  static int (*py3_PyDict_SetItemString)(PyObject *dp, char *key, PyObject *item);
+  static PyObject* (*py3_PyUnicode_FromString)(const char *u);
++ # ifndef Py_UNICODE_USE_UCS_FUNCTIONS
++ static PyObject* (*py3_PyUnicode_FromFormat)(const char *u, ...);
++ # else
++ #  ifdef Py_UNICODE_WIDE
++ static PyObject* (*py3_PyUnicodeUCS4_FromFormat)(const char *u, ...);
++ #  else
++ static PyObject* (*py3_PyUnicodeUCS2_FromFormat)(const char *u, ...);
++ #  endif
++ # endif
+  static PyObject* (*py3_PyUnicode_Decode)(const char *u, Py_ssize_t size,
+  	const char *encoding, const char *errors);
+  static long (*py3_PyLong_AsLong)(PyObject *);
+***************
+*** 458,463 ****
+--- 478,492 ----
+  # else
+      {"_PyUnicode_AsString", (PYTHON_PROC*)&py3__PyUnicode_AsString},
+  # endif
++ # ifndef Py_UNICODE_USE_UCS_FUNCTIONS
++     {"PyUnicode_FromFormat", (PYTHON_PROC*)&py3_PyUnicode_FromFormat},
++ # else
++ #  ifdef Py_UNICODE_WIDE
++     {"PyUnicodeUCS4_FromFormat", (PYTHON_PROC*)&py3_PyUnicodeUCS4_FromFormat},
++ #  else
++     {"PyUnicodeUCS2_FromFormat", (PYTHON_PROC*)&py3_PyUnicodeUCS2_FromFormat},
++ #  endif
++ # endif
+      {"PyBytes_AsString", (PYTHON_PROC*)&py3_PyBytes_AsString},
+      {"PyBytes_AsStringAndSize", (PYTHON_PROC*)&py3_PyBytes_AsStringAndSize},
+      {"PyBytes_FromString", (PYTHON_PROC*)&py3_PyBytes_FromString},
+*** ../vim-7.3.1058/src/if_python.c	2013-05-29 22:36:06.000000000 +0200
+--- src/if_python.c	2013-05-30 12:38:22.000000000 +0200
+***************
+*** 212,217 ****
+--- 212,218 ----
+  # define PyString_AsString dll_PyString_AsString
+  # define PyString_AsStringAndSize dll_PyString_AsStringAndSize
+  # define PyString_FromString dll_PyString_FromString
++ # define PyString_FromFormat dll_PyString_FromFormat
+  # define PyString_FromStringAndSize dll_PyString_FromStringAndSize
+  # define PyString_Size dll_PyString_Size
+  # define PyString_Type (*dll_PyString_Type)
+***************
+*** 340,345 ****
+--- 341,347 ----
+  static char*(*dll_PyString_AsString)(PyObject *);
+  static int(*dll_PyString_AsStringAndSize)(PyObject *, char **, int *);
+  static PyObject*(*dll_PyString_FromString)(const char *);
++ static PyObject*(*dll_PyString_FromFormat)(const char *, ...);
+  static PyObject*(*dll_PyString_FromStringAndSize)(const char *, PyInt);
+  static PyInt(*dll_PyString_Size)(PyObject *);
+  static PyTypeObject* dll_PyString_Type;
+***************
+*** 499,504 ****
+--- 501,507 ----
+      {"PyString_AsString", (PYTHON_PROC*)&dll_PyString_AsString},
+      {"PyString_AsStringAndSize", (PYTHON_PROC*)&dll_PyString_AsStringAndSize},
+      {"PyString_FromString", (PYTHON_PROC*)&dll_PyString_FromString},
++     {"PyString_FromFormat", (PYTHON_PROC*)&dll_PyString_FromFormat},
+      {"PyString_FromStringAndSize", (PYTHON_PROC*)&dll_PyString_FromStringAndSize},
+      {"PyString_Size", (PYTHON_PROC*)&dll_PyString_Size},
+      {"PyString_Type", (PYTHON_PROC*)&dll_PyString_Type},
+*** ../vim-7.3.1058/src/version.c	2013-05-30 12:35:48.000000000 +0200
+--- src/version.c	2013-05-30 12:39:51.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1059,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+2. Page yourself over the intercom. Don't disguise your voice.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

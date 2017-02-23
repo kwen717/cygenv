@@ -1,0 +1,80 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1027
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1027
+Problem:    New regexp performance: Calling no_Magic() very often.
+Solution:   Remove magicness inline.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1026/src/regexp_nfa.c	2013-05-26 18:40:11.000000000 +0200
+--- src/regexp_nfa.c	2013-05-26 19:18:32.000000000 +0200
+***************
+*** 3563,3576 ****
+  		break;
+  
+  	    default:	/* regular character */
+  		/* TODO: put this in #ifdef later */
+! 		if (t->state->c < -256)
+! 		    EMSGN("INTERNAL: Negative state char: %ld", t->state->c);
+! 		result = (no_Magic(t->state->c) == curc);
+  
+! 		if (!result)
+! 		    result = ireg_ic == TRUE
+! 			       && MB_TOLOWER(t->state->c) == MB_TOLOWER(curc);
+  #ifdef FEAT_MBYTE
+  		/* If there is a composing character which is not being
+  		 * ignored there can be no match. Match with composing
+--- 3563,3580 ----
+  		break;
+  
+  	    default:	/* regular character */
++ 	      {
++ 		int c = t->state->c;
++ 
+  		/* TODO: put this in #ifdef later */
+! 		if (c < -256)
+! 		    EMSGN("INTERNAL: Negative state char: %ld", c);
+! 		if (is_Magic(c))
+! 		    c = un_Magic(c);
+! 		result = (c == curc);
+  
+! 		if (!result && ireg_ic)
+! 		    result = MB_TOLOWER(c) == MB_TOLOWER(curc);
+  #ifdef FEAT_MBYTE
+  		/* If there is a composing character which is not being
+  		 * ignored there can be no match. Match with composing
+***************
+*** 3581,3586 ****
+--- 3585,3591 ----
+  #endif
+  		ADD_POS_NEG_STATE(t->state);
+  		break;
++ 	      }
+  	    }
+  
+  	} /* for (thislist = thislist; thislist->state; thislist++) */
+*** ../vim-7.3.1026/src/version.c	2013-05-26 18:40:11.000000000 +0200
+--- src/version.c	2013-05-26 19:16:07.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1027,
+  /**/
+
+-- 
+It doesn't really matter what you are able to do if you don't do it.
+				(Bram Moolenaar)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

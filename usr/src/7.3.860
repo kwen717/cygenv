@@ -1,0 +1,85 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.860
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.860
+Problem:    When using --remote-expr try/catch does not work. (Andrey Radev)
+Solution:   Set emsg_silent instead of emsg_skip.
+Files:	    src/main.c
+
+
+*** ../vim-7.3.859/src/main.c	2013-03-13 19:29:24.000000000 +0100
+--- src/main.c	2013-03-13 19:46:03.000000000 +0100
+***************
+*** 4025,4032 ****
+  
+  /*
+   * Evaluate an expression that the client sent to a string.
+-  * Handles disabling error messages and disables debugging, otherwise Vim
+-  * hangs, waiting for "cont" to be typed.
+   */
+      char_u *
+  eval_client_expr_to_string(expr)
+--- 4025,4030 ----
+***************
+*** 4036,4050 ****
+      int		save_dbl = debug_break_level;
+      int		save_ro = redir_off;
+  
+      debug_break_level = -1;
+      redir_off = 0;
+!     ++emsg_skip;
+  
+      res = eval_to_string(expr, NULL, TRUE);
+  
+      debug_break_level = save_dbl;
+      redir_off = save_ro;
+!     --emsg_skip;
+  
+      /* A client can tell us to redraw, but not to display the cursor, so do
+       * that here. */
+--- 4034,4054 ----
+      int		save_dbl = debug_break_level;
+      int		save_ro = redir_off;
+  
++      /* Disable debugging, otherwise Vim hangs, waiting for "cont" to be
++       * typed. */
+      debug_break_level = -1;
+      redir_off = 0;
+!     /* Do not display error message, otherwise Vim hangs, waiting for "cont"
+!      * to be typed.  Do generate errors so that try/catch works. */
+!     ++emsg_silent;
+  
+      res = eval_to_string(expr, NULL, TRUE);
+  
+      debug_break_level = save_dbl;
+      redir_off = save_ro;
+!     --emsg_silent;
+!     if (emsg_silent < 0)
+! 	emsg_silent = 0;
+  
+      /* A client can tell us to redraw, but not to display the cursor, so do
+       * that here. */
+*** ../vim-7.3.859/src/version.c	2013-03-13 19:29:24.000000000 +0100
+--- src/version.c	2013-03-13 20:09:47.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     860,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+42. Your virtual girlfriend finds a new net sweetheart with a larger bandwidth.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,229 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1021
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1021
+Problem:    New regexp engine does not ignore order of composing chars.
+Solution:   Ignore composing chars order.
+Files:	    src/regexp_nfa.c, src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.1020/src/regexp_nfa.c	2013-05-25 22:04:19.000000000 +0200
+--- src/regexp_nfa.c	2013-05-26 14:27:11.000000000 +0200
+***************
+*** 3275,3282 ****
+  		int	    len = 0;
+  		nfa_state_T *end;
+  		nfa_state_T *sta;
+  
+- 		result = OK;
+  		sta = t->state->out;
+  		len = 0;
+  		if (utf_iscomposing(sta->c))
+--- 3275,3284 ----
+  		int	    len = 0;
+  		nfa_state_T *end;
+  		nfa_state_T *sta;
++ 		int	    cchars[MAX_MCO];
++ 		int	    ccount = 0;
++ 		int	    j;
+  
+  		sta = t->state->out;
+  		len = 0;
+  		if (utf_iscomposing(sta->c))
+***************
+*** 3293,3316 ****
+  		    /* TODO: How about negated? */
+  		    if (len == 0 && sta->c != c)
+  			result = FAIL;
+! 		    len = n;
+  		    while (sta->c != NFA_END_COMPOSING)
+  			sta = sta->out;
+  		}
+! 		else
+! 		    while (sta->c != NFA_END_COMPOSING && len < n)
+  		    {
+- 			if (len > 0)
+- 			    mc = mb_ptr2char(reginput + len);
+- 			if (mc != sta->c)
+- 			    break;
+  			len += mb_char2len(mc);
+  			sta = sta->out;
+  		    }
+  
+! 		/* if input char length doesn't match regexp char length */
+! 		if (len < n || sta->c != NFA_END_COMPOSING)
+  		    result = FAIL;
+  		end = t->state->out1;	    /* NFA_END_COMPOSING */
+  		ADD_POS_NEG_STATE(end);
+  		break;
+--- 3295,3346 ----
+  		    /* TODO: How about negated? */
+  		    if (len == 0 && sta->c != c)
+  			result = FAIL;
+! 		    else
+! 			result = OK;
+  		    while (sta->c != NFA_END_COMPOSING)
+  			sta = sta->out;
+  		}
+! 
+! 		/* Check base character matches first, unless ignored. */
+! 		else if (len > 0 || mc == sta->c)
+! 		{
+! 		    if (len == 0)
+  		    {
+  			len += mb_char2len(mc);
+  			sta = sta->out;
+  		    }
+  
+! 		    /* We don't care about the order of composing characters.
+! 		     * Get them into cchars[] first. */
+! 		    while (len < n)
+! 		    {
+! 			mc = mb_ptr2char(reginput + len);
+! 			cchars[ccount++] = mc;
+! 			len += mb_char2len(mc);
+! 			if (ccount == MAX_MCO)
+! 			    break;
+! 		    }
+! 
+! 		    /* Check that each composing char in the pattern matches a
+! 		     * composing char in the text.  We do not check if all
+! 		     * composing chars are matched. */
+! 		    result = OK;
+! 		    while (sta->c != NFA_END_COMPOSING)
+! 		    {
+! 			for (j = 0; j < ccount; ++j)
+! 			    if (cchars[j] == sta->c)
+! 				break;
+! 			if (j == ccount)
+! 			{
+! 			    result = FAIL;
+! 			    break;
+! 			}
+! 			sta = sta->out;
+! 		    }
+! 		}
+! 		else
+  		    result = FAIL;
++ 
+  		end = t->state->out1;	    /* NFA_END_COMPOSING */
+  		ADD_POS_NEG_STATE(end);
+  		break;
+*** ../vim-7.3.1020/src/testdir/test95.in	2013-05-25 23:15:21.000000000 +0200
+--- src/testdir/test95.in	2013-05-26 14:12:13.000000000 +0200
+***************
+*** 9,14 ****
+--- 9,15 ----
+  :so mbyte.vim
+  :set nocp encoding=utf-8 viminfo+=nviminfo nomore
+  :" tl is a List of Lists with:
++ :"    2: test auto/old/new  0: test auto/old  1: test auto/new
+  :"    regexp pattern
+  :"    text to test the pattern on
+  :"    expected match (optional)
+***************
+*** 40,49 ****
+  :call add(tl, [2, ".\u05b9", " x\u05b9 ", "x\u05b9"])
+  :call add(tl, [2, "\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+  :call add(tl, [2, ".\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :"call add(tl, [2, "\u05bb\u05b9", " x\u05b9\u05bb "])
+! :"call add(tl, [2, ".\u05bb\u05b9", " x\u05b9\u05bb "])
+  :call add(tl, [2, "\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+  :call add(tl, [2, ".\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+  
+  
+  :"""" Test \Z
+--- 41,54 ----
+  :call add(tl, [2, ".\u05b9", " x\u05b9 ", "x\u05b9"])
+  :call add(tl, [2, "\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+  :call add(tl, [2, ".\u05b9\u05bb", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :call add(tl, [2, "\u05bb\u05b9", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+! :call add(tl, [2, ".\u05bb\u05b9", " x\u05b9\u05bb ", "x\u05b9\u05bb"])
+  :call add(tl, [2, "\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
+  :call add(tl, [2, ".\u05b9", " y\u05bb x\u05b9 ", "x\u05b9"])
++ :call add(tl, [2, "\u05b9", " y\u05bb\u05b9 x\u05b9 ", "y\u05bb\u05b9"])
++ :call add(tl, [2, ".\u05b9", " y\u05bb\u05b9 x\u05b9 ", "y\u05bb\u05b9"])
++ :call add(tl, [1, "\u05b9\u05bb", " y\u05b9 x\u05b9\u05bb ", "x\u05b9\u05bb"])
++ :call add(tl, [2, ".\u05b9\u05bb", " y\u05bb x\u05b9\u05bb ", "x\u05b9\u05bb"])
+  
+  
+  :"""" Test \Z
+***************
+*** 74,80 ****
+  :  let text = t[2]
+  :  let matchidx = 3
+  :  for engine in [0, 1, 2]
+! :    if engine == 2 && !re
+  :      continue
+  :    endif
+  :    let &regexpengine = engine
+--- 79,85 ----
+  :  let text = t[2]
+  :  let matchidx = 3
+  :  for engine in [0, 1, 2]
+! :    if engine == 2 && re == 0 || engine == 1 && re == 1
+  :      continue
+  :    endif
+  :    let &regexpengine = engine
+*** ../vim-7.3.1020/src/testdir/test95.ok	2013-05-25 23:15:21.000000000 +0200
+--- src/testdir/test95.ok	2013-05-26 14:12:36.000000000 +0200
+***************
+*** 41,52 ****
+--- 41,69 ----
+  OK 0 - .ֹֻ
+  OK 1 - .ֹֻ
+  OK 2 - .ֹֻ
++ OK 0 - ֹֻ
++ OK 1 - ֹֻ
++ OK 2 - ֹֻ
++ OK 0 - .ֹֻ
++ OK 1 - .ֹֻ
++ OK 2 - .ֹֻ
+  OK 0 - ֹ
+  OK 1 - ֹ
+  OK 2 - ֹ
+  OK 0 - .ֹ
+  OK 1 - .ֹ
+  OK 2 - .ֹ
++ OK 0 - ֹ
++ OK 1 - ֹ
++ OK 2 - ֹ
++ OK 0 - .ֹ
++ OK 1 - .ֹ
++ OK 2 - .ֹ
++ OK 0 - ֹֻ
++ OK 2 - ֹֻ
++ OK 0 - .ֹֻ
++ OK 1 - .ֹֻ
++ OK 2 - .ֹֻ
+  OK 0 - ú\Z
+  OK 1 - ú\Z
+  OK 2 - ú\Z
+*** ../vim-7.3.1020/src/version.c	2013-05-25 23:15:21.000000000 +0200
+--- src/version.c	2013-05-26 13:54:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1021,
+  /**/
+
+-- 
+Engineers are always delighted to share wisdom, even in areas in which they
+have no experience whatsoever.  Their logic provides them with inherent
+insight into any field of expertise.  This can be a problem when dealing with
+the illogical people who believe that knowledge can only be derived through
+experience.
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

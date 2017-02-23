@@ -1,0 +1,45 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1126
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1126
+Problem:    Compiler warning for unitialized variable. (Tony Mechelynck)
+Solution:   Assign something to the variable.
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1125/src/regexp_nfa.c	2013-06-05 21:10:55.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 21:21:48.000000000 +0200
+***************
+*** 2580,2585 ****
+--- 2580,2586 ----
+  		nstate += n;
+  		break;
+  	    }
++ 	    s = NULL; /* avoid compiler warning */
+  	    e1.out = NULL; /* stores list with out1's */
+  	    s1 = NULL; /* previous NFA_SPLIT to connect to */
+  	    while (n-- > 0)
+*** ../vim-7.3.1125/src/version.c	2013-06-05 21:10:55.000000000 +0200
+--- src/version.c	2013-06-05 21:22:52.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1126,
+  /**/
+
+-- 
+From "know your smileys":
+ 8<}}	Glasses, big nose, beard
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

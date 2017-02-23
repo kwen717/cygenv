@@ -1,0 +1,166 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.952
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.952
+Problem:    Python: It's not easy to change window/buffer/tabpage.
+Solution:   Add ability to assign to vim.current.{tabpage,buffer,window}.
+	    (ZyX)
+Files:	    runtime/doc/if_pyth.txt, src/if_py_both.h
+
+
+*** ../vim-7.3.951/runtime/doc/if_pyth.txt	2013-05-15 15:12:25.000000000 +0200
+--- runtime/doc/if_pyth.txt	2013-05-15 15:48:39.000000000 +0200
+***************
+*** 242,250 ****
+  	An object providing access (via specific attributes) to various
+  	"current" objects available in vim:
+  		vim.current.line	The current line (RW)		String
+! 		vim.current.buffer	The current buffer (RO)		Buffer
+! 		vim.current.window	The current window (RO)		Window
+! 		vim.current.tabpage	The current tab page (RO)	TabPage
+  		vim.current.range	The current line range (RO)	Range
+  
+  	The last case deserves a little explanation.  When the :python or
+--- 242,250 ----
+  	An object providing access (via specific attributes) to various
+  	"current" objects available in vim:
+  		vim.current.line	The current line (RW)		String
+! 		vim.current.buffer	The current buffer (RW)		Buffer
+! 		vim.current.window	The current window (RW)		Window
+! 		vim.current.tabpage	The current tab page (RW)	TabPage
+  		vim.current.range	The current line range (RO)	Range
+  
+  	The last case deserves a little explanation.  When the :python or
+***************
+*** 252,257 ****
+--- 252,273 ----
+  	"current range".  A range is a bit like a buffer, but with all access
+  	restricted to a subset of lines.  See |python-range| for more details.
+  
++ 	Note: When assigning to vim.current.{buffer,window,tabpage} it expects 
++ 	valid |python-buffer|, |python-window| or |python-tabpage| objects 
++ 	respectively. Assigning triggers normal (with |autocommand|s) 
++ 	switching to given buffer, window or tab page. It is the only way to 
++ 	switch UI objects in python: you can't assign to 
++ 	|python-tabpage|.window attribute. To switch without triggering 
++ 	autocommands use >
++ 	    py << EOF
++ 	    saved_eventignore = vim.options['eventignore']
++ 	    vim.options['eventignore'] = 'all'
++ 	    try:
++ 	        vim.current.buffer = vim.buffers[2] # Switch to buffer 2
++ 	    finally:
++ 	        vim.options['eventignore'] = saved_eventignore
++ 	    EOF
++ <
+  vim.vars						*python-vars*
+  vim.vvars						*python-vvars*
+  	Dictionary-like objects holding dictionaries with global (|g:|) and 
+*** ../vim-7.3.951/src/if_py_both.h	2013-05-15 15:44:24.000000000 +0200
+--- src/if_py_both.h	2013-05-15 15:48:39.000000000 +0200
+***************
+*** 3244,3249 ****
+--- 3244,3323 ----
+  
+  	return 0;
+      }
++     else if (strcmp(name, "buffer") == 0)
++     {
++ 	int count;
++ 
++ 	if (value->ob_type != &BufferType)
++ 	{
++ 	    PyErr_SetString(PyExc_TypeError, _("expected vim.buffer object"));
++ 	    return -1;
++ 	}
++ 
++ 	if (CheckBuffer((BufferObject *)(value)))
++ 	    return -1;
++ 	count = ((BufferObject *)(value))->buf->b_fnum;
++ 
++ 	if (do_buffer(DOBUF_GOTO, DOBUF_FIRST, FORWARD, count, 0) == FAIL)
++ 	{
++ 	    PyErr_SetVim(_("failed to switch to given buffer"));
++ 	    return -1;
++ 	}
++ 
++ 	return 0;
++     }
++     else if (strcmp(name, "window") == 0)
++     {
++ 	int count;
++ 
++ 	if (value->ob_type != &WindowType)
++ 	{
++ 	    PyErr_SetString(PyExc_TypeError, _("expected vim.window object"));
++ 	    return -1;
++ 	}
++ 
++ 	if (CheckWindow((WindowObject *)(value)))
++ 	    return -1;
++ 	count = get_win_number(((WindowObject *)(value))->win, firstwin);
++ 
++ 	if (!count)
++ 	{
++ 	    PyErr_SetString(PyExc_ValueError,
++ 		    _("failed to find window in the current tab page"));
++ 	    return -1;
++ 	}
++ 
++ 	win_goto(((WindowObject *)(value))->win);
++ 	if (((WindowObject *)(value))->win != curwin)
++ 	{
++ 	    PyErr_SetString(PyExc_RuntimeError,
++ 		    _("did not switch to the specified window"));
++ 	    return -1;
++ 	}
++ 
++ 	return 0;
++     }
++     else if (strcmp(name, "tabpage") == 0)
++     {
++ 	if (value->ob_type != &TabPageType)
++ 	{
++ 	    PyErr_SetString(PyExc_TypeError, _("expected vim.tabpage object"));
++ 	    return -1;
++ 	}
++ 
++ 	if (CheckTabPage((TabPageObject *)(value)))
++ 	    return -1;
++ 
++ 	goto_tabpage_tp(((TabPageObject *)(value))->tab, TRUE, TRUE);
++ 	if (((TabPageObject *)(value))->tab != curtab)
++ 	{
++ 	    PyErr_SetString(PyExc_RuntimeError,
++ 		    _("did not switch to the specified tab page"));
++ 	    return -1;
++ 	}
++ 
++ 	return 0;
++     }
+      else
+      {
+  	PyErr_SetString(PyExc_AttributeError, name);
+*** ../vim-7.3.951/src/version.c	2013-05-15 15:44:24.000000000 +0200
+--- src/version.c	2013-05-15 15:49:12.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     952,
+  /**/
+
+-- 
+Trees moving back and forth is what makes the wind blow.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

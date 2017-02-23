@@ -1,0 +1,378 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1178
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1178
+Problem:    Can't put all Vim config files together in one directory.
+Solution:   Load ~/.vim/vimrc if ~/.vimrc does not exist. (Lech Lorens)
+Files:	    runtime/doc/gui.txt, runtime/doc/starting.txt, src/gui.c,
+	    src/main.c, src/os_amiga.h, src/os_dos.h, src/os_unix.h
+
+
+*** ../vim-7.3.1177/runtime/doc/gui.txt	2010-08-15 21:57:17.000000000 +0200
+--- runtime/doc/gui.txt	2013-06-12 20:11:13.000000000 +0200
+***************
+*** 93,102 ****
+  terminal version.
+  
+  Recommended place for your personal GUI initializations:
+! 	Unix		    $HOME/.gvimrc
+! 	OS/2		    $HOME/.gvimrc or $VIM/.gvimrc
+! 	MS-DOS and Win32    $HOME/_gvimrc or $VIM/_gvimrc
+! 	Amiga		    s:.gvimrc or $VIM/.gvimrc
+  
+  There are a number of options which only have meaning in the GUI version of
+  Vim.  These are 'guicursor', 'guifont', 'guipty' and 'guioptions'.  They are
+--- 93,108 ----
+  terminal version.
+  
+  Recommended place for your personal GUI initializations:
+! 	Unix		    $HOME/.gvimrc or $HOME/.vim/gvimrc
+! 	OS/2		    $HOME/.gvimrc, $HOME/vimfiles/gvimrc
+! 			    or $VIM/.gvimrc
+! 	MS-DOS and Win32    $HOME/_gvimrc, $HOME/vimfiles/gvimrc
+! 			    or $VIM/_gvimrc
+! 	Amiga		    s:.gvimrc, home:.gvimrc, home:vimfiles:gvimrc
+! 			    or $VIM/.gvimrc
+! 
+! The personal initialization files are searched in the order specified above
+! and only the first one that is found is read.
+  
+  There are a number of options which only have meaning in the GUI version of
+  Vim.  These are 'guicursor', 'guifont', 'guipty' and 'guioptions'.  They are
+*** ../vim-7.3.1177/runtime/doc/starting.txt	2010-08-15 21:57:15.000000000 +0200
+--- runtime/doc/starting.txt	2013-06-12 20:31:45.000000000 +0200
+***************
+*** 95,108 ****
+  			(normally not installed)
+  view	vim -R	    Start in read-only mode (see |-R|).		    *view*
+  gvim	vim -g	    Start the GUI (see |gui|).			    *gvim*
+! gex	vim -eg	    Start the GUI in Ex mode.			    *gex*
+! gview	vim -Rg	    Start the GUI in read-only mode.		    *gview*
+  rvim	vim -Z	    Like "vim", but in restricted mode (see |-Z|)   *rvim*
+! rview	vim -RZ	    Like "view", but in restricted mode.	    *rview*
+! rgvim	vim -gZ	    Like "gvim", but in restricted mode.	    *rgvim*
+! rgview	vim -RgZ    Like "gview", but in restricted mode.	    *rgview*
+  evim    vim -y      Easy Vim: set 'insertmode' (see |-y|)	    *evim*
+! eview   vim -yR     Like "evim" in read-only mode		    *eview*
+  vimdiff vim -d	    Start in diff mode |diff-mode|
+  gvimdiff vim -gd    Start in diff mode |diff-mode|
+  
+--- 95,108 ----
+  			(normally not installed)
+  view	vim -R	    Start in read-only mode (see |-R|).		    *view*
+  gvim	vim -g	    Start the GUI (see |gui|).			    *gvim*
+! gex	vim -eg	    Start the GUI in Ex mode.			  *gex*
+! gview	vim -Rg	    Start the GUI in read-only mode.		  *gview*
+  rvim	vim -Z	    Like "vim", but in restricted mode (see |-Z|)   *rvim*
+! rview	vim -RZ	    Like "view", but in restricted mode.	  *rview*
+! rgvim	vim -gZ	    Like "gvim", but in restricted mode.	  *rgvim*
+! rgview	vim -RgZ    Like "gview", but in restricted mode.	  *rgview*
+  evim    vim -y      Easy Vim: set 'insertmode' (see |-y|)	    *evim*
+! eview   vim -yR     Like "evim" in read-only mode		  *eview*
+  vimdiff vim -d	    Start in diff mode |diff-mode|
+  gvimdiff vim -gd    Start in diff mode |diff-mode|
+  
+***************
+*** 751,761 ****
+  	file, but "exrc" is what Vi always used, "vimrc" is a Vim specific
+  	name.  Also see |vimrc-intro|.
+  
+! 	Recommended place for your personal initializations:
+! 		Unix		    $HOME/.vimrc
+! 		OS/2		    $HOME/.vimrc or $VIM/.vimrc (or _vimrc)
+! 		MS-DOS and Win32    $HOME/_vimrc or $VIM/_vimrc
+! 		Amiga		    s:.vimrc or $VIM/.vimrc
+  
+  	If Vim was started with "-u filename", the file "filename" is used.
+  	All following initializations until 4. are skipped.
+--- 757,777 ----
+  	file, but "exrc" is what Vi always used, "vimrc" is a Vim specific
+  	name.  Also see |vimrc-intro|.
+  
+! 	Places for your personal initializations:
+! 		Unix		$HOME/.vimrc or $HOME/.vim/vimrc
+! 		OS/2		$HOME/.vimrc, $HOME/vimfiles/vimrc
+! 				or $VIM/.vimrc (or _vimrc)
+! 		MS-Windows	$HOME/_vimrc, $HOME/vimfiles/vimrc
+! 				or $VIM/_vimrc
+! 		Amiga		s:.vimrc, home:.vimrc, home:vimfiles:vimrc
+! 				or $VIM/.vimrc
+! 
+! 	The files are searched in the order specified above and only the first
+! 	one that is found is read.
+! 
+! 	RECOMMENDATION: Put all your Vim configuration stuff in the
+! 	$HOME/.vim/ directory ($HOME/vimfiles/ for MS-Windows). That makes it
+! 	easy to copy it to another system.
+  
+  	If Vim was started with "-u filename", the file "filename" is used.
+  	All following initializations until 4. are skipped.
+***************
+*** 785,796 ****
+  	-  The environment variable VIMINIT (see also |compatible-default|) (*)
+  	   The value of $VIMINIT is used as an Ex command line.
+  	-  The user vimrc file(s):
+! 		    "$HOME/.vimrc"	(for Unix and OS/2) (*)
+! 		    "s:.vimrc"		(for Amiga) (*)
+! 		    "home:.vimrc"	(for Amiga) (*)
+! 		    "$VIM/.vimrc"	(for OS/2 and Amiga) (*)
+! 		    "$HOME/_vimrc"	(for MS-DOS and Win32) (*)
+! 		    "$VIM/_vimrc"	(for MS-DOS and Win32) (*)
+  		Note: For Unix, OS/2 and Amiga, when ".vimrc" does not exist,
+  		"_vimrc" is also tried, in case an MS-DOS compatible file
+  		system is used.  For MS-DOS and Win32 ".vimrc" is checked
+--- 801,815 ----
+  	-  The environment variable VIMINIT (see also |compatible-default|) (*)
+  	   The value of $VIMINIT is used as an Ex command line.
+  	-  The user vimrc file(s):
+! 		    "$HOME/.vimrc"	   (for Unix and OS/2) (*)
+! 		    "$HOME/.vim/vimrc"	   (for Unix and OS/2) (*)
+! 		    "s:.vimrc"		   (for Amiga) (*)
+! 		    "home:.vimrc"	   (for Amiga) (*)
+! 		    "home:vimfiles:vimrc"  (for Amiga) (*)
+! 		    "$VIM/.vimrc"	   (for OS/2 and Amiga) (*)
+! 		    "$HOME/_vimrc"	   (for MS-DOS and Win32) (*)
+! 		    "$HOME/vimfiles/vimrc" (for MS-DOS and Win32) (*)
+! 		    "$VIM/_vimrc"	   (for MS-DOS and Win32) (*)
+  		Note: For Unix, OS/2 and Amiga, when ".vimrc" does not exist,
+  		"_vimrc" is also tried, in case an MS-DOS compatible file
+  		system is used.  For MS-DOS and Win32 ".vimrc" is checked
+*** ../vim-7.3.1177/src/gui.c	2013-06-08 18:19:40.000000000 +0200
+--- src/gui.c	2013-06-12 20:09:44.000000000 +0200
+***************
+*** 547,556 ****
+  		 && do_source((char_u *)USR_GVIMRC_FILE2, TRUE,
+  							  DOSO_GVIMRC) == FAIL
+  #endif
+  				)
+  	    {
+! #ifdef USR_GVIMRC_FILE3
+! 		(void)do_source((char_u *)USR_GVIMRC_FILE3, TRUE, DOSO_GVIMRC);
+  #endif
+  	    }
+  
+--- 547,560 ----
+  		 && do_source((char_u *)USR_GVIMRC_FILE2, TRUE,
+  							  DOSO_GVIMRC) == FAIL
+  #endif
++ #ifdef USR_GVIMRC_FILE3
++ 		 && do_source((char_u *)USR_GVIMRC_FILE3, TRUE,
++ 							  DOSO_GVIMRC) == FAIL
++ #endif
+  				)
+  	    {
+! #ifdef USR_GVIMRC_FILE4
+! 		(void)do_source((char_u *)USR_GVIMRC_FILE4, TRUE, DOSO_GVIMRC);
+  #endif
+  	    }
+  
+***************
+*** 593,598 ****
+--- 597,606 ----
+  			&& fullpathcmp((char_u *)USR_GVIMRC_FILE3,
+  				     (char_u *)GVIMRC_FILE, FALSE) != FPC_SAME
+  #endif
++ #ifdef USR_GVIMRC_FILE4
++ 			&& fullpathcmp((char_u *)USR_GVIMRC_FILE4,
++ 				     (char_u *)GVIMRC_FILE, FALSE) != FPC_SAME
++ #endif
+  			)
+  		    do_source((char_u *)GVIMRC_FILE, TRUE, DOSO_GVIMRC);
+  
+*** ../vim-7.3.1177/src/main.c	2013-05-11 13:56:12.000000000 +0200
+--- src/main.c	2013-06-12 20:09:44.000000000 +0200
+***************
+*** 2981,2986 ****
+--- 2981,2990 ----
+  		&& do_source((char_u *)USR_VIMRC_FILE3, TRUE,
+  							   DOSO_VIMRC) == FAIL
+  #endif
++ #ifdef USR_VIMRC_FILE4
++ 		&& do_source((char_u *)USR_VIMRC_FILE4, TRUE,
++ 							   DOSO_VIMRC) == FAIL
++ #endif
+  		&& process_env((char_u *)"EXINIT", FALSE) == FAIL
+  		&& do_source((char_u *)USR_EXRC_FILE, FALSE, DOSO_NONE) == FAIL)
+  	    {
+*** ../vim-7.3.1177/src/os_amiga.h	2012-11-20 16:53:34.000000000 +0100
+--- src/os_amiga.h	2013-06-12 20:09:44.000000000 +0200
+***************
+*** 158,164 ****
+  # define USR_VIMRC_FILE2 "home:.vimrc"
+  #endif
+  #ifndef USR_VIMRC_FILE3
+! # define USR_VIMRC_FILE3 "$VIM/.vimrc"
+  #endif
+  #ifndef EVIM_FILE
+  # define EVIM_FILE	"$VIMRUNTIME/evim.vim"
+--- 158,167 ----
+  # define USR_VIMRC_FILE2 "home:.vimrc"
+  #endif
+  #ifndef USR_VIMRC_FILE3
+! # define USR_VIMRC_FILE3 "home:vimfiles:vimrc"
+! #endif
+! #ifndef USR_VIMRC_FILE4
+! # define USR_VIMRC_FILE4 "$VIM/.vimrc"
+  #endif
+  #ifndef EVIM_FILE
+  # define EVIM_FILE	"$VIMRUNTIME/evim.vim"
+***************
+*** 171,177 ****
+  # define USR_GVIMRC_FILE2 "home:.gvimrc"
+  #endif
+  #ifndef USR_GVIMRC_FILE3
+! # define USR_GVIMRC_FILE3 "$VIM/.gvimrc"
+  #endif
+  
+  #ifdef FEAT_VIMINFO
+--- 174,183 ----
+  # define USR_GVIMRC_FILE2 "home:.gvimrc"
+  #endif
+  #ifndef USR_GVIMRC_FILE3
+! # define USR_GVIMRC_FILE3 "home:vimfiles:gvimrc"
+! #endif
+! #ifndef USR_GVIMRC_FILE4
+! # define USR_GVIMRC_FILE4 "$VIM/.gvimrc"
+  #endif
+  
+  #ifdef FEAT_VIMINFO
+*** ../vim-7.3.1177/src/os_dos.h	2010-08-15 21:57:27.000000000 +0200
+--- src/os_dos.h	2013-06-12 20:09:44.000000000 +0200
+***************
+*** 20,26 ****
+  # define USR_VIMRC_FILE		"$HOME\\_vimrc"
+  #endif
+  #ifndef USR_VIMRC_FILE2
+! # define USR_VIMRC_FILE2	"$VIM\\_vimrc"
+  #endif
+  #ifndef EVIM_FILE
+  # define EVIM_FILE		"$VIMRUNTIME\\evim.vim"
+--- 20,29 ----
+  # define USR_VIMRC_FILE		"$HOME\\_vimrc"
+  #endif
+  #ifndef USR_VIMRC_FILE2
+! # define USR_VIMRC_FILE2	"$HOME\\vimfiles\\vimrc"
+! #endif
+! #ifndef USR_VIMRC_FILE3
+! # define USR_VIMRC_FILE3	"$VIM\\_vimrc"
+  #endif
+  #ifndef EVIM_FILE
+  # define EVIM_FILE		"$VIMRUNTIME\\evim.vim"
+***************
+*** 41,47 ****
+  #  define USR_GVIMRC_FILE	"$HOME\\_gvimrc"
+  # endif
+  # ifndef USR_GVIMRC_FILE2
+! #  define USR_GVIMRC_FILE2	"$VIM\\_gvimrc"
+  # endif
+  # ifndef SYS_MENU_FILE
+  #  define SYS_MENU_FILE		"$VIMRUNTIME\\menu.vim"
+--- 44,53 ----
+  #  define USR_GVIMRC_FILE	"$HOME\\_gvimrc"
+  # endif
+  # ifndef USR_GVIMRC_FILE2
+! #  define USR_GVIMRC_FILE2	"$HOME\\vimfiles\\gvimrc"
+! # endif
+! # ifndef USR_GVIMRC_FILE3
+! #  define USR_GVIMRC_FILE3	"$VIM\\_gvimrc"
+  # endif
+  # ifndef SYS_MENU_FILE
+  #  define SYS_MENU_FILE		"$VIMRUNTIME\\menu.vim"
+*** ../vim-7.3.1177/src/os_unix.h	2012-11-20 16:53:34.000000000 +0100
+--- src/os_unix.h	2013-06-12 20:09:44.000000000 +0200
+***************
+*** 294,304 ****
+  # endif
+  #endif
+  
+! #if !defined(USR_VIMRC_FILE2) && defined(OS2)
+! # define USR_VIMRC_FILE2 "$VIM/.vimrc"
+  #endif
+! #if !defined(USR_VIMRC_FILE2) && defined(VMS)
+! # define USR_VIMRC_FILE2 "sys$login:_vimrc"
+  #endif
+  
+  #ifndef USR_GVIMRC_FILE
+--- 294,317 ----
+  # endif
+  #endif
+  
+! 
+! #if !defined(USR_EXRC_FILE2)
+! # ifdef OS2
+! #  define USR_VIMRC_FILE2	"$HOME/vimfiles/vimrc"
+! # else
+! #  ifdef VMS
+! #   define USR_VIMRC_FILE2	"sys$login:vimfiles:vimrc"
+! #  else
+! #    define USR_VIMRC_FILE2	"~/.vim/vimrc"
+! #  endif
+! # endif
+! #endif
+! 
+! #if !defined(USR_VIMRC_FILE3) && defined(OS2)
+! # define USR_VIMRC_FILE3 "$VIM/.vimrc"
+  #endif
+! #if !defined(USR_VIMRC_FILE3) && defined(VMS)
+! # define USR_VIMRC_FILE3 "sys$login:_vimrc"
+  #endif
+  
+  #ifndef USR_GVIMRC_FILE
+***************
+*** 309,317 ****
+  # endif
+  #endif
+  
+  #ifdef VMS
+! # ifndef USR_GVIMRC_FILE2
+! #  define USR_GVIMRC_FILE2  "sys$login:_gvimrc"
+  # endif
+  #endif
+  
+--- 322,342 ----
+  # endif
+  #endif
+  
++ #ifndef USR_GVIMRC_FILE2
++ # ifdef OS2
++ #  define USR_GVIMRC_FILE2	"$HOME/vimfiles/gvimrc"
++ # else
++ #  ifdef VMS
++ #   define USR_GVIMRC_FILE2	"sys$login:vimfiles:gvimrc"
++ #  else
++ #   define USR_GVIMRC_FILE2	"~/.vim/gvimrc"
++ #  endif
++ # endif
++ #endif
++ 
+  #ifdef VMS
+! # ifndef USR_GVIMRC_FILE3
+! #  define USR_GVIMRC_FILE3  "sys$login:_gvimrc"
+  # endif
+  #endif
+  
+*** ../vim-7.3.1177/src/version.c	2013-06-12 19:52:11.000000000 +0200
+--- src/version.c	2013-06-12 20:34:25.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1178,
+  /**/
+
+-- 
+If Microsoft would build a car...
+... the oil, water temperature, and alternator warning lights would
+all be replaced by a single "General Protection Fault" warning light.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,46 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1102
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1102
+Problem:    Completion of ":py3do" and ":py3file" does not work after ":py3".
+Solution:   Make completion work. (Taro Muraoka)
+Files:	    src/ex_docmd.c
+
+
+*** ../vim-7.3.1101/src/ex_docmd.c	2013-06-02 18:20:12.000000000 +0200
+--- src/ex_docmd.c	2013-06-02 19:18:08.000000000 +0200
+***************
+*** 3249,3254 ****
+--- 3249,3257 ----
+  	/* check for non-alpha command */
+  	if (p == cmd && vim_strchr((char_u *)"@*!=><&~#", *p) != NULL)
+  	    ++p;
++ 	/* for python 3.x: ":py3*" commands completion */
++ 	if (cmd[0] == 'p' && cmd[1] == 'y' && p == cmd + 2 && *p == '3')
++ 	    ++p;
+  	len = (int)(p - cmd);
+  
+  	if (len == 0)
+*** ../vim-7.3.1101/src/version.c	2013-06-02 19:14:11.000000000 +0200
+--- src/version.c	2013-06-02 19:16:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1102,
+  /**/
+
+-- 
+CVS sux, men don't like commitment
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

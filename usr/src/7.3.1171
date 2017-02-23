@@ -1,0 +1,67 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1171
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1171
+Problem:    Check for digits and ascii letters can be faster.
+Solution:   Use a trick with one comparison. (Dominique Pelle)
+Files:	    src/macros.h
+
+
+*** ../vim-7.3.1170/src/macros.h	2013-06-08 18:19:40.000000000 +0200
+--- src/macros.h	2013-06-12 14:03:00.000000000 +0200
+***************
+*** 109,123 ****
+  #else
+  # define ASCII_ISALPHA(c) ((c) < 0x7f && isalpha(c))
+  # define ASCII_ISALNUM(c) ((c) < 0x7f && isalnum(c))
+! # define ASCII_ISLOWER(c) ((c) < 0x7f && islower(c))
+! # define ASCII_ISUPPER(c) ((c) < 0x7f && isupper(c))
+  #endif
+  
+  /* Use our own isdigit() replacement, because on MS-Windows isdigit() returns
+   * non-zero for superscript 1.  Also avoids that isdigit() crashes for numbers
+!  * below 0 and above 255.  For complicated arguments and in/decrement use
+!  * vim_isdigit() instead. */
+! #define VIM_ISDIGIT(c) ((c) >= '0' && (c) <= '9')
+  
+  /* macro version of chartab().
+   * Only works with values 0-255!
+--- 109,122 ----
+  #else
+  # define ASCII_ISALPHA(c) ((c) < 0x7f && isalpha(c))
+  # define ASCII_ISALNUM(c) ((c) < 0x7f && isalnum(c))
+! # define ASCII_ISLOWER(c) ((unsigned)(c) - 'a' < 26)
+! # define ASCII_ISUPPER(c) ((unsigned)(c) - 'A' < 26)
+  #endif
+  
+  /* Use our own isdigit() replacement, because on MS-Windows isdigit() returns
+   * non-zero for superscript 1.  Also avoids that isdigit() crashes for numbers
+!  * below 0 and above 255.  */
+! #define VIM_ISDIGIT(c) ((unsigned)(c) - '0' < 10)
+  
+  /* macro version of chartab().
+   * Only works with values 0-255!
+*** ../vim-7.3.1170/src/version.c	2013-06-12 13:37:36.000000000 +0200
+--- src/version.c	2013-06-12 14:09:00.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1171,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+167. You have more than 200 websites bookmarked.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

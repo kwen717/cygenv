@@ -1,0 +1,67 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.899
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.899
+Problem:    #if indents are off.
+Solution:   Fix the indents.
+Files:	    src/os_unix.c
+
+
+*** ../vim-7.3.898/src/os_unix.c	2013-03-21 22:53:45.000000000 +0100
+--- src/os_unix.c	2013-04-15 15:28:01.000000000 +0200
+***************
+*** 3493,3505 ****
+  	     *	  4 = Windows Cross Hair
+  	     *	  5 = Windows UP Arrow
+  	     */
+! #ifdef JSBTERM_MOUSE_NONADVANCED /* Disables full feedback of pointer movements */
+  	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK1Q\033\\",
+  					 ESC_STR "[0~ZwLMRK1Q" ESC_STR "\\"));
+! #else
+  	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK+1Q\033\\",
+  					ESC_STR "[0~ZwLMRK+1Q" ESC_STR "\\"));
+! #endif
+  	    ison = TRUE;
+  	}
+  	else
+--- 3493,3506 ----
+  	     *	  4 = Windows Cross Hair
+  	     *	  5 = Windows UP Arrow
+  	     */
+! #  ifdef JSBTERM_MOUSE_NONADVANCED
+! 	    /* Disables full feedback of pointer movements */
+  	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK1Q\033\\",
+  					 ESC_STR "[0~ZwLMRK1Q" ESC_STR "\\"));
+! #  else
+  	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK+1Q\033\\",
+  					ESC_STR "[0~ZwLMRK+1Q" ESC_STR "\\"));
+! #  endif
+  	    ison = TRUE;
+  	}
+  	else
+*** ../vim-7.3.898/src/version.c	2013-04-15 15:15:31.000000000 +0200
+--- src/version.c	2013-04-15 15:31:43.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     899,
+  /**/
+
+-- 
+If Microsoft would build a car...
+... Occasionally, executing a maneuver such as a left turn
+would cause your car to shut down and refuse to restart, in
+which case you would have to reinstall the engine.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

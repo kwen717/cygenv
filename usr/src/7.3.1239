@@ -1,0 +1,105 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1239
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1239
+Problem:    Can't build with Python and MSVC10.
+Solution:   Move #if outside of macro. (Taro Muraoka)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1238/src/if_py_both.h	2013-06-23 16:40:34.000000000 +0200
+--- src/if_py_both.h	2013-06-24 21:21:03.000000000 +0200
+***************
+*** 139,151 ****
+      }
+      else
+      {
+- 	PyErr_FORMAT(PyExc_TypeError,
+  #if PY_MAJOR_VERSION < 3
+! 		N_("expected str() or unicode() instance, but got %s")
+  #else
+! 		N_("expected bytes() or str() instance, but got %s")
+  #endif
+- 		, Py_TYPE_NAME(obj));
+  	return NULL;
+      }
+  
+--- 139,153 ----
+      }
+      else
+      {
+  #if PY_MAJOR_VERSION < 3
+! 	PyErr_FORMAT(PyExc_TypeError,
+! 		N_("expected str() or unicode() instance, but got %s"),
+! 		Py_TYPE_NAME(obj));
+  #else
+! 	PyErr_FORMAT(PyExc_TypeError,
+! 		N_("expected bytes() or str() instance, but got %s"),
+! 		Py_TYPE_NAME(obj));
+  #endif
+  	return NULL;
+      }
+  
+***************
+*** 191,205 ****
+      }
+      else
+      {
+- 	PyErr_FORMAT(PyExc_TypeError,
+  #if PY_MAJOR_VERSION < 3
+  		N_("expected int(), long() or something supporting "
+! 		   "coercing to long(), but got %s")
+  #else
+  		N_("expected int() or something supporting coercing to int(), "
+! 		   "but got %s")
+  #endif
+- 		, Py_TYPE_NAME(obj));
+  	return -1;
+      }
+  
+--- 193,209 ----
+      }
+      else
+      {
+  #if PY_MAJOR_VERSION < 3
++ 	PyErr_FORMAT(PyExc_TypeError,
+  		N_("expected int(), long() or something supporting "
+! 		   "coercing to long(), but got %s"),
+! 		Py_TYPE_NAME(obj));
+  #else
++ 	PyErr_FORMAT(PyExc_TypeError,
+  		N_("expected int() or something supporting coercing to int(), "
+! 		   "but got %s"),
+! 		Py_TYPE_NAME(obj));
+  #endif
+  	return -1;
+      }
+  
+*** ../vim-7.3.1238/src/version.c	2013-06-24 20:32:54.000000000 +0200
+--- src/version.c	2013-06-24 21:19:04.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1239,
+  /**/
+
+-- 
+   GALAHAD hurries to the door and pushes through it.  As he leaves the room
+   we CUT TO the reverse to show that he is now in a room full of bathing
+   and romping GIRLIES, all innocent, wide-eyed and beautiful.  They smile
+   enchantingly at him as he tries to keep walking without being diverted by
+   the lovely sights assaulting his eyeballs.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

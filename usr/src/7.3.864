@@ -1,0 +1,48 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.864
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.864 (after 7.3.862)
+Problem:    Can't build without the mouse feature.
+Solution:   Add an #ifdef. (Ike Devolder)
+Files:	    src/misc1.c
+
+
+*** ../vim-7.3.863/src/misc1.c	2013-03-16 14:20:45.000000000 +0100
+--- src/misc1.c	2013-03-16 21:33:08.000000000 +0100
+***************
+*** 3405,3411 ****
+--- 3405,3413 ----
+  	    n = TO_SPECIAL(buf[1], buf[2]);
+  	    if (buf[1] == KS_MODIFIER
+  		    || n == K_IGNORE
++ #ifdef FEAT_MOUSE
+  		    || (is_mouse_key(n) && n != K_LEFTMOUSE)
++ #endif
+  #ifdef FEAT_GUI
+  		    || n == K_VER_SCROLLBAR
+  		    || n == K_HOR_SCROLLBAR
+*** ../vim-7.3.863/src/version.c	2013-03-16 14:33:32.000000000 +0100
+--- src/version.c	2013-03-16 21:34:15.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     864,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+57. You begin to wonder how on earth your service provider is allowed to call
+    200 hours per month "unlimited."
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

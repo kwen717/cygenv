@@ -1,0 +1,292 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1294
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1294
+Problem:    ":diffoff" resets options.
+Solution:   Save and restore option values. (Christian Brabandt)
+Files:	    src/diff.c, src/structs.h, src/option.c
+
+
+*** ../vim-7.3.1293/src/diff.c	2013-05-06 04:21:35.000000000 +0200
+--- src/diff.c	2013-07-03 15:23:18.000000000 +0200
+***************
+*** 1138,1158 ****
+--- 1138,1173 ----
+  # endif
+  
+      wp->w_p_diff = TRUE;
++ 
+      /* Use 'scrollbind' and 'cursorbind' when available */
+  #ifdef FEAT_SCROLLBIND
++     if (!wp->w_p_diff_saved)
++ 	wp->w_p_scb_save = wp->w_p_scb;
+      wp->w_p_scb = TRUE;
+  #endif
+  #ifdef FEAT_CURSORBIND
++     if (!wp->w_p_diff_saved)
++ 	wp->w_p_crb_save = wp->w_p_crb;
+      wp->w_p_crb = TRUE;
+  #endif
++     if (!wp->w_p_diff_saved)
++ 	wp->w_p_wrap_save = wp->w_p_wrap;
+      wp->w_p_wrap = FALSE;
+  # ifdef FEAT_FOLDING
+      curwin = wp;
+      curbuf = curwin->w_buffer;
++     if (!wp->w_p_diff_saved)
++ 	wp->w_p_fdm_save = vim_strsave(wp->w_p_fdm);
+      set_string_option_direct((char_u *)"fdm", -1, (char_u *)"diff",
+  						       OPT_LOCAL|OPT_FREE, 0);
+      curwin = old_curwin;
+      curbuf = curwin->w_buffer;
++     if (!wp->w_p_diff_saved)
++     {
++ 	wp->w_p_fdc_save = wp->w_p_fdc;
++ 	wp->w_p_fen_save = wp->w_p_fen;
++ 	wp->w_p_fdl_save = wp->w_p_fdl;
++     }
+      wp->w_p_fdc = diff_foldcolumn;
+      wp->w_p_fen = TRUE;
+      wp->w_p_fdl = 0;
+***************
+*** 1164,1169 ****
+--- 1179,1186 ----
+      if (vim_strchr(p_sbo, 'h') == NULL)
+  	do_cmdline_cmd((char_u *)"set sbo+=hor");
+  #endif
++     /* Saved the current values, to be restored in ex_diffoff(). */
++     wp->w_p_diff_saved = TRUE;
+  
+      if (addbuf)
+  	diff_buf_add(wp->w_buffer);
+***************
+*** 1188,1212 ****
+      {
+  	if (wp == curwin || (eap->forceit && wp->w_p_diff))
+  	{
+! 	    /* Set 'diff', 'scrollbind' off and 'wrap' on. */
+  	    wp->w_p_diff = FALSE;
+! 	    RESET_BINDING(wp);
+! 	    wp->w_p_wrap = TRUE;
+  #ifdef FEAT_FOLDING
+  	    curwin = wp;
+  	    curbuf = curwin->w_buffer;
+! 	    set_string_option_direct((char_u *)"fdm", -1,
+  				   (char_u *)"manual", OPT_LOCAL|OPT_FREE, 0);
+  	    curwin = old_curwin;
+  	    curbuf = curwin->w_buffer;
+! 	    wp->w_p_fdc = 0;
+! 	    wp->w_p_fen = FALSE;
+! 	    wp->w_p_fdl = 0;
+  	    foldUpdateAll(wp);
+  	    /* make sure topline is not halfway a fold */
+  	    changed_window_setting_win(wp);
+  #endif
+  	    diff_buf_adjust(wp);
+  	}
+  #ifdef FEAT_SCROLLBIND
+  	diffwin |= wp->w_p_diff;
+--- 1205,1252 ----
+      {
+  	if (wp == curwin || (eap->forceit && wp->w_p_diff))
+  	{
+! 	    /* Set 'diff', 'scrollbind' off and 'wrap' on. If option values
+! 	     * were saved in diff_win_options() restore them. */
+  	    wp->w_p_diff = FALSE;
+! 
+! #ifdef FEAT_SCROLLBIND
+! 	    if (wp->w_p_scb)
+! 		wp->w_p_scb = wp->w_p_diff_saved ? wp->w_p_scb_save : FALSE;
+! #endif
+! #ifdef FEAT_CURSORBIND
+! 	    if (wp->w_p_crb)
+! 		wp->w_p_crb = wp->w_p_diff_saved ? wp->w_p_crb_save : FALSE;
+! #endif
+! 	    if (!wp->w_p_wrap)
+! 		wp->w_p_wrap = wp->w_p_diff_saved ? wp->w_p_wrap_save : TRUE;
+  #ifdef FEAT_FOLDING
+  	    curwin = wp;
+  	    curbuf = curwin->w_buffer;
+! 	    if (wp->w_p_diff_saved)
+! 	    {
+! 		free_string_option(wp->w_p_fdm);
+! 		wp->w_p_fdm = wp->w_p_fdm_save;
+! 		wp->w_p_fdm_save = empty_option;
+! 	    }
+! 	    else
+! 		set_string_option_direct((char_u *)"fdm", -1,
+  				   (char_u *)"manual", OPT_LOCAL|OPT_FREE, 0);
+  	    curwin = old_curwin;
+  	    curbuf = curwin->w_buffer;
+! 	    if (wp->w_p_fdc == diff_foldcolumn)
+! 		wp->w_p_fdc = wp->w_p_diff_saved ? wp->w_p_fdc_save : 0;
+! 	    if (wp->w_p_fen)
+! 		wp->w_p_fen = wp->w_p_diff_saved ? wp->w_p_fen_save : FALSE;
+! 	    if (wp->w_p_fdl == 0 && wp->w_p_diff_saved)
+! 		wp->w_p_fdl = wp->w_p_fdl_save;
+  	    foldUpdateAll(wp);
+  	    /* make sure topline is not halfway a fold */
+  	    changed_window_setting_win(wp);
+  #endif
++ 	    /* Note: 'sbo' is not restored, it's a global option. */
+  	    diff_buf_adjust(wp);
++ 
++ 	    wp->w_p_diff_saved = FALSE;
+  	}
+  #ifdef FEAT_SCROLLBIND
+  	diffwin |= wp->w_p_diff;
+*** ../vim-7.3.1293/src/structs.h	2013-06-29 14:47:18.000000000 +0200
+--- src/structs.h	2013-07-03 15:35:59.000000000 +0200
+***************
+*** 141,154 ****
+--- 141,162 ----
+  #ifdef FEAT_FOLDING
+      long	wo_fdc;
+  # define w_p_fdc w_onebuf_opt.wo_fdc	/* 'foldcolumn' */
++     int		wo_fdc_save;
++ # define w_p_fdc_save w_onebuf_opt.wo_fdc_save	/* 'foldenable' saved for diff mode */
+      int		wo_fen;
+  # define w_p_fen w_onebuf_opt.wo_fen	/* 'foldenable' */
++     int		wo_fen_save;
++ # define w_p_fen_save w_onebuf_opt.wo_fen_save	/* 'foldenable' saved for diff mode */
+      char_u	*wo_fdi;
+  # define w_p_fdi w_onebuf_opt.wo_fdi	/* 'foldignore' */
+      long	wo_fdl;
+  # define w_p_fdl w_onebuf_opt.wo_fdl	/* 'foldlevel' */
++     int		wo_fdl_save;
++ # define w_p_fdl_save w_onebuf_opt.wo_fdl_save	/* 'foldlevel' state saved for diff mode */
+      char_u	*wo_fdm;
+  # define w_p_fdm w_onebuf_opt.wo_fdm	/* 'foldmethod' */
++     char_u	*wo_fdm_save;
++ # define w_p_fdm_save w_onebuf_opt.wo_fdm_save	/* 'fdm' saved for diff mode */
+      long	wo_fml;
+  # define w_p_fml w_onebuf_opt.wo_fml	/* 'foldminlines' */
+      long	wo_fdn;
+***************
+*** 213,221 ****
+--- 221,237 ----
+  #ifdef FEAT_SCROLLBIND
+      int		wo_scb;
+  # define w_p_scb w_onebuf_opt.wo_scb	/* 'scrollbind' */
++     int		wo_diff_saved; /* options were saved for starting diff mode */
++ # define w_p_diff_saved w_onebuf_opt.wo_diff_saved
++     int		wo_scb_save;	/* 'scrollbind' saved for diff mode*/
++ # define w_p_scb_save w_onebuf_opt.wo_scb_save
+  #endif
+      int		wo_wrap;
+  #define w_p_wrap w_onebuf_opt.wo_wrap	/* 'wrap' */
++ #ifdef FEAT_DIFF
++     int		wo_wrap_save;	/* 'wrap' state saved for diff mode*/
++ # define w_p_wrap_save w_onebuf_opt.wo_wrap_save
++ #endif
+  #ifdef FEAT_CONCEAL
+      char_u	*wo_cocu;		/* 'concealcursor' */
+  # define w_p_cocu w_onebuf_opt.wo_cocu
+***************
+*** 225,230 ****
+--- 241,248 ----
+  #ifdef FEAT_CURSORBIND
+      int		wo_crb;
+  # define w_p_crb w_onebuf_opt.wo_crb	/* 'cursorbind' */
++     int		wo_crb_save;	/* 'cursorbind' state saved for diff mode*/
++ # define w_p_crb_save w_onebuf_opt.wo_crb_save
+  #endif
+  
+  #ifdef FEAT_EVAL
+*** ../vim-7.3.1293/src/option.c	2013-06-30 17:51:46.000000000 +0200
+--- src/option.c	2013-07-03 15:35:37.000000000 +0200
+***************
+*** 10118,10131 ****
+--- 10118,10136 ----
+      to->wo_stl = vim_strsave(from->wo_stl);
+  #endif
+      to->wo_wrap = from->wo_wrap;
++ #ifdef FEAT_DIFF
++     to->wo_wrap_save = from->wo_wrap_save;
++ #endif
+  #ifdef FEAT_LINEBREAK
+      to->wo_lbr = from->wo_lbr;
+  #endif
+  #ifdef FEAT_SCROLLBIND
+      to->wo_scb = from->wo_scb;
++     to->wo_scb_save = from->wo_scb_save;
+  #endif
+  #ifdef FEAT_CURSORBIND
+      to->wo_crb = from->wo_crb;
++     to->wo_crb_save = from->wo_crb_save;
+  #endif
+  #ifdef FEAT_SPELL
+      to->wo_spell = from->wo_spell;
+***************
+*** 10137,10142 ****
+--- 10142,10148 ----
+  #endif
+  #ifdef FEAT_DIFF
+      to->wo_diff = from->wo_diff;
++     to->wo_diff_saved = from->wo_diff_saved;
+  #endif
+  #ifdef FEAT_CONCEAL
+      to->wo_cocu = vim_strsave(from->wo_cocu);
+***************
+*** 10144,10154 ****
+--- 10150,10165 ----
+  #endif
+  #ifdef FEAT_FOLDING
+      to->wo_fdc = from->wo_fdc;
++     to->wo_fdc_save = from->wo_fdc_save;
+      to->wo_fen = from->wo_fen;
++     to->wo_fen_save = from->wo_fen_save;
+      to->wo_fdi = vim_strsave(from->wo_fdi);
+      to->wo_fml = from->wo_fml;
+      to->wo_fdl = from->wo_fdl;
++     to->wo_fdl_save = from->wo_fdl_save;
+      to->wo_fdm = vim_strsave(from->wo_fdm);
++     to->wo_fdm_save = from->wo_diff_saved
++ 			      ? vim_strsave(from->wo_fdm_save) : empty_option;
+      to->wo_fdn = from->wo_fdn;
+  # ifdef FEAT_EVAL
+      to->wo_fde = vim_strsave(from->wo_fde);
+***************
+*** 10180,10185 ****
+--- 10191,10197 ----
+  #ifdef FEAT_FOLDING
+      check_string_option(&wop->wo_fdi);
+      check_string_option(&wop->wo_fdm);
++     check_string_option(&wop->wo_fdm_save);
+  # ifdef FEAT_EVAL
+      check_string_option(&wop->wo_fde);
+      check_string_option(&wop->wo_fdt);
+***************
+*** 10210,10215 ****
+--- 10222,10228 ----
+  #ifdef FEAT_FOLDING
+      clear_string_option(&wop->wo_fdi);
+      clear_string_option(&wop->wo_fdm);
++     clear_string_option(&wop->wo_fdm_save);
+  # ifdef FEAT_EVAL
+      clear_string_option(&wop->wo_fde);
+      clear_string_option(&wop->wo_fdt);
+*** ../vim-7.3.1293/src/version.c	2013-07-03 14:19:49.000000000 +0200
+--- src/version.c	2013-07-03 14:46:59.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1294,
+  /**/
+
+-- 
+Q: What's orange and sounds like a parrot?
+A: A carrot
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

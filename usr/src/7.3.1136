@@ -1,0 +1,50 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1136
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1136
+Problem:    ":func Foo" does not show attributes.
+Solution:   Add "abort", "dict" and "range". (Yasuhiro Matsumoto)
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.1135/src/eval.c	2013-05-30 13:37:23.000000000 +0200
+--- src/eval.c	2013-06-06 21:29:06.000000000 +0200
+***************
+*** 21891,21896 ****
+--- 21891,21902 ----
+  	MSG_PUTS("...");
+      }
+      msg_putchar(')');
++     if (fp->uf_flags & FC_ABORT)
++ 	MSG_PUTS(" abort");
++     if (fp->uf_flags & FC_RANGE)
++ 	MSG_PUTS(" range");
++     if (fp->uf_flags & FC_DICT)
++ 	MSG_PUTS(" dict");
+      msg_clr_eos();
+      if (p_verbose > 0)
+  	last_set_msg(fp->uf_script_ID);
+*** ../vim-7.3.1135/src/version.c	2013-06-06 21:19:40.000000000 +0200
+--- src/version.c	2013-06-06 21:30:05.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1136,
+  /**/
+
+-- 
+From "know your smileys":
+ :-E	Has major dental problems
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

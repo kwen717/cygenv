@@ -1,0 +1,87 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.976
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.976
+Problem:    Can't build on HP-UX.
+Solution:   Remove modern initialization. (John Marriott)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.975/src/regexp_nfa.c	2013-05-20 13:44:24.000000000 +0200
+--- src/regexp_nfa.c	2013-05-20 13:51:07.000000000 +0200
+***************
+*** 1961,1974 ****
+  static Frag_T st_pop __ARGS((Frag_T **p, Frag_T *stack));
+  
+  /*
+!  * Initialize Frag_T struct.
+   */
+      static Frag_T
+  frag(start, out)
+      nfa_state_T	*start;
+      Ptrlist	*out;
+  {
+!     Frag_T n = { start, out };
+      return n;
+  }
+  
+--- 1961,1977 ----
+  static Frag_T st_pop __ARGS((Frag_T **p, Frag_T *stack));
+  
+  /*
+!  * Initialize a Frag_T struct and return it.
+   */
+      static Frag_T
+  frag(start, out)
+      nfa_state_T	*start;
+      Ptrlist	*out;
+  {
+!     Frag_T n;
+! 
+!     n.start = start;
+!     n.out = out;
+      return n;
+  }
+  
+***************
+*** 2144,2150 ****
+      if (postfix == NULL)
+  	return NULL;
+  
+! #define PUSH(s)	    st_push ((s), &stackp, stack_end)
+  #define POP()	    st_pop(&stackp, stack);		\
+  		    if (stackp < stack)			\
+  		    {					\
+--- 2147,2153 ----
+      if (postfix == NULL)
+  	return NULL;
+  
+! #define PUSH(s)	    st_push((s), &stackp, stack_end)
+  #define POP()	    st_pop(&stackp, stack);		\
+  		    if (stackp < stack)			\
+  		    {					\
+*** ../vim-7.3.975/src/version.c	2013-05-20 13:44:24.000000000 +0200
+--- src/version.c	2013-05-20 13:54:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     976,
+  /**/
+
+-- 
+Dogs must have a permit signed by the mayor in order to congregate in groups
+of three or more on private property.
+		[real standing law in Oklahoma, United States of America]
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

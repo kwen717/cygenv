@@ -1,0 +1,380 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1039
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1039
+Problem:    New regexp engine does not support \%23c, \%<23c and the like. 
+Solution:   Implement them. (partly by Yasuhiro Matsumoto)
+Files:	    src/regexp.h, src/regexp_nfa.c, src/testdir/test64.in,
+	    src/testdir/test64.ok
+
+
+*** ../vim-7.3.1038/src/regexp.h	2013-05-28 22:03:13.000000000 +0200
+--- src/regexp.h	2013-05-29 20:35:35.000000000 +0200
+***************
+*** 72,77 ****
+--- 72,78 ----
+      int			id;
+      int			lastlist;
+      int			negated;
++     int			val;
+  };
+  
+  /*
+*** ../vim-7.3.1038/src/regexp_nfa.c	2013-05-29 18:45:07.000000000 +0200
+--- src/regexp_nfa.c	2013-05-29 20:59:34.000000000 +0200
+***************
+*** 117,122 ****
+--- 117,134 ----
+      NFA_NLOWER,		/*	Match non-lowercase char */
+      NFA_UPPER,		/*	Match uppercase char */
+      NFA_NUPPER,		/*	Match non-uppercase char */
++ 
++     NFA_CURSOR,		/*	Match cursor pos */
++     NFA_LNUM,		/*	Match line number */
++     NFA_LNUM_GT,	/*	Match > line number */
++     NFA_LNUM_LT,	/*	Match < line number */
++     NFA_COL,		/*	Match cursor column */
++     NFA_COL_GT,		/*	Match > cursor column */
++     NFA_COL_LT,		/*	Match < cursor column */
++     NFA_VCOL,		/*	Match cursor virtual column */
++     NFA_VCOL_GT,	/*	Match > cursor virtual column */
++     NFA_VCOL_LT,	/*	Match < cursor virtual column */
++ 
+      NFA_FIRST_NL = NFA_ANY + ADD_NL,
+      NFA_LAST_NL = NFA_NUPPER + ADD_NL,
+  
+***************
+*** 205,214 ****
+  static nfa_state_T *post2nfa __ARGS((int *postfix, int *end, int nfa_calc_size));
+  static int check_char_class __ARGS((int class, int c));
+  static void st_error __ARGS((int *postfix, int *end, int *p));
+  static void nfa_save_listids __ARGS((nfa_state_T *start, int *list));
+  static void nfa_restore_listids __ARGS((nfa_state_T *start, int *list));
+! static void nfa_set_null_listids __ARGS((nfa_state_T *start));
+! static void nfa_set_neg_listids __ARGS((nfa_state_T *start));
+  static long nfa_regtry __ARGS((nfa_state_T *start, colnr_T col));
+  static long nfa_regexec_both __ARGS((char_u *line, colnr_T col));
+  static regprog_T *nfa_regcomp __ARGS((char_u *expr, int re_flags));
+--- 217,227 ----
+  static nfa_state_T *post2nfa __ARGS((int *postfix, int *end, int nfa_calc_size));
+  static int check_char_class __ARGS((int class, int c));
+  static void st_error __ARGS((int *postfix, int *end, int *p));
++ static void nfa_set_neg_listids __ARGS((nfa_state_T *start));
++ static void nfa_set_null_listids __ARGS((nfa_state_T *start));
+  static void nfa_save_listids __ARGS((nfa_state_T *start, int *list));
+  static void nfa_restore_listids __ARGS((nfa_state_T *start, int *list));
+! static int nfa_re_num_cmp __ARGS((long_u val, int op, long_u pos));
+  static long nfa_regtry __ARGS((nfa_state_T *start, colnr_T col));
+  static long nfa_regexec_both __ARGS((char_u *line, colnr_T col));
+  static regprog_T *nfa_regcomp __ARGS((char_u *expr, int re_flags));
+***************
+*** 831,838 ****
+  		    break;
+  
+  		case '#':
+! 		    /* TODO: not supported yet */
+! 		    return FAIL;
+  		    break;
+  
+  		case 'V':
+--- 844,850 ----
+  		    break;
+  
+  		case '#':
+! 		    EMIT(NFA_CURSOR);
+  		    break;
+  
+  		case 'V':
+***************
+*** 844,866 ****
+  		    /* TODO: \%[abc] not supported yet */
+  		    return FAIL;
+  
+- 		case '0':
+- 		case '1':
+- 		case '2':
+- 		case '3':
+- 		case '4':
+- 		case '5':
+- 		case '6':
+- 		case '7':
+- 		case '8':
+- 		case '9':
+- 		case '<':
+- 		case '>':
+- 		case '\'':
+- 		    /* TODO: not supported yet */
+- 		    return FAIL;
+- 
+  		default:
+  		    syntax_error = TRUE;
+  		    EMSGN(_("E867: (NFA) Unknown operator '\\%%%c'"),
+  								 no_Magic(c));
+--- 856,891 ----
+  		    /* TODO: \%[abc] not supported yet */
+  		    return FAIL;
+  
+  		default:
++ 		    {
++ 			long_u	n = 0;
++ 			int	cmp = c;
++ 
++ 			if (c == '<' || c == '>')
++ 			    c = getchr();
++ 			while (VIM_ISDIGIT(c))
++ 			{
++ 			    n = n * 10 + (c - '0');
++ 			    c = getchr();
++ 			}
++ 			if (c == 'l' || c == 'c' || c == 'v')
++ 			{
++ 			    EMIT(n);
++ 			    if (c == 'l')
++ 				EMIT(cmp == '<' ? NFA_LNUM_LT :
++ 					cmp == '>' ? NFA_LNUM_GT : NFA_LNUM);
++ 			    else if (c == 'c')
++ 				EMIT(cmp == '<' ? NFA_COL_LT :
++ 					cmp == '>' ? NFA_COL_GT : NFA_COL);
++ 			    else
++ 				EMIT(cmp == '<' ? NFA_VCOL_LT :
++ 					cmp == '>' ? NFA_VCOL_GT : NFA_VCOL);
++ 			    break;
++ 			}
++ 			else if (c == '\'')
++ 			    /* TODO: \%'m not supported yet */
++ 			    return FAIL;
++ 		    }
+  		    syntax_error = TRUE;
+  		    EMSGN(_("E867: (NFA) Unknown operator '\\%%%c'"),
+  								 no_Magic(c));
+***************
+*** 1679,1684 ****
+--- 1704,1711 ----
+  
+  	case NFA_PREV_ATOM_NO_WIDTH:
+  			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
++ 	case NFA_PREV_ATOM_NO_WIDTH_NEG:
++ 			    STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH_NEG"); break;
+  	case NFA_NOPEN:		    STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
+  	case NFA_NCLOSE:	    STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
+  	case NFA_START_INVISIBLE:   STRCPY(code, "NFA_START_INVISIBLE"); break;
+***************
+*** 2444,2449 ****
+--- 2471,2498 ----
+  	    PUSH(frag(s, list1(&s1->out)));
+  	    break;
+  
++ 	case NFA_LNUM:
++ 	case NFA_LNUM_GT:
++ 	case NFA_LNUM_LT:
++ 	case NFA_VCOL:
++ 	case NFA_VCOL_GT:
++ 	case NFA_VCOL_LT:
++ 	case NFA_COL:
++ 	case NFA_COL_GT:
++ 	case NFA_COL_LT:
++ 	    if (nfa_calc_size == TRUE)
++ 	    {
++ 		nstate += 1;
++ 		break;
++ 	    }
++ 	    e1 = POP();
++ 	    s = new_state(*p, NULL, NULL);
++ 	    if (s == NULL)
++ 		goto theend;
++ 	    s->val = e1.start->c;
++ 	    PUSH(frag(s, list1(&s->out)));
++ 	    break;
++ 
+  	case NFA_ZSTART:
+  	case NFA_ZEND:
+  	default:
+***************
+*** 3076,3081 ****
+--- 3125,3141 ----
+      }
+  }
+  
++     static int
++ nfa_re_num_cmp(val, op, pos)
++     long_u	val;
++     int		op;
++     long_u	pos;
++ {
++     if (op == 1) return pos > val;
++     if (op == 2) return pos < val;
++     return val == pos;
++ }
++ 
+  static int nfa_regmatch __ARGS((nfa_state_T *start, regsub_T *submatch, regsub_T *m));
+  
+  /*
+***************
+*** 3791,3796 ****
+--- 3851,3895 ----
+  		/* TODO: should not happen? */
+  		break;
+  
++ 	    case NFA_LNUM:
++ 	    case NFA_LNUM_GT:
++ 	    case NFA_LNUM_LT:
++ 		result = (REG_MULTI &&
++ 			nfa_re_num_cmp(t->state->val, t->state->c - NFA_LNUM,
++ 			    (long_u)(reglnum + reg_firstlnum)));
++ 		if (result)
++ 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
++ 		break;
++ 
++ 	    case NFA_COL:
++ 	    case NFA_COL_GT:
++ 	    case NFA_COL_LT:
++ 		result = nfa_re_num_cmp(t->state->val, t->state->c - NFA_COL,
++ 			(long_u)(reginput - regline) + 1);
++ 		if (result)
++ 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
++ 		break;
++ 
++ 	    case NFA_VCOL:
++ 	    case NFA_VCOL_GT:
++ 	    case NFA_VCOL_LT:
++ 		result = nfa_re_num_cmp(t->state->val, t->state->c - NFA_VCOL,
++ 		    (long_u)win_linetabsize(
++ 			    reg_win == NULL ? curwin : reg_win,
++ 			    regline, (colnr_T)(reginput - regline)) + 1);
++ 		if (result)
++ 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
++ 		break;
++ 
++ 	    case NFA_CURSOR:
++ 		result = (reg_win != NULL
++ 			&& (reglnum + reg_firstlnum == reg_win->w_cursor.lnum)
++ 			&& ((colnr_T)(reginput - regline)
++ 						   == reg_win->w_cursor.col));
++ 		if (result)
++ 		    addstate_here(thislist, t->state->out, &t->sub, &listidx);
++ 		break;
++ 
+  	    default:	/* regular character */
+  	      {
+  		int c = t->state->c;
+*** ../vim-7.3.1038/src/testdir/test64.in	2013-05-29 18:45:07.000000000 +0200
+--- src/testdir/test64.in	2013-05-29 21:02:52.000000000 +0200
+***************
+*** 413,425 ****
+  :.yank
+  y$Gop:"
+  :"
+- :"
+  :" Check a pattern with a look beind crossing a line boundary
+  /^Behind:
+  /\(<\_[xy]\+\)\@3<=start
+  :.yank
+  Gop:"
+  :"
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+--- 413,452 ----
+  :.yank
+  y$Gop:"
+  :"
+  :" Check a pattern with a look beind crossing a line boundary
+  /^Behind:
+  /\(<\_[xy]\+\)\@3<=start
+  :.yank
+  Gop:"
+  :"
++ :" Check patterns matching cursor position.
++ :func! Postest()
++  new
++  call setline(1, ['ffooooo', 'boboooo', 'zoooooo', 'koooooo', 'moooooo', "\t\t\tfoo", 'abababababababfoo', 'bababababababafoo', '********_'])
++  call setpos('.', [0, 1, 0, 0])
++  s/\%>3c.//g
++  call setpos('.', [0, 2, 4, 0])
++  s/\%#.*$//g
++  call setpos('.', [0, 3, 0, 0])
++  s/\%<3c./_/g
++  %s/\%4l\%>5c./_/g
++  %s/\%6l\%>25v./_/g
++  %s/\%>6l\%3c./!/g
++  %s/\%>7l\%12c./?/g
++  %s/\%>7l\%<9l\%>5v\%<8v./#/g
++  1,$yank
++  quit!
++ endfunc
++ Go-0-:set re=0
++ :call Postest()
++ :put
++ o-1-:set re=1
++ :call Postest()
++ :put
++ o-2-:set re=2
++ :call Postest()
++ :put
++ :"
+  :/\%#=1^Results/,$wq! test.out
+  ENDTEST
+  
+*** ../vim-7.3.1038/src/testdir/test64.ok	2013-05-29 18:45:07.000000000 +0200
+--- src/testdir/test64.ok	2013-05-29 21:02:49.000000000 +0200
+***************
+*** 740,742 ****
+--- 740,772 ----
+  ghi
+  
+  xxxstart3
++ -0-
++ ffo
++ bob
++ __ooooo
++ koooo__
++ moooooo
++ 			f__
++ ab!babababababfoo
++ ba!ab##abab?bafoo
++ **!*****_
++ -1-
++ ffo
++ bob
++ __ooooo
++ koooo__
++ moooooo
++ 			f__
++ ab!babababababfoo
++ ba!ab##abab?bafoo
++ **!*****_
++ -2-
++ ffo
++ bob
++ __ooooo
++ koooo__
++ moooooo
++ 			f__
++ ab!babababababfoo
++ ba!ab##abab?bafoo
++ **!*****_
+*** ../vim-7.3.1038/src/version.c	2013-05-29 19:17:55.000000000 +0200
+--- src/version.c	2013-05-29 21:11:47.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1039,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+16. You step out of your room and realize that your parents have moved and
+    you don't have a clue when it happened.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

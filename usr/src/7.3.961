@@ -1,0 +1,90 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.961
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.961
+Problem:    Tests 86 and 87 fail when using another language than English.
+Solution:   Set the language to C in the test. (Dominique Pelle)
+Files:	    src/testdir/test86.in, src/testdir/test87.in,
+	    src/testdir/test87.ok
+
+
+*** ../vim-7.3.960/src/testdir/test86.in	2013-05-15 16:27:33.000000000 +0200
+--- src/testdir/test86.in	2013-05-16 18:58:46.000000000 +0200
+***************
+*** 5,14 ****
+    ./configure --without-pymalloc
+  See http://svn.python.org/view/python/trunk/Misc/README.valgrind?view=markup
+  
+- 
+  STARTTEST
+  :so small.vim
+  :if !has('python') | e! test.ok | wq! test.out | endif
+  :py import vim
+  :fun Test()
+  :let l = []
+--- 5,14 ----
+    ./configure --without-pymalloc
+  See http://svn.python.org/view/python/trunk/Misc/README.valgrind?view=markup
+  
+  STARTTEST
+  :so small.vim
+  :if !has('python') | e! test.ok | wq! test.out | endif
++ :lang C
+  :py import vim
+  :fun Test()
+  :let l = []
+*** ../vim-7.3.960/src/testdir/test87.in	2013-05-15 16:27:33.000000000 +0200
+--- src/testdir/test87.in	2013-05-16 18:56:21.000000000 +0200
+***************
+*** 3,8 ****
+--- 3,9 ----
+  STARTTEST
+  :so small.vim
+  :if !has('python3') | e! test.ok | wq! test.out | endif
++ :lang C
+  :py3 import vim
+  :fun Test()
+  :let l = []
+*** ../vim-7.3.960/src/testdir/test87.ok	2013-05-15 16:27:33.000000000 +0200
+--- src/testdir/test87.ok	2013-05-16 20:46:05.000000000 +0200
+***************
+*** 322,328 ****
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer test87.in>; cursor is at (929, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
+--- 322,328 ----
+  Current tab pages:
+    <tabpage 0>(1): 1 windows, current is <window object (unknown)>
+    Windows:
+!     <window object (unknown)>(0): displays buffer <buffer test87.in>; cursor is at (930, 0)
+    <tabpage 1>(2): 1 windows, current is <window object (unknown)>
+    Windows:
+      <window object (unknown)>(0): displays buffer <buffer 0>; cursor is at (1, 0)
+*** ../vim-7.3.960/src/version.c	2013-05-15 23:13:06.000000000 +0200
+--- src/version.c	2013-05-16 20:47:38.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     961,
+  /**/
+
+-- 
+When I look deep into your eyes, I see JPEG artifacts.
+I can tell by the pixels that we're wrong for each other.  (xkcd)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

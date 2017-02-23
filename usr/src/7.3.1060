@@ -1,0 +1,61 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1060
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1060
+Problem:    Python: can't repr() a function.
+Solution:   Python patch 19: add FunctionRepr(). (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1059/src/if_py_both.h	2013-05-30 12:40:36.000000000 +0200
+--- src/if_py_both.h	2013-05-30 12:43:16.000000000 +0200
+***************
+*** 1584,1589 ****
+--- 1584,1595 ----
+      return result;
+  }
+  
++     static PyObject *
++ FunctionRepr(FunctionObject *self)
++ {
++     return PyString_FromFormat("<vim.Function '%s'>", self->name);
++ }
++ 
+  static struct PyMethodDef FunctionMethods[] = {
+      {"__call__",(PyCFunction)FunctionCall,  METH_VARARGS|METH_KEYWORDS,	""},
+      {"__dir__",	(PyCFunction)FunctionDir,   METH_NOARGS,		""},
+***************
+*** 4640,4645 ****
+--- 4646,4652 ----
+      FunctionType.tp_flags = Py_TPFLAGS_DEFAULT;
+      FunctionType.tp_doc = "object that calls vim function";
+      FunctionType.tp_methods = FunctionMethods;
++     FunctionType.tp_repr = (reprfunc)FunctionRepr;
+  #if PY_MAJOR_VERSION >= 3
+      FunctionType.tp_getattro = (getattrofunc)FunctionGetattro;
+  #else
+*** ../vim-7.3.1059/src/version.c	2013-05-30 12:40:36.000000000 +0200
+--- src/version.c	2013-05-30 12:43:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1060,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+3. Every time someone asks you to do something, ask if they want fries
+   with that.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

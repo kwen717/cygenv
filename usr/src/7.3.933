@@ -1,0 +1,163 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.933
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.933
+Problem:    Ruby on Mac crashes due to GC failure.
+Solution:   Init the stack from main(). (Hiroshi Shirosaki)
+Files:	    src/main.c, src/if_ruby.c, src/proto/if_ruby.pro
+
+
+*** ../vim-7.3.932/src/main.c	2013-03-19 13:33:18.000000000 +0100
+--- src/main.c	2013-05-11 13:37:23.000000000 +0200
+***************
+*** 192,197 ****
+--- 192,204 ----
+      params.window_count = -1;
+  #endif
+  
++ #ifdef FEAT_RUBY
++     {
++ 	int ruby_stack_start;
++ 	vim_ruby_init((void *)&ruby_stack_start);
++     }
++ #endif
++ 
+  #ifdef FEAT_TCL
+      vim_tcl_init(params.argv[0]);
+  #endif
+*** ../vim-7.3.932/src/if_ruby.c	2013-05-06 04:21:35.000000000 +0200
+--- src/if_ruby.c	2013-05-11 13:37:23.000000000 +0200
+***************
+*** 144,149 ****
+--- 144,150 ----
+  #endif
+  
+  static int ruby_initialized = 0;
++ static void *ruby_stack_start;
+  static VALUE objtbl;
+  
+  static VALUE mVIM;
+***************
+*** 226,231 ****
+--- 227,233 ----
+  # define rb_float_new			dll_rb_float_new
+  # define rb_ary_new			dll_rb_ary_new
+  # define rb_ary_push			dll_rb_ary_push
++ # define ruby_init_stack		dll_ruby_init_stack
+  #else
+  # define rb_str2cstr			dll_rb_str2cstr
+  #endif
+***************
+*** 250,256 ****
+  # define rb_enc_str_new			dll_rb_enc_str_new
+  # define rb_sprintf			dll_rb_sprintf
+  # define rb_require			dll_rb_require
+- # define ruby_init_stack		dll_ruby_init_stack
+  # define ruby_process_options		dll_ruby_process_options
+  #endif
+  
+--- 252,257 ----
+***************
+*** 335,340 ****
+--- 336,342 ----
+  static VALUE (*dll_rb_float_new) (double);
+  static VALUE (*dll_rb_ary_new) (void);
+  static VALUE (*dll_rb_ary_push) (VALUE, VALUE);
++ static void (*ruby_init_stack)(VALUE*);
+  #endif
+  #ifdef RUBY19_OR_LATER
+  static VALUE (*dll_rb_int2big)(SIGNED_VALUE);
+***************
+*** 347,353 ****
+  static VALUE (*dll_rb_enc_str_new) (const char*, long, rb_encoding*);
+  static VALUE (*dll_rb_sprintf) (const char*, ...);
+  static VALUE (*dll_rb_require) (const char*);
+- static void (*ruby_init_stack)(VALUE*);
+  static void* (*ruby_process_options)(int, char**);
+  #endif
+  
+--- 349,354 ----
+***************
+*** 475,480 ****
+--- 476,482 ----
+  #endif
+  #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+      {"rb_string_value_ptr", (RUBY_PROC*)&dll_rb_string_value_ptr},
++     {"ruby_init_stack", (RUBY_PROC*)&dll_ruby_init_stack},
+  # if DYNAMIC_RUBY_VER <= 19
+      {"rb_float_new", (RUBY_PROC*)&dll_rb_float_new},
+  # else
+***************
+*** 491,497 ****
+      {"rb_enc_str_new", (RUBY_PROC*)&dll_rb_enc_str_new},
+      {"rb_sprintf", (RUBY_PROC*)&dll_rb_sprintf},
+      {"rb_require", (RUBY_PROC*)&dll_rb_require},
+-     {"ruby_init_stack", (RUBY_PROC*)&dll_ruby_init_stack},
+      {"ruby_process_options", (RUBY_PROC*)&dll_ruby_process_options},
+  #endif
+      {"", NULL},
+--- 493,498 ----
+***************
+*** 716,723 ****
+  	    NtInitialize(&argc, &argv);
+  #endif
+  	    {
+! #ifdef RUBY19_OR_LATER
+! 		RUBY_INIT_STACK;
+  #endif
+  		ruby_init();
+  	    }
+--- 717,724 ----
+  	    NtInitialize(&argc, &argv);
+  #endif
+  	    {
+! #if defined(DYNAMIC_RUBY_VER) && DYNAMIC_RUBY_VER >= 18
+! 		ruby_init_stack(ruby_stack_start);
+  #endif
+  		ruby_init();
+  	    }
+***************
+*** 1389,1391 ****
+--- 1390,1398 ----
+      rb_define_virtual_variable("$curbuf", buffer_s_current, 0);
+      rb_define_virtual_variable("$curwin", window_s_current, 0);
+  }
++ 
++ void vim_ruby_init(void *stack_start)
++ {
++     /* should get machine stack start address early in main function */
++     ruby_stack_start = stack_start;
++ }
+*** ../vim-7.3.932/src/proto/if_ruby.pro	2010-08-15 21:57:28.000000000 +0200
+--- src/proto/if_ruby.pro	2013-05-11 13:37:28.000000000 +0200
+***************
+*** 6,9 ****
+--- 6,10 ----
+  void ex_rubyfile __ARGS((exarg_T *eap));
+  void ruby_buffer_free __ARGS((buf_T *buf));
+  void ruby_window_free __ARGS((win_T *win));
++ void vim_ruby_init __ARGS((void *stack_start));
+  /* vim: set ft=c : */
+*** ../vim-7.3.932/src/version.c	2013-05-11 13:45:00.000000000 +0200
+--- src/version.c	2013-05-11 13:52:55.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     933,
+  /**/
+
+-- 
+Veni, Vidi, Video -- I came, I saw, I taped what I saw.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,311 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.856
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.856
+Problem:    When calling system() multi-byte clipboard contents is garbled.
+Solution:   Save and restore the clipboard contents.  (Yukihiro Nakadaira)
+Files:	    src/gui_gtk_x11.c, src/proto/gui_gtk_x11.pro, src/ops.c,
+	    src/proto/ops.pro, src/os_unix.c, src/proto/ui.pro, src/ui.c
+
+
+*** ../vim-7.3.855/src/gui_gtk_x11.c	2013-02-14 22:11:31.000000000 +0100
+--- src/gui_gtk_x11.c	2013-03-13 17:28:00.000000000 +0100
+***************
+*** 5674,5685 ****
+      void
+  clip_mch_lose_selection(VimClipboard *cbd UNUSED)
+  {
+!     /* WEIRD: when using NULL to actually disown the selection, we lose the
+!      * selection the first time we own it. */
+!     /*
+!     gtk_selection_owner_set(NULL, cbd->gtk_sel_atom, (guint32)GDK_CURRENT_TIME);
+      gui_mch_update();
+-      */
+  }
+  
+  /*
+--- 5674,5681 ----
+      void
+  clip_mch_lose_selection(VimClipboard *cbd UNUSED)
+  {
+!     gtk_selection_owner_set(NULL, cbd->gtk_sel_atom, gui.event_time);
+      gui_mch_update();
+  }
+  
+  /*
+***************
+*** 5705,5710 ****
+--- 5701,5712 ----
+  {
+  }
+  
++     int
++ clip_gtk_owner_exists(VimClipboard *cbd)
++ {
++     return gdk_selection_owner_get(cbd->gtk_sel_atom) != NULL;
++ }
++ 
+  
+  #if defined(FEAT_MENU) || defined(PROTO)
+  /*
+*** ../vim-7.3.855/src/proto/gui_gtk_x11.pro	2012-05-18 17:03:14.000000000 +0200
+--- src/proto/gui_gtk_x11.pro	2013-03-13 17:35:17.000000000 +0100
+***************
+*** 59,64 ****
+--- 59,65 ----
+  void clip_mch_lose_selection __ARGS((VimClipboard *cbd));
+  int clip_mch_own_selection __ARGS((VimClipboard *cbd));
+  void clip_mch_set_selection __ARGS((VimClipboard *cbd));
++ int clip_gtk_owner_exists __ARGS((VimClipboard *cbd));
+  void gui_mch_menu_grey __ARGS((vimmenu_T *menu, int grey));
+  void gui_mch_menu_hidden __ARGS((vimmenu_T *menu, int hidden));
+  void gui_mch_draw_menubar __ARGS((void));
+*** ../vim-7.3.855/src/ops.c	2013-03-07 18:50:52.000000000 +0100
+--- src/ops.c	2013-03-13 17:30:50.000000000 +0100
+***************
+*** 1017,1022 ****
+--- 1017,1035 ----
+      may_set_selection();
+  # endif
+  }
++ 
++     void
++ free_register(reg)
++     void	*reg;
++ {
++     struct yankreg tmp;
++ 
++     tmp = *y_current;
++     *y_current = *(struct yankreg *)reg;
++     free_yank_all();
++     vim_free(reg);
++     *y_current = tmp;
++ }
+  #endif
+  
+  #if defined(FEAT_MOUSE) || defined(PROTO)
+*** ../vim-7.3.855/src/proto/ops.pro	2012-06-06 16:12:54.000000000 +0200
+--- src/proto/ops.pro	2013-03-13 17:35:04.000000000 +0100
+***************
+*** 15,20 ****
+--- 15,21 ----
+  int may_get_selection __ARGS((int regname));
+  void *get_register __ARGS((int name, int copy));
+  void put_register __ARGS((int name, void *reg));
++ void free_register __ARGS((void *reg));
+  int yank_register_mline __ARGS((int regname));
+  int do_record __ARGS((int c));
+  int do_execreg __ARGS((int regname, int colon, int addcr, int silent));
+*** ../vim-7.3.855/src/os_unix.c	2013-02-26 14:56:24.000000000 +0100
+--- src/os_unix.c	2013-03-13 17:33:00.000000000 +0100
+***************
+*** 1138,1143 ****
+--- 1138,1148 ----
+  
+  # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+  static void loose_clipboard __ARGS((void));
++ static void save_clipboard __ARGS((void));
++ static void restore_clipboard __ARGS((void));
++ 
++ static void *clip_star_save = NULL;
++ static void *clip_plus_save = NULL;
+  
+  /*
+   * Called when Vim is going to sleep or execute a shell command.
+***************
+*** 1158,1163 ****
+--- 1163,1204 ----
+  	    XFlush(x11_display);
+      }
+  }
++ 
++ /*
++  * Save clipboard text to restore later.
++  */
++     static void
++ save_clipboard()
++ {
++     if (clip_star.owned)
++ 	clip_star_save = get_register('*', TRUE);
++     if (clip_plus.owned)
++ 	clip_plus_save = get_register('+', TRUE);
++ }
++ 
++ /*
++  * Restore clipboard text if no one own the X selection.
++  */
++     static void
++ restore_clipboard()
++ {
++     if (clip_star_save != NULL)
++     {
++ 	if (!clip_gen_owner_exists(&clip_star))
++ 	    put_register('*', clip_star_save);
++ 	else
++ 	    free_register(clip_star_save);
++ 	clip_star_save = NULL;
++     }
++     if (clip_plus_save != NULL)
++     {
++ 	if (!clip_gen_owner_exists(&clip_plus))
++ 	    put_register('+', clip_plus_save);
++ 	else
++ 	    free_register(clip_plus_save);
++ 	clip_plus_save = NULL;
++     }
++ }
+  #endif
+  
+  /*
+***************
+*** 3844,3849 ****
+--- 3885,3891 ----
+  	settmode(TMODE_COOK);	    /* set to normal mode */
+  
+  # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
++     save_clipboard();
+      loose_clipboard();
+  # endif
+  
+***************
+*** 3917,3922 ****
+--- 3959,3967 ----
+  # ifdef FEAT_TITLE
+      resettitle();
+  # endif
++ # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
++     restore_clipboard();
++ # endif
+      return x;
+  
+  #else /* USE_SYSTEM */	    /* don't use system(), use fork()/exec() */
+***************
+*** 3965,3970 ****
+--- 4010,4018 ----
+  	settmode(TMODE_COOK);		/* set to normal mode */
+  
+  # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
++     /* Disown the clipboard, because is the executed command tries to obtain a
++      * selection and we own it we get a deadlock. */
++     save_clipboard();
+      loose_clipboard();
+  # endif
+  
+***************
+*** 4836,4841 ****
+--- 4884,4892 ----
+  # ifdef FEAT_TITLE
+      resettitle();
+  # endif
++ # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
++     restore_clipboard();
++ # endif
+      vim_free(newcmd);
+  
+      return retval;
+*** ../vim-7.3.855/src/proto/ui.pro	2012-07-10 16:49:08.000000000 +0200
+--- src/proto/ui.pro	2013-03-13 17:35:08.000000000 +0100
+***************
+*** 29,34 ****
+--- 29,35 ----
+  void clip_gen_lose_selection __ARGS((VimClipboard *cbd));
+  void clip_gen_set_selection __ARGS((VimClipboard *cbd));
+  void clip_gen_request_selection __ARGS((VimClipboard *cbd));
++ int clip_gen_owner_exists __ARGS((VimClipboard *cbd));
+  int vim_is_input_buf_full __ARGS((void));
+  int vim_is_input_buf_empty __ARGS((void));
+  int vim_free_in_input_buf __ARGS((void));
+***************
+*** 52,57 ****
+--- 53,59 ----
+  void clip_x11_lose_selection __ARGS((Widget myShell, VimClipboard *cbd));
+  int clip_x11_own_selection __ARGS((Widget myShell, VimClipboard *cbd));
+  void clip_x11_set_selection __ARGS((VimClipboard *cbd));
++ int clip_x11_owner_exists __ARGS((VimClipboard *cbd));
+  void yank_cut_buffer0 __ARGS((Display *dpy, VimClipboard *cbd));
+  int jump_to_mouse __ARGS((int flags, int *inclusive, int which_button));
+  int mouse_comp_pos __ARGS((win_T *win, int *rowp, int *colp, linenr_T *lnump));
+*** ../vim-7.3.855/src/ui.c	2013-03-07 18:02:27.000000000 +0100
+--- src/ui.c	2013-03-13 17:31:31.000000000 +0100
+***************
+*** 1456,1461 ****
+--- 1456,1476 ----
+  #endif
+  }
+  
++     int
++ clip_gen_owner_exists(cbd)
++     VimClipboard	*cbd;
++ {
++ #ifdef FEAT_XCLIPBOARD
++ # ifdef FEAT_GUI_GTK
++     if (gui.in_use)
++ 	return clip_gtk_owner_exists(cbd);
++     else
++ # endif
++ 	return clip_x11_owner_exists(cbd);
++ #endif
++     return TRUE;
++ }
++ 
+  #endif /* FEAT_CLIPBOARD */
+  
+  /*****************************************************************************
+***************
+*** 2398,2404 ****
+      Widget		myShell;
+      VimClipboard	*cbd;
+  {
+!     XtDisownSelection(myShell, cbd->sel_atom, CurrentTime);
+  }
+  
+      int
+--- 2413,2420 ----
+      Widget		myShell;
+      VimClipboard	*cbd;
+  {
+!     XtDisownSelection(myShell, cbd->sel_atom,
+! 				XtLastTimestampProcessed(XtDisplay(myShell)));
+  }
+  
+      int
+***************
+*** 2440,2445 ****
+--- 2456,2468 ----
+      VimClipboard *cbd UNUSED;
+  {
+  }
++ 
++     int
++ clip_x11_owner_exists(cbd)
++     VimClipboard	*cbd;
++ {
++     return XGetSelectionOwner(X_DISPLAY, cbd->sel_atom) != None;
++ }
+  #endif
+  
+  #if defined(FEAT_XCLIPBOARD) || defined(FEAT_GUI_X11) \
+*** ../vim-7.3.855/src/version.c	2013-03-13 17:01:47.000000000 +0100
+--- src/version.c	2013-03-13 17:45:25.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     856,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+39. You move into a new house and decide to Netscape before you landscape.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

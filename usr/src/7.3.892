@@ -1,0 +1,295 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.892
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.892 (after 7.3.891)
+Problem:    Still merging problems for viminfo history.
+Solution:   Do not merge lines when writing, don't write old viminfo lines.
+Files:	    src/ex_getln.c, src/ex_cmds.c, src/proto/ex_getln.pro
+
+
+*** ../vim-7.3.891/src/ex_getln.c	2013-04-14 16:26:08.000000000 +0200
+--- src/ex_getln.c	2013-04-14 23:12:37.000000000 +0200
+***************
+*** 68,74 ****
+  
+  static int	hist_char2type __ARGS((int c));
+  
+! static int	in_history __ARGS((int, char_u *, int, int));
+  # ifdef FEAT_EVAL
+  static int	calc_hist_idx __ARGS((int histype, int num));
+  # endif
+--- 68,74 ----
+  
+  static int	hist_char2type __ARGS((int c));
+  
+! static int	in_history __ARGS((int, char_u *, int, int, int));
+  # ifdef FEAT_EVAL
+  static int	calc_hist_idx __ARGS((int histype, int num));
+  # endif
+***************
+*** 5397,5407 ****
+   * If 'move_to_front' is TRUE, matching entry is moved to end of history.
+   */
+      static int
+! in_history(type, str, move_to_front, sep)
+      int	    type;
+      char_u  *str;
+      int	    move_to_front;	/* Move the entry to the front if it exists */
+      int	    sep;
+  {
+      int	    i;
+      int	    last_i = -1;
+--- 5397,5408 ----
+   * If 'move_to_front' is TRUE, matching entry is moved to end of history.
+   */
+      static int
+! in_history(type, str, move_to_front, sep, writing)
+      int	    type;
+      char_u  *str;
+      int	    move_to_front;	/* Move the entry to the front if it exists */
+      int	    sep;
++     int	    writing;		/* ignore entries read from viminfo */
+  {
+      int	    i;
+      int	    last_i = -1;
+***************
+*** 5419,5424 ****
+--- 5420,5426 ----
+  	 * well. */
+  	p = history[type][i].hisstr;
+  	if (STRCMP(str, p) == 0
++ 		&& !(writing && history[type][i].viminfo)
+  		&& (type != HIST_SEARCH || sep == p[STRLEN(p) + 1]))
+  	{
+  	    if (!move_to_front)
+***************
+*** 5513,5519 ****
+  	}
+  	last_maptick = -1;
+      }
+!     if (!in_history(histype, new_entry, TRUE, sep))
+      {
+  	if (++hisidx[histype] == hislen)
+  	    hisidx[histype] = 0;
+--- 5515,5521 ----
+  	}
+  	last_maptick = -1;
+      }
+!     if (!in_history(histype, new_entry, TRUE, sep, FALSE))
+      {
+  	if (++hisidx[histype] == hislen)
+  	    hisidx[histype] = 0;
+***************
+*** 6032,6039 ****
+   * This allocates history arrays to store the read history lines.
+   */
+      void
+! prepare_viminfo_history(asklen)
+      int	    asklen;
+  {
+      int	    i;
+      int	    num;
+--- 6034,6042 ----
+   * This allocates history arrays to store the read history lines.
+   */
+      void
+! prepare_viminfo_history(asklen, writing)
+      int	    asklen;
++     int	    writing;
+  {
+      int	    i;
+      int	    num;
+***************
+*** 6041,6047 ****
+      int	    len;
+  
+      init_history();
+!     viminfo_add_at_front = (asklen != 0);
+      if (asklen > hislen)
+  	asklen = hislen;
+  
+--- 6044,6050 ----
+      int	    len;
+  
+      init_history();
+!     viminfo_add_at_front = (asklen != 0 && !writing);
+      if (asklen > hislen)
+  	asklen = hislen;
+  
+***************
+*** 6073,6080 ****
+   * new.
+   */
+      int
+! read_viminfo_history(virp)
+      vir_T	*virp;
+  {
+      int		type;
+      long_u	len;
+--- 6076,6084 ----
+   * new.
+   */
+      int
+! read_viminfo_history(virp, writing)
+      vir_T	*virp;
++     int		writing;
+  {
+      int		type;
+      long_u	len;
+***************
+*** 6090,6096 ****
+  	    int sep = (*val == ' ' ? NUL : *val);
+  
+  	    if (!in_history(type, val + (type == HIST_SEARCH),
+! 						   viminfo_add_at_front, sep))
+  	    {
+  		/* Need to re-allocate to append the separator byte. */
+  		len = STRLEN(val);
+--- 6094,6100 ----
+  	    int sep = (*val == ' ' ? NUL : *val);
+  
+  	    if (!in_history(type, val + (type == HIST_SEARCH),
+! 					  viminfo_add_at_front, sep, writing))
+  	    {
+  		/* Need to re-allocate to append the separator byte. */
+  		len = STRLEN(val);
+***************
+*** 6120,6125 ****
+--- 6124,6132 ----
+      return viminfo_readline(virp);
+  }
+  
++ /*
++  * Finish reading history lines from viminfo.  Not used when writing viminfo.
++  */
+      void
+  finish_viminfo_history()
+  {
+***************
+*** 6216,6222 ****
+  		{
+  		    p = round == 1 ? history[type][i].hisstr
+  						   : viminfo_history[type][i];
+! 		    if (p != NULL)
+  		    {
+  			--num_saved;
+  			fputc(hist_type2char(type, TRUE), fp);
+--- 6223,6229 ----
+  		{
+  		    p = round == 1 ? history[type][i].hisstr
+  						   : viminfo_history[type][i];
+! 		    if (p != NULL && (round == 2 || !history[type][i].viminfo))
+  		    {
+  			--num_saved;
+  			fputc(hist_type2char(type, TRUE), fp);
+***************
+*** 6245,6250 ****
+--- 6252,6261 ----
+  		    }
+  		}
+  	}
++ 	for (i = 0; i < viminfo_hisidx[type]; ++i)
++ 	    vim_free(viminfo_history[type][i]);
++ 	vim_free(viminfo_history[type]);
++ 	viminfo_history[type] = NULL;
+      }
+  }
+  #endif /* FEAT_VIMINFO */
+*** ../vim-7.3.891/src/ex_cmds.c	2013-03-07 16:41:26.000000000 +0100
+--- src/ex_cmds.c	2013-04-14 23:08:26.000000000 +0200
+***************
+*** 2113,2119 ****
+      buf_T	*buf;
+  
+  #ifdef FEAT_CMDHIST
+!     prepare_viminfo_history(forceit ? 9999 : 0);
+  #endif
+      eof = viminfo_readline(virp);
+      while (!eof && virp->vir_line[0] != '>')
+--- 2113,2119 ----
+      buf_T	*buf;
+  
+  #ifdef FEAT_CMDHIST
+!     prepare_viminfo_history(forceit ? 9999 : 0, writing);
+  #endif
+      eof = viminfo_readline(virp);
+      while (!eof && virp->vir_line[0] != '>')
+***************
+*** 2161,2167 ****
+  	    case '=':
+  	    case '@':
+  #ifdef FEAT_CMDHIST
+! 		eof = read_viminfo_history(virp);
+  #else
+  		eof = viminfo_readline(virp);
+  #endif
+--- 2161,2167 ----
+  	    case '=':
+  	    case '@':
+  #ifdef FEAT_CMDHIST
+! 		eof = read_viminfo_history(virp, writing);
+  #else
+  		eof = viminfo_readline(virp);
+  #endif
+***************
+*** 2182,2188 ****
+  
+  #ifdef FEAT_CMDHIST
+      /* Finish reading history items. */
+!     finish_viminfo_history();
+  #endif
+  
+      /* Change file names to buffer numbers for fmarks. */
+--- 2182,2189 ----
+  
+  #ifdef FEAT_CMDHIST
+      /* Finish reading history items. */
+!     if (!writing)
+! 	finish_viminfo_history();
+  #endif
+  
+      /* Change file names to buffer numbers for fmarks. */
+*** ../vim-7.3.891/src/proto/ex_getln.pro	2011-05-19 18:26:34.000000000 +0200
+--- src/proto/ex_getln.pro	2013-04-14 23:12:02.000000000 +0200
+***************
+*** 48,55 ****
+  void remove_key_from_history __ARGS((void));
+  int get_list_range __ARGS((char_u **str, int *num1, int *num2));
+  void ex_history __ARGS((exarg_T *eap));
+! void prepare_viminfo_history __ARGS((int asklen));
+! int read_viminfo_history __ARGS((vir_T *virp));
+  void finish_viminfo_history __ARGS((void));
+  void write_viminfo_history __ARGS((FILE *fp));
+  void cmd_pchar __ARGS((int c, int offset));
+--- 48,55 ----
+  void remove_key_from_history __ARGS((void));
+  int get_list_range __ARGS((char_u **str, int *num1, int *num2));
+  void ex_history __ARGS((exarg_T *eap));
+! void prepare_viminfo_history __ARGS((int asklen, int writing));
+! int read_viminfo_history __ARGS((vir_T *virp, int writing));
+  void finish_viminfo_history __ARGS((void));
+  void write_viminfo_history __ARGS((FILE *fp));
+  void cmd_pchar __ARGS((int c, int offset));
+*** ../vim-7.3.891/src/version.c	2013-04-14 16:26:08.000000000 +0200
+--- src/version.c	2013-04-14 22:53:04.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     892,
+  /**/
+
+-- 
+"Hit any key to continue" is a lie.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

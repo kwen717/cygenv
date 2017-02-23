@@ -1,0 +1,157 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1297
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1297
+Problem:    findfile() directory matching does not work when a star follows
+	    text. (Markus Braun)
+Solution:   Make a wildcard work properly. (Christian Brabandt)
+Files:	    src/misc2.c, src/testdir/test89.in, src/testdir/test89.ok
+
+
+*** ../vim-7.3.1296/src/misc2.c	2013-06-08 18:19:40.000000000 +0200
+--- src/misc2.c	2013-07-03 17:09:52.000000000 +0200
+***************
+*** 4679,4686 ****
+      }
+      STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
+      add_pathsep(ff_expand_buffer);
+!     STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
+!     add_pathsep(ff_expand_buffer);
+  
+      sptr = ff_create_stack_element(ff_expand_buffer,
+  #ifdef FEAT_PATH_EXTRA
+--- 4679,4736 ----
+      }
+      STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
+      add_pathsep(ff_expand_buffer);
+!     {
+! 	char_u *buf = alloc(STRLEN(ff_expand_buffer)
+! 					 + STRLEN(search_ctx->ffsc_fix_path));
+! 
+! 	STRCPY(buf, ff_expand_buffer);
+! 	STRCAT(buf, search_ctx->ffsc_fix_path);
+! 	if (mch_isdir(buf))
+! 	{
+! 	    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
+! 	    add_pathsep(ff_expand_buffer);
+! 	}
+! #ifdef FEAT_PATH_EXTRA
+! 	else
+! 	{
+! 	    char_u *p =  vim_strrchr(search_ctx->ffsc_fix_path, PATHSEP);
+! 	    char_u *wc_path = NUL;
+! 	    char_u *temp = NUL;
+! 	    int    len = 0;
+! 
+! 	    if (p != NULL)
+! 	    {
+! 		len = p - search_ctx->ffsc_fix_path;
+! 		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+! 		add_pathsep(ff_expand_buffer);
+! 	    }
+! 	    else
+! 		len = STRLEN(search_ctx->ffsc_fix_path);
+! 
+! 	    if (search_ctx->ffsc_wc_path != NULL)
+! 	    {
+! 		wc_path = vim_strsave(search_ctx->ffsc_wc_path);
+! 		temp = alloc(STRLEN(search_ctx->ffsc_wc_path)
+! 				 + (STRLEN(search_ctx->ffsc_fix_path) - len));
+! 	    }
+! 
+! 	    if (temp == NULL || wc_path == NULL)
+! 	    {
+! 		vim_free(buf);
+! 		vim_free(temp);
+! 		vim_free(wc_path);
+! 		goto error_return;
+! 	    }
+! 
+! 	    STRCPY(temp, search_ctx->ffsc_fix_path + len);
+! 	    STRCAT(temp, search_ctx->ffsc_wc_path);
+! 	    vim_free(search_ctx->ffsc_wc_path);
+! 	    vim_free(wc_path);
+! 	    search_ctx->ffsc_wc_path = temp;
+! 	}
+! #endif
+! 	vim_free(buf);
+!     }
+  
+      sptr = ff_create_stack_element(ff_expand_buffer,
+  #ifdef FEAT_PATH_EXTRA
+*** ../vim-7.3.1296/src/testdir/test89.in	2013-06-04 22:13:45.000000000 +0200
+--- src/testdir/test89.in	2013-07-03 17:06:20.000000000 +0200
+***************
+*** 1,6 ****
+! Some tests for setting 'number' and 'relativenumber'
+! This is not all that useful now that the options are no longer reset when
+! setting the other.
+  
+  STARTTEST
+  :so small.vim
+--- 1,7 ----
+! - Some tests for setting 'number' and 'relativenumber'
+!   This is not all that useful now that the options are no longer reset when
+!   setting the other.
+! - Some tests for findfile() function
+  
+  STARTTEST
+  :so small.vim
+***************
+*** 49,54 ****
+--- 50,66 ----
+  :$put g
+  :$put h
+  :"
++ :let cwd=getcwd()
++ :cd ../..
++ :$put =''
++ :$put ='Testing findfile'
++ :$put =''
++ :$put =findfile('test19.in','src/test*')
++ :exe "cd" cwd
++ :cd ..
++ :$put =findfile('test19.in','test*')
++ :$put =findfile('test19.in','testdir')
++ :exe "cd" cwd
+  :/^results/,$w! test.out
+  :q!
+  ENDTEST
+*** ../vim-7.3.1296/src/testdir/test89.ok	2013-06-04 22:13:45.000000000 +0200
+--- src/testdir/test89.ok	2013-07-03 17:06:20.000000000 +0200
+***************
+*** 20,22 ****
+--- 20,28 ----
+    number
+  
+    relativenumber
++ 
++ Testing findfile
++ 
++ src/testdir/test19.in
++ testdir/test19.in
++ testdir/test19.in
+*** ../vim-7.3.1296/src/version.c	2013-07-03 16:58:40.000000000 +0200
+--- src/version.c	2013-07-03 17:02:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1297,
+  /**/
+
+-- 
+Michael: There is no such thing as a dump question.
+Bernard: Sure there is.  For example "what is a core dump?"
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

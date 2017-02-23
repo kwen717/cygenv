@@ -1,0 +1,58 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.968
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.968
+Problem:    Multi-byte support is only available when compiled with "big"
+	    features.
+Solution:   Include multi-byte by default, with "normal" features.
+Files:	    src/feature.h
+
+
+*** ../vim-7.3.967/src/feature.h	2013-05-06 04:21:35.000000000 +0200
+--- src/feature.h	2013-05-18 20:18:20.000000000 +0200
+***************
+*** 638,644 ****
+   * Disabled for EBCDIC:
+   * Multibyte support doesn't work on z/OS Unix currently.
+   */
+! #if (defined(FEAT_BIG) || defined(FEAT_GUI_GTK) || defined(FEAT_ARABIC)) \
+  	&& !defined(FEAT_MBYTE) && !defined(WIN16) \
+  	&& SIZEOF_INT >= 4 && !defined(EBCDIC)
+  # define FEAT_MBYTE
+--- 638,644 ----
+   * Disabled for EBCDIC:
+   * Multibyte support doesn't work on z/OS Unix currently.
+   */
+! #if (defined(FEAT_NORMAL) || defined(FEAT_GUI_GTK) || defined(FEAT_ARABIC)) \
+  	&& !defined(FEAT_MBYTE) && !defined(WIN16) \
+  	&& SIZEOF_INT >= 4 && !defined(EBCDIC)
+  # define FEAT_MBYTE
+*** ../vim-7.3.967/src/version.c	2013-05-17 21:20:13.000000000 +0200
+--- src/version.c	2013-05-18 20:21:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     968,
+  /**/
+
+-- 
+VOICE OVER: As the horrendous Black Beast lunged forward, escape for Arthur
+            and his knights seemed hopeless,  when, suddenly ... the animator
+            suffered a fatal heart attack.
+ANIMATOR:   Aaaaagh!
+VOICE OVER: The cartoon peril was no more ... The Quest for Holy Grail could
+            continue.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

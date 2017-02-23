@@ -1,0 +1,55 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.900
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.900
+Problem:    Not obvious that some mouse features are mutual-exclusive.
+Solution:   Add a comment.
+Files:	    src/feature.h
+
+
+*** ../vim-7.3.899/src/feature.h	2013-02-26 14:56:24.000000000 +0100
+--- src/feature.h	2013-04-15 15:29:17.000000000 +0200
+***************
+*** 1088,1093 ****
+--- 1088,1100 ----
+  # endif
+  #endif
+  
++ /*
++  * Note: Only one of the following may be defined:
++  * FEAT_MOUSE_GPM
++  * FEAT_SYSMOUSE
++  * FEAT_MOUSE_JSB
++  * FEAT_MOUSE_PTERM
++  */
+  #if defined(FEAT_NORMAL) && defined(HAVE_GPM)
+  # define FEAT_MOUSE_GPM
+  #endif
+*** ../vim-7.3.899/src/version.c	2013-04-15 15:32:20.000000000 +0200
+--- src/version.c	2013-04-15 15:39:10.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     900,
+  /**/
+
+-- 
+If Microsoft would build a car...
+... Occasionally your car would die on the freeway for no
+reason. You would have to pull over to the side of the road,
+close all of the car windows, shut it off, restart it, and
+reopen the windows before you could continue. For some reason
+you would simply accept this.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

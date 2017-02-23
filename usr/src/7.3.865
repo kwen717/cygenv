@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.865
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.865 (after 7.3.862)
+Problem:    Mouse position may be wrong.
+Solution:   Let vungetc() restore the mouse position.
+Files:      src/getchar.c
+
+
+*** ../vim-7.3.864/src/getchar.c	2012-06-06 12:06:10.000000000 +0200
+--- src/getchar.c	2013-03-16 21:41:02.000000000 +0100
+***************
+*** 1337,1342 ****
+--- 1337,1346 ----
+  
+  static int old_char = -1;	/* character put back by vungetc() */
+  static int old_mod_mask;	/* mod_mask for ungotten character */
++ #ifdef FEAT_MOUSE
++ static int old_mouse_row;	/* mouse_row related to old_char */
++ static int old_mouse_col;	/* mouse_col related to old_char */
++ #endif
+  
+  #if defined(FEAT_EVAL) || defined(FEAT_EX_EXTRA) || defined(PROTO)
+  
+***************
+*** 1567,1572 ****
+--- 1571,1580 ----
+  	c = old_char;
+  	old_char = -1;
+  	mod_mask = old_mod_mask;
++ #ifdef FEAT_MOUSE
++ 	mouse_row = old_mouse_row;
++ 	mouse_col = old_mouse_col;
++ #endif
+      }
+      else
+      {
+***************
+*** 1877,1882 ****
+--- 1885,1894 ----
+  {
+      old_char = c;
+      old_mod_mask = mod_mask;
++ #ifdef FEAT_MOUSE
++     old_mouse_row = mouse_row;
++     old_mouse_col = mouse_col;
++ #endif
+  }
+  
+  /*
+*** ../vim-7.3.864/src/version.c	2013-03-16 21:35:28.000000000 +0100
+--- src/version.c	2013-03-16 21:38:44.000000000 +0100
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     865,
+  /**/
+
+-- 
+Creating the world with Emacs:   M-x let-there-be-light
+Creating the world with Vim:     :make world
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

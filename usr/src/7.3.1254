@@ -1,0 +1,59 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1254
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1254 (after 7.3.1252)
+Problem:    Can't build without the multi-lang feature. (John Marriott)
+Solution:   Add #ifdef.
+Files:	    src/gui_w32.c
+
+
+*** ../vim-7.3.1253/src/gui_w32.c	2013-06-27 22:01:56.000000000 +0200
+--- src/gui_w32.c	2013-06-27 22:26:31.000000000 +0200
+***************
+*** 4163,4171 ****
+  	 * didn't exist or wasn't specified, try the menu name
+  	 */
+  	if (hbitmap == NULL
+! 		&& (gui_find_bitmap(menu->en_dname != NULL
+! 					? menu->en_dname
+! 					: menu->dname, fname, "bmp") == OK))
+  	    hbitmap = LoadImage(
+  		    NULL,
+  		    fname,
+--- 4163,4173 ----
+  	 * didn't exist or wasn't specified, try the menu name
+  	 */
+  	if (hbitmap == NULL
+! 		&& (gui_find_bitmap(
+! #ifdef FEAT_MULTI_LANG
+! 			    menu->en_dname != NULL ? menu->en_dname :
+! #endif
+! 					menu->dname, fname, "bmp") == OK))
+  	    hbitmap = LoadImage(
+  		    NULL,
+  		    fname,
+*** ../vim-7.3.1253/src/version.c	2013-06-27 22:21:19.000000000 +0200
+--- src/version.c	2013-06-27 22:27:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1254,
+  /**/
+
+-- 
+PRINCE:    He's come to rescue me, father.
+LAUNCELOT: (embarrassed) Well, let's not jump to conclusions ...
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

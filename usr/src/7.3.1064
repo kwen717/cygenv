@@ -1,0 +1,192 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1064
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1064
+Problem:    Python: insufficient error checking.
+Solution:   Python patch 23. (ZyX)
+Files:      src/if_py_both.h
+
+
+*** ../vim-7.3.1063/src/if_py_both.h	2013-05-30 13:14:06.000000000 +0200
+--- src/if_py_both.h	2013-05-30 13:16:23.000000000 +0200
+***************
+*** 3304,3313 ****
+  
+  	for (i = 0; i < new_len; ++i)
+  	{
+! 	    PyObject *line = PyList_GetItem(list, i);
+  
+! 	    array[i] = StringToLine(line);
+! 	    if (array[i] == NULL)
+  	    {
+  		while (i)
+  		    vim_free(array[--i]);
+--- 3304,3313 ----
+  
+  	for (i = 0; i < new_len; ++i)
+  	{
+! 	    PyObject *line;
+  
+! 	    if (!(line = PyList_GetItem(list, i)) ||
+! 		!(array[i] = StringToLine(line)))
+  	    {
+  		while (i)
+  		    vim_free(array[--i]);
+***************
+*** 3319,3325 ****
+  	VimTryStart();
+  	PyErr_Clear();
+  
+! 	// START of region without "return".  Must call restore_buffer()!
+  	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)(lo-1), (linenr_T)hi) == FAIL)
+--- 3319,3325 ----
+  	VimTryStart();
+  	PyErr_Clear();
+  
+! 	/* START of region without "return".  Must call restore_buffer()! */
+  	switch_buffer(&savebuf, buf);
+  
+  	if (u_save((linenr_T)(lo-1), (linenr_T)hi) == FAIL)
+***************
+*** 3400,3406 ****
+  	if (buf == savebuf)
+  	    py_fix_cursor((linenr_T)lo, (linenr_T)hi, (linenr_T)extra);
+  
+! 	// END of region without "return".
+  	restore_buffer(savebuf);
+  
+  	if (VimTryEnd())
+--- 3400,3406 ----
+  	if (buf == savebuf)
+  	    py_fix_cursor((linenr_T)lo, (linenr_T)hi, (linenr_T)extra);
+  
+! 	/* END of region without "return". */
+  	restore_buffer(savebuf);
+  
+  	if (VimTryEnd())
+***************
+*** 3479,3488 ****
+  
+  	for (i = 0; i < size; ++i)
+  	{
+! 	    PyObject *line = PyList_GetItem(lines, i);
+! 	    array[i] = StringToLine(line);
+  
+! 	    if (array[i] == NULL)
+  	    {
+  		while (i)
+  		    vim_free(array[--i]);
+--- 3479,3488 ----
+  
+  	for (i = 0; i < size; ++i)
+  	{
+! 	    PyObject *line;
+  
+! 	    if (!(line = PyList_GetItem(lines, i)) ||
+! 		!(array[i] = StringToLine(line)))
+  	    {
+  		while (i)
+  		    vim_free(array[--i]);
+***************
+*** 4014,4021 ****
+  
+      if (!PyArg_ParseTuple(args, "s", &pmark))
+  	return NULL;
+-     mark = *pmark;
+  
+      VimTryStart();
+      switch_buffer(&savebuf, self->buf);
+      posp = getmark(mark, FALSE);
+--- 4014,4028 ----
+  
+      if (!PyArg_ParseTuple(args, "s", &pmark))
+  	return NULL;
+  
++     if (STRLEN(pmark) != 1)
++     {
++ 	PyErr_SetString(PyExc_ValueError,
++ 		_("mark name must be a single character"));
++ 	return NULL;
++     }
++ 
++     mark = *pmark;
+      VimTryStart();
+      switch_buffer(&savebuf, self->buf);
+      posp = getmark(mark, FALSE);
+***************
+*** 4258,4264 ****
+  
+  	if (value->ob_type != &BufferType)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("expected vim.buffer object"));
+  	    return -1;
+  	}
+  
+--- 4265,4271 ----
+  
+  	if (value->ob_type != &BufferType)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("expected vim.Buffer object"));
+  	    return -1;
+  	}
+  
+***************
+*** 4283,4289 ****
+  
+  	if (value->ob_type != &WindowType)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("expected vim.window object"));
+  	    return -1;
+  	}
+  
+--- 4290,4296 ----
+  
+  	if (value->ob_type != &WindowType)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("expected vim.Window object"));
+  	    return -1;
+  	}
+  
+***************
+*** 4315,4321 ****
+      {
+  	if (value->ob_type != &TabPageType)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("expected vim.tabpage object"));
+  	    return -1;
+  	}
+  
+--- 4322,4328 ----
+      {
+  	if (value->ob_type != &TabPageType)
+  	{
+! 	    PyErr_SetString(PyExc_TypeError, _("expected vim.TabPage object"));
+  	    return -1;
+  	}
+  
+*** ../vim-7.3.1063/src/version.c	2013-05-30 13:14:06.000000000 +0200
+--- src/version.c	2013-05-30 13:15:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1064,
+  /**/
+
+-- 
+How To Keep A Healthy Level Of Insanity:
+7. Finish all your sentences with "in accordance with the prophecy".
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

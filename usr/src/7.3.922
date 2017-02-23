@@ -1,0 +1,83 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.922
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.922
+Problem:    No test for what 7.3.918 fixes.
+Solution:   Add a test. (David Bürgin)
+Files:	    src/testdir/test94.in, src/testdir/test94.ok
+
+
+*** ../vim-7.3.921/src/testdir/test94.in	2013-04-24 15:47:11.000000000 +0200
+--- src/testdir/test94.in	2013-05-04 04:03:02.000000000 +0200
+***************
+*** 30,38 ****
+  :  call setpos("'>", [0, line2, col2, 0])
+  :  normal! gv
+  :endfunction
+- :function MoveToEndCount(count)
+- :  normal! v:count . e
+- :endfunction
+  :
+  :" Visual modes followed by operator
+  /^apple
+--- 30,35 ----
+***************
+*** 59,65 ****
+  /^Juniper
+  g?\WfD.:
+  /^Lemon
+! yiWPlciWNew:
+  :
+  :" Patch 7.3.879: Properly abort Operator-pending mode for "dv:<Esc>" etc.
+  /^zzzz
+--- 56,62 ----
+  /^Juniper
+  g?\WfD.:
+  /^Lemon
+! yiWPlciWNewfr.:
+  :
+  :" Patch 7.3.879: Properly abort Operator-pending mode for "dv:<Esc>" etc.
+  /^zzzz
+*** ../vim-7.3.921/src/testdir/test94.ok	2013-04-12 13:44:49.000000000 +0200
+--- src/testdir/test94.ok	2013-05-04 04:06:46.000000000 +0200
+***************
+*** 13,19 ****
+  
+  ----Z
+  WhavcreQhevnaZ
+! LemonNewNectarineZ
+  
+  zzz
+  ok
+--- 13,19 ----
+  
+  ----Z
+  WhavcreQhevnaZ
+! LemonNewNewZ
+  
+  zzz
+  ok
+*** ../vim-7.3.921/src/version.c	2013-05-04 03:42:30.000000000 +0200
+--- src/version.c	2013-05-04 04:07:08.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     922,
+  /**/
+
+-- 
+This sentence is not sure that it exists, but if it does, it will
+certainly consider the possibility that other sentences exist.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

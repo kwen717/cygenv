@@ -1,0 +1,168 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1262
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1262
+Problem:    Crash and compilation warnings with Cygwin.
+Solution:   Check return value of XmbTextListToTextProperty(). Add type casts.
+	    Adjust #ifdefs. (Lech Lorens)
+Files:	    src/main.c, src/os_unix.c, src/ui.c
+
+
+*** ../vim-7.3.1261/src/main.c	2013-06-15 21:54:11.000000000 +0200
+--- src/main.c	2013-06-29 14:04:10.000000000 +0200
+***************
+*** 2408,2414 ****
+  	     * Look for evidence of non-Cygwin paths before we bother.
+  	     * This is only for when using the Unix files.
+  	     */
+! 	    if (strpbrk(p, "\\:") != NULL && !path_with_url(p))
+  	    {
+  		char posix_path[PATH_MAX];
+  
+--- 2408,2414 ----
+  	     * Look for evidence of non-Cygwin paths before we bother.
+  	     * This is only for when using the Unix files.
+  	     */
+! 	    if (vim_strpbrk(p, "\\:") != NULL && !path_with_url(p))
+  	    {
+  		char posix_path[PATH_MAX];
+  
+***************
+*** 2418,2424 ****
+  		cygwin_conv_to_posix_path(p, posix_path);
+  # endif
+  		vim_free(p);
+! 		p = vim_strsave(posix_path);
+  		if (p == NULL)
+  		    mch_exit(2);
+  	    }
+--- 2418,2424 ----
+  		cygwin_conv_to_posix_path(p, posix_path);
+  # endif
+  		vim_free(p);
+! 		p = vim_strsave((char_u *)posix_path);
+  		if (p == NULL)
+  		    mch_exit(2);
+  	    }
+*** ../vim-7.3.1261/src/os_unix.c	2013-04-15 15:32:20.000000000 +0200
+--- src/os_unix.c	2013-06-29 14:04:10.000000000 +0200
+***************
+*** 1559,1565 ****
+  {
+      /* This function should not return, it causes exit().  Longjump instead. */
+      LONGJMP(lc_jump_env, 1);
+! #  ifdef VMS
+      return 0;  /* avoid the compiler complains about missing return value */
+  #  endif
+  }
+--- 1559,1565 ----
+  {
+      /* This function should not return, it causes exit().  Longjump instead. */
+      LONGJMP(lc_jump_env, 1);
+! #  if defined(VMS) || defined(__CYGWIN__) || defined(__CYGWIN32__)
+      return 0;  /* avoid the compiler complains about missing return value */
+  #  endif
+  }
+***************
+*** 1581,1587 ****
+  
+      /* This function should not return, it causes exit().  Longjump instead. */
+      LONGJMP(x_jump_env, 1);
+! # ifdef VMS
+      return 0;  /* avoid the compiler complains about missing return value */
+  # endif
+  }
+--- 1581,1587 ----
+  
+      /* This function should not return, it causes exit().  Longjump instead. */
+      LONGJMP(x_jump_env, 1);
+! # if defined(VMS) || defined(__CYGWIN__) || defined(__CYGWIN32__)
+      return 0;  /* avoid the compiler complains about missing return value */
+  # endif
+  }
+***************
+*** 5929,5935 ****
+  # if defined(__CYGWIN__) || defined(__CYGWIN32__)
+      /* Translate <CR><NL> into <NL>.  Caution, buffer may contain NUL. */
+      p = buffer;
+!     for (i = 0; i < len; ++i)
+  	if (!(buffer[i] == CAR && buffer[i + 1] == NL))
+  	    *p++ = buffer[i];
+      len = p - buffer;
+--- 5929,5935 ----
+  # if defined(__CYGWIN__) || defined(__CYGWIN32__)
+      /* Translate <CR><NL> into <NL>.  Caution, buffer may contain NUL. */
+      p = buffer;
+!     for (i = 0; i < (int)len; ++i)
+  	if (!(buffer[i] == CAR && buffer[i + 1] == NL))
+  	    *p++ = buffer[i];
+      len = p - buffer;
+*** ../vim-7.3.1261/src/ui.c	2013-04-12 12:27:24.000000000 +0200
+--- src/ui.c	2013-06-29 14:08:21.000000000 +0200
+***************
+*** 2366,2379 ****
+      {
+  	XTextProperty	text_prop;
+  	char		*string_nt = (char *)alloc((unsigned)*length + 1);
+  
+  	/* create NUL terminated string which XmbTextListToTextProperty wants */
+  	mch_memmove(string_nt, string, (size_t)*length);
+  	string_nt[*length] = NUL;
+! 	XmbTextListToTextProperty(X_DISPLAY, (char **)&string_nt, 1,
+! 					      XCompoundTextStyle, &text_prop);
+  	vim_free(string_nt);
+  	XtFree(*value);			/* replace with COMPOUND text */
+  	*value = (XtPointer)(text_prop.value);	/*    from plain text */
+  	*length = text_prop.nitems;
+  	*type = compound_text_atom;
+--- 2366,2385 ----
+      {
+  	XTextProperty	text_prop;
+  	char		*string_nt = (char *)alloc((unsigned)*length + 1);
++ 	int		conv_result;
+  
+  	/* create NUL terminated string which XmbTextListToTextProperty wants */
+  	mch_memmove(string_nt, string, (size_t)*length);
+  	string_nt[*length] = NUL;
+! 	conv_result = XmbTextListToTextProperty(X_DISPLAY, (char **)&string_nt,
+! 					   1, XCompoundTextStyle, &text_prop);
+  	vim_free(string_nt);
+  	XtFree(*value);			/* replace with COMPOUND text */
++ 	if (conv_result != Success)
++ 	{
++ 	    vim_free(string);
++ 	    return False;
++ 	}
+  	*value = (XtPointer)(text_prop.value);	/*    from plain text */
+  	*length = text_prop.nitems;
+  	*type = compound_text_atom;
+*** ../vim-7.3.1261/src/version.c	2013-06-29 13:58:26.000000000 +0200
+--- src/version.c	2013-06-29 14:04:32.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1262,
+  /**/
+
+-- 
+MORTICIAN:    Bring out your dead!
+              [clang]
+              Bring out your dead!
+              [clang]
+              Bring out your dead!
+CUSTOMER:     Here's one -- nine pence.
+DEAD PERSON:  I'm not dead!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

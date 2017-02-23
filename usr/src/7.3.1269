@@ -1,0 +1,52 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1269
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1269
+Problem:    Insert completion keeps entry selected even though the list has
+	    changed. (Olivier Teuliere)
+Solution:   Reset compl_shown_match and compl_curr_match. (Christian Brabandt)
+Files:	    src/edit.c
+
+
+*** ../vim-7.3.1268/src/edit.c	2013-06-27 22:21:19.000000000 +0200
+--- src/edit.c	2013-06-29 16:15:27.000000000 +0200
+***************
+*** 3467,3472 ****
+--- 3467,3473 ----
+      }
+  
+      compl_enter_selects = !compl_used_match;
++     compl_shown_match = compl_curr_match = compl_first_match;
+  
+      /* Show the popup menu with a different set of matches. */
+      ins_compl_show_pum();
+*** ../vim-7.3.1268/src/version.c	2013-06-29 15:40:01.000000000 +0200
+--- src/version.c	2013-06-29 16:14:56.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1269,
+  /**/
+
+-- 
+    [clop clop]
+ARTHUR:  Old woman!
+DENNIS:  Man!
+ARTHUR:  Man, sorry.  What knight lives in that castle over there?
+DENNIS:  I'm thirty seven.
+ARTHUR:  What?
+DENNIS:  I'm thirty seven -- I'm not old!
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

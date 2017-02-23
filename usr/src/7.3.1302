@@ -1,0 +1,121 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1302
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1302
+Problem:    Test 17 fails on MS-Windows.  Includes line break in file name
+	    everywhere.
+Solution:   Fix 'fileformat'. Omit CR-LF from a line read from an included
+	    file.
+Files:	    src/search.c, src/testdir/test17.in, src/testdir/test17.ok
+
+
+*** ../vim-7.3.1301/src/search.c	2013-06-30 14:46:50.000000000 +0200
+--- src/search.c	2013-07-03 22:18:52.000000000 +0200
+***************
+*** 4825,4831 ****
+  	    if (inc_opt != NULL && strstr((char *)inc_opt, "\\zs") != NULL)
+  		/* Use text from '\zs' to '\ze' (or end) of 'include'. */
+  		new_fname = find_file_name_in_path(incl_regmatch.startp[0],
+! 			      (int)(incl_regmatch.endp[0] - incl_regmatch.startp[0]),
+  				 FNAME_EXP|FNAME_INCL|FNAME_REL, 1L, p_fname);
+  	    else
+  		/* Use text after match with 'include'. */
+--- 4825,4831 ----
+  	    if (inc_opt != NULL && strstr((char *)inc_opt, "\\zs") != NULL)
+  		/* Use text from '\zs' to '\ze' (or end) of 'include'. */
+  		new_fname = find_file_name_in_path(incl_regmatch.startp[0],
+! 		       (int)(incl_regmatch.endp[0] - incl_regmatch.startp[0]),
+  				 FNAME_EXP|FNAME_INCL|FNAME_REL, 1L, p_fname);
+  	    else
+  		/* Use text after match with 'include'. */
+***************
+*** 5352,5358 ****
+--- 5352,5366 ----
+  		depth_displayed = depth;
+  	}
+  	if (depth >= 0)		/* we could read the line */
++ 	{
+  	    files[depth].lnum++;
++ 	    /* Remove any CR and LF from the line. */
++ 	    i = (int)STRLEN(line);
++ 	    if (i > 0 && line[i - 1] == '\n')
++ 		line[--i] = NUL;
++ 	    if (i > 0 && line[i - 1] == '\r')
++ 		line[--i] = NUL;
++ 	}
+  	else if (!already)
+  	{
+  	    if (++lnum > end_lnum)
+*** ../vim-7.3.1301/src/testdir/test17.in	2013-06-19 21:17:26.000000000 +0200
+--- src/testdir/test17.in	2013-07-03 22:28:23.000000000 +0200
+***************
+*** 33,38 ****
+--- 33,39 ----
+  :"  > nmake -f Make_dos.mak test17.out
+  :w! test.out
+  gf
++ :set ff=unix
+  :w! test.out
+  :brewind
+  ENDTEST
+***************
+*** 130,138 ****
+  :checkpath!
+  :redir END
+  :brewind
+! :" replace "\" to "/" for Windows
+  :e test.out
+  :%s#\\#/#g
+  :w
+  :q
+  ENDTEST
+--- 131,140 ----
+  :checkpath!
+  :redir END
+  :brewind
+! :" change "\" to "/" for Windows and fix 'fileformat'
+  :e test.out
+  :%s#\\#/#g
++ :set ff&
+  :w
+  :q
+  ENDTEST
+*** ../vim-7.3.1301/src/testdir/test17.ok	2012-07-25 13:46:25.000000000 +0200
+--- src/testdir/test17.ok	2013-07-03 22:19:18.000000000 +0200
+***************
+*** 30,33 ****
+    Xdir1/dir2/bar.c -->
+      Xdir1/dir2/baz.c
+      Xdir1/dir2/baz.c -->
+!       foo.c^@  (Already listed)
+--- 30,33 ----
+    Xdir1/dir2/bar.c -->
+      Xdir1/dir2/baz.c
+      Xdir1/dir2/baz.c -->
+!       foo.c  (Already listed)
+*** ../vim-7.3.1301/src/version.c	2013-07-03 21:19:00.000000000 +0200
+--- src/version.c	2013-07-03 22:20:30.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1302,
+  /**/
+
+-- 
+       [Autumn changed into Winter ... Winter changed into Spring ...  Spring
+       changed back into Autumn and Autumn gave Winter and Spring a miss and
+       went straight on into Summer ...  Until one day ...]
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

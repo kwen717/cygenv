@@ -1,0 +1,63 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1264
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1264 (after 7.3.1261)
+Problem:    Missing m_nowait.
+Solution:   Include missing part of the patch.
+Files:	    src/structs.h
+
+
+*** ../vim-7.3.1263/src/structs.h	2013-06-29 12:58:27.000000000 +0200
+--- src/structs.h	2013-06-29 13:31:55.000000000 +0200
+***************
+*** 1004,1015 ****
+  {
+      mapblock_T	*m_next;	/* next mapblock in list */
+      char_u	*m_keys;	/* mapped from, lhs */
+-     int		m_keylen;	/* strlen(m_keys) */
+      char_u	*m_str;		/* mapped to, rhs */
+      char_u	*m_orig_str;	/* rhs as entered by the user */
+      int		m_mode;		/* valid mode */
+      int		m_noremap;	/* if non-zero no re-mapping for m_str */
+      char	m_silent;	/* <silent> used, don't echo commands */
+  #ifdef FEAT_EVAL
+      char	m_expr;		/* <expr> used, m_str is an expression */
+      scid_T	m_script_ID;	/* ID of script where map was defined */
+--- 1004,1016 ----
+  {
+      mapblock_T	*m_next;	/* next mapblock in list */
+      char_u	*m_keys;	/* mapped from, lhs */
+      char_u	*m_str;		/* mapped to, rhs */
+      char_u	*m_orig_str;	/* rhs as entered by the user */
++     int		m_keylen;	/* strlen(m_keys) */
+      int		m_mode;		/* valid mode */
+      int		m_noremap;	/* if non-zero no re-mapping for m_str */
+      char	m_silent;	/* <silent> used, don't echo commands */
++     char	m_nowait;	/* <nowait> used */
+  #ifdef FEAT_EVAL
+      char	m_expr;		/* <expr> used, m_str is an expression */
+      scid_T	m_script_ID;	/* ID of script where map was defined */
+*** ../vim-7.3.1263/src/version.c	2013-06-29 14:42:21.000000000 +0200
+--- src/version.c	2013-06-29 14:45:27.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1264,
+  /**/
+
+-- 
+Have you heard about the new Barbie doll?  It's called Divorce
+Barbie.  It comes with all of Ken's stuff.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

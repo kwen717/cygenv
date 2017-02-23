@@ -1,0 +1,51 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1273
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1273
+Problem:    When copying a location list the index might be wrong.
+Solution:   Set the index to one when using the first entry. (Lech Lorens)
+Files:	    src/quickfix.c
+
+
+*** ../vim-7.3.1272/src/quickfix.c	2013-06-08 18:19:40.000000000 +0200
+--- src/quickfix.c	2013-06-30 13:28:38.000000000 +0200
+***************
+*** 1180,1186 ****
+--- 1180,1189 ----
+  	/* When no valid entries are present in the list, qf_ptr points to
+  	 * the first item in the list */
+  	if (to_qfl->qf_nonevalid)
++ 	{
+  	    to_qfl->qf_ptr = to_qfl->qf_start;
++ 	    to_qfl->qf_index = 1;
++ 	}
+      }
+  
+      to->w_llist->qf_curlist = qi->qf_curlist;	/* current list */
+*** ../vim-7.3.1272/src/version.c	2013-06-30 13:17:18.000000000 +0200
+--- src/version.c	2013-06-30 13:30:29.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1273,
+  /**/
+
+-- 
+WOMAN:   King of the who?
+ARTHUR:  The Britons.
+WOMAN:   Who are the Britons?
+ARTHUR:  Well, we all are. we're all Britons and I am your king.
+                                  The Quest for the Holy Grail (Monty Python)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

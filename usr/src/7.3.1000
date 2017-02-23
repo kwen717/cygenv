@@ -1,0 +1,55 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1000
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1000 (whoa!)
+Problem:    Typo in char value causes out of bounds access.
+Solution:   Fix character value.  (Klemens Baum)
+Files:	    src/regexp.c
+
+
+*** ../vim-7.3.999/src/regexp.c	2013-05-21 00:02:54.000000000 +0200
+--- src/regexp.c	2013-05-21 21:25:58.000000000 +0200
+***************
+*** 6899,6905 ****
+  {
+      decomp_T d;
+  
+!     if (c >= 0x4b20 && c <= 0xfb4f)
+      {
+  	d = decomp_table[c - 0xfb20];
+  	*c1 = d.a;
+--- 6899,6905 ----
+  {
+      decomp_T d;
+  
+!     if (c >= 0xfb20 && c <= 0xfb4f)
+      {
+  	d = decomp_table[c - 0xfb20];
+  	*c1 = d.a;
+*** ../vim-7.3.999/src/version.c	2013-05-21 21:20:16.000000000 +0200
+--- src/version.c	2013-05-21 21:22:14.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1000,
+  /**/
+
+-- 
+ARTHUR: The swallow may fly south with the sun, or the house martin or the
+        plover seek warmer hot lands in winter, yet these are not strangers to
+        our land.
+SOLDIER: Are you suggesting coconuts migrate?
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

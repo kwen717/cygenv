@@ -1,0 +1,358 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1295
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1295
+Problem:    glob() and globpath() do not handle escaped special characters
+	    properly.
+Solution:   Handle escaped characters differently. (Adnan Zafar)
+Files:	    src/testdir/Makefile, src/testdir/test97.in,
+	    src/testdir/test97.ok, src/testdir/Make_amiga.mak,
+	    src/testdir/Make_dos.mak, src/testdir/Make_ming.mak,
+	    src/testdir/Make_os2.mak, src/testdir/Make_vms.mms, src/fileio.c,
+	    src/misc1.c
+
+
+*** ../vim-7.3.1294/src/testdir/Makefile	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/Makefile	2013-07-03 16:20:47.000000000 +0200
+***************
+*** 29,35 ****
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  SCRIPTS_GUI = test16.out
+  
+--- 29,35 ----
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  SCRIPTS_GUI = test16.out
+  
+*** ../vim-7.3.1294/src/testdir/test97.in	2013-07-03 16:52:09.000000000 +0200
+--- src/testdir/test97.in	2013-07-03 16:24:24.000000000 +0200
+***************
+*** 0 ****
+--- 1,17 ----
++ Test whether glob()/globpath() return correct results with certain escaped
++ characters.
++ 
++ STARTTEST
++ :so small.vim
++ :set shell=doesnotexist
++ :e test.out
++ :put =glob('Xxx\{')
++ :put =glob('Xxx\$')
++ :w! Xxx{
++ :w! Xxx\$
++ :put =glob('Xxx\{')
++ :put =glob('Xxx\$')
++ :w
++ :qa!
++ ENDTEST
++ 
+*** ../vim-7.3.1294/src/testdir/test97.ok	2013-07-03 16:52:09.000000000 +0200
+--- src/testdir/test97.ok	2013-07-03 16:14:50.000000000 +0200
+***************
+*** 0 ****
+--- 1,5 ----
++ 
++ 
++ 
++ Xxx{
++ Xxx$
+*** ../vim-7.3.1294/src/testdir/Make_amiga.mak	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/Make_amiga.mak	2013-07-03 16:21:39.000000000 +0200
+***************
+*** 33,39 ****
+  		test76.out test77.out test78.out test79.out test80.out \
+  		test81.out test82.out test83.out test84.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  .SUFFIXES: .in .out
+  
+--- 33,39 ----
+  		test76.out test77.out test78.out test79.out test80.out \
+  		test81.out test82.out test83.out test84.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  .SUFFIXES: .in .out
+  
+***************
+*** 146,148 ****
+--- 146,149 ----
+  test94.out: test94.in
+  test95.out: test95.in
+  test96.out: test96.in
++ test97.out: test97.in
+*** ../vim-7.3.1294/src/testdir/Make_dos.mak	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/Make_dos.mak	2013-07-03 16:21:46.000000000 +0200
+***************
+*** 32,38 ****
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+--- 32,38 ----
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+*** ../vim-7.3.1294/src/testdir/Make_ming.mak	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/Make_ming.mak	2013-07-03 16:21:49.000000000 +0200
+***************
+*** 52,58 ****
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+--- 52,58 ----
+  		test79.out test80.out test81.out test82.out test83.out \
+  		test84.out test85.out test86.out test87.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  SCRIPTS32 =	test50.out test70.out
+  
+*** ../vim-7.3.1294/src/testdir/Make_os2.mak	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/Make_os2.mak	2013-07-03 16:21:51.000000000 +0200
+***************
+*** 33,39 ****
+  		test76.out test77.out test78.out test79.out test80.out \
+  		test81.out test82.out test83.out test84.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out
+  
+  .SUFFIXES: .in .out
+  
+--- 33,39 ----
+  		test76.out test77.out test78.out test79.out test80.out \
+  		test81.out test82.out test83.out test84.out test88.out \
+  		test89.out test90.out test91.out test92.out test93.out \
+! 		test94.out test95.out test96.out test97.out
+  
+  .SUFFIXES: .in .out
+  
+*** ../vim-7.3.1294/src/testdir/Make_vms.mms	2013-07-01 21:24:40.000000000 +0200
+--- src/testdir/Make_vms.mms	2013-07-03 16:21:54.000000000 +0200
+***************
+*** 4,10 ****
+  # Authors:	Zoltan Arpadffy, <arpadffy@polarhome.com>
+  #		Sandor Kopanyi,  <sandor.kopanyi@mailbox.hu>
+  #
+! # Last change:  2013 Jul 01
+  #
+  # This has been tested on VMS 6.2 to 8.3 on DEC Alpha, VAX and IA64.
+  # Edit the lines in the Configuration section below to select.
+--- 4,10 ----
+  # Authors:	Zoltan Arpadffy, <arpadffy@polarhome.com>
+  #		Sandor Kopanyi,  <sandor.kopanyi@mailbox.hu>
+  #
+! # Last change:  2013 Jul 03
+  #
+  # This has been tested on VMS 6.2 to 8.3 on DEC Alpha, VAX and IA64.
+  # Edit the lines in the Configuration section below to select.
+***************
+*** 78,84 ****
+  	 test77.out test78.out test79.out test80.out test81.out \
+  	 test82.out test83.out test84.out test88.out test89.out \
+  	 test90.out test91.out test92.out test93.out test94.out \
+! 	 test95.out test96.out
+  
+  # Known problems:
+  # Test 30: a problem around mac format - unknown reason
+--- 78,84 ----
+  	 test77.out test78.out test79.out test80.out test81.out \
+  	 test82.out test83.out test84.out test88.out test89.out \
+  	 test90.out test91.out test92.out test93.out test94.out \
+! 	 test95.out test96.out test97.out
+  
+  # Known problems:
+  # Test 30: a problem around mac format - unknown reason
+*** ../vim-7.3.1294/src/fileio.c	2013-06-26 19:17:58.000000000 +0200
+--- src/fileio.c	2013-07-03 16:27:10.000000000 +0200
+***************
+*** 10301,10307 ****
+  		 * foo\,bar -> foo,bar
+  		 * foo\ bar -> foo bar
+  		 * Don't unescape \, * and others that are also special in a
+! 		 * regexp. */
+  		if (*++p == '?'
+  #ifdef BACKSLASH_IN_FILENAME
+  			&& no_bslash
+--- 10301,10310 ----
+  		 * foo\,bar -> foo,bar
+  		 * foo\ bar -> foo bar
+  		 * Don't unescape \, * and others that are also special in a
+! 		 * regexp.
+! 		 * An escaped { must be unescaped since we use magic not
+! 		 * verymagic.
+! 		 */
+  		if (*++p == '?'
+  #ifdef BACKSLASH_IN_FILENAME
+  			&& no_bslash
+***************
+*** 10309,10315 ****
+  			)
+  		    reg_pat[i++] = '?';
+  		else
+! 		    if (*p == ',' || *p == '%' || *p == '#' || *p == ' ')
+  			reg_pat[i++] = *p;
+  		    else
+  		    {
+--- 10312,10319 ----
+  			)
+  		    reg_pat[i++] = '?';
+  		else
+! 		    if (*p == ',' || *p == '%' || *p == '#'
+! 						    || *p == ' ' || *p == '{')
+  			reg_pat[i++] = *p;
+  		    else
+  		    {
+*** ../vim-7.3.1294/src/misc1.c	2013-06-17 19:26:29.000000000 +0200
+--- src/misc1.c	2013-07-03 16:39:46.000000000 +0200
+***************
+*** 10457,10462 ****
+--- 10457,10510 ----
+  }
+  #endif
+  
++ static int has_env_var __ARGS((char_u *p));
++ 
++ /*
++  * Return TRUE if "p" contains what looks like an environment variable.
++  * Allowing for escaping.
++  */
++     static int
++ has_env_var(p)
++     char_u *p;
++ {
++     for ( ; *p; mb_ptr_adv(p))
++     {
++ 	if (*p == '\\' && p[1] != NUL)
++ 	    ++p;
++ 	else if (vim_strchr((char_u *)
++ #if defined(MSDOS) || defined(MSWIN) || defined(OS2)
++ 				    "$%"
++ #else
++ 				    "$"
++ #endif
++ 					, *p) != NULL)
++ 	    return TRUE;
++     }
++     return FALSE;
++ }
++ 
++ #ifdef SPECIAL_WILDCHAR
++ static int has_special_wildchar __ARGS((char_u *p));
++ 
++ /*
++  * Return TRUE if "p" contains a special wildcard character.
++  * Allowing for escaping.
++  */
++     static int
++ has_special_wildchar(p)
++     char_u  *p;
++ {
++     for ( ; *p; mb_ptr_adv(p))
++     {
++ 	if (*p == '\\' && p[1] != NUL)
++ 	    ++p;
++ 	else if (vim_strchr((char_u *)SPECIAL_WILDCHAR, *p) != NULL)
++ 	    return TRUE;
++     }
++     return FALSE;
++ }
++ #endif
++ 
+  /*
+   * Generic wildcard expansion code.
+   *
+***************
+*** 10507,10513 ****
+       */
+      for (i = 0; i < num_pat; i++)
+      {
+! 	if (vim_strpbrk(pat[i], (char_u *)SPECIAL_WILDCHAR) != NULL
+  # ifdef VIM_BACKTICK
+  		&& !(vim_backtick(pat[i]) && pat[i][1] == '=')
+  # endif
+--- 10555,10561 ----
+       */
+      for (i = 0; i < num_pat; i++)
+      {
+! 	if (has_special_wildchar(pat[i])
+  # ifdef VIM_BACKTICK
+  		&& !(vim_backtick(pat[i]) && pat[i][1] == '=')
+  # endif
+***************
+*** 10537,10543 ****
+  	    /*
+  	     * First expand environment variables, "~/" and "~user/".
+  	     */
+! 	    if (vim_strchr(p, '$') != NULL || *p == '~')
+  	    {
+  		p = expand_env_save_opt(p, TRUE);
+  		if (p == NULL)
+--- 10585,10591 ----
+  	    /*
+  	     * First expand environment variables, "~/" and "~user/".
+  	     */
+! 	    if (has_env_var(p) || *p == '~')
+  	    {
+  		p = expand_env_save_opt(p, TRUE);
+  		if (p == NULL)
+***************
+*** 10548,10554 ****
+  		 * variable, use the shell to do that.  Discard previously
+  		 * found file names and start all over again.
+  		 */
+! 		else if (vim_strchr(p, '$') != NULL || *p == '~')
+  		{
+  		    vim_free(p);
+  		    ga_clear_strings(&ga);
+--- 10596,10602 ----
+  		 * variable, use the shell to do that.  Discard previously
+  		 * found file names and start all over again.
+  		 */
+! 		else if (has_env_var(p) || *p == '~')
+  		{
+  		    vim_free(p);
+  		    ga_clear_strings(&ga);
+*** ../vim-7.3.1294/src/version.c	2013-07-03 15:46:59.000000000 +0200
+--- src/version.c	2013-07-03 15:51:54.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1295,
+  /**/
+
+-- 
+When I look deep into your eyes, I see JPEG artifacts.
+I can tell by the pixels that we're wrong for each other.  (xkcd)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

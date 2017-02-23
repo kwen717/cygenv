@@ -1,0 +1,109 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1023
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1023
+Problem:    Searching for composing char only and using \Z has different
+	    results.
+Solution:   Make it match the composing char, matching everything is not
+	    useful.
+Files:	    src/regexp_nfa.c, src/testdir/test95.in, src/testdir/test95.ok
+
+
+*** ../vim-7.3.1022/src/regexp_nfa.c	2013-05-26 14:54:07.000000000 +0200
+--- src/regexp_nfa.c	2013-05-26 15:02:26.000000000 +0200
+***************
+*** 3294,3300 ****
+  		     * (no preceding character). */
+  		    len += mb_char2len(mc);
+  		}
+! 		if (ireg_icombine)
+  		{
+  		    /* If \Z was present, then ignore composing characters.
+  		     * When ignoring the base character this always matches. */
+--- 3294,3300 ----
+  		     * (no preceding character). */
+  		    len += mb_char2len(mc);
+  		}
+! 		if (ireg_icombine && len == 0)
+  		{
+  		    /* If \Z was present, then ignore composing characters.
+  		     * When ignoring the base character this always matches. */
+*** ../vim-7.3.1022/src/testdir/test95.in	2013-05-26 14:32:01.000000000 +0200
+--- src/testdir/test95.in	2013-05-26 15:07:01.000000000 +0200
+***************
+*** 62,71 ****
+  :call add(tl, [2, "ק\u200d\u05b9x\\Z", "xק\u200dxy", "ק\u200dx"])
+  :call add(tl, [2, "ק\u200dx\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+  :call add(tl, [2, "ק\u200dx\\Z", "xק\u200dxy", "ק\u200dx"])
+! :"call add(tl, [2, "\u05b9\\Z", "xyz"])
+! :"call add(tl, [2, "\\Z\u05b9", "xyz"])
+! :"call add(tl, [2, "\u05b9\\+\\Z", "xyz", "xyz"])
+! :"call add(tl, [2, "\\Z\u05b9\\+", "xyz", "xyz"])
+  
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+--- 62,73 ----
+  :call add(tl, [2, "ק\u200d\u05b9x\\Z", "xק\u200dxy", "ק\u200dx"])
+  :call add(tl, [2, "ק\u200dx\\Z", "xק\u200d\u05b9xy", "ק\u200d\u05b9x"])
+  :call add(tl, [2, "ק\u200dx\\Z", "xק\u200dxy", "ק\u200dx"])
+! :call add(tl, [2, "\u05b9\\Z", "xyz"])
+! :call add(tl, [2, "\\Z\u05b9", "xyz"])
+! :call add(tl, [2, "\u05b9\\Z", "xy\u05b9z", "y\u05b9"])
+! :call add(tl, [2, "\\Z\u05b9", "xy\u05b9z", "y\u05b9"])
+! :call add(tl, [1, "\u05b9\\+\\Z", "xy\u05b9z\u05b9 ", "y\u05b9z\u05b9"])
+! :call add(tl, [1, "\\Z\u05b9\\+", "xy\u05b9z\u05b9 ", "y\u05b9z\u05b9"])
+  
+  :"""" Combining different tests and features
+  :call add(tl, [2, '[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+*** ../vim-7.3.1022/src/testdir/test95.ok	2013-05-26 14:32:01.000000000 +0200
+--- src/testdir/test95.ok	2013-05-26 15:12:17.000000000 +0200
+***************
+*** 94,99 ****
+--- 94,115 ----
+  OK 0 - ק‍x\Z
+  OK 1 - ק‍x\Z
+  OK 2 - ק‍x\Z
++ OK 0 - ֹ\Z
++ OK 1 - ֹ\Z
++ OK 2 - ֹ\Z
++ OK 0 - \Zֹ
++ OK 1 - \Zֹ
++ OK 2 - \Zֹ
++ OK 0 - ֹ\Z
++ OK 1 - ֹ\Z
++ OK 2 - ֹ\Z
++ OK 0 - \Zֹ
++ OK 1 - \Zֹ
++ OK 2 - \Zֹ
++ OK 0 - ֹ\+\Z
++ OK 2 - ֹ\+\Z
++ OK 0 - \Zֹ\+
++ OK 2 - \Zֹ\+
+  OK 0 - [^[=a=]]\+
+  OK 1 - [^[=a=]]\+
+  OK 2 - [^[=a=]]\+
+*** ../vim-7.3.1022/src/version.c	2013-05-26 15:14:11.000000000 +0200
+--- src/version.c	2013-05-26 15:08:43.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1023,
+  /**/
+
+-- 
+Engineers are widely recognized as superior marriage material: intelligent,
+dependable, employed, honest, and handy around the house.
+				(Scott Adams - The Dilbert principle)
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

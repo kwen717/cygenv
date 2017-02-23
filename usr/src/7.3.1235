@@ -1,0 +1,63 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1235
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1235
+Problem:    In insert mode CTRL-] is not inserted, on the command-line it is.
+Solution:   Don't insert CTRL-] on the command line. (Yukihiro Nakadaira)
+Files:	    src/ex_getln.c
+
+
+*** ../vim-7.3.1234/src/ex_getln.c	2013-06-15 16:31:41.000000000 +0200
+--- src/ex_getln.c	2013-06-23 16:12:03.000000000 +0200
+***************
+*** 1700,1712 ****
+  	 * We come here if we have a normal character.
+  	 */
+  
+! 	if (do_abbr && (IS_SPECIAL(c) || !vim_iswordc(c)) && ccheck_abbr(
+  #ifdef FEAT_MBYTE
+  			/* Add ABBR_OFF for characters above 0x100, this is
+  			 * what check_abbr() expects. */
+  			(has_mbyte && c >= 0x100) ? (c + ABBR_OFF) :
+  #endif
+! 									c))
+  	    goto cmdline_changed;
+  
+  	/*
+--- 1700,1712 ----
+  	 * We come here if we have a normal character.
+  	 */
+  
+! 	if (do_abbr && (IS_SPECIAL(c) || !vim_iswordc(c)) && (ccheck_abbr(
+  #ifdef FEAT_MBYTE
+  			/* Add ABBR_OFF for characters above 0x100, this is
+  			 * what check_abbr() expects. */
+  			(has_mbyte && c >= 0x100) ? (c + ABBR_OFF) :
+  #endif
+! 							 c) || c == Ctrl_RSB))
+  	    goto cmdline_changed;
+  
+  	/*
+*** ../vim-7.3.1234/src/version.c	2013-06-23 16:04:04.000000000 +0200
+--- src/version.c	2013-06-23 16:12:50.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1235,
+  /**/
+
+-- 
+Error:015 - Unable to exit Windows.  Try the door.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

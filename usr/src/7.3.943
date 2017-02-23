@@ -1,0 +1,267 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.943
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.943
+Problem:    Python: Negative indices were failing.
+Solution:   Fix negative indices. Add tests. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/testdir/test86.in,
+	    src/testdir/test86.ok, src/testdir/test87.in,
+	    src/testdir/test87.ok
+
+
+*** ../vim-7.3.942/src/if_py_both.h	2013-05-12 20:36:09.000000000 +0200
+--- src/if_py_both.h	2013-05-12 21:10:03.000000000 +0200
+***************
+*** 2394,2399 ****
+--- 2394,2402 ----
+      if (end == -1)
+  	end = self->buf->b_ml.ml_line_count;
+  
++     if (n < 0)
++ 	n += end - start + 1;
++ 
+      if (n < 0 || n > end - start)
+      {
+  	PyErr_SetString(PyExc_IndexError, _("line number out of range"));
+***************
+*** 2441,2446 ****
+--- 2444,2452 ----
+      if (end == -1)
+  	end = self->buf->b_ml.ml_line_count;
+  
++     if (n < 0)
++ 	n += end - start + 1;
++ 
+      if (n < 0 || n > end - start)
+      {
+  	PyErr_SetString(PyExc_IndexError, _("line number out of range"));
+*** ../vim-7.3.942/src/if_python3.c	2013-05-12 20:36:09.000000000 +0200
+--- src/if_python3.c	2013-05-12 21:10:03.000000000 +0200
+***************
+*** 1114,1120 ****
+  	    return NULL;
+  
+  	if (PySlice_GetIndicesEx((PyObject *)idx,
+! 	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count+1,
+  	      &start, &stop,
+  	      &step, &slicelen) < 0)
+  	{
+--- 1114,1120 ----
+  	    return NULL;
+  
+  	if (PySlice_GetIndicesEx((PyObject *)idx,
+! 	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+  	      &start, &stop,
+  	      &step, &slicelen) < 0)
+  	{
+***************
+*** 1146,1152 ****
+  	    return -1;
+  
+  	if (PySlice_GetIndicesEx((PyObject *)idx,
+! 	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count+1,
+  	      &start, &stop,
+  	      &step, &slicelen) < 0)
+  	{
+--- 1146,1152 ----
+  	    return -1;
+  
+  	if (PySlice_GetIndicesEx((PyObject *)idx,
+! 	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+  	      &start, &stop,
+  	      &step, &slicelen) < 0)
+  	{
+*** ../vim-7.3.942/src/testdir/test86.in	2013-05-06 03:52:44.000000000 +0200
+--- src/testdir/test86.in	2013-05-12 21:11:43.000000000 +0200
+***************
+*** 475,483 ****
+  :       endtry
+  :   endfor
+  :   call RecVars(oname)
+- endtry
+  :endfor
+  :only
+  :endfun
+  :"
+  :call Test()
+--- 475,524 ----
+  :       endtry
+  :   endfor
+  :   call RecVars(oname)
+  :endfor
+  :only
++ :"
++ :" Test buffer object
++ :vnew
++ :put ='First line'
++ :put ='Second line'
++ :put ='Third line'
++ :1 delete _
++ :py b=vim.current.buffer
++ :wincmd w
++ :mark a
++ py << EOF
++ cb = vim.current.buffer
++ # Tests BufferAppend and BufferItem
++ cb.append(b[0])
++ # Tests BufferSlice and BufferAssSlice
++ cb.append('abc') # Will be overwritten
++ cb[-1:] = b[:-2]
++ # Test BufferLength and BufferAssSlice
++ cb.append('def') # Will not be overwritten
++ cb[len(cb):] = b[:]
++ # Test BufferAssItem and BufferMark
++ cb.append('ghi') # Will be overwritten
++ cb[-1] = repr((len(cb) - cb.mark('a')[0], cb.mark('a')[1]))
++ # Test BufferRepr
++ cb.append(repr(cb) + repr(b))
++ # Modify foreign buffer
++ b.append('foo')
++ b[0]='bar'
++ b[0:0]=['baz']
++ vim.command('call append("$", getbufline(%i, 1, "$"))' % b.number)
++ # Test CheckBuffer
++ vim.command('bwipeout! ' + str(b.number))
++ for expr in ('b[1]','b[:] = ["A", "B"]','b[:]','b.append("abc")'):
++     try:
++         exec(expr)
++     except vim.error:
++         pass
++     else:
++         # Usually a SEGV here
++         # Should not happen in any case
++         cb.append('No exception for ' + expr)
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.942/src/testdir/test86.ok	2013-05-06 03:52:44.000000000 +0200
+--- src/testdir/test86.ok	2013-05-12 21:11:43.000000000 +0200
+***************
+*** 306,308 ****
+--- 306,321 ----
+    G: '.,,'
+    W: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
+    B: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
++ First line
++ First line
++ def
++ First line
++ Second line
++ Third line
++ (7, 2)
++ <buffer test86.in><buffer >
++ baz
++ bar
++ Second line
++ Third line
++ foo
+*** ../vim-7.3.942/src/testdir/test87.in	2013-05-06 03:52:44.000000000 +0200
+--- src/testdir/test87.in	2013-05-12 21:11:43.000000000 +0200
+***************
+*** 444,452 ****
+  :       endtry
+  :   endfor
+  :   call RecVars(oname)
+- endtry
+  :endfor
+  :only
+  :endfun
+  :"
+  :call Test()
+--- 444,493 ----
+  :       endtry
+  :   endfor
+  :   call RecVars(oname)
+  :endfor
+  :only
++ :"
++ :" Test buffer object
++ :vnew
++ :put ='First line'
++ :put ='Second line'
++ :put ='Third line'
++ :1 delete _
++ :py3 b=vim.current.buffer
++ :wincmd w
++ :mark a
++ py3 << EOF
++ cb = vim.current.buffer
++ # Tests BufferAppend and BufferItem
++ cb.append(b[0])
++ # Tests BufferSlice and BufferAssSlice
++ cb.append('abc') # Will be overwritten
++ cb[-1:] = b[:-2]
++ # Test BufferLength and BufferAssSlice
++ cb.append('def') # Will not be overwritten
++ cb[len(cb):] = b[:]
++ # Test BufferAssItem and BufferMark
++ cb.append('ghi') # Will be overwritten
++ cb[-1] = repr((len(cb) - cb.mark('a')[0], cb.mark('a')[1]))
++ # Test BufferRepr
++ cb.append(repr(cb) + repr(b))
++ # Modify foreign buffer
++ b.append('foo')
++ b[0]='bar'
++ b[0:0]=['baz']
++ vim.command('call append("$", getbufline(%i, 1, "$"))' % b.number)
++ # Test CheckBuffer
++ vim.command('bwipeout! ' + str(b.number))
++ for expr in ('b[1]','b[:] = ["A", "B"]','b[:]','b.append("abc")'):
++     try:
++         exec(expr)
++     except vim.error:
++         pass
++     else:
++         # Usually a SEGV here
++         # Should not happen in any case
++         cb.append('No exception for ' + expr)
++ EOF
+  :endfun
+  :"
+  :call Test()
+*** ../vim-7.3.942/src/testdir/test87.ok	2013-05-06 03:52:44.000000000 +0200
+--- src/testdir/test87.ok	2013-05-12 21:11:43.000000000 +0200
+***************
+*** 295,297 ****
+--- 295,310 ----
+    G: '.,,'
+    W: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
+    B: 1:',,' 2:'.,,' 3:'.,,' 4:'.,,'
++ First line
++ First line
++ def
++ First line
++ Second line
++ Third line
++ (7, 2)
++ <buffer test87.in><buffer >
++ baz
++ bar
++ Second line
++ Third line
++ foo
+*** ../vim-7.3.942/src/version.c	2013-05-12 20:36:09.000000000 +0200
+--- src/version.c	2013-05-12 21:11:53.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     943,
+  /**/
+
+-- 
+Q: Is selling software the same as selling hardware?
+A: No, good hardware is sold new, good software has already been used by many.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

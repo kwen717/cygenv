@@ -1,0 +1,678 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1231
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1231
+Problem:    Python: use of numbers not consistent.
+Solution:   Add support for Number protocol. (ZyX)
+Files:	    src/if_py_both.h, src/if_python3.c, src/if_python.c,
+	    src/testdir/test86.ok, src/testdir/test87.ok
+
+
+*** ../vim-7.3.1230/src/if_py_both.h	2013-06-23 13:46:36.000000000 +0200
+--- src/if_py_both.h	2013-06-23 14:15:25.000000000 +0200
+***************
+*** 151,156 ****
+--- 151,245 ----
+      return (char_u *) p;
+  }
+  
++ #define NUMBER_LONG     1
++ #define NUMBER_INT      2
++ #define NUMBER_NATURAL  4
++ #define NUMBER_UNSIGNED 8
++ 
++     static int
++ NumberToLong(PyObject *obj, long *result, int flags)
++ {
++ #if PY_MAJOR_VERSION < 3
++     if (PyInt_Check(obj))
++     {
++ 	*result = PyInt_AsLong(obj);
++ 	if (PyErr_Occurred())
++ 	    return -1;
++     }
++     else
++ #endif
++     if (PyLong_Check(obj))
++     {
++ 	*result = PyLong_AsLong(obj);
++ 	if (PyErr_Occurred())
++ 	    return -1;
++     }
++     else if (PyNumber_Check(obj))
++     {
++ 	PyObject	*num;
++ 
++ 	if (!(num = PyNumber_Long(obj)))
++ 	    return -1;
++ 
++ 	*result = PyLong_AsLong(num);
++ 
++ 	Py_DECREF(num);
++ 
++ 	if (PyErr_Occurred())
++ 	    return -1;
++     }
++     else
++     {
++ 	PyErr_FORMAT(PyExc_TypeError,
++ #if PY_MAJOR_VERSION < 3
++ 		"expected int(), long() or something supporting "
++ 		"coercing to long(), but got %s"
++ #else
++ 		"expected int() or something supporting coercing to int(), "
++ 		"but got %s"
++ #endif
++ 		, Py_TYPE_NAME(obj));
++ 	return -1;
++     }
++ 
++     if (flags & NUMBER_INT)
++     {
++ 	if (*result > INT_MAX)
++ 	{
++ 	    PyErr_SET_STRING(PyExc_OverflowError,
++ 		    "value is too large to fit into C int type");
++ 	    return -1;
++ 	}
++ 	else if (*result < INT_MIN)
++ 	{
++ 	    PyErr_SET_STRING(PyExc_OverflowError,
++ 		    "value is too small to fit into C int type");
++ 	    return -1;
++ 	}
++     }
++ 
++     if (flags & NUMBER_NATURAL)
++     {
++ 	if (*result <= 0)
++ 	{
++ 	    PyErr_SET_STRING(PyExc_ValueError,
++ 		    "number must be greater then zero");
++ 	    return -1;
++ 	}
++     }
++     else if (flags & NUMBER_UNSIGNED)
++     {
++ 	if (*result < 0)
++ 	{
++ 	    PyErr_SET_STRING(PyExc_ValueError,
++ 		    "number must be greater or equal to zero");
++ 	    return -1;
++ 	}
++     }
++ 
++     return 0;
++ }
++ 
+      static int
+  add_string(PyObject *list, char *s)
+  {
+***************
+*** 243,255 ****
+  
+      if (strcmp(name, "softspace") == 0)
+      {
+! 	if (!PyInt_Check(val))
+! 	{
+! 	    PyErr_SET_STRING(PyExc_TypeError, "softspace must be an integer");
+  	    return -1;
+- 	}
+- 
+- 	self->softspace = PyInt_AsLong(val);
+  	return 0;
+      }
+  
+--- 332,339 ----
+  
+      if (strcmp(name, "softspace") == 0)
+      {
+! 	if (NumberToLong(val, &(self->softspace), NUMBER_UNSIGNED))
+  	    return -1;
+  	return 0;
+      }
+  
+***************
+*** 2839,2861 ****
+      }
+      else if (flags & SOPT_NUM)
+      {
+! 	int val;
+  
+! #if PY_MAJOR_VERSION < 3
+! 	if (PyInt_Check(valObject))
+! 	    val = PyInt_AsLong(valObject);
+! 	else
+! #endif
+! 	if (PyLong_Check(valObject))
+! 	    val = PyLong_AsLong(valObject);
+! 	else
+  	{
+- 	    PyErr_SET_STRING(PyExc_TypeError, "object must be integer");
+  	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+  
+! 	r = set_option_value_for(key, val, NULL, opt_flags,
+  				self->opt_type, self->from);
+      }
+      else
+--- 2923,2937 ----
+      }
+      else if (flags & SOPT_NUM)
+      {
+! 	long	val;
+  
+! 	if (NumberToLong(valObject, &val, NUMBER_INT))
+  	{
+  	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+  
+! 	r = set_option_value_for(key, (int) val, NULL, opt_flags,
+  				self->opt_type, self->from);
+      }
+      else
+***************
+*** 3265,3274 ****
+      }
+      else if (strcmp(name, "height") == 0)
+      {
+! 	int	height;
+  	win_T	*savewin;
+  
+! 	if (!PyArg_Parse(val, "i", &height))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+--- 3341,3350 ----
+      }
+      else if (strcmp(name, "height") == 0)
+      {
+! 	long	height;
+  	win_T	*savewin;
+  
+! 	if (NumberToLong(val, &height, NUMBER_INT))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+***************
+*** 3278,3284 ****
+  	curwin = self->win;
+  
+  	VimTryStart();
+! 	win_setheight(height);
+  	curwin = savewin;
+  	if (VimTryEnd())
+  	    return -1;
+--- 3354,3360 ----
+  	curwin = self->win;
+  
+  	VimTryStart();
+! 	win_setheight((int) height);
+  	curwin = savewin;
+  	if (VimTryEnd())
+  	    return -1;
+***************
+*** 3288,3297 ****
+  #ifdef FEAT_VERTSPLIT
+      else if (strcmp(name, "width") == 0)
+      {
+! 	int	width;
+  	win_T	*savewin;
+  
+! 	if (!PyArg_Parse(val, "i", &width))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+--- 3364,3373 ----
+  #ifdef FEAT_VERTSPLIT
+      else if (strcmp(name, "width") == 0)
+      {
+! 	long	width;
+  	win_T	*savewin;
+  
+! 	if (NumberToLong(val, &width, NUMBER_INT))
+  	    return -1;
+  
+  #ifdef FEAT_GUI
+***************
+*** 3301,3307 ****
+  	curwin = self->win;
+  
+  	VimTryStart();
+! 	win_setwidth(width);
+  	curwin = savewin;
+  	if (VimTryEnd())
+  	    return -1;
+--- 3377,3383 ----
+  	curwin = self->win;
+  
+  	VimTryStart();
+! 	win_setwidth((int) width);
+  	curwin = savewin;
+  	if (VimTryEnd())
+  	    return -1;
+***************
+*** 4555,4576 ****
+  BufMapItem(PyObject *self UNUSED, PyObject *keyObject)
+  {
+      buf_T	*b;
+!     int		bnr;
+  
+! #if PY_MAJOR_VERSION < 3
+!     if (PyInt_Check(keyObject))
+! 	bnr = PyInt_AsLong(keyObject);
+!     else
+! #endif
+!     if (PyLong_Check(keyObject))
+! 	bnr = PyLong_AsLong(keyObject);
+!     else
+!     {
+! 	PyErr_SET_STRING(PyExc_TypeError, "key must be integer");
+  	return NULL;
+-     }
+  
+!     b = buflist_findnr(bnr);
+  
+      if (b)
+  	return BufferNew(b);
+--- 4631,4642 ----
+  BufMapItem(PyObject *self UNUSED, PyObject *keyObject)
+  {
+      buf_T	*b;
+!     long	bnr;
+  
+!     if (NumberToLong(keyObject, &bnr, NUMBER_INT|NUMBER_NATURAL))
+  	return NULL;
+  
+!     b = buflist_findnr((int) bnr);
+  
+      if (b)
+  	return BufferNew(b);
+***************
+*** 5345,5356 ****
+--- 5411,5426 ----
+      {
+  	tv->v_type = VAR_NUMBER;
+  	tv->vval.v_number = (varnumber_T) PyInt_AsLong(obj);
++ 	if (PyErr_Occurred())
++ 	    return -1;
+      }
+  #endif
+      else if (PyLong_Check(obj))
+      {
+  	tv->v_type = VAR_NUMBER;
+  	tv->vval.v_number = (varnumber_T) PyLong_AsLong(obj);
++ 	if (PyErr_Occurred())
++ 	    return -1;
+      }
+      else if (PyDict_Check(obj))
+  	return convert_dl(obj, tv, pydict_to_tv, lookup_dict);
+***************
+*** 5367,5372 ****
+--- 5437,5454 ----
+  	return convert_dl(obj, tv, pyseq_to_tv, lookup_dict);
+      else if (PyMapping_Check(obj))
+  	return convert_dl(obj, tv, pymap_to_tv, lookup_dict);
++     else if (PyNumber_Check(obj))
++     {
++ 	PyObject	*num;
++ 
++ 	if (!(num = PyNumber_Long(obj)))
++ 	    return -1;
++ 
++ 	tv->v_type = VAR_NUMBER;
++ 	tv->vval.v_number = (varnumber_T) PyLong_AsLong(num);
++ 
++ 	Py_DECREF(num);
++     }
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+*** ../vim-7.3.1230/src/if_python3.c	2013-06-23 13:46:36.000000000 +0200
+--- src/if_python3.c	2013-06-23 14:15:25.000000000 +0200
+***************
+*** 160,165 ****
+--- 160,166 ----
+  # define PyMapping_Keys py3_PyMapping_Keys
+  # define PyIter_Next py3_PyIter_Next
+  # define PyObject_GetIter py3_PyObject_GetIter
++ # define PyObject_Repr py3_PyObject_Repr
+  # define PyObject_GetItem py3_PyObject_GetItem
+  # define PyObject_IsTrue py3_PyObject_IsTrue
+  # define PyModule_GetDict py3_PyModule_GetDict
+***************
+*** 211,216 ****
+--- 212,219 ----
+  # define PyType_Type (*py3_PyType_Type)
+  # define PySlice_Type (*py3_PySlice_Type)
+  # define PyFloat_Type (*py3_PyFloat_Type)
++ # define PyNumber_Check (*py3_PyNumber_Check)
++ # define PyNumber_Long (*py3_PyNumber_Long)
+  # define PyBool_Type (*py3_PyBool_Type)
+  # define PyErr_NewException py3_PyErr_NewException
+  # ifdef Py_DEBUG
+***************
+*** 310,315 ****
+--- 313,319 ----
+  static PyObject* (*py3_PyDict_New)(void);
+  static PyObject* (*py3_PyIter_Next)(PyObject *);
+  static PyObject* (*py3_PyObject_GetIter)(PyObject *);
++ static PyObject* (*py3_PyObject_Repr)(PyObject *);
+  static PyObject* (*py3_PyObject_GetItem)(PyObject *, PyObject *);
+  static int (*py3_PyObject_IsTrue)(PyObject *);
+  static PyObject* (*py3_Py_BuildValue)(char *, ...);
+***************
+*** 365,370 ****
+--- 369,376 ----
+  static PyTypeObject* py3_PySlice_Type;
+  static PyTypeObject* py3_PyFloat_Type;
+  static PyTypeObject* py3_PyBool_Type;
++ static int (*py3_PyNumber_Check)(PyObject *);
++ static PyObject* (*py3_PyNumber_Long)(PyObject *);
+  static PyObject* (*py3_PyErr_NewException)(char *name, PyObject *base, PyObject *dict);
+  static PyObject* (*py3_PyCapsule_New)(void *, char *, PyCapsule_Destructor);
+  static void* (*py3_PyCapsule_GetPointer)(PyObject *, char *);
+***************
+*** 399,404 ****
+--- 405,411 ----
+  static PyObject *p3imp_PyExc_ValueError;
+  static PyObject *p3imp_PyExc_RuntimeError;
+  static PyObject *p3imp_PyExc_ImportError;
++ static PyObject *p3imp_PyExc_OverflowError;
+  
+  # define PyExc_AttributeError p3imp_PyExc_AttributeError
+  # define PyExc_IndexError p3imp_PyExc_IndexError
+***************
+*** 408,413 ****
+--- 415,421 ----
+  # define PyExc_ValueError p3imp_PyExc_ValueError
+  # define PyExc_RuntimeError p3imp_PyExc_RuntimeError
+  # define PyExc_ImportError p3imp_PyExc_ImportError
++ # define PyExc_OverflowError p3imp_PyExc_OverflowError
+  
+  /*
+   * Table of name to function pointer of python.
+***************
+*** 469,474 ****
+--- 477,483 ----
+      {"PyMapping_Keys", (PYTHON_PROC*)&py3_PyMapping_Keys},
+      {"PyIter_Next", (PYTHON_PROC*)&py3_PyIter_Next},
+      {"PyObject_GetIter", (PYTHON_PROC*)&py3_PyObject_GetIter},
++     {"PyObject_Repr", (PYTHON_PROC*)&py3_PyObject_Repr},
+      {"PyObject_GetItem", (PYTHON_PROC*)&py3_PyObject_GetItem},
+      {"PyObject_IsTrue", (PYTHON_PROC*)&py3_PyObject_IsTrue},
+      {"PyLong_FromLong", (PYTHON_PROC*)&py3_PyLong_FromLong},
+***************
+*** 518,523 ****
+--- 527,534 ----
+      {"PySlice_Type", (PYTHON_PROC*)&py3_PySlice_Type},
+      {"PyFloat_Type", (PYTHON_PROC*)&py3_PyFloat_Type},
+      {"PyBool_Type", (PYTHON_PROC*)&py3_PyBool_Type},
++     {"PyNumber_Check", (PYTHON_PROC*)&py3_PyNumber_Check},
++     {"PyNumber_Long", (PYTHON_PROC*)&py3_PyNumber_Long},
+      {"PyErr_NewException", (PYTHON_PROC*)&py3_PyErr_NewException},
+  # ifdef Py_DEBUG
+      {"_Py_NegativeRefcount", (PYTHON_PROC*)&py3__Py_NegativeRefcount},
+***************
+*** 672,677 ****
+--- 683,689 ----
+      p3imp_PyExc_ValueError = PyDict_GetItemString(exdict, "ValueError");
+      p3imp_PyExc_RuntimeError = PyDict_GetItemString(exdict, "RuntimeError");
+      p3imp_PyExc_ImportError = PyDict_GetItemString(exdict, "ImportError");
++     p3imp_PyExc_OverflowError = PyDict_GetItemString(exdict, "OverflowError");
+      Py_XINCREF(p3imp_PyExc_AttributeError);
+      Py_XINCREF(p3imp_PyExc_IndexError);
+      Py_XINCREF(p3imp_PyExc_KeyError);
+***************
+*** 680,685 ****
+--- 692,698 ----
+      Py_XINCREF(p3imp_PyExc_ValueError);
+      Py_XINCREF(p3imp_PyExc_RuntimeError);
+      Py_XINCREF(p3imp_PyExc_ImportError);
++     Py_XINCREF(p3imp_PyExc_OverflowError);
+      Py_XDECREF(exmod);
+  }
+  #endif /* DYNAMIC_PYTHON3 */
+*** ../vim-7.3.1230/src/if_python.c	2013-06-23 13:46:36.000000000 +0200
+--- src/if_python.c	2013-06-23 14:15:25.000000000 +0200
+***************
+*** 220,225 ****
+--- 220,226 ----
+  # define PyObject_CallFunctionObjArgs dll_PyObject_CallFunctionObjArgs
+  # define PyObject_CallFunction dll_PyObject_CallFunction
+  # define PyObject_Call dll_PyObject_Call
++ # define PyObject_Repr dll_PyObject_Repr
+  # define PyString_AsString dll_PyString_AsString
+  # define PyString_AsStringAndSize dll_PyString_AsStringAndSize
+  # define PyString_FromString dll_PyString_FromString
+***************
+*** 233,238 ****
+--- 234,241 ----
+  # define PyFloat_AsDouble dll_PyFloat_AsDouble
+  # define PyFloat_FromDouble dll_PyFloat_FromDouble
+  # define PyFloat_Type (*dll_PyFloat_Type)
++ # define PyNumber_Check dll_PyNumber_Check
++ # define PyNumber_Long dll_PyNumber_Long
+  # define PyImport_AddModule (*dll_PyImport_AddModule)
+  # define PySys_SetObject dll_PySys_SetObject
+  # define PySys_GetObject dll_PySys_GetObject
+***************
+*** 360,365 ****
+--- 363,369 ----
+  static PyObject* (*dll_PyObject_CallFunctionObjArgs)(PyObject *, ...);
+  static PyObject* (*dll_PyObject_CallFunction)(PyObject *, char *, ...);
+  static PyObject* (*dll_PyObject_Call)(PyObject *, PyObject *, PyObject *);
++ static PyObject* (*dll_PyObject_Repr)(PyObject *);
+  static char*(*dll_PyString_AsString)(PyObject *);
+  static int(*dll_PyString_AsStringAndSize)(PyObject *, char **, int *);
+  static PyObject*(*dll_PyString_FromString)(const char *);
+***************
+*** 372,377 ****
+--- 376,383 ----
+  static double(*dll_PyFloat_AsDouble)(PyObject *);
+  static PyObject*(*dll_PyFloat_FromDouble)(double);
+  static PyTypeObject* dll_PyFloat_Type;
++ static int(*dll_PyNumber_Check)(PyObject *);
++ static PyObject*(*dll_PyNumber_Long)(PyObject *);
+  static int(*dll_PySys_SetObject)(char *, PyObject *);
+  static PyObject *(*dll_PySys_GetObject)(char *);
+  static int(*dll_PySys_SetArgv)(int, char **);
+***************
+*** 440,445 ****
+--- 446,452 ----
+  static PyObject *imp_PyExc_ValueError;
+  static PyObject *imp_PyExc_RuntimeError;
+  static PyObject *imp_PyExc_ImportError;
++ static PyObject *imp_PyExc_OverflowError;
+  
+  # define PyExc_AttributeError imp_PyExc_AttributeError
+  # define PyExc_IndexError imp_PyExc_IndexError
+***************
+*** 449,454 ****
+--- 456,462 ----
+  # define PyExc_ValueError imp_PyExc_ValueError
+  # define PyExc_RuntimeError imp_PyExc_RuntimeError
+  # define PyExc_ImportError imp_PyExc_ImportError
++ # define PyExc_OverflowError imp_PyExc_OverflowError
+  
+  /*
+   * Table of name to function pointer of python.
+***************
+*** 533,538 ****
+--- 541,547 ----
+      {"PyObject_CallFunctionObjArgs", (PYTHON_PROC*)&dll_PyObject_CallFunctionObjArgs},
+      {"PyObject_CallFunction", (PYTHON_PROC*)&dll_PyObject_CallFunction},
+      {"PyObject_Call", (PYTHON_PROC*)&dll_PyObject_Call},
++     {"PyObject_Repr", (PYTHON_PROC*)&dll_PyObject_Repr},
+      {"PyString_AsString", (PYTHON_PROC*)&dll_PyString_AsString},
+      {"PyString_AsStringAndSize", (PYTHON_PROC*)&dll_PyString_AsStringAndSize},
+      {"PyString_FromString", (PYTHON_PROC*)&dll_PyString_FromString},
+***************
+*** 545,550 ****
+--- 554,561 ----
+      {"PyFloat_AsDouble", (PYTHON_PROC*)&dll_PyFloat_AsDouble},
+      {"PyFloat_FromDouble", (PYTHON_PROC*)&dll_PyFloat_FromDouble},
+      {"PyImport_AddModule", (PYTHON_PROC*)&dll_PyImport_AddModule},
++     {"PyNumber_Check", (PYTHON_PROC*)&dll_PyNumber_Check},
++     {"PyNumber_Long", (PYTHON_PROC*)&dll_PyNumber_Long},
+      {"PySys_SetObject", (PYTHON_PROC*)&dll_PySys_SetObject},
+      {"PySys_GetObject", (PYTHON_PROC*)&dll_PySys_GetObject},
+      {"PySys_SetArgv", (PYTHON_PROC*)&dll_PySys_SetArgv},
+***************
+*** 722,727 ****
+--- 733,739 ----
+      imp_PyExc_ValueError = PyDict_GetItemString(exdict, "ValueError");
+      imp_PyExc_RuntimeError = PyDict_GetItemString(exdict, "RuntimeError");
+      imp_PyExc_ImportError = PyDict_GetItemString(exdict, "ImportError");
++     imp_PyExc_OverflowError = PyDict_GetItemString(exdict, "OverflowError");
+      Py_XINCREF(imp_PyExc_AttributeError);
+      Py_XINCREF(imp_PyExc_IndexError);
+      Py_XINCREF(imp_PyExc_KeyError);
+***************
+*** 730,735 ****
+--- 742,748 ----
+      Py_XINCREF(imp_PyExc_ValueError);
+      Py_XINCREF(imp_PyExc_RuntimeError);
+      Py_XINCREF(imp_PyExc_ImportError);
++     Py_XINCREF(imp_PyExc_OverflowError);
+      Py_XDECREF(exmod);
+  }
+  #endif /* DYNAMIC_PYTHON */
+*** ../vim-7.3.1230/src/testdir/test86.ok	2013-06-23 13:46:36.000000000 +0200
+--- src/testdir/test86.ok	2013-06-23 14:15:25.000000000 +0200
+***************
+*** 438,444 ****
+  > Output
+  >> OutputSetattr
+  del sys.stdout.softspace:AttributeError:("can't delete OutputObject attributes",)
+! sys.stdout.softspace = []:TypeError:('softspace must be an integer',)
+  sys.stdout.attr = None:AttributeError:('invalid attribute: attr',)
+  >> OutputWrite
+  sys.stdout.write(None):TypeError:('coercing to Unicode: need string or buffer, NoneType found',)
+--- 438,444 ----
+  > Output
+  >> OutputSetattr
+  del sys.stdout.softspace:AttributeError:("can't delete OutputObject attributes",)
+! sys.stdout.softspace = []:TypeError:('expected int(), long() or something supporting coercing to long(), but got list',)
+  sys.stdout.attr = None:AttributeError:('invalid attribute: attr',)
+  >> OutputWrite
+  sys.stdout.write(None):TypeError:('coercing to Unicode: need string or buffer, NoneType found',)
+***************
+*** 1037,1044 ****
+  vim.current.window.buffer = 0:TypeError:('readonly attribute: buffer',)
+  vim.current.window.cursor = (100000000, 100000000):error:('cursor position outside buffer',)
+  vim.current.window.cursor = True:TypeError:('argument must be 2-item sequence, not bool',)
+! vim.current.window.height = "abc":TypeError:('an integer is required',)
+! vim.current.window.width  = "abc":TypeError:('an integer is required',)
+  vim.current.window.xxxxxx = True:AttributeError:('xxxxxx',)
+  > WinList
+  >> WinListItem
+--- 1037,1044 ----
+  vim.current.window.buffer = 0:TypeError:('readonly attribute: buffer',)
+  vim.current.window.cursor = (100000000, 100000000):error:('cursor position outside buffer',)
+  vim.current.window.cursor = True:TypeError:('argument must be 2-item sequence, not bool',)
+! vim.current.window.height = "abc":TypeError:('expected int(), long() or something supporting coercing to long(), but got str',)
+! vim.current.window.width  = "abc":TypeError:('expected int(), long() or something supporting coercing to long(), but got str',)
+  vim.current.window.xxxxxx = True:AttributeError:('xxxxxx',)
+  > WinList
+  >> WinListItem
+***************
+*** 1072,1078 ****
+  vim.current.buffer.range(1, 2, 3):TypeError:('function takes exactly 2 arguments (3 given)',)
+  > BufMap
+  >> BufMapItem
+! vim.buffers[None]:TypeError:('key must be integer',)
+  vim.buffers[100000000]:KeyError:(100000000,)
+  > Current
+  >> CurrentGetattr
+--- 1072,1078 ----
+  vim.current.buffer.range(1, 2, 3):TypeError:('function takes exactly 2 arguments (3 given)',)
+  > BufMap
+  >> BufMapItem
+! vim.buffers[None]:TypeError:('expected int(), long() or something supporting coercing to long(), but got NoneType',)
+  vim.buffers[100000000]:KeyError:(100000000,)
+  > Current
+  >> CurrentGetattr
+*** ../vim-7.3.1230/src/testdir/test87.ok	2013-06-23 13:46:36.000000000 +0200
+--- src/testdir/test87.ok	2013-06-23 14:15:25.000000000 +0200
+***************
+*** 427,433 ****
+  > Output
+  >> OutputSetattr
+  del sys.stdout.softspace:(<class 'AttributeError'>, AttributeError("can't delete OutputObject attributes",))
+! sys.stdout.softspace = []:(<class 'TypeError'>, TypeError('softspace must be an integer',))
+  sys.stdout.attr = None:(<class 'AttributeError'>, AttributeError('invalid attribute: attr',))
+  >> OutputWrite
+  sys.stdout.write(None):(<class 'TypeError'>, TypeError("Can't convert 'NoneType' object to str implicitly",))
+--- 427,433 ----
+  > Output
+  >> OutputSetattr
+  del sys.stdout.softspace:(<class 'AttributeError'>, AttributeError("can't delete OutputObject attributes",))
+! sys.stdout.softspace = []:(<class 'TypeError'>, TypeError('expected int() or something supporting coercing to int(), but got list',))
+  sys.stdout.attr = None:(<class 'AttributeError'>, AttributeError('invalid attribute: attr',))
+  >> OutputWrite
+  sys.stdout.write(None):(<class 'TypeError'>, TypeError("Can't convert 'NoneType' object to str implicitly",))
+***************
+*** 1046,1053 ****
+  vim.current.window.buffer = 0:(<class 'TypeError'>, TypeError('readonly attribute: buffer',))
+  vim.current.window.cursor = (100000000, 100000000):(<class 'vim.error'>, error('cursor position outside buffer',))
+  vim.current.window.cursor = True:(<class 'TypeError'>, TypeError('argument must be 2-item sequence, not bool',))
+! vim.current.window.height = "abc":(<class 'TypeError'>, TypeError('an integer is required',))
+! vim.current.window.width  = "abc":(<class 'TypeError'>, TypeError('an integer is required',))
+  vim.current.window.xxxxxx = True:(<class 'AttributeError'>, AttributeError('xxxxxx',))
+  > WinList
+  >> WinListItem
+--- 1046,1053 ----
+  vim.current.window.buffer = 0:(<class 'TypeError'>, TypeError('readonly attribute: buffer',))
+  vim.current.window.cursor = (100000000, 100000000):(<class 'vim.error'>, error('cursor position outside buffer',))
+  vim.current.window.cursor = True:(<class 'TypeError'>, TypeError('argument must be 2-item sequence, not bool',))
+! vim.current.window.height = "abc":(<class 'TypeError'>, TypeError('expected int() or something supporting coercing to int(), but got str',))
+! vim.current.window.width  = "abc":(<class 'TypeError'>, TypeError('expected int() or something supporting coercing to int(), but got str',))
+  vim.current.window.xxxxxx = True:(<class 'AttributeError'>, AttributeError('xxxxxx',))
+  > WinList
+  >> WinListItem
+***************
+*** 1081,1087 ****
+  vim.current.buffer.range(1, 2, 3):(<class 'TypeError'>, TypeError('function takes exactly 2 arguments (3 given)',))
+  > BufMap
+  >> BufMapItem
+! vim.buffers[None]:(<class 'TypeError'>, TypeError('key must be integer',))
+  vim.buffers[100000000]:(<class 'KeyError'>, KeyError(100000000,))
+  > Current
+  >> CurrentGetattr
+--- 1081,1087 ----
+  vim.current.buffer.range(1, 2, 3):(<class 'TypeError'>, TypeError('function takes exactly 2 arguments (3 given)',))
+  > BufMap
+  >> BufMapItem
+! vim.buffers[None]:(<class 'TypeError'>, TypeError('expected int() or something supporting coercing to int(), but got NoneType',))
+  vim.buffers[100000000]:(<class 'KeyError'>, KeyError(100000000,))
+  > Current
+  >> CurrentGetattr
+*** ../vim-7.3.1230/src/version.c	2013-06-23 13:46:36.000000000 +0200
+--- src/version.c	2013-06-23 14:13:45.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1231,
+  /**/
+
+-- 
+MAN:    Fetchez la vache!
+GUARD:  Quoi?
+MAN:    Fetchez la vache!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

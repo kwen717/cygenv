@@ -1,0 +1,53 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1276
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1276
+Problem:    When using a cscope connection resizing the window may send
+	    SIGWINCH to cscope and it quits.
+Solution:   Call setpgid(0, 0) in the child process. (Narendran Gopalakrishnan)
+Files:	    src/if_cscope.c
+
+
+*** ../vim-7.3.1275/src/if_cscope.c	2013-06-12 21:25:04.000000000 +0200
+--- src/if_cscope.c	2013-06-30 14:59:21.000000000 +0200
+***************
+*** 997,1002 ****
+--- 997,1011 ----
+  	vim_free(ppath);
+  
+  #if defined(UNIX)
++ # if defined(HAVE_SETSID) || defined(HAVE_SETPGID)
++ 	/* Change our process group to avoid cscope receiving SIGWINCH. */
++ #  if defined(HAVE_SETSID)
++ 	(void)setsid();
++ #  else
++ 	if (setpgid(0, 0) == -1)
++ 	    PERROR(_("cs_create_connection setpgid failed"));
++ #  endif
++ # endif
+  	if (execl("/bin/sh", "sh", "-c", cmd, (char *)NULL) == -1)
+  	    PERROR(_("cs_create_connection exec failed"));
+  
+*** ../vim-7.3.1275/src/version.c	2013-06-30 14:46:50.000000000 +0200
+--- src/version.c	2013-06-30 15:00:06.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1276,
+  /**/
+
+-- 
+Individualists unite!
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

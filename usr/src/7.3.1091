@@ -1,0 +1,104 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1091
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1091
+Problem:    New regexp engine: no error when using \z1 or \z( where it does
+	    not work.
+Solution:   Give an error message.
+Files:	    src/regexp.c, src/regexp_nfa.c
+
+
+*** ../vim-7.3.1090/src/regexp.c	2013-06-01 19:54:39.000000000 +0200
+--- src/regexp.c	2013-06-02 14:56:07.000000000 +0200
+***************
+*** 361,366 ****
+--- 361,368 ----
+  static char_u e_unmatchedpp[] = N_("E53: Unmatched %s%%(");
+  static char_u e_unmatchedp[] = N_("E54: Unmatched %s(");
+  static char_u e_unmatchedpar[] = N_("E55: Unmatched %s)");
++ static char_u e_z_not_allowed[] = N_("E66: \\z( not allowed here");
++ static char_u e_z1_not_allowed[] = N_("E67: \\z1 et al. not allowed here");
+  
+  #define NOT_MULTI	0
+  #define MULTI_ONE	1
+***************
+*** 2120,2126 ****
+  	    {
+  #ifdef FEAT_SYN_HL
+  		case '(': if (reg_do_extmatch != REX_SET)
+! 			      EMSG_RET_NULL(_("E66: \\z( not allowed here"));
+  			  if (one_exactly)
+  			      EMSG_ONE_RET_NULL;
+  			  ret = reg(REG_ZPAREN, &flags);
+--- 2122,2128 ----
+  	    {
+  #ifdef FEAT_SYN_HL
+  		case '(': if (reg_do_extmatch != REX_SET)
+! 			      EMSG_RET_NULL(_(e_z_not_allowed));
+  			  if (one_exactly)
+  			      EMSG_ONE_RET_NULL;
+  			  ret = reg(REG_ZPAREN, &flags);
+***************
+*** 2139,2145 ****
+  		case '7':
+  		case '8':
+  		case '9': if (reg_do_extmatch != REX_USE)
+! 			      EMSG_RET_NULL(_("E67: \\z1 et al. not allowed here"));
+  			  ret = regnode(ZREF + c - '0');
+  			  re_has_z = REX_USE;
+  			  break;
+--- 2141,2147 ----
+  		case '7':
+  		case '8':
+  		case '9': if (reg_do_extmatch != REX_USE)
+! 			      EMSG_RET_NULL(_(e_z1_not_allowed));
+  			  ret = regnode(ZREF + c - '0');
+  			  re_has_z = REX_USE;
+  			  break;
+*** ../vim-7.3.1090/src/regexp_nfa.c	2013-06-01 23:02:48.000000000 +0200
+--- src/regexp_nfa.c	2013-06-02 14:56:53.000000000 +0200
+***************
+*** 865,870 ****
+--- 865,872 ----
+  		case '8':
+  		case '9':
+  		    /* \z1...\z9 */
++ 		    if (reg_do_extmatch != REX_USE)
++ 			EMSG_RET_FAIL(_(e_z1_not_allowed));
+  		    EMIT(NFA_ZREF1 + (no_Magic(c) - '1'));
+  		    /* No need to set nfa_has_backref, the sub-matches don't
+  		     * change when \z1 .. \z9 maches or not. */
+***************
+*** 872,877 ****
+--- 874,881 ----
+  		    break;
+  		case '(':
+  		    /* \z(  */
++ 		    if (reg_do_extmatch != REX_SET)
++ 			EMSG_RET_FAIL(_(e_z_not_allowed));
+  		    if (nfa_reg(REG_ZPAREN) == FAIL)
+  			return FAIL;	    /* cascaded error */
+  		    re_has_z = REX_SET;
+*** ../vim-7.3.1090/src/version.c	2013-06-01 23:02:48.000000000 +0200
+--- src/version.c	2013-06-02 14:58:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1091,
+  /**/
+
+-- 
+Don't believe everything you hear or anything you say.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

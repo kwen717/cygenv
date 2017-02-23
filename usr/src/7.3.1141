@@ -1,0 +1,88 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1141
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1141
+Problem:    Win32: Check for available memory is not reliable and adds
+	    overhead.
+Solution:   Remove mch_avail_mem(). (Mike Williams)
+Files:	    src/os_win32.c, src/os_win32.h
+
+
+*** ../vim-7.3.1140/src/os_win32.c	2013-05-06 04:21:35.000000000 +0200
+--- src/os_win32.c	2013-06-07 19:12:53.000000000 +0200
+***************
+*** 5048,5084 ****
+  }
+  
+  
+- /*
+-  * How much memory is available in Kbyte?
+-  * Return sum of available physical and page file memory.
+-  */
+- /*ARGSUSED*/
+-     long_u
+- mch_avail_mem(int special)
+- {
+- #ifdef MEMORYSTATUSEX
+-     PlatformId();
+-     if (g_PlatformId == VER_PLATFORM_WIN32_NT)
+-     {
+- 	MEMORYSTATUSEX	ms;
+- 
+- 	/* Need to use GlobalMemoryStatusEx() when there is more memory than
+- 	 * what fits in 32 bits. But it's not always available. */
+- 	ms.dwLength = sizeof(MEMORYSTATUSEX);
+- 	GlobalMemoryStatusEx(&ms);
+- 	return (long_u)((ms.ullAvailPhys + ms.ullAvailPageFile) >> 10);
+-     }
+-     else
+- #endif
+-     {
+- 	MEMORYSTATUS	ms;
+- 
+- 	ms.dwLength = sizeof(MEMORYSTATUS);
+- 	GlobalMemoryStatus(&ms);
+- 	return (long_u)((ms.dwAvailPhys + ms.dwAvailPageFile) >> 10);
+-     }
+- }
+- 
+  #ifdef FEAT_MBYTE
+  /*
+   * Same code as below, but with wide functions and no comments.
+--- 5048,5053 ----
+*** ../vim-7.3.1140/src/os_win32.h	2013-05-06 04:21:35.000000000 +0200
+--- src/os_win32.h	2013-06-07 19:14:42.000000000 +0200
+***************
+*** 80,86 ****
+  #ifndef FEAT_GUI_W32		/* GUI works different */
+  # define BREAKCHECK_SKIP    1	/* call mch_breakcheck() each time, it's fast */
+  #endif
+- #define HAVE_AVAIL_MEM
+  
+  #define HAVE_PUTENV		/* at least Bcc 5.2 and MSC have it */
+  
+--- 80,85 ----
+*** ../vim-7.3.1140/src/version.c	2013-06-07 17:31:25.000000000 +0200
+--- src/version.c	2013-06-07 19:13:48.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1141,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+95. Only communication in your household is through email.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

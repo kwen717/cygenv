@@ -1,0 +1,116 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1125
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1125
+Problem:    Error for using \%V in a pattern in tiny Vim.
+Solution:   Allow using \%V but never match. (Dominique Pelle)
+Files:	    src/regexp_nfa.c
+
+
+*** ../vim-7.3.1124/src/regexp_nfa.c	2013-06-05 18:52:36.000000000 +0200
+--- src/regexp_nfa.c	2013-06-05 21:05:09.000000000 +0200
+***************
+*** 184,192 ****
+      NFA_MARK,		/*	Match mark */
+      NFA_MARK_GT,	/*	Match > mark */
+      NFA_MARK_LT,	/*	Match < mark */
+- #ifdef FEAT_VISUAL
+      NFA_VISUAL,		/*	Match Visual area */
+- #endif
+  
+      NFA_FIRST_NL = NFA_ANY + ADD_NL,
+      NFA_LAST_NL = NFA_NUPPER + ADD_NL,
+--- 184,190 ----
+***************
+*** 963,973 ****
+  		    EMIT(NFA_CURSOR);
+  		    break;
+  
+- #ifdef FEAT_VISUAL
+  		case 'V':
+  		    EMIT(NFA_VISUAL);
+  		    break;
+- #endif
+  
+  		case '[':
+  		    {
+--- 961,969 ----
+***************
+*** 1976,1984 ****
+  	case NFA_MARK_GT:	STRCPY(code, "NFA_MARK_GT "); break;
+  	case NFA_MARK_LT:	STRCPY(code, "NFA_MARK_LT "); break;
+  	case NFA_CURSOR:	STRCPY(code, "NFA_CURSOR "); break;
+- #ifdef FEAT_VISUAL
+  	case NFA_VISUAL:	STRCPY(code, "NFA_VISUAL "); break;
+- #endif
+  
+  	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
+  	case NFA_STAR_NONGREEDY: STRCPY(code, "NFA_STAR_NONGREEDY "); break;
+--- 1972,1978 ----
+***************
+*** 4093,4101 ****
+  	case NFA_VCOL_LT:
+  	case NFA_MARK_GT:
+  	case NFA_MARK_LT:
+- #ifdef FEAT_VISUAL
+  	case NFA_VISUAL:
+- #endif
+  	    /* before/after positions don't match very often */
+  	    return 85;
+  
+--- 4087,4093 ----
+***************
+*** 5036,5049 ****
+  							    t->pim, &listidx);
+  		break;
+  
+- #ifdef FEAT_VISUAL
+  	    case NFA_VISUAL:
+  		result = reg_match_visual();
+  		if (result)
+  		    addstate_here(thislist, t->state->out, &t->subs,
+  							    t->pim, &listidx);
+- 		break;
+  #endif
+  
+  	    default:	/* regular character */
+  	      {
+--- 5028,5041 ----
+  							    t->pim, &listidx);
+  		break;
+  
+  	    case NFA_VISUAL:
++ #ifdef FEAT_VISUAL
+  		result = reg_match_visual();
+  		if (result)
+  		    addstate_here(thislist, t->state->out, &t->subs,
+  							    t->pim, &listidx);
+  #endif
++ 		break;
+  
+  	    default:	/* regular character */
+  	      {
+*** ../vim-7.3.1124/src/version.c	2013-06-05 20:34:07.000000000 +0200
+--- src/version.c	2013-06-05 21:06:18.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1125,
+  /**/
+
+-- 
+From "know your smileys":
+ (X0||)   Double hamburger with lettuce and tomato
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

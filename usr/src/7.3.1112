@@ -1,0 +1,311 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1112
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1112
+Problem:    New regexp engine: \%V not supported.
+Solution:   Implement \%V.  Add tests.
+Files:	    src/regexp.c, src/regexp_nfa.c, src/testdir/test64.in,
+	    src/testdir/test64.ok
+
+
+*** ../vim-7.3.1111/src/regexp.c	2013-06-03 19:41:01.000000000 +0200
+--- src/regexp.c	2013-06-04 18:28:12.000000000 +0200
+***************
+*** 4165,4170 ****
+--- 4165,4249 ----
+  }
+  
+  #endif
++ #ifdef FEAT_VISUAL
++ static int reg_match_visual __ARGS((void));
++ 
++ /*
++  * Return TRUE if the current reginput position matches the Visual area.
++  */
++     static int
++ reg_match_visual()
++ {
++     pos_T	top, bot;
++     linenr_T    lnum;
++     colnr_T	col;
++     win_T	*wp = reg_win == NULL ? curwin : reg_win;
++     int		mode;
++     colnr_T	start, end;
++     colnr_T	start2, end2;
++     colnr_T	cols;
++ 
++     /* Check if the buffer is the current buffer. */
++     if (reg_buf != curbuf || VIsual.lnum == 0)
++ 	return FALSE;
++ 
++     if (VIsual_active)
++     {
++ 	if (lt(VIsual, wp->w_cursor))
++ 	{
++ 	    top = VIsual;
++ 	    bot = wp->w_cursor;
++ 	}
++ 	else
++ 	{
++ 	    top = wp->w_cursor;
++ 	    bot = VIsual;
++ 	}
++ 	mode = VIsual_mode;
++     }
++     else
++     {
++ 	if (lt(curbuf->b_visual.vi_start, curbuf->b_visual.vi_end))
++ 	{
++ 	    top = curbuf->b_visual.vi_start;
++ 	    bot = curbuf->b_visual.vi_end;
++ 	}
++ 	else
++ 	{
++ 	    top = curbuf->b_visual.vi_end;
++ 	    bot = curbuf->b_visual.vi_start;
++ 	}
++ 	mode = curbuf->b_visual.vi_mode;
++     }
++     lnum = reglnum + reg_firstlnum;
++     if (lnum < top.lnum || lnum > bot.lnum)
++ 	return FALSE;
++ 
++     if (mode == 'v')
++     {
++ 	col = (colnr_T)(reginput - regline);
++ 	if ((lnum == top.lnum && col < top.col)
++ 		|| (lnum == bot.lnum && col >= bot.col + (*p_sel != 'e')))
++ 	    return FALSE;
++     }
++     else if (mode == Ctrl_V)
++     {
++ 	getvvcol(wp, &top, &start, NULL, &end);
++ 	getvvcol(wp, &bot, &start2, NULL, &end2);
++ 	if (start2 < start)
++ 	    start = start2;
++ 	if (end2 > end)
++ 	    end = end2;
++ 	if (top.col == MAXCOL || bot.col == MAXCOL)
++ 	    end = MAXCOL;
++ 	cols = win_linetabsize(wp, regline, (colnr_T)(reginput - regline));
++ 	if (cols < start || cols > end - (*p_sel == 'e'))
++ 	    return FALSE;
++     }
++     return TRUE;
++ }
++ #endif
++ 
+  #define ADVANCE_REGINPUT() mb_ptr_adv(reginput)
+  
+  /*
+***************
+*** 4347,4426 ****
+  
+  	  case RE_VISUAL:
+  #ifdef FEAT_VISUAL
+! 	    /* Check if the buffer is the current buffer. and whether the
+! 	     * position is inside the Visual area. */
+! 	    if (reg_buf != curbuf || VIsual.lnum == 0)
+! 		status = RA_NOMATCH;
+! 	    else
+! 	    {
+! 		pos_T	    top, bot;
+! 		linenr_T    lnum;
+! 		colnr_T	    col;
+! 		win_T	    *wp = reg_win == NULL ? curwin : reg_win;
+! 		int	    mode;
+! 
+! 		if (VIsual_active)
+! 		{
+! 		    if (lt(VIsual, wp->w_cursor))
+! 		    {
+! 			top = VIsual;
+! 			bot = wp->w_cursor;
+! 		    }
+! 		    else
+! 		    {
+! 			top = wp->w_cursor;
+! 			bot = VIsual;
+! 		    }
+! 		    mode = VIsual_mode;
+! 		}
+! 		else
+! 		{
+! 		    if (lt(curbuf->b_visual.vi_start, curbuf->b_visual.vi_end))
+! 		    {
+! 			top = curbuf->b_visual.vi_start;
+! 			bot = curbuf->b_visual.vi_end;
+! 		    }
+! 		    else
+! 		    {
+! 			top = curbuf->b_visual.vi_end;
+! 			bot = curbuf->b_visual.vi_start;
+! 		    }
+! 		    mode = curbuf->b_visual.vi_mode;
+! 		}
+! 		lnum = reglnum + reg_firstlnum;
+! 		col = (colnr_T)(reginput - regline);
+! 		if (lnum < top.lnum || lnum > bot.lnum)
+! 		    status = RA_NOMATCH;
+! 		else if (mode == 'v')
+! 		{
+! 		    if ((lnum == top.lnum && col < top.col)
+! 			    || (lnum == bot.lnum
+! 					 && col >= bot.col + (*p_sel != 'e')))
+! 			status = RA_NOMATCH;
+! 		}
+! 		else if (mode == Ctrl_V)
+! 		{
+! 		    colnr_T	    start, end;
+! 		    colnr_T	    start2, end2;
+! 		    colnr_T	    cols;
+! 
+! 		    getvvcol(wp, &top, &start, NULL, &end);
+! 		    getvvcol(wp, &bot, &start2, NULL, &end2);
+! 		    if (start2 < start)
+! 			start = start2;
+! 		    if (end2 > end)
+! 			end = end2;
+! 		    if (top.col == MAXCOL || bot.col == MAXCOL)
+! 			end = MAXCOL;
+! 		    cols = win_linetabsize(wp,
+! 				      regline, (colnr_T)(reginput - regline));
+! 		    if (cols < start || cols > end - (*p_sel == 'e'))
+! 			status = RA_NOMATCH;
+! 		}
+! 	    }
+! #else
+! 	    status = RA_NOMATCH;
+  #endif
+  	    break;
+  
+  	  case RE_LNUM:
+--- 4426,4434 ----
+  
+  	  case RE_VISUAL:
+  #ifdef FEAT_VISUAL
+! 	    if (!reg_match_visual())
+  #endif
++ 		status = RA_NOMATCH;
+  	    break;
+  
+  	  case RE_LNUM:
+*** ../vim-7.3.1111/src/regexp_nfa.c	2013-06-04 17:47:00.000000000 +0200
+--- src/regexp_nfa.c	2013-06-04 18:22:04.000000000 +0200
+***************
+*** 178,183 ****
+--- 178,184 ----
+      NFA_VCOL,		/*	Match cursor virtual column */
+      NFA_VCOL_GT,	/*	Match > cursor virtual column */
+      NFA_VCOL_LT,	/*	Match < cursor virtual column */
++     NFA_VISUAL,		/*	Match Visual area */
+  
+      NFA_FIRST_NL = NFA_ANY + ADD_NL,
+      NFA_LAST_NL = NFA_NUPPER + ADD_NL,
+***************
+*** 960,967 ****
+  		    break;
+  
+  		case 'V':
+! 		    /* TODO: not supported yet */
+! 		    return FAIL;
+  		    break;
+  
+  		case '[':
+--- 961,967 ----
+  		    break;
+  
+  		case 'V':
+! 		    EMIT(NFA_VISUAL);
+  		    break;
+  
+  		case '[':
+***************
+*** 4731,4736 ****
+--- 4731,4743 ----
+  		if (result)
+  		    addstate_here(thislist, t->state->out, &t->subs,
+  							    t->pim, &listidx);
++ 		break;
++ 
++ 	    case NFA_VISUAL:
++ 		result = reg_match_visual();
++ 		if (result)
++ 		    addstate_here(thislist, t->state->out, &t->subs,
++ 							    t->pim, &listidx);
+  		break;
+  
+  	    default:	/* regular character */
+*** ../vim-7.3.1111/src/testdir/test64.in	2013-06-02 16:07:05.000000000 +0200
+--- src/testdir/test64.in	2013-06-04 18:07:59.000000000 +0200
+***************
+*** 458,463 ****
+--- 458,471 ----
+  :.yank
+  Gop:"
+  :"
++ :" Check matching Visual area
++ /^Visual:
++ jfxvfx:s/\%Ve/E/g
++ jV:s/\%Va/A/g
++ jfxfxj:s/\%Vo/O/g
++ :/^Visual/+1,/^Visual/+4yank
++ Gop:"
++ :"
+  :" Check patterns matching cursor position.
+  :func! Postest()
+   new
+***************
+*** 520,523 ****
+--- 528,537 ----
+  asdfasd<yy
+  xxstart3
+  
++ Visual:
++ thexe the thexethe
++ andaxand andaxand
++ oooxofor foroxooo
++ oooxofor foroxooo
++ 
+  Results of test64:
+*** ../vim-7.3.1111/src/testdir/test64.ok	2013-06-02 16:07:05.000000000 +0200
+--- src/testdir/test64.ok	2013-06-04 18:08:08.000000000 +0200
+***************
+*** 857,862 ****
+--- 857,867 ----
+  ghi
+  
+  xxstart3
++ 
++ thexE thE thExethe
++ AndAxAnd AndAxAnd
++ oooxOfOr fOrOxooo
++ oooxOfOr fOrOxooo
+  -0-
+  ffo
+  bob
+*** ../vim-7.3.1111/src/version.c	2013-06-04 17:47:00.000000000 +0200
+--- src/version.c	2013-06-04 18:26:28.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1112,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+87. Everyone you know asks why your phone line is always busy ...and
+    you tell them to send an e-mail.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

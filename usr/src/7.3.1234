@@ -1,0 +1,1283 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1234
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1234 (after 7.3.1229)
+Problem:    Python: Strings are not marked for translation.
+Solution:   Add N_() where appropriate. (ZyX)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1233/src/if_py_both.h	2013-06-23 14:37:00.000000000 +0200
+--- src/if_py_both.h	2013-06-23 16:00:03.000000000 +0200
+***************
+*** 37,52 ****
+  	: obj->ob_type->tp_name)
+  
+  #define RAISE_NO_EMPTY_KEYS PyErr_SET_STRING(PyExc_ValueError, \
+! 						"empty keys are not allowed")
+! #define RAISE_LOCKED(type) PyErr_SET_VIM(_(type " is locked"))
+! #define RAISE_LOCKED_DICTIONARY RAISE_LOCKED("dictionary")
+! #define RAISE_LOCKED_LIST RAISE_LOCKED("list")
+! #define RAISE_UNDO_FAIL PyErr_SET_VIM("cannot save undo information")
+! #define RAISE_LINE_FAIL(act) PyErr_SET_VIM("cannot " act " line")
+  #define RAISE_KEY_ADD_FAIL(key) \
+!     PyErr_VIM_FORMAT("failed to add key '%s' to dictionary", key)
+  #define RAISE_INVALID_INDEX_TYPE(idx) \
+!     PyErr_FORMAT(PyExc_TypeError, "index must be int or slice, not %s", \
+  	    Py_TYPE_NAME(idx));
+  
+  #define INVALID_BUFFER_VALUE ((buf_T *)(-1))
+--- 37,53 ----
+  	: obj->ob_type->tp_name)
+  
+  #define RAISE_NO_EMPTY_KEYS PyErr_SET_STRING(PyExc_ValueError, \
+! 					    N_("empty keys are not allowed"))
+! #define RAISE_LOCKED_DICTIONARY PyErr_SET_VIM(N_("dictionary is locked"))
+! #define RAISE_LOCKED_LIST PyErr_SET_VIM(N_("list is locked"))
+! #define RAISE_UNDO_FAIL PyErr_SET_VIM(N_("cannot save undo information"))
+! #define RAISE_DELETE_LINE_FAIL PyErr_SET_VIM(N_("cannot delete line"))
+! #define RAISE_INSERT_LINE_FAIL PyErr_SET_VIM(N_("cannot insert line"))
+! #define RAISE_REPLACE_LINE_FAIL PyErr_SET_VIM(N_("cannot replace line"))
+  #define RAISE_KEY_ADD_FAIL(key) \
+!     PyErr_VIM_FORMAT(N_("failed to add key '%s' to dictionary"), key)
+  #define RAISE_INVALID_INDEX_TYPE(idx) \
+!     PyErr_FORMAT(PyExc_TypeError, N_("index must be int or slice, not %s"), \
+  	    Py_TYPE_NAME(idx));
+  
+  #define INVALID_BUFFER_VALUE ((buf_T *)(-1))
+***************
+*** 140,148 ****
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+  #if PY_MAJOR_VERSION < 3
+! 		"expected str() or unicode() instance, but got %s"
+  #else
+! 		"expected bytes() or str() instance, but got %s"
+  #endif
+  		, Py_TYPE_NAME(obj));
+  	return NULL;
+--- 141,149 ----
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+  #if PY_MAJOR_VERSION < 3
+! 		N_("expected str() or unicode() instance, but got %s")
+  #else
+! 		N_("expected bytes() or str() instance, but got %s")
+  #endif
+  		, Py_TYPE_NAME(obj));
+  	return NULL;
+***************
+*** 192,202 ****
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+  #if PY_MAJOR_VERSION < 3
+! 		"expected int(), long() or something supporting "
+! 		"coercing to long(), but got %s"
+  #else
+! 		"expected int() or something supporting coercing to int(), "
+! 		"but got %s"
+  #endif
+  		, Py_TYPE_NAME(obj));
+  	return -1;
+--- 193,203 ----
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+  #if PY_MAJOR_VERSION < 3
+! 		N_("expected int(), long() or something supporting "
+! 		   "coercing to long(), but got %s")
+  #else
+! 		N_("expected int() or something supporting coercing to int(), "
+! 		   "but got %s")
+  #endif
+  		, Py_TYPE_NAME(obj));
+  	return -1;
+***************
+*** 207,219 ****
+  	if (*result > INT_MAX)
+  	{
+  	    PyErr_SET_STRING(PyExc_OverflowError,
+! 		    "value is too large to fit into C int type");
+  	    return -1;
+  	}
+  	else if (*result < INT_MIN)
+  	{
+  	    PyErr_SET_STRING(PyExc_OverflowError,
+! 		    "value is too small to fit into C int type");
+  	    return -1;
+  	}
+      }
+--- 208,220 ----
+  	if (*result > INT_MAX)
+  	{
+  	    PyErr_SET_STRING(PyExc_OverflowError,
+! 		    N_("value is too large to fit into C int type"));
+  	    return -1;
+  	}
+  	else if (*result < INT_MIN)
+  	{
+  	    PyErr_SET_STRING(PyExc_OverflowError,
+! 		    N_("value is too small to fit into C int type"));
+  	    return -1;
+  	}
+      }
+***************
+*** 223,229 ****
+  	if (*result <= 0)
+  	{
+  	    PyErr_SET_STRING(PyExc_ValueError,
+! 		    "number must be greater then zero");
+  	    return -1;
+  	}
+      }
+--- 224,230 ----
+  	if (*result <= 0)
+  	{
+  	    PyErr_SET_STRING(PyExc_ValueError,
+! 		    N_("number must be greater then zero"));
+  	    return -1;
+  	}
+      }
+***************
+*** 232,238 ****
+  	if (*result < 0)
+  	{
+  	    PyErr_SET_STRING(PyExc_ValueError,
+! 		    "number must be greater or equal to zero");
+  	    return -1;
+  	}
+      }
+--- 233,239 ----
+  	if (*result < 0)
+  	{
+  	    PyErr_SET_STRING(PyExc_ValueError,
+! 		    N_("number must be greater or equal to zero"));
+  	    return -1;
+  	}
+      }
+***************
+*** 326,332 ****
+      if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+! 		"can't delete OutputObject attributes");
+  	return -1;
+      }
+  
+--- 327,333 ----
+      if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+! 		N_("can't delete OutputObject attributes"));
+  	return -1;
+      }
+  
+***************
+*** 337,343 ****
+  	return 0;
+      }
+  
+!     PyErr_FORMAT(PyExc_AttributeError, "invalid attribute: %s", name);
+      return -1;
+  }
+  
+--- 338,344 ----
+  	return 0;
+      }
+  
+!     PyErr_FORMAT(PyExc_AttributeError, N_("invalid attribute: %s"), name);
+      return -1;
+  }
+  
+***************
+*** 785,791 ****
+  
+      if (our_tv == NULL)
+      {
+! 	PyErr_SET_VIM("invalid expression");
+  	return NULL;
+      }
+  
+--- 786,792 ----
+  
+      if (our_tv == NULL)
+      {
+! 	PyErr_SET_VIM(N_("invalid expression"));
+  	return NULL;
+      }
+  
+***************
+*** 836,842 ****
+  
+      if (our_tv == NULL)
+      {
+! 	PyErr_SET_VIM("invalid expression");
+  	return NULL;
+      }
+  
+--- 837,843 ----
+  
+      if (our_tv == NULL)
+      {
+! 	PyErr_SET_VIM(N_("invalid expression"));
+  	return NULL;
+      }
+  
+***************
+*** 908,914 ****
+  	if (VimTryEnd())
+  	    return NULL;
+  
+! 	PyErr_SET_VIM("failed to change directory");
+  	return NULL;
+      }
+  
+--- 909,915 ----
+  	if (VimTryEnd())
+  	    return NULL;
+  
+! 	PyErr_SET_VIM(N_("failed to change directory"));
+  	return NULL;
+      }
+  
+***************
+*** 1086,1100 ****
+      if (!PyTuple_Check(find_module_result))
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		"expected 3-tuple as imp.find_module() result, but got %s",
+  		Py_TYPE_NAME(find_module_result));
+  	return NULL;
+      }
+      if (PyTuple_GET_SIZE(find_module_result) != 3)
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		"expected 3-tuple as imp.find_module() result, but got "
+! 		"tuple of size %d",
+  		(int) PyTuple_GET_SIZE(find_module_result));
+  	return NULL;
+      }
+--- 1087,1101 ----
+      if (!PyTuple_Check(find_module_result))
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		N_("expected 3-tuple as imp.find_module() result, but got %s"),
+  		Py_TYPE_NAME(find_module_result));
+  	return NULL;
+      }
+      if (PyTuple_GET_SIZE(find_module_result) != 3)
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		N_("expected 3-tuple as imp.find_module() result, but got "
+! 		   "tuple of size %d"),
+  		(int) PyTuple_GET_SIZE(find_module_result));
+  	return NULL;
+      }
+***************
+*** 1104,1110 ****
+  	    || !(description = PyTuple_GET_ITEM(find_module_result, 2)))
+      {
+  	PyErr_SET_STRING(PyExc_RuntimeError,
+! 		"internal error: imp.find_module returned tuple with NULL");
+  	return NULL;
+      }
+  
+--- 1105,1111 ----
+  	    || !(description = PyTuple_GET_ITEM(find_module_result, 2)))
+      {
+  	PyErr_SET_STRING(PyExc_RuntimeError,
+! 		N_("internal error: imp.find_module returned tuple with NULL"));
+  	return NULL;
+      }
+  
+***************
+*** 1476,1482 ****
+      if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+! 		"cannot delete vim.Dictionary attributes");
+  	return -1;
+      }
+  
+--- 1477,1483 ----
+      if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+! 		N_("cannot delete vim.Dictionary attributes"));
+  	return -1;
+      }
+  
+***************
+*** 1484,1490 ****
+      {
+  	if (self->dict->dv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SET_STRING(PyExc_TypeError, "cannot modify fixed dictionary");
+  	    return -1;
+  	}
+  	else
+--- 1485,1492 ----
+      {
+  	if (self->dict->dv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SET_STRING(PyExc_TypeError,
+! 		    N_("cannot modify fixed dictionary"));
+  	    return -1;
+  	}
+  	else
+***************
+*** 1501,1507 ****
+      }
+      else
+      {
+! 	PyErr_FORMAT(PyExc_AttributeError, "cannot set attribute %s", name);
+  	return -1;
+      }
+  }
+--- 1503,1509 ----
+      }
+      else
+      {
+! 	PyErr_FORMAT(PyExc_AttributeError, N_("cannot set attribute %s"), name);
+  	return -1;
+      }
+  }
+***************
+*** 1635,1641 ****
+  	    (*dii)->ht->ht_used != (*dii)->ht_used)
+      {
+  	PyErr_SET_STRING(PyExc_RuntimeError,
+! 		"hashtab changed during iteration");
+  	return NULL;
+      }
+  
+--- 1637,1643 ----
+  	    (*dii)->ht->ht_used != (*dii)->ht_used)
+      {
+  	PyErr_SET_STRING(PyExc_RuntimeError,
+! 		N_("hashtab changed during iteration"));
+  	return NULL;
+      }
+  
+***************
+*** 1906,1913 ****
+  		    Py_DECREF(iterator);
+  		    Py_DECREF(fast);
+  		    PyErr_FORMAT(PyExc_ValueError,
+! 			    "expected sequence element of size 2, "
+! 			    "but got sequence of size %d",
+  			    PySequence_Fast_GET_SIZE(fast));
+  		    return NULL;
+  		}
+--- 1908,1915 ----
+  		    Py_DECREF(iterator);
+  		    Py_DECREF(fast);
+  		    PyErr_FORMAT(PyExc_ValueError,
+! 			    N_("expected sequence element of size 2, "
+! 			    "but got sequence of size %d"),
+  			    PySequence_Fast_GET_SIZE(fast));
+  		    return NULL;
+  		}
+***************
+*** 2150,2156 ****
+      if (kwargs)
+      {
+  	PyErr_SET_STRING(PyExc_TypeError,
+! 		"list constructor does not accept keyword arguments");
+  	return NULL;
+      }
+  
+--- 2152,2158 ----
+      if (kwargs)
+      {
+  	PyErr_SET_STRING(PyExc_TypeError,
+! 		N_("list constructor does not accept keyword arguments"));
+  	return NULL;
+      }
+  
+***************
+*** 2205,2218 ****
+  
+      if (index >= ListLength(self))
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, "list index out of range");
+  	return NULL;
+      }
+      li = list_find(self->list, (long) index);
+      if (li == NULL)
+      {
+  	/* No more suitable format specifications in python-2.3 */
+! 	PyErr_VIM_FORMAT("internal error: failed to get vim list item %d",
+  		(int) index);
+  	return NULL;
+      }
+--- 2207,2220 ----
+  
+      if (index >= ListLength(self))
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, N_("list index out of range"));
+  	return NULL;
+      }
+      li = list_find(self->list, (long) index);
+      if (li == NULL)
+      {
+  	/* No more suitable format specifications in python-2.3 */
+! 	PyErr_VIM_FORMAT(N_("internal error: failed to get vim list item %d"),
+  		(int) index);
+  	return NULL;
+      }
+***************
+*** 2331,2337 ****
+      }
+      if (index > length || (index == length && obj == NULL))
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, "list index out of range");
+  	return -1;
+      }
+  
+--- 2333,2339 ----
+      }
+      if (index > length || (index == length && obj == NULL))
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, N_("list index out of range"));
+  	return -1;
+      }
+  
+***************
+*** 2352,2358 ****
+  	if (list_append_tv(l, &tv) == FAIL)
+  	{
+  	    clear_tv(&tv);
+! 	    PyErr_SET_VIM("failed to add item to list");
+  	    return -1;
+  	}
+      }
+--- 2354,2360 ----
+  	if (list_append_tv(l, &tv) == FAIL)
+  	{
+  	    clear_tv(&tv);
+! 	    PyErr_SET_VIM(N_("failed to add item to list"));
+  	    return -1;
+  	}
+      }
+***************
+*** 2393,2399 ****
+  	li = list_find(l, (long) first);
+  	if (li == NULL)
+  	{
+! 	    PyErr_VIM_FORMAT("internal error: no vim list item %d", (int)first);
+  	    return -1;
+  	}
+  	if (last > first)
+--- 2395,2402 ----
+  	li = list_find(l, (long) first);
+  	if (li == NULL)
+  	{
+! 	    PyErr_VIM_FORMAT(N_("internal error: no vim list item %d"),
+! 		    (int)first);
+  	    return -1;
+  	}
+  	if (last > first)
+***************
+*** 2426,2432 ****
+  	if (list_insert_tv(l, &v, li) == FAIL)
+  	{
+  	    clear_tv(&v);
+! 	    PyErr_SET_VIM("internal error: failed to add item to list");
+  	    return -1;
+  	}
+  	clear_tv(&v);
+--- 2429,2435 ----
+  	if (list_insert_tv(l, &v, li) == FAIL)
+  	{
+  	    clear_tv(&v);
+! 	    PyErr_SET_VIM(N_("internal error: failed to add item to list"));
+  	    return -1;
+  	}
+  	clear_tv(&v);
+***************
+*** 2478,2484 ****
+      if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+! 		"cannot delete vim.List attributes");
+  	return -1;
+      }
+  
+--- 2481,2487 ----
+      if (valObject == NULL)
+      {
+  	PyErr_SET_STRING(PyExc_AttributeError,
+! 		N_("cannot delete vim.List attributes"));
+  	return -1;
+      }
+  
+***************
+*** 2486,2492 ****
+      {
+  	if (self->list->lv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SET_STRING(PyExc_TypeError, "cannot modify fixed list");
+  	    return -1;
+  	}
+  	else
+--- 2489,2495 ----
+      {
+  	if (self->list->lv_lock == VAR_FIXED)
+  	{
+! 	    PyErr_SET_STRING(PyExc_TypeError, N_("cannot modify fixed list"));
+  	    return -1;
+  	}
+  	else
+***************
+*** 2503,2509 ****
+      }
+      else
+      {
+! 	PyErr_FORMAT(PyExc_AttributeError, "cannot set attribute %s", name);
+  	return -1;
+      }
+  }
+--- 2506,2512 ----
+      }
+      else
+      {
+! 	PyErr_FORMAT(PyExc_AttributeError, N_("cannot set attribute %s"), name);
+  	return -1;
+      }
+  }
+***************
+*** 2539,2545 ****
+  	if (!translated_function_exists(name))
+  	{
+  	    PyErr_FORMAT(PyExc_ValueError,
+! 		    "unnamed function %s does not exist", name);
+  	    return NULL;
+  	}
+  	self->name = vim_strsave(name);
+--- 2542,2548 ----
+  	if (!translated_function_exists(name))
+  	{
+  	    PyErr_FORMAT(PyExc_ValueError,
+! 		    N_("unnamed function %s does not exist"), name);
+  	    return NULL;
+  	}
+  	self->name = vim_strsave(name);
+***************
+*** 2550,2556 ****
+  				    vim_strchr(name, AUTOLOAD_CHAR) == NULL))
+  		== NULL)
+  	{
+! 	    PyErr_FORMAT(PyExc_ValueError, "function %s does not exist", name);
+  	    return NULL;
+  	}
+  
+--- 2553,2560 ----
+  				    vim_strchr(name, AUTOLOAD_CHAR) == NULL))
+  		== NULL)
+  	{
+! 	    PyErr_FORMAT(PyExc_ValueError,
+! 		    N_("function %s does not exist"), name);
+  	    return NULL;
+  	}
+  
+***************
+*** 2566,2572 ****
+      if (kwargs)
+      {
+  	PyErr_SET_STRING(PyExc_TypeError,
+! 		"function constructor does not accept keyword arguments");
+  	return NULL;
+      }
+  
+--- 2570,2576 ----
+      if (kwargs)
+      {
+  	PyErr_SET_STRING(PyExc_TypeError,
+! 		N_("function constructor does not accept keyword arguments"));
+  	return NULL;
+      }
+  
+***************
+*** 2643,2649 ****
+      else if (error != OK)
+      {
+  	ret = NULL;
+! 	PyErr_VIM_FORMAT("failed to run function %s", (char *)name);
+      }
+      else
+  	ret = ConvertToPyObject(&rettv);
+--- 2647,2653 ----
+      else if (error != OK)
+      {
+  	ret = NULL;
+! 	PyErr_VIM_FORMAT(N_("failed to run function %s"), (char *)name);
+      }
+      else
+  	ret = ConvertToPyObject(&rettv);
+***************
+*** 2796,2808 ****
+  	else
+  	{
+  	    PyErr_SET_STRING(PyExc_RuntimeError,
+! 		    "unable to get option value");
+  	    return NULL;
+  	}
+      }
+      else
+      {
+! 	PyErr_SET_VIM("internal error: unknown option type");
+  	return NULL;
+      }
+  }
+--- 2800,2812 ----
+  	else
+  	{
+  	    PyErr_SET_STRING(PyExc_RuntimeError,
+! 		    N_("unable to get option value"));
+  	    return NULL;
+  	}
+      }
+      else
+      {
+! 	PyErr_SET_VIM(N_("internal error: unknown option type"));
+  	return NULL;
+      }
+  }
+***************
+*** 2845,2851 ****
+  	    {
+  		if (VimTryEnd())
+  		    return -1;
+! 		PyErr_SET_VIM("problem while switching windows");
+  		return -1;
+  	    }
+  	    set_ret = set_option_value_err(key, numval, stringval, opt_flags);
+--- 2849,2855 ----
+  	    {
+  		if (VimTryEnd())
+  		    return -1;
+! 		PyErr_SET_VIM(N_("problem while switching windows"));
+  		return -1;
+  	    }
+  	    set_ret = set_option_value_err(key, numval, stringval, opt_flags);
+***************
+*** 2902,2916 ****
+  	if (self->opt_type == SREQ_GLOBAL)
+  	{
+  	    PyErr_FORMAT(PyExc_ValueError,
+! 		    "unable to unset global option %s", key);
+  	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+  	else if (!(flags & SOPT_GLOBAL))
+  	{
+  	    PyErr_FORMAT(PyExc_ValueError,
+! 		    "unable to unset option %s "
+! 		    "which does not have global value", key);
+  	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+--- 2906,2920 ----
+  	if (self->opt_type == SREQ_GLOBAL)
+  	{
+  	    PyErr_FORMAT(PyExc_ValueError,
+! 		    N_("unable to unset global option %s"), key);
+  	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+  	else if (!(flags & SOPT_GLOBAL))
+  	{
+  	    PyErr_FORMAT(PyExc_ValueError,
+! 		    N_("unable to unset option %s "
+! 		       "which does not have global value"), key);
+  	    Py_XDECREF(todecref);
+  	    return -1;
+  	}
+***************
+*** 2988,2994 ****
+  {
+      if (self->tab == INVALID_TABPAGE_VALUE)
+      {
+! 	PyErr_SET_VIM("attempt to refer to deleted tab page");
+  	return -1;
+      }
+  
+--- 2992,2998 ----
+  {
+      if (self->tab == INVALID_TABPAGE_VALUE)
+      {
+! 	PyErr_SET_VIM(N_("attempt to refer to deleted tab page"));
+  	return -1;
+      }
+  
+***************
+*** 3132,3138 ****
+  	if (n == 0)
+  	    return TabPageNew(tp);
+  
+!     PyErr_SET_STRING(PyExc_IndexError, "no such tab page");
+      return NULL;
+  }
+  
+--- 3136,3142 ----
+  	if (n == 0)
+  	    return TabPageNew(tp);
+  
+!     PyErr_SET_STRING(PyExc_IndexError, N_("no such tab page"));
+      return NULL;
+  }
+  
+***************
+*** 3154,3160 ****
+  {
+      if (self->win == INVALID_WINDOW_VALUE)
+      {
+! 	PyErr_SET_VIM("attempt to refer to deleted window");
+  	return -1;
+      }
+  
+--- 3158,3164 ----
+  {
+      if (self->win == INVALID_WINDOW_VALUE)
+      {
+! 	PyErr_SET_VIM(N_("attempt to refer to deleted window"));
+  	return -1;
+      }
+  
+***************
+*** 3320,3326 ****
+  
+      if (strcmp(name, "buffer") == 0)
+      {
+! 	PyErr_SET_STRING(PyExc_TypeError, "readonly attribute: buffer");
+  	return -1;
+      }
+      else if (strcmp(name, "cursor") == 0)
+--- 3324,3330 ----
+  
+      if (strcmp(name, "buffer") == 0)
+      {
+! 	PyErr_SET_STRING(PyExc_TypeError, N_("readonly attribute: buffer"));
+  	return -1;
+      }
+      else if (strcmp(name, "cursor") == 0)
+***************
+*** 3333,3339 ****
+  
+  	if (lnum <= 0 || lnum > self->win->w_buffer->b_ml.ml_line_count)
+  	{
+! 	    PyErr_SET_VIM("cursor position outside buffer");
+  	    return -1;
+  	}
+  
+--- 3337,3343 ----
+  
+  	if (lnum <= 0 || lnum > self->win->w_buffer->b_ml.ml_line_count)
+  	{
+! 	    PyErr_SET_VIM(N_("cursor position outside buffer"));
+  	    return -1;
+  	}
+  
+***************
+*** 3496,3502 ****
+  	if (n == 0)
+  	    return WindowNew(w, self->tabObject? self->tabObject->tab: curtab);
+  
+!     PyErr_SET_STRING(PyExc_IndexError, "no such window");
+      return NULL;
+  }
+  
+--- 3500,3506 ----
+  	if (n == 0)
+  	    return WindowNew(w, self->tabObject? self->tabObject->tab: curtab);
+  
+!     PyErr_SET_STRING(PyExc_IndexError, N_("no such window"));
+      return NULL;
+  }
+  
+***************
+*** 3550,3556 ****
+  	    --len;
+  	else
+  	{
+! 	    PyErr_SET_VIM("string cannot contain newlines");
+  	    Py_XDECREF(bytes);
+  	    return NULL;
+  	}
+--- 3554,3560 ----
+  	    --len;
+  	else
+  	{
+! 	    PyErr_SET_VIM(N_("string cannot contain newlines"));
+  	    Py_XDECREF(bytes);
+  	    return NULL;
+  	}
+***************
+*** 3688,3694 ****
+  	if (u_savedel((linenr_T)n, 1L) == FAIL)
+  	    RAISE_UNDO_FAIL;
+  	else if (ml_delete((linenr_T)n, FALSE) == FAIL)
+! 	    RAISE_LINE_FAIL("delete");
+  	else
+  	{
+  	    if (buf == savebuf)
+--- 3692,3698 ----
+  	if (u_savedel((linenr_T)n, 1L) == FAIL)
+  	    RAISE_UNDO_FAIL;
+  	else if (ml_delete((linenr_T)n, FALSE) == FAIL)
+! 	    RAISE_DELETE_LINE_FAIL;
+  	else
+  	{
+  	    if (buf == savebuf)
+***************
+*** 3727,3733 ****
+  	}
+  	else if (ml_replace((linenr_T)n, (char_u *)save, FALSE) == FAIL)
+  	{
+! 	    RAISE_LINE_FAIL("replace");
+  	    vim_free(save);
+  	}
+  	else
+--- 3731,3737 ----
+  	}
+  	else if (ml_replace((linenr_T)n, (char_u *)save, FALSE) == FAIL)
+  	{
+! 	    RAISE_REPLACE_LINE_FAIL;
+  	    vim_free(save);
+  	}
+  	else
+***************
+*** 3794,3800 ****
+  	    {
+  		if (ml_delete((linenr_T)lo, FALSE) == FAIL)
+  		{
+! 		    RAISE_LINE_FAIL("delete");
+  		    break;
+  		}
+  	    }
+--- 3798,3804 ----
+  	    {
+  		if (ml_delete((linenr_T)lo, FALSE) == FAIL)
+  		{
+! 		    RAISE_DELETE_LINE_FAIL;
+  		    break;
+  		}
+  	    }
+***************
+*** 3866,3872 ****
+  	    for (i = 0; i < old_len - new_len; ++i)
+  		if (ml_delete((linenr_T)lo, FALSE) == FAIL)
+  		{
+! 		    RAISE_LINE_FAIL("delete");
+  		    break;
+  		}
+  	    extra -= i;
+--- 3870,3876 ----
+  	    for (i = 0; i < old_len - new_len; ++i)
+  		if (ml_delete((linenr_T)lo, FALSE) == FAIL)
+  		{
+! 		    RAISE_DELETE_LINE_FAIL;
+  		    break;
+  		}
+  	    extra -= i;
+***************
+*** 3882,3888 ****
+  		if (ml_replace((linenr_T)(lo+i), (char_u *)array[i], FALSE)
+  								      == FAIL)
+  		{
+! 		    RAISE_LINE_FAIL("replace");
+  		    break;
+  		}
+  	}
+--- 3886,3892 ----
+  		if (ml_replace((linenr_T)(lo+i), (char_u *)array[i], FALSE)
+  								      == FAIL)
+  		{
+! 		    RAISE_REPLACE_LINE_FAIL;
+  		    break;
+  		}
+  	}
+***************
+*** 3900,3906 ****
+  		if (ml_append((linenr_T)(lo + i - 1),
+  					(char_u *)array[i], 0, FALSE) == FAIL)
+  		{
+! 		    RAISE_LINE_FAIL("insert");
+  		    break;
+  		}
+  		vim_free(array[i]);
+--- 3904,3910 ----
+  		if (ml_append((linenr_T)(lo + i - 1),
+  					(char_u *)array[i], 0, FALSE) == FAIL)
+  		{
+! 		    RAISE_INSERT_LINE_FAIL;
+  		    break;
+  		}
+  		vim_free(array[i]);
+***************
+*** 3979,3985 ****
+  	if (u_save((linenr_T)n, (linenr_T)(n+1)) == FAIL)
+  	    RAISE_UNDO_FAIL;
+  	else if (ml_append((linenr_T)n, (char_u *)str, 0, FALSE) == FAIL)
+! 	    RAISE_LINE_FAIL("insert");
+  	else
+  	    appended_lines_mark((linenr_T)n, 1L);
+  
+--- 3983,3989 ----
+  	if (u_save((linenr_T)n, (linenr_T)(n+1)) == FAIL)
+  	    RAISE_UNDO_FAIL;
+  	else if (ml_append((linenr_T)n, (char_u *)str, 0, FALSE) == FAIL)
+! 	    RAISE_INSERT_LINE_FAIL;
+  	else
+  	    appended_lines_mark((linenr_T)n, 1L);
+  
+***************
+*** 4036,4042 ****
+  		if (ml_append((linenr_T)(n + i),
+  					(char_u *)array[i], 0, FALSE) == FAIL)
+  		{
+! 		    RAISE_LINE_FAIL("insert");
+  
+  		    /* Free the rest of the lines */
+  		    while (i < size)
+--- 4040,4046 ----
+  		if (ml_append((linenr_T)(n + i),
+  					(char_u *)array[i], 0, FALSE) == FAIL)
+  		{
+! 		    RAISE_INSERT_LINE_FAIL;
+  
+  		    /* Free the rest of the lines */
+  		    while (i < size)
+***************
+*** 4089,4095 ****
+  {
+      if (self->buf == INVALID_BUFFER_VALUE)
+      {
+! 	PyErr_SET_VIM("attempt to refer to deleted buffer");
+  	return -1;
+      }
+  
+--- 4093,4099 ----
+  {
+      if (self->buf == INVALID_BUFFER_VALUE)
+      {
+! 	PyErr_SET_VIM(N_("attempt to refer to deleted buffer"));
+  	return -1;
+      }
+  
+***************
+*** 4110,4116 ****
+  
+      if (n < 0 || n > end - start)
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, "line number out of range");
+  	return NULL;
+      }
+  
+--- 4114,4120 ----
+  
+      if (n < 0 || n > end - start)
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, N_("line number out of range"));
+  	return NULL;
+      }
+  
+***************
+*** 4166,4172 ****
+  
+      if (n < 0 || n > end - start)
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, "line number out of range");
+  	return -1;
+      }
+  
+--- 4170,4176 ----
+  
+      if (n < 0 || n > end - start)
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, N_("line number out of range"));
+  	return -1;
+      }
+  
+***************
+*** 4250,4256 ****
+  
+      if (n < 0 || n > max)
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, "line number out of range");
+  	return NULL;
+      }
+  
+--- 4254,4260 ----
+  
+      if (n < 0 || n > max)
+      {
+! 	PyErr_SET_STRING(PyExc_IndexError, N_("line number out of range"));
+  	return NULL;
+      }
+  
+***************
+*** 4533,4539 ****
+  
+  	if (ren_ret == FAIL)
+  	{
+! 	    PyErr_SET_VIM("failed to rename buffer");
+  	    return -1;
+  	}
+  	return 0;
+--- 4537,4543 ----
+  
+  	if (ren_ret == FAIL)
+  	{
+! 	    PyErr_SET_VIM(N_("failed to rename buffer"));
+  	    return -1;
+  	}
+  	return 0;
+***************
+*** 4569,4575 ****
+      if (pmark[0] == '\0' || pmark[1] != '\0')
+      {
+  	PyErr_SET_STRING(PyExc_ValueError,
+! 		"mark name must be a single character");
+  	Py_XDECREF(todecref);
+  	return NULL;
+      }
+--- 4573,4579 ----
+      if (pmark[0] == '\0' || pmark[1] != '\0')
+      {
+  	PyErr_SET_STRING(PyExc_ValueError,
+! 		N_("mark name must be a single character"));
+  	Py_XDECREF(todecref);
+  	return NULL;
+      }
+***************
+*** 4587,4593 ****
+  
+      if (posp == NULL)
+      {
+! 	PyErr_SET_VIM("invalid mark name");
+  	return NULL;
+      }
+  
+--- 4591,4597 ----
+  
+      if (posp == NULL)
+      {
+! 	PyErr_SET_VIM(N_("invalid mark name"));
+  	return NULL;
+      }
+  
+***************
+*** 4812,4818 ****
+  	if (valObject->ob_type != &BufferType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+! 		    "expected vim.Buffer object, but got %s",
+  		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+--- 4816,4822 ----
+  	if (valObject->ob_type != &BufferType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+! 		    N_("expected vim.Buffer object, but got %s"),
+  		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+***************
+*** 4826,4832 ****
+  	{
+  	    if (VimTryEnd())
+  		return -1;
+! 	    PyErr_VIM_FORMAT("failed to switch to buffer %d", count);
+  	    return -1;
+  	}
+  
+--- 4830,4836 ----
+  	{
+  	    if (VimTryEnd())
+  		return -1;
+! 	    PyErr_VIM_FORMAT(N_("failed to switch to buffer %d"), count);
+  	    return -1;
+  	}
+  
+***************
+*** 4839,4845 ****
+  	if (valObject->ob_type != &WindowType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+! 		    "expected vim.Window object, but got %s",
+  		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+--- 4843,4849 ----
+  	if (valObject->ob_type != &WindowType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+! 		    N_("expected vim.Window object, but got %s"),
+  		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+***************
+*** 4851,4857 ****
+  	if (!count)
+  	{
+  	    PyErr_SET_STRING(PyExc_ValueError,
+! 		    "failed to find window in the current tab page");
+  	    return -1;
+  	}
+  
+--- 4855,4861 ----
+  	if (!count)
+  	{
+  	    PyErr_SET_STRING(PyExc_ValueError,
+! 		    N_("failed to find window in the current tab page"));
+  	    return -1;
+  	}
+  
+***************
+*** 4862,4868 ****
+  	    if (VimTryEnd())
+  		return -1;
+  	    PyErr_SET_STRING(PyExc_RuntimeError,
+! 		    "did not switch to the specified window");
+  	    return -1;
+  	}
+  
+--- 4866,4872 ----
+  	    if (VimTryEnd())
+  		return -1;
+  	    PyErr_SET_STRING(PyExc_RuntimeError,
+! 		    N_("did not switch to the specified window"));
+  	    return -1;
+  	}
+  
+***************
+*** 4873,4879 ****
+  	if (valObject->ob_type != &TabPageType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+! 		    "expected vim.TabPage object, but got %s",
+  		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+--- 4877,4883 ----
+  	if (valObject->ob_type != &TabPageType)
+  	{
+  	    PyErr_FORMAT(PyExc_TypeError,
+! 		    N_("expected vim.TabPage object, but got %s"),
+  		    Py_TYPE_NAME(valObject));
+  	    return -1;
+  	}
+***************
+*** 4888,4894 ****
+  	    if (VimTryEnd())
+  		return -1;
+  	    PyErr_SET_STRING(PyExc_RuntimeError,
+! 		    "did not switch to the specified tab page");
+  	    return -1;
+  	}
+  
+--- 4892,4898 ----
+  	    if (VimTryEnd())
+  		return -1;
+  	    PyErr_SET_STRING(PyExc_RuntimeError,
+! 		    N_("did not switch to the specified tab page"));
+  	    return -1;
+  	}
+  
+***************
+*** 5371,5377 ****
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		"unable to convert %s to vim dictionary",
+  		Py_TYPE_NAME(obj));
+  	ret = -1;
+      }
+--- 5375,5381 ----
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		N_("unable to convert %s to vim dictionary"),
+  		Py_TYPE_NAME(obj));
+  	ret = -1;
+      }
+***************
+*** 5498,5504 ****
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		"unable to convert %s to vim structure",
+  		Py_TYPE_NAME(obj));
+  	return -1;
+      }
+--- 5502,5508 ----
+      else
+      {
+  	PyErr_FORMAT(PyExc_TypeError,
+! 		N_("unable to convert %s to vim structure"),
+  		Py_TYPE_NAME(obj));
+  	return -1;
+      }
+***************
+*** 5510,5516 ****
+  {
+      if (tv == NULL)
+      {
+! 	PyErr_SET_VIM("internal error: NULL reference passed");
+  	return NULL;
+      }
+      switch (tv->v_type)
+--- 5514,5520 ----
+  {
+      if (tv == NULL)
+      {
+! 	PyErr_SET_VIM(N_("internal error: NULL reference passed"));
+  	return NULL;
+      }
+      switch (tv->v_type)
+***************
+*** 5535,5541 ****
+  	    Py_INCREF(Py_None);
+  	    return Py_None;
+  	default:
+! 	    PyErr_SET_VIM("internal error: invalid value type");
+  	    return NULL;
+      }
+  }
+--- 5539,5545 ----
+  	    Py_INCREF(Py_None);
+  	    return Py_None;
+  	default:
+! 	    PyErr_SET_VIM(N_("internal error: invalid value type"));
+  	    return NULL;
+      }
+  }
+*** ../vim-7.3.1233/src/version.c	2013-06-23 14:37:00.000000000 +0200
+--- src/version.c	2013-06-23 14:41:34.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1234,
+  /**/
+
+-- 
+       Bravely bold Sir Robin, rode forth from Camelot,
+       He was not afraid to die, Oh Brave Sir Robin,
+       He was not at all afraid to be killed in nasty ways
+       Brave, brave, brave, brave Sir Robin.
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

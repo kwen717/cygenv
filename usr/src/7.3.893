@@ -1,0 +1,718 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.893
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.893
+Problem:    Crash when using b:, w: or t: after closing the buffer, window or
+	    tabpage.
+Solution:   Allocate the dictionary instead of having it part of the
+	    buffer/window/tabpage struct. (Yukihiro Nakadaira)
+Files:	    src/buffer.c, src/eval.c, src/fileio.c, src/structs.h,
+	    src/window.c, src/proto/eval.pro
+
+
+*** ../vim-7.3.892/src/buffer.c	2013-03-19 16:46:59.000000000 +0100
+--- src/buffer.c	2013-04-15 12:07:07.000000000 +0200
+***************
+*** 648,653 ****
+--- 648,656 ----
+      buf_T	*buf;
+  {
+      free_buffer_stuff(buf, TRUE);
++ #ifdef FEAT_EVAL
++     unref_var_dict(buf->b_vars);
++ #endif
+  #ifdef FEAT_LUA
+      lua_buffer_free(buf);
+  #endif
+***************
+*** 689,696 ****
+  #endif
+      }
+  #ifdef FEAT_EVAL
+!     vars_clear(&buf->b_vars.dv_hashtab); /* free all internal variables */
+!     hash_init(&buf->b_vars.dv_hashtab);
+  #endif
+  #ifdef FEAT_USR_CMDS
+      uc_clear(&buf->b_ucmds);		/* clear local user commands */
+--- 692,699 ----
+  #endif
+      }
+  #ifdef FEAT_EVAL
+!     vars_clear(&buf->b_vars->dv_hashtab); /* free all internal variables */
+!     hash_init(&buf->b_vars->dv_hashtab);
+  #endif
+  #ifdef FEAT_USR_CMDS
+      uc_clear(&buf->b_ucmds);		/* clear local user commands */
+***************
+*** 1694,1699 ****
+--- 1697,1713 ----
+  	    vim_free(ffname);
+  	    return NULL;
+  	}
++ #ifdef FEAT_EVAL
++ 	/* init b: variables */
++ 	buf->b_vars = dict_alloc();
++ 	if (buf->b_vars == NULL)
++ 	{
++ 	    vim_free(ffname);
++ 	    vim_free(buf);
++ 	    return NULL;
++ 	}
++ 	init_var_dict(buf->b_vars, &buf->b_bufvar, VAR_SCOPE);
++ #endif
+      }
+  
+      if (ffname != NULL)
+***************
+*** 1778,1787 ****
+      buf->b_wininfo->wi_fpos.lnum = lnum;
+      buf->b_wininfo->wi_win = curwin;
+  
+- #ifdef FEAT_EVAL
+-     /* init b: variables */
+-     init_var_dict(&buf->b_vars, &buf->b_bufvar, VAR_SCOPE);
+- #endif
+  #ifdef FEAT_SYN_HL
+      hash_init(&buf->b_s.b_keywtab);
+      hash_init(&buf->b_s.b_keywtab_ic);
+--- 1792,1797 ----
+*** ../vim-7.3.892/src/eval.c	2013-03-19 14:25:50.000000000 +0100
+--- src/eval.c	2013-04-15 12:26:33.000000000 +0200
+***************
+*** 2131,2137 ****
+  {
+      char_u	numbuf[NUMBUFLEN];
+  
+!     list_hashtable_vars(&curbuf->b_vars.dv_hashtab, (char_u *)"b:",
+  								 TRUE, first);
+  
+      sprintf((char *)numbuf, "%ld", (long)curbuf->b_changedtick);
+--- 2131,2137 ----
+  {
+      char_u	numbuf[NUMBUFLEN];
+  
+!     list_hashtable_vars(&curbuf->b_vars->dv_hashtab, (char_u *)"b:",
+  								 TRUE, first);
+  
+      sprintf((char *)numbuf, "%ld", (long)curbuf->b_changedtick);
+***************
+*** 2146,2152 ****
+  list_win_vars(first)
+      int *first;
+  {
+!     list_hashtable_vars(&curwin->w_vars.dv_hashtab,
+  						 (char_u *)"w:", TRUE, first);
+  }
+  
+--- 2146,2152 ----
+  list_win_vars(first)
+      int *first;
+  {
+!     list_hashtable_vars(&curwin->w_vars->dv_hashtab,
+  						 (char_u *)"w:", TRUE, first);
+  }
+  
+***************
+*** 2158,2164 ****
+  list_tab_vars(first)
+      int *first;
+  {
+!     list_hashtable_vars(&curtab->tp_vars.dv_hashtab,
+  						 (char_u *)"t:", TRUE, first);
+  }
+  #endif
+--- 2158,2164 ----
+  list_tab_vars(first)
+      int *first;
+  {
+!     list_hashtable_vars(&curtab->tp_vars->dv_hashtab,
+  						 (char_u *)"t:", TRUE, first);
+  }
+  #endif
+***************
+*** 3948,3954 ****
+      }
+  
+      /* b: variables */
+!     ht = &curbuf->b_vars.dv_hashtab;
+      if (bdone < ht->ht_used)
+      {
+  	if (bdone++ == 0)
+--- 3948,3954 ----
+      }
+  
+      /* b: variables */
+!     ht = &curbuf->b_vars->dv_hashtab;
+      if (bdone < ht->ht_used)
+      {
+  	if (bdone++ == 0)
+***************
+*** 3966,3972 ****
+      }
+  
+      /* w: variables */
+!     ht = &curwin->w_vars.dv_hashtab;
+      if (wdone < ht->ht_used)
+      {
+  	if (wdone++ == 0)
+--- 3966,3972 ----
+      }
+  
+      /* w: variables */
+!     ht = &curwin->w_vars->dv_hashtab;
+      if (wdone < ht->ht_used)
+      {
+  	if (wdone++ == 0)
+***************
+*** 3980,3986 ****
+  
+  #ifdef FEAT_WINDOWS
+      /* t: variables */
+!     ht = &curtab->tp_vars.dv_hashtab;
+      if (tdone < ht->ht_used)
+      {
+  	if (tdone++ == 0)
+--- 3980,3986 ----
+  
+  #ifdef FEAT_WINDOWS
+      /* t: variables */
+!     ht = &curtab->tp_vars->dv_hashtab;
+      if (tdone < ht->ht_used)
+      {
+  	if (tdone++ == 0)
+***************
+*** 6787,6802 ****
+  
+      /* buffer-local variables */
+      for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+! 	set_ref_in_ht(&buf->b_vars.dv_hashtab, copyID);
+  
+      /* window-local variables */
+      FOR_ALL_TAB_WINDOWS(tp, wp)
+! 	set_ref_in_ht(&wp->w_vars.dv_hashtab, copyID);
+  
+  #ifdef FEAT_WINDOWS
+      /* tabpage-local variables */
+      for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
+! 	set_ref_in_ht(&tp->tp_vars.dv_hashtab, copyID);
+  #endif
+  
+      /* global variables */
+--- 6787,6802 ----
+  
+      /* buffer-local variables */
+      for (buf = firstbuf; buf != NULL; buf = buf->b_next)
+! 	set_ref_in_item(&buf->b_bufvar.di_tv, copyID);
+  
+      /* window-local variables */
+      FOR_ALL_TAB_WINDOWS(tp, wp)
+! 	set_ref_in_item(&wp->w_winvar.di_tv, copyID);
+  
+  #ifdef FEAT_WINDOWS
+      /* tabpage-local variables */
+      for (tp = first_tabpage; tp != NULL; tp = tp->tp_next)
+! 	set_ref_in_item(&tp->tp_winvar.di_tv, copyID);
+  #endif
+  
+      /* global variables */
+***************
+*** 11156,11162 ****
+  		 * find_var_in_ht(). */
+  		varname = (char_u *)"b:" + 2;
+  	    /* look up the variable */
+! 	    v = find_var_in_ht(&curbuf->b_vars.dv_hashtab, varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+--- 11156,11162 ----
+  		 * find_var_in_ht(). */
+  		varname = (char_u *)"b:" + 2;
+  	    /* look up the variable */
+! 	    v = find_var_in_ht(&curbuf->b_vars->dv_hashtab, varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+***************
+*** 11779,11785 ****
+      if (tp != NULL && varname != NULL)
+      {
+  	/* look up the variable */
+! 	v = find_var_in_ht(&tp->tp_vars.dv_hashtab, varname, FALSE);
+  	if (v != NULL)
+  	    copy_tv(&v->di_tv, rettv);
+  	else if (argvars[2].v_type != VAR_UNKNOWN)
+--- 11779,11785 ----
+      if (tp != NULL && varname != NULL)
+      {
+  	/* look up the variable */
+! 	v = find_var_in_ht(&tp->tp_vars->dv_hashtab, varname, FALSE);
+  	if (v != NULL)
+  	    copy_tv(&v->di_tv, rettv);
+  	else if (argvars[2].v_type != VAR_UNKNOWN)
+***************
+*** 11935,11941 ****
+  		 * find_var_in_ht(). */
+  		varname = (char_u *)"w:" + 2;
+  	    /* look up the variable */
+! 	    v = find_var_in_ht(&win->w_vars.dv_hashtab, varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+--- 11935,11941 ----
+  		 * find_var_in_ht(). */
+  		varname = (char_u *)"w:" + 2;
+  	    /* look up the variable */
+! 	    v = find_var_in_ht(&win->w_vars->dv_hashtab, varname, FALSE);
+  	    if (v != NULL)
+  		copy_tv(&v->di_tv, rettv);
+  	}
+***************
+*** 14333,14339 ****
+      rettv->v_type = VAR_STRING;
+  }
+  
+! #ifdef FEAT_MZSCHEME
+  /*
+   * "mzeval()" function
+   */
+--- 14333,14339 ----
+      rettv->v_type = VAR_STRING;
+  }
+  
+! #if defined(FEAT_MZSCHEME) || defined(PROTO)
+  /*
+   * "mzeval()" function
+   */
+***************
+*** 20134,20145 ****
+  			       || vim_strchr(name + 2, AUTOLOAD_CHAR) != NULL)
+  	return NULL;
+      if (*name == 'b')				/* buffer variable */
+! 	return &curbuf->b_vars.dv_hashtab;
+      if (*name == 'w')				/* window variable */
+! 	return &curwin->w_vars.dv_hashtab;
+  #ifdef FEAT_WINDOWS
+      if (*name == 't')				/* tab page variable */
+! 	return &curtab->tp_vars.dv_hashtab;
+  #endif
+      if (*name == 'v')				/* v: variable */
+  	return &vimvarht;
+--- 20134,20145 ----
+  			       || vim_strchr(name + 2, AUTOLOAD_CHAR) != NULL)
+  	return NULL;
+      if (*name == 'b')				/* buffer variable */
+! 	return &curbuf->b_vars->dv_hashtab;
+      if (*name == 'w')				/* window variable */
+! 	return &curwin->w_vars->dv_hashtab;
+  #ifdef FEAT_WINDOWS
+      if (*name == 't')				/* tab page variable */
+! 	return &curtab->tp_vars->dv_hashtab;
+  #endif
+      if (*name == 'v')				/* v: variable */
+  	return &vimvarht;
+***************
+*** 20229,20234 ****
+--- 20229,20247 ----
+  }
+  
+  /*
++  * Unreference a dictionary initialized by init_var_dict().
++  */
++     void
++ unref_var_dict(dict)
++     dict_T	*dict;
++ {
++     /* Now the dict needs to be freed if no one else is using it, go back to
++      * normal reference counting. */
++     dict->dv_refcount -= DO_NOT_FREE_CNT - 1;
++     dict_unref(dict);
++ }
++ 
++ /*
+   * Clean up a list of internal variables.
+   * Frees all allocated variables and the value they contain.
+   * Clears hashtab "ht", does not free it.
+*** ../vim-7.3.892/src/fileio.c	2013-03-19 16:46:59.000000000 +0100
+--- src/fileio.c	2013-04-15 11:52:34.000000000 +0200
+***************
+*** 8955,8962 ****
+  	    /* Hmm, original window disappeared.  Just use the first one. */
+  	    curwin = firstwin;
+  # ifdef FEAT_EVAL
+! 	vars_clear(&aucmd_win->w_vars.dv_hashtab);  /* free all w: variables */
+! 	hash_init(&aucmd_win->w_vars.dv_hashtab);   /* re-use the hashtab */
+  # endif
+  #else
+  	curwin = aco->save_curwin;
+--- 8955,8962 ----
+  	    /* Hmm, original window disappeared.  Just use the first one. */
+  	    curwin = firstwin;
+  # ifdef FEAT_EVAL
+! 	vars_clear(&aucmd_win->w_vars->dv_hashtab);  /* free all w: variables */
+! 	hash_init(&aucmd_win->w_vars->dv_hashtab);   /* re-use the hashtab */
+  # endif
+  #else
+  	curwin = aco->save_curwin;
+*** ../vim-7.3.892/src/structs.h	2012-07-16 17:31:48.000000000 +0200
+--- src/structs.h	2013-04-15 11:52:34.000000000 +0200
+***************
+*** 1611,1617 ****
+  
+  #ifdef FEAT_EVAL
+      dictitem_T	b_bufvar;	/* variable for "b:" Dictionary */
+!     dict_T	b_vars;		/* internal variables, local to buffer */
+  #endif
+  
+  #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
+--- 1611,1617 ----
+  
+  #ifdef FEAT_EVAL
+      dictitem_T	b_bufvar;	/* variable for "b:" Dictionary */
+!     dict_T	*b_vars;	/* internal variables, local to buffer */
+  #endif
+  
+  #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
+***************
+*** 1757,1763 ****
+      frame_T	    *(tp_snapshot[SNAP_COUNT]);  /* window layout snapshots */
+  #ifdef FEAT_EVAL
+      dictitem_T	    tp_winvar;	    /* variable for "t:" Dictionary */
+!     dict_T	    tp_vars;	    /* internal variables, local to tab page */
+  #endif
+  };
+  
+--- 1757,1763 ----
+      frame_T	    *(tp_snapshot[SNAP_COUNT]);  /* window layout snapshots */
+  #ifdef FEAT_EVAL
+      dictitem_T	    tp_winvar;	    /* variable for "t:" Dictionary */
+!     dict_T	    *tp_vars;	    /* internal variables, local to tab page */
+  #endif
+  };
+  
+***************
+*** 2080,2086 ****
+  
+  #ifdef FEAT_EVAL
+      dictitem_T	w_winvar;	/* variable for "w:" Dictionary */
+!     dict_T	w_vars;		/* internal variables, local to window */
+  #endif
+  
+  #if defined(FEAT_RIGHTLEFT) && defined(FEAT_FKMAP)
+--- 2080,2086 ----
+  
+  #ifdef FEAT_EVAL
+      dictitem_T	w_winvar;	/* variable for "w:" Dictionary */
+!     dict_T	*w_vars;	/* internal variables, local to window */
+  #endif
+  
+  #if defined(FEAT_RIGHTLEFT) && defined(FEAT_FKMAP)
+*** ../vim-7.3.892/src/window.c	2013-02-06 13:37:58.000000000 +0100
+--- src/window.c	2013-04-15 12:20:09.000000000 +0200
+***************
+*** 3457,3481 ****
+  alloc_tabpage()
+  {
+      tabpage_T	*tp;
+  
+      tp = (tabpage_T *)alloc_clear((unsigned)sizeof(tabpage_T));
+!     if (tp != NULL)
+      {
+! # ifdef FEAT_GUI
+! 	int	i;
+  
+! 	for (i = 0; i < 3; i++)
+! 	    tp->tp_prev_which_scrollbars[i] = -1;
+  # endif
+  # ifdef FEAT_DIFF
+! 	tp->tp_diff_invalid = TRUE;
+  # endif
+! #ifdef FEAT_EVAL
+! 	/* init t: variables */
+! 	init_var_dict(&tp->tp_vars, &tp->tp_winvar, VAR_SCOPE);
+! #endif
+! 	tp->tp_ch_used = p_ch;
+!     }
+      return tp;
+  }
+  
+--- 3457,3491 ----
+  alloc_tabpage()
+  {
+      tabpage_T	*tp;
++ # ifdef FEAT_GUI
++     int		i;
++ # endif
++ 
+  
+      tp = (tabpage_T *)alloc_clear((unsigned)sizeof(tabpage_T));
+!     if (tp == NULL)
+! 	return NULL;
+! 
+! # ifdef FEAT_EVAL
+!     /* init t: variables */
+!     tp->tp_vars = dict_alloc();
+!     if (tp->tp_vars == NULL)
+      {
+! 	vim_free(tp);
+! 	return NULL;
+!     }
+!     init_var_dict(tp->tp_vars, &tp->tp_winvar, VAR_SCOPE);
+! # endif
+  
+! # ifdef FEAT_GUI
+!     for (i = 0; i < 3; i++)
+! 	tp->tp_prev_which_scrollbars[i] = -1;
+  # endif
+  # ifdef FEAT_DIFF
+!     tp->tp_diff_invalid = TRUE;
+  # endif
+!     tp->tp_ch_used = p_ch;
+! 
+      return tp;
+  }
+  
+***************
+*** 3491,3497 ****
+      for (idx = 0; idx < SNAP_COUNT; ++idx)
+  	clear_snapshot(tp, idx);
+  #ifdef FEAT_EVAL
+!     vars_clear(&tp->tp_vars.dv_hashtab);	/* free all t: variables */
+  #endif
+      vim_free(tp);
+  }
+--- 3501,3509 ----
+      for (idx = 0; idx < SNAP_COUNT; ++idx)
+  	clear_snapshot(tp, idx);
+  #ifdef FEAT_EVAL
+!     vars_clear(&tp->tp_vars->dv_hashtab);	/* free all t: variables */
+!     hash_init(&tp->tp_vars->dv_hashtab);
+!     unref_var_dict(tp->tp_vars);
+  #endif
+      vim_free(tp);
+  }
+***************
+*** 4363,4433 ****
+       * allocate window structure and linesizes arrays
+       */
+      new_wp = (win_T *)alloc_clear((unsigned)sizeof(win_T));
+!     if (new_wp != NULL && win_alloc_lines(new_wp) == FAIL)
+      {
+  	vim_free(new_wp);
+! 	new_wp = NULL;
+      }
+  
+!     if (new_wp != NULL)
+      {
+  #ifdef FEAT_AUTOCMD
+! 	/* Don't execute autocommands while the window is not properly
+! 	 * initialized yet.  gui_create_scrollbar() may trigger a FocusGained
+! 	 * event. */
+! 	block_autocmds();
+  #endif
+! 	/*
+! 	 * link the window in the window list
+! 	 */
+  #ifdef FEAT_WINDOWS
+! 	if (!hidden)
+! 	    win_append(after, new_wp);
+  #endif
+  #ifdef FEAT_VERTSPLIT
+! 	new_wp->w_wincol = 0;
+! 	new_wp->w_width = Columns;
+  #endif
+  
+! 	/* position the display and the cursor at the top of the file. */
+! 	new_wp->w_topline = 1;
+  #ifdef FEAT_DIFF
+! 	new_wp->w_topfill = 0;
+  #endif
+! 	new_wp->w_botline = 2;
+! 	new_wp->w_cursor.lnum = 1;
+  #ifdef FEAT_SCROLLBIND
+! 	new_wp->w_scbind_pos = 1;
+  #endif
+  
+! 	/* We won't calculate w_fraction until resizing the window */
+! 	new_wp->w_fraction = 0;
+! 	new_wp->w_prev_fraction_row = -1;
+  
+  #ifdef FEAT_GUI
+! 	if (gui.in_use)
+! 	{
+! 	    gui_create_scrollbar(&new_wp->w_scrollbars[SBAR_LEFT],
+! 		    SBAR_LEFT, new_wp);
+! 	    gui_create_scrollbar(&new_wp->w_scrollbars[SBAR_RIGHT],
+! 		    SBAR_RIGHT, new_wp);
+! 	}
+! #endif
+! #ifdef FEAT_EVAL
+! 	/* init w: variables */
+! 	init_var_dict(&new_wp->w_vars, &new_wp->w_winvar, VAR_SCOPE);
+  #endif
+  #ifdef FEAT_FOLDING
+! 	foldInitWin(new_wp);
+  #endif
+  #ifdef FEAT_AUTOCMD
+! 	unblock_autocmds();
+  #endif
+  #ifdef FEAT_SEARCH_EXTRA
+! 	new_wp->w_match_head = NULL;
+! 	new_wp->w_next_match_id = 4;
+  #endif
+-     }
+      return new_wp;
+  }
+  
+--- 4375,4453 ----
+       * allocate window structure and linesizes arrays
+       */
+      new_wp = (win_T *)alloc_clear((unsigned)sizeof(win_T));
+!     if (new_wp == NULL)
+! 	return NULL;
+! 
+!     if (win_alloc_lines(new_wp) == FAIL)
+      {
+  	vim_free(new_wp);
+! 	return NULL;
+      }
+  
+! #ifdef FEAT_EVAL
+!     /* init w: variables */
+!     new_wp->w_vars = dict_alloc();
+!     if (new_wp->w_vars == NULL)
+      {
++ 	win_free_lsize(new_wp);
++ 	vim_free(new_wp);
++ 	return NULL;
++     }
++     init_var_dict(new_wp->w_vars, &new_wp->w_winvar, VAR_SCOPE);
++ #endif
++ 
+  #ifdef FEAT_AUTOCMD
+!     /* Don't execute autocommands while the window is not properly
+!      * initialized yet.  gui_create_scrollbar() may trigger a FocusGained
+!      * event. */
+!     block_autocmds();
+  #endif
+!     /*
+!      * link the window in the window list
+!      */
+  #ifdef FEAT_WINDOWS
+!     if (!hidden)
+! 	win_append(after, new_wp);
+  #endif
+  #ifdef FEAT_VERTSPLIT
+!     new_wp->w_wincol = 0;
+!     new_wp->w_width = Columns;
+  #endif
+  
+!     /* position the display and the cursor at the top of the file. */
+!     new_wp->w_topline = 1;
+  #ifdef FEAT_DIFF
+!     new_wp->w_topfill = 0;
+  #endif
+!     new_wp->w_botline = 2;
+!     new_wp->w_cursor.lnum = 1;
+  #ifdef FEAT_SCROLLBIND
+!     new_wp->w_scbind_pos = 1;
+  #endif
+  
+!     /* We won't calculate w_fraction until resizing the window */
+!     new_wp->w_fraction = 0;
+!     new_wp->w_prev_fraction_row = -1;
+  
+  #ifdef FEAT_GUI
+!     if (gui.in_use)
+!     {
+! 	gui_create_scrollbar(&new_wp->w_scrollbars[SBAR_LEFT],
+! 		SBAR_LEFT, new_wp);
+! 	gui_create_scrollbar(&new_wp->w_scrollbars[SBAR_RIGHT],
+! 		SBAR_RIGHT, new_wp);
+!     }
+  #endif
+  #ifdef FEAT_FOLDING
+!     foldInitWin(new_wp);
+  #endif
+  #ifdef FEAT_AUTOCMD
+!     unblock_autocmds();
+  #endif
+  #ifdef FEAT_SEARCH_EXTRA
+!     new_wp->w_match_head = NULL;
+!     new_wp->w_next_match_id = 4;
+  #endif
+      return new_wp;
+  }
+  
+***************
+*** 4488,4494 ****
+      clear_winopt(&wp->w_allbuf_opt);
+  
+  #ifdef FEAT_EVAL
+!     vars_clear(&wp->w_vars.dv_hashtab);	    /* free all w: variables */
+  #endif
+  
+      if (prevwin == wp)
+--- 4508,4516 ----
+      clear_winopt(&wp->w_allbuf_opt);
+  
+  #ifdef FEAT_EVAL
+!     vars_clear(&wp->w_vars->dv_hashtab);	/* free all w: variables */
+!     hash_init(&wp->w_vars->dv_hashtab);
+!     unref_var_dict(wp->w_vars);
+  #endif
+  
+      if (prevwin == wp)
+*** ../vim-7.3.892/src/proto/eval.pro	2013-01-30 14:55:35.000000000 +0100
+--- src/proto/eval.pro	2013-04-15 12:26:39.000000000 +0200
+***************
+*** 24,31 ****
+  int get_spellword __ARGS((list_T *list, char_u **pp));
+  typval_T *eval_expr __ARGS((char_u *arg, char_u **nextcmd));
+  int call_vim_function __ARGS((char_u *func, int argc, char_u **argv, int safe, int str_arg_only, typval_T *rettv));
+- void *call_func_retstr __ARGS((char_u *func, int argc, char_u **argv, int safe));
+  long call_func_retnr __ARGS((char_u *func, int argc, char_u **argv, int safe));
+  void *call_func_retlist __ARGS((char_u *func, int argc, char_u **argv, int safe));
+  void *save_funccal __ARGS((void));
+  void restore_funccal __ARGS((void *vfc));
+--- 24,31 ----
+  int get_spellword __ARGS((list_T *list, char_u **pp));
+  typval_T *eval_expr __ARGS((char_u *arg, char_u **nextcmd));
+  int call_vim_function __ARGS((char_u *func, int argc, char_u **argv, int safe, int str_arg_only, typval_T *rettv));
+  long call_func_retnr __ARGS((char_u *func, int argc, char_u **argv, int safe));
++ void *call_func_retstr __ARGS((char_u *func, int argc, char_u **argv, int safe));
+  void *call_func_retlist __ARGS((char_u *func, int argc, char_u **argv, int safe));
+  void *save_funccal __ARGS((void));
+  void restore_funccal __ARGS((void *vfc));
+***************
+*** 95,100 ****
+--- 95,101 ----
+  char_u *get_var_value __ARGS((char_u *name));
+  void new_script_vars __ARGS((scid_T id));
+  void init_var_dict __ARGS((dict_T *dict, dictitem_T *dict_var, int scope));
++ void unref_var_dict __ARGS((dict_T *dict));
+  void vars_clear __ARGS((hashtab_T *ht));
+  void copy_tv __ARGS((typval_T *from, typval_T *to));
+  void ex_echo __ARGS((exarg_T *eap));
+*** ../vim-7.3.892/src/version.c	2013-04-14 23:19:32.000000000 +0200
+--- src/version.c	2013-04-15 12:19:17.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     893,
+  /**/
+
+-- 
+Apathy Error: Don't bother striking any key.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

@@ -1,0 +1,78 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1242
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1242
+Problem:    No failure when trying to use a number as a string.
+Solution:   Give an error when StringToLine() is called with an instance of
+	    the wrong type. (Jun Takimoto)
+Files:	    src/if_py_both.h
+
+
+*** ../vim-7.3.1241/src/if_py_both.h	2013-06-24 21:21:52.000000000 +0200
+--- src/if_py_both.h	2013-06-24 22:30:51.000000000 +0200
+***************
+*** 3549,3561 ****
+  	if (!(bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL)))
+  	    return NULL;
+  
+! 	if(PyBytes_AsStringAndSize(bytes, &str, &len) == -1
+  		|| str == NULL)
+  	{
+  	    Py_DECREF(bytes);
+  	    return NULL;
+  	}
+      }
+  
+      /*
+       * Error checking: String must not contain newlines, as we
+--- 3549,3574 ----
+  	if (!(bytes = PyUnicode_AsEncodedString(obj, ENC_OPT, NULL)))
+  	    return NULL;
+  
+! 	if (PyBytes_AsStringAndSize(bytes, &str, &len) == -1
+  		|| str == NULL)
+  	{
+  	    Py_DECREF(bytes);
+  	    return NULL;
+  	}
+      }
++     else
++     {
++ #if PY_MAJOR_VERSION < 3
++ 	PyErr_FORMAT(PyExc_TypeError,
++ 		N_("expected str() or unicode() instance, but got %s"),
++ 		Py_TYPE_NAME(obj));
++ #else
++ 	PyErr_FORMAT(PyExc_TypeError,
++ 		N_("expected bytes() or str() instance, but got %s"),
++ 		Py_TYPE_NAME(obj));
++ #endif
++ 	return NULL;
++     }
+  
+      /*
+       * Error checking: String must not contain newlines, as we
+*** ../vim-7.3.1241/src/version.c	2013-06-24 22:23:51.000000000 +0200
+--- src/version.c	2013-06-24 22:32:19.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1242,
+  /**/
+
+-- 
+A successful man is one who makes more money than his wife can spend.
+A successful woman is one who can find such a man.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

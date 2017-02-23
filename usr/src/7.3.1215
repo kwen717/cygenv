@@ -1,0 +1,48 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1215
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1215
+Problem:    Compiler warning for function not defined.
+Solution:   Add #ifdef.
+Files:	    src/misc1.c
+
+
+*** ../vim-7.3.1214/src/misc1.c	2013-06-16 22:49:09.000000000 +0200
+--- src/misc1.c	2013-06-17 19:19:27.000000000 +0200
+***************
+*** 16,22 ****
+--- 16,24 ----
+  
+  static char_u *vim_version_dir __ARGS((char_u *vimdir));
+  static char_u *remove_tail __ARGS((char_u *p, char_u *pend, char_u *name));
++ #if defined(FEAT_CMDL_COMPL)
+  static void init_users __ARGS((void));
++ #endif
+  static int copy_indent __ARGS((int size, char_u	*src));
+  
+  /* All user names (for ~user completion as done by shell). */
+*** ../vim-7.3.1214/src/version.c	2013-06-16 22:49:09.000000000 +0200
+--- src/version.c	2013-06-17 19:20:16.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1215,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+242. You turn down a better-paying job because it doesn't come with
+     a free e-mail account.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

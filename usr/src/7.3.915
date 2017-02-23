@@ -1,0 +1,47 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.915
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.915
+Problem:    When reading a file with encoding conversion fails at the end the
+	    next encoding in 'fencs' is not used.
+Solution:   Retry with another encoding when possible. (Taro Muraoka)
+Files:	    src/fileio.c
+
+
+*** ../vim-7.3.914/src/fileio.c	2013-04-15 12:27:30.000000000 +0200
+--- src/fileio.c	2013-04-24 16:16:28.000000000 +0200
+***************
+*** 1380,1385 ****
+--- 1380,1387 ----
+  # endif
+  			   )
+  			{
++ 			    if (can_retry)
++ 				goto rewind_retry;
+  			    if (conv_error == 0)
+  				conv_error = curbuf->b_ml.ml_line_count
+  								- linecnt + 1;
+*** ../vim-7.3.914/src/version.c	2013-04-24 15:47:11.000000000 +0200
+--- src/version.c	2013-04-24 16:18:48.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     915,
+  /**/
+
+-- 
+hundred-and-one symptoms of being an internet addict:
+227. You sleep next to your monitor.  Or on top of it.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

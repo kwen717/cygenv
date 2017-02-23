@@ -1,0 +1,47 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.904
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.904 (after 7.3.893)
+Problem:    Using memory freed by the garbage collector.
+Solution:   Mark items in aucmd_win as used.
+Files:	    src/eval.c
+
+
+*** ../vim-7.3.903/src/eval.c	2013-04-15 15:15:31.000000000 +0200
+--- src/eval.c	2013-04-15 18:20:35.000000000 +0200
+***************
+*** 6792,6797 ****
+--- 6792,6801 ----
+      /* window-local variables */
+      FOR_ALL_TAB_WINDOWS(tp, wp)
+  	set_ref_in_item(&wp->w_winvar.di_tv, copyID);
++ #ifdef FEAT_AUTOCMD
++     if (aucmd_win != NULL)
++ 	set_ref_in_item(&aucmd_win->w_winvar.di_tv, copyID);
++ #endif
+  
+  #ifdef FEAT_WINDOWS
+      /* tabpage-local variables */
+*** ../vim-7.3.903/src/version.c	2013-04-15 16:14:15.000000000 +0200
+--- src/version.c	2013-04-15 18:21:49.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     904,
+  /**/
+
+-- 
+Rule #1: Don't give somebody a tool that he's going to hurt himself with.
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///

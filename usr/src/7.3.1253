@@ -1,0 +1,74 @@
+To: vim_dev@googlegroups.com
+Subject: Patch 7.3.1253
+Fcc: outbox
+From: Bram Moolenaar <Bram@moolenaar.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+------------
+
+Patch 7.3.1253 (after 7.3.1200)
+Problem:    Still undo problem after using CTRL-R = setline(). (Hirohito
+	    Higashi)
+Solution:   Set the ins_need_undo flag.
+Files:	    src/edit.c
+
+
+*** ../vim-7.3.1252/src/edit.c	2013-06-15 17:54:36.000000000 +0200
+--- src/edit.c	2013-06-27 22:21:08.000000000 +0200
+***************
+*** 8134,8148 ****
+  # ifdef USE_IM_CONTROL
+  	int	im_on = im_get_status();
+  # endif
+  	regname = get_expr_register();
+  # ifdef USE_IM_CONTROL
+  	/* Restore the Input Method. */
+  	if (im_on)
+  	    im_set_active(TRUE);
+  # endif
+! 	if (regname == '=')
+! 	    /* sync undo, so the effect of e.g., setline() can be undone */
+! 	    u_sync(TRUE);
+      }
+      if (regname == NUL || !valid_yank_reg(regname, FALSE))
+      {
+--- 8134,8150 ----
+  # ifdef USE_IM_CONTROL
+  	int	im_on = im_get_status();
+  # endif
++ 	/* Sync undo, so the effect of e.g., setline() can be undone. */
++ 	u_sync(TRUE);
++ 	ins_need_undo = TRUE;
++ 
+  	regname = get_expr_register();
+  # ifdef USE_IM_CONTROL
+  	/* Restore the Input Method. */
+  	if (im_on)
+  	    im_set_active(TRUE);
+  # endif
+! 	Insstart = curwin->w_cursor;
+      }
+      if (regname == NUL || !valid_yank_reg(regname, FALSE))
+      {
+*** ../vim-7.3.1252/src/version.c	2013-06-27 22:01:56.000000000 +0200
+--- src/version.c	2013-06-27 22:13:02.000000000 +0200
+***************
+*** 730,731 ****
+--- 730,733 ----
+  {   /* Add new patch number below this line */
++ /**/
++     1253,
+  /**/
+
+-- 
+   LAUNCELOT leaps into SHOT with a mighty cry and runs the GUARD through and
+   hacks him to the floor.  Blood.  Swashbuckling music (perhaps).
+   LAUNCELOT races through into the castle screaming.
+SECOND SENTRY: Hey!
+                 "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
+
+ /// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
+///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
+\\\  an exciting new programming language -- http://www.Zimbu.org        ///
+ \\\            help me help AIDS victims -- http://ICCF-Holland.org    ///
